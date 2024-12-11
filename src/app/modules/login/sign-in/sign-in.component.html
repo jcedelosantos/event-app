@@ -1,1 +1,44 @@
-<p>sign In works!</p>
+<div class="row container-sign-in">
+    <div class="col-12">
+        <h2>Sing In</h2>
+    </div>
+    <div class="col-12">
+        <form>
+            <div class="mb-3">
+                <label for="exampleInputEmail1" class="form-label">Email address</label>
+                <input type="email" class="form-control" id="exampleInputEmail1" aria-describedby="emailHelp">
+                <div id="emailHelp" class="form-text">We'll never share your email with anyone else.</div>
+            </div>
+            <div class="mb-3">
+                <label for="exampleInputPassword1" class="form-label">Password</label>
+                <input type="password" class="form-control" id="exampleInputPassword1">
+            </div>
+
+            <div class="row">
+                <div class="col-7 mr-auto">
+                    <div class="mb-3 form-check ">
+                        <input type="checkbox" class="form-check-input" id="exampleCheck1">
+                        <label class="form-check-label" for="exampleCheck1">Check me out</label>
+                    </div>
+                </div>
+                <div class="col-5 text-end">
+                    <button type="button" class="btn btn-link" routerLink="/login/forgot-password"> Forgot
+                        Password?</button>
+                </div>
+            </div>
+
+
+           
+            <div class="col-12 text-end">
+                <span>Don’t have account? <button type="button" class="btn btn-link" routerLink="/login/sign-up"> Sign  Up</button></span>
+            </div>
+            
+
+           
+            <br />
+            <div class="d-grid gap-2">
+                <button type="button" class="btn btn-dark">Sign In</button>
+            </div>
+        </form>
+    </div>
+</div>

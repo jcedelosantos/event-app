@@ -4,6 +4,7 @@ import { RouterModule, Routes } from '@angular/router';
 import { LayoutPageComponent } from './layout-page/layout-page.component';
 import { SignInComponent } from './sign-in/sign-in.component';
 import { SignUpComponent } from './sign-up/sign-upp.component';
+import { ForgotPasswordComponent } from './forgot-password/forgot-password.component';
 
 const routes: Routes = [
     {
@@ -17,6 +18,14 @@ const routes: Routes = [
             {
                 path: 'sign-up',
               component: SignUpComponent
+            },
+            {
+                path: 'forgot-password',
+              component: ForgotPasswordComponent
+            },
+            {
+                path: '**',
+                redirectTo: 'sign-in'
             },
         ]
     }
