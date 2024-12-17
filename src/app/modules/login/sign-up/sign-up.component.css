@@ -1,3 +1,6 @@
-:host {
-  display: block;
+.container-sign-in {
+  max-width: 500px;
+  min-width: 150px;
+  margin:auto;
+  margin-top: 25dvh;
 }

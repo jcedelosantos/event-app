@@ -34,10 +34,10 @@ export const userTypeList: Array<UserType> = [
     userTypeClient
 ]
 
-export const Users: Array<User> = [
+export const users: Array<User> = [
     {
         id: 1,
-        username: "Admin",
+        username: "admin",
         password: "1234",
         type: userTypeAdmin,
         name: "Miguel",
