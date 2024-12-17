@@ -1,7 +1,7 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { Component } from '@angular/core';
 import { RouterLink } from '@angular/router';
 @Component({
-  selector: 'app-nav-bar-menu',
+  selector: 'shared-nav-bar-menu',
   imports: [RouterLink],
   template: `
   
@@ -19,14 +19,22 @@ import { RouterLink } from '@angular/router';
         </div>
         <br/>
         <ul >
-            <li><a routerLink="/login/sign-in">Sign In</a></li>
-            <li><a routerLink="/login/sign-up">Sign Up</a></li>
-            <li><a routerLink="/site-web">Site Web</a></li>
-            <li><a routerLink="/404">404 error</a></li>
-          </ul>
+          @for(item of menuList; track item.title){
+            <li><a routerLink="{{item.url}}">{{item.title}}</a></li>
+          }
+        </ul>
       </div>
     </div>
   `,
   styleUrl: './nav-bar-menu.component.css'
 })
-export class NavBarMenuComponent { }
+export class NavBarMenuComponent {
+
+  menuList: Array<{ title: string;  icon: string;  url: string;  }> = [
+      { title: "Sign In", icon: "", url: "/login/sign-in" },
+      { title: "Sign Up", icon: "", url: "/login/sign-up" },
+      { title: "Site Web", icon: "", url: "/site-web" },
+      { title: "404 error", icon: "", url: "/404" },
+    ];
+
+}
