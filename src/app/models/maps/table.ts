@@ -11,5 +11,5 @@ export interface Table {
     radio: number;
     color: string;
     size: number;
-    groundColo: string;
+    backGround: string;
 }

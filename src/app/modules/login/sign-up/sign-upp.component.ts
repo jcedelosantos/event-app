@@ -1,4 +1,4 @@
-import {  Component } from '@angular/core';
+import {  ChangeDetectionStrategy, Component } from '@angular/core';
 import { RouterLink, Router } from '@angular/router';
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 
@@ -6,7 +6,8 @@ import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } 
   selector: 'app-sing-up',
   templateUrl: './sign-up.component.html',
   styleUrl: './sign-up.component.css',
-  imports: [RouterLink, ReactiveFormsModule]
+  imports: [RouterLink, ReactiveFormsModule],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SignUpComponent {
   formGroupInput: FormGroup;

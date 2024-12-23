@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit } from '@angular/core';
 import { RouterLink, Router } from '@angular/router';
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 
@@ -9,7 +9,8 @@ import { User } from '../../../models/users/user';
   selector: 'app-sign-in',
   templateUrl: './sign-in.component.html',
   styleUrl: './sign-in.component.css',
-  imports: [RouterLink, ReactiveFormsModule]
+  imports: [RouterLink, ReactiveFormsModule],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SignInComponent implements OnInit {
   users: Array<User> | undefined;
@@ -35,7 +36,7 @@ export class SignInComponent implements OnInit {
       for (var i = 0; i < this.users.length; i++) {
         if (this.users[i].username === this.formGroupInput.get('username')?.value && this.users[i].password === this.formGroupInput.get('password')?.value) {
           console.log("true");
-          this['router'].navigate(['/site-web']);
+          this['router'].navigate(['/manager/dash-board']);
           find = true;
           break;
         }

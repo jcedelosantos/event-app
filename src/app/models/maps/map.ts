@@ -3,6 +3,7 @@ import { Area } from "./area";
 export interface Map  {
     id: number;
     name: string;
+    description: string;
     img: string;
     areas: Array<Area>;
     type: string;
@@ -11,5 +12,5 @@ export interface Map  {
     radio: number;
     color: string;
     size: number;
-    groundColo: string;
+    backGround: string;
 } 

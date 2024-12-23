@@ -15,12 +15,32 @@ import { RouterLink } from '@angular/router';
       </div>
       <div class="offcanvas-body">
         <div class="img-menu">
-        
+        <!-- <img src="assets/images/Screenshot.png" alt="Logo"> -->
+
         </div>
         <br/>
-        <ul >
+        <ul class="menu-list">
           @for(item of menuList; track item.title){
-            <li><a routerLink="{{item.url}}">{{item.title}}</a></li>
+            <div class="p-1">
+              <button class="btn btn-dark" routerLink="{{item.url}}">
+                @if(item.icon){
+                  <i class={{item.icon}}></i>
+                }
+                {{item.title}}
+              </button>
+            </div>
+          }
+        </ul>
+        <ul class="menu-exit">
+          @for(item of menuExit; track item.title){
+            <div class="p-1">
+              <button class="btn btn-dark" routerLink="{{item.url}}">
+                @if(item.icon){
+                  <i class={{item.icon}}></i>
+                }
+                {{item.title}}
+              </button>
+            </div>
           }
         </ul>
       </div>
@@ -30,11 +50,14 @@ import { RouterLink } from '@angular/router';
 })
 export class NavBarMenuComponent {
 
-  menuList: Array<{ title: string;  icon: string;  url: string;  }> = [
-      { title: "Sign In", icon: "", url: "/login/sign-in" },
-      { title: "Sign Up", icon: "", url: "/login/sign-up" },
-      { title: "Site Web", icon: "", url: "/site-web" },
-      { title: "404 error", icon: "", url: "/404" },
-    ];
+  menuList: Array<{ title: string; icon: string; url: string; }> = [
+    { title: "Dash Board", icon: "bi bi-speedometer", url: "/manager/dash-board" },
+    { title: "Maps", icon: "bi bi-map", url: "/manager/maps" },
+
+  ];
+
+  menuExit: Array<{ title: string; icon: string; url: string; }> = [
+    { title: "Exit", icon: "bi bi-box-arrow-left", url: "/site-web" }
+  ];
 
 }

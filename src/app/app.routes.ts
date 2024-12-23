@@ -11,6 +11,10 @@ export const routes: Routes = [
         loadChildren: () => import('./modules/login/login.module').then((m) => m.LoginModule)
     },
     {
+        path: 'manager',
+        loadChildren: () => import('./modules/manager/manager.module').then((m) => m.LoginModule)
+    },
+    {
         path: '',
         redirectTo: 'site-web',
         pathMatch: 'full'

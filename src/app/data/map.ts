@@ -13,7 +13,7 @@ const seat_1: Seat = {
     radio: 60,
     color: "ff00ff00",
     size: 12,
-    groundColo: "00ff00ff"
+    backGround: "00ff00ff"
 }
 const seat_2: Seat = {
     id: 2,
@@ -25,7 +25,7 @@ const seat_2: Seat = {
     radio: 60,
     color: "ff00ff00",
     size: 12,
-    groundColo: "00ff00ff"
+    backGround: "00ff00ff"
 }
 const seat_3: Seat = {
     id: 3,
@@ -37,7 +37,7 @@ const seat_3: Seat = {
     radio: 60,
     color: "ff00ff00",
     size: 12,
-    groundColo: "00ff00ff"
+    backGround: "00ff00ff"
 }
 const seat_4: Seat = {
     id: 4,
@@ -49,7 +49,7 @@ const seat_4: Seat = {
     radio: 60,
     color: "ff00ff00",
     size: 12,
-    groundColo: "00ff00ff"
+    backGround: "00ff00ff"
 }
 const seat_5: Seat = {
     id: 5,
@@ -61,7 +61,7 @@ const seat_5: Seat = {
     radio: 60,
     color: "ff00ff00",
     size: 12,
-    groundColo: "00ff00ff"
+    backGround: "00ff00ff"
 }
 const seat_6: Seat = {
     id: 6,
@@ -73,7 +73,7 @@ const seat_6: Seat = {
     radio: 60,
     color: "ff00ff00",
     size: 12,
-    groundColo: "00ff00ff"
+    backGround: "00ff00ff"
 }
 const seat_7: Seat = {
     id: 7,
@@ -85,7 +85,7 @@ const seat_7: Seat = {
     radio: 60,
     color: "ff00ff00",
     size: 12,
-    groundColo: "00ff00ff"
+    backGround: "00ff00ff"
 }
 const seat_8: Seat = {
     id: 1,
@@ -97,7 +97,7 @@ const seat_8: Seat = {
     radio: 60,
     color: "ff00ff00",
     size: 12,
-    groundColo: "00ff00ff"
+    backGround: "00ff00ff"
 }
 const seat_9: Seat = {
     id: 9,
@@ -109,7 +109,7 @@ const seat_9: Seat = {
     radio: 60,
     color: "ff00ff00",
     size: 12,
-    groundColo: "00ff00ff"
+    backGround: "00ff00ff"
 }
 const seat_10: Seat = {
     id: 10,
@@ -121,7 +121,7 @@ const seat_10: Seat = {
     radio: 60,
     color: "ff00ff00",
     size: 12,
-    groundColo: "00ff00ff"
+    backGround: "00ff00ff"
 }
 
 const table_1: Table = {
@@ -139,7 +139,7 @@ const table_1: Table = {
     radio: 0,
     color: "ff00ff00",
     size: 12,
-    groundColo: "00ff00ff"
+    backGround: "00ff00ff"
 }
 
 const table_2: Table = {
@@ -157,7 +157,7 @@ const table_2: Table = {
     radio: 0,
     color: "ff00ff00",
     size: 12,
-    groundColo: "00ff00ff"
+    backGround: "00ff00ff"
 }
 
 const table_3: Table = {
@@ -174,7 +174,7 @@ const table_3: Table = {
     radio: 0,
     color: "ff00ff00",
     size: 12,
-    groundColo: "00ff00ff"
+    backGround: "00ff00ff"
 }
 
 const area_1: Area = {
@@ -194,7 +194,7 @@ const area_1: Area = {
     radio: 0,
     color: "00ff00ff",
     size: 14,
-    groundColo: "ff00ff00",
+    backGround: "ff00ff00",
 }
 
 const area_2: Area = {
@@ -213,13 +213,14 @@ const area_2: Area = {
     radio: 0,
     color: "00ff00ff",
     size: 14,
-    groundColo: "ff00ff00",
+    backGround: "ff00ff00",
 }
 
-export const map_1: Map = {
+ const map_1: Map = {
     id: 1,
     name: "",
-    img: "",
+    description: "Santo Domingo Este",
+    img: "assets/images/Screenshot.png",
     areas: [
         area_1
     ],
@@ -227,15 +228,16 @@ export const map_1: Map = {
     x: 12,
     y: 12,
     radio: 0,
-    color: "00ff00ff",
+    color: "#00ff00ff",
     size: 14,
-    groundColo: "00ff00ff",
+    backGround: "#00ff00ff",
 }
 
-export const map_2: Map = {
+ const map_2: Map = {
     id: 2,
     name: "",
-    img: "",
+    description: "Santo Domingo Oeste",
+    img: "assets/images/Screenshot.png",
     areas: [
         area_1,
         area_2
@@ -244,7 +246,14 @@ export const map_2: Map = {
     x: 12,
     y: 12,
     radio: 0,
-    color: "00ff00ff",
+    color: "#f0f",
     size: 14,
-    groundColo: "00ff00ff",
+    backGround: "#ff0",
 }
+
+export const maps: Array<Map> = [
+    map_1,
+    map_2,
+    map_1,
+    map_2
+];
