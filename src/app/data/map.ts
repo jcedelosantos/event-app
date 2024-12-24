@@ -20,8 +20,8 @@ const seat_2: Seat = {
     name: "seat_2",
     img: "",
     type: "",
-    x: 12.11,
-    y: 13.12,
+    x: 72.11,
+    y: 11.12,
     radio: 60,
     color: "ff00ff00",
     size: 12,
@@ -32,8 +32,8 @@ const seat_3: Seat = {
     name: "seat_3",
     img: "",
     type: "",
-    x: 12.11,
-    y: 13.12,
+    x: 42.11,
+    y: 73.12,
     radio: 60,
     color: "ff00ff00",
     size: 12,
@@ -44,8 +44,8 @@ const seat_4: Seat = {
     name: "seat_4",
     img: "",
     type: "",
-    x: 12.11,
-    y: 13.12,
+    x: 62.11,
+    y: 53.12,
     radio: 60,
     color: "ff00ff00",
     size: 12,
@@ -56,8 +56,8 @@ const seat_5: Seat = {
     name: "seat_5",
     img: "",
     type: "",
-    x: 12.11,
-    y: 13.12,
+    x: 72.11,
+    y: 23.12,
     radio: 60,
     color: "ff00ff00",
     size: 12,
@@ -68,8 +68,8 @@ const seat_6: Seat = {
     name: "seat_6",
     img: "",
     type: "",
-    x: 12.11,
-    y: 13.12,
+    x: 32.11,
+    y: 73.12,
     radio: 60,
     color: "ff00ff00",
     size: 12,
@@ -80,7 +80,7 @@ const seat_7: Seat = {
     name: "seat_7",
     img: "",
     type: "",
-    x: 12.11,
+    x: 72.11,
     y: 13.12,
     radio: 60,
     color: "ff00ff00",
@@ -92,8 +92,8 @@ const seat_8: Seat = {
     name: "seat_8",
     img: "",
     type: "",
-    x: 12.11,
-    y: 13.12,
+    x: 52.11,
+    y: 43.12,
     radio: 60,
     color: "ff00ff00",
     size: 12,
@@ -105,7 +105,7 @@ const seat_9: Seat = {
     img: "",
     type: "",
     x: 12.11,
-    y: 13.12,
+    y: 23.12,
     radio: 60,
     color: "ff00ff00",
     size: 12,
@@ -116,7 +116,7 @@ const seat_10: Seat = {
     name: "seat_10",
     img: "",
     type: "",
-    x: 12.11,
+    x: 22.11,
     y: 13.12,
     radio: 60,
     color: "ff00ff00",
@@ -126,7 +126,7 @@ const seat_10: Seat = {
 
 const table_1: Table = {
     id: 1,
-    name: "",
+    name: "Table 1",
     img: "",
     seats: [
         seat_1,
@@ -134,7 +134,7 @@ const table_1: Table = {
         seat_3
     ],
     type: "NORMAL",
-    x: 12.12,
+    x: 62.12,
     y: 13.12,
     radio: 0,
     color: "ff00ff00",
@@ -144,7 +144,7 @@ const table_1: Table = {
 
 const table_2: Table = {
     id: 2,
-    name: "",
+    name: "Table 2",
     img: "",
     seats: [
         seat_4,
@@ -156,30 +156,30 @@ const table_2: Table = {
     y: 13.12,
     radio: 0,
     color: "ff00ff00",
-    size: 12,
+    size: 2,
     backGround: "00ff00ff"
 }
 
 const table_3: Table = {
     id: 3,
-    name: "",
+    name: "Table 3",
     img: "",
     seats: [
         seat_7,
         seat_8,
     ],
     type: "",
-    x: 12.12,
-    y: 13.12,
+    x: 42,
+    y: 53,
     radio: 0,
     color: "ff00ff00",
-    size: 12,
+    size: 2,
     backGround: "00ff00ff"
 }
 
 const area_1: Area = {
     id: 1,
-    name: "",
+    name: "Area 1",
     img: "",
     seats: [
         seat_9,
@@ -189,17 +189,17 @@ const area_1: Area = {
         table_2
     ],
     type: "",
-    x: 12.12,
-    y: 13.11,
+    x: 200,
+    y: 100,
     radio: 0,
-    color: "00ff00ff",
-    size: 14,
-    backGround: "ff00ff00",
+    color: "#000000",
+    size: 24,
+    backGround: "#ffffff",
 }
 
 const area_2: Area = {
     id: 2,
-    name: "",
+    name: "Area 2",
     img: "",
     seats: [
         seat_10,
@@ -208,25 +208,25 @@ const area_2: Area = {
         table_3
     ],
     type: "",
-    x: 12.12,
-    y: 13.11,
+    x: 50,
+    y: 50,
     radio: 0,
-    color: "00ff00ff",
+    color: "#00ff00ff",
     size: 14,
-    backGround: "ff00ff00",
+    backGround: "#ff00ff",
 }
 
  const map_1: Map = {
     id: 1,
-    name: "",
+    name: "Map 1",
     description: "Santo Domingo Este",
     img: "assets/images/Screenshot.png",
     areas: [
         area_1
     ],
     type: "",
-    x: 12,
-    y: 12,
+    x: 18.5107175,
+    y: -69.8401429,
     radio: 0,
     color: "#00ff00ff",
     size: 14,
@@ -235,7 +235,7 @@ const area_2: Area = {
 
  const map_2: Map = {
     id: 2,
-    name: "",
+    name: "Map 2",
     description: "Santo Domingo Oeste",
     img: "assets/images/Screenshot.png",
     areas: [
@@ -243,8 +243,8 @@ const area_2: Area = {
         area_2
     ],
     type: "",
-    x: 12,
-    y: 12,
+    x: 18.4628068,
+    y: -70.0412847,
     radio: 0,
     color: "#f0f",
     size: 14,

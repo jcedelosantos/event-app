@@ -1,3 +1,23 @@
-:host {
+.image-container {
+  position: relative;
+  display: inline-block;
+}
+
+.background-image {
   display: block;
+}
+
+.draggable-btn {
+  position: absolute;
+  cursor: grab;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 5px;
+  height: auto;
+  text-align: center;
+  width: auto;
+}
+
+.draggable-btn:active {
+  cursor: grabbing;
 }

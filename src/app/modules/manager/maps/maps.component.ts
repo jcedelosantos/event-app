@@ -14,7 +14,7 @@ import { CardMapComponent } from "./components/card-map/card-map.component";
     <div class="col-12">
       <div class="row">
         @for(map of maps; track map.id){
-          <div class="col-4"> 
+          <div class="col-sm-12 col-xl-4"> 
             <card-map [map]="map" />
           </div>
           }

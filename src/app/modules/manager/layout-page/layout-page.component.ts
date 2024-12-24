@@ -6,8 +6,8 @@ import { RouterOutlet } from '@angular/router';
   selector: 'app-layout-page',
   imports: [NavBarMenuComponent, RouterOutlet],
   template: `
-  <div class="row">
-    <div class="col-1">
+  <div class="row maps">
+    <div class="col-auto">
       <shared-nav-bar-menu />
     </div>
     <div class="col-11">
