@@ -125,7 +125,7 @@ const seat_10: Seat = {
 }
 
 const table_1: Table = {
-    id: 1,
+    id: 101,
     name: "Table 1",
     img: "",
     seats: [
@@ -143,7 +143,7 @@ const table_1: Table = {
 }
 
 const table_2: Table = {
-    id: 2,
+    id: 102,
     name: "Table 2",
     img: "",
     seats: [
@@ -161,7 +161,7 @@ const table_2: Table = {
 }
 
 const table_3: Table = {
-    id: 3,
+    id: 103,
     name: "Table 3",
     img: "",
     seats: [
@@ -178,7 +178,7 @@ const table_3: Table = {
 }
 
 const area_1: Area = {
-    id: 1,
+    id: 111,
     name: "Area 1",
     img: "",
     seats: [
@@ -195,10 +195,13 @@ const area_1: Area = {
     color: "#000000",
     size: 24,
     backGround: "#ffffff",
+    totalTables: 2,
+    totalSeats: 1,
+    totalcount: 7
 }
 
 const area_2: Area = {
-    id: 2,
+    id: 112,
     name: "Area 2",
     img: "",
     seats: [
@@ -214,7 +217,11 @@ const area_2: Area = {
     color: "#00ff00ff",
     size: 14,
     backGround: "#ff00ff",
+    totalTables: 1,
+    totalSeats: 1,
+    totalcount: 3
 }
+
 
  const map_1: Map = {
     id: 1,
@@ -254,6 +261,4 @@ const area_2: Area = {
 export const maps: Array<Map> = [
     map_1,
     map_2,
-    map_1,
-    map_2
 ];

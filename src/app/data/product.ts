@@ -25,7 +25,7 @@ const product_1: Product = {
     description:"lista de bebidas",
  }
 
- const stock_1: Stock = {
+ export const stock_1: Stock = {
     id: 0,
     name:"cafeteria 1",
     Catalogs: [

@@ -14,4 +14,7 @@ export interface Area {
     color: string;
     size: number;
     backGround: string;
+    totalTables: number;
+    totalSeats: number;
+    totalcount: number;
 } 

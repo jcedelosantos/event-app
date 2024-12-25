@@ -1,8 +1,11 @@
 .image-container {
   position: relative;
   display: inline-block;
+ 
 }
-
+img{
+  border-radius: 1%;
+}
 .background-image {
   display: block;
 }
