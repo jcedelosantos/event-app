@@ -5,7 +5,7 @@ import { RouterLink } from '@angular/router';
   selector: 'app-nav-bar-init',
   imports: [RouterLink],
   template: `
-    <nav class="navbar navbar-light bg-light">
+    <nav class="navbar navbar-light bg-light" >
       <div class="container-fluid">
         <a class="navbar-brand">{{title}}</a>
         <div class="d-flex">
@@ -23,7 +23,6 @@ export class NavBarInitComponent {
 
   title: string = "Sale App"
   menuList: Array<{ title: string; icon: string; url: string; }> = [
-    { title: "Site Web", icon: "", url: "/site-web" },
     { title: "Sign In", icon: "", url: "/login/sign-in" },
   ];
 

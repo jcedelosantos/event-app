@@ -10,7 +10,7 @@ import { GoogleMapsModule } from '@angular/google-maps';
   imports: [
     BrowserModule,
     AppRoutingModule,
-    GoogleMapsModule
+    
   ],
   providers: [],
 })

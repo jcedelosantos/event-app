@@ -7,16 +7,26 @@ import { AccordionSeatsComponent } from "../accordion-seats/accordion-seats.comp
   imports: [AccordionSeatsComponent],
   template: `
   @if(tables){
-    <div class="accordion accordion-flush p-2 " [id]="'accordionFlushTables' + id" >
+    <div class="accordion accordion-flush p-1 " [id]="'accordionFlushTables' + id" >
       <div class="accordion-item">
         <h2 class="accordion-header" [id]="'flush-headingTables' + id">
           <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#flush-collapseTables" aria-expanded="false" aria-controls="flush-collapseTables">
             <div class="row">
-              <div class="col-6">
+              <div class="col-4">
                   Tables
               </div>
-              <div class="col-6">
-                  <span class="badge bg-primary rounded-pill">{{tables.length}}</span> 
+              <div class="col-8">
+                <div class="row">
+                  <div class="col-4">
+                    <i class="bi bi-pen-fill"></i>
+                  </div>
+                  <div class="col-4">
+                    <span class="badge bg-primary rounded-pill">{{tables.length}}</span>
+                  </div>
+                  <div class="col-4">
+                    <i class="bi bi-file-x-fill"></i>
+                  </div>
+                </div>
               </div>
             </div>
           </button>

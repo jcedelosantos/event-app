@@ -23,7 +23,7 @@ import { GoogleMapsModule } from '@angular/google-maps';
       <div class="card-body">
         <h5 class="card-title">{{map.description}}</h5>
         <p class="card-text">Areas : {{countAreas}}  Table :  {{countTables}}  Seat : {{countTablesSeat}}  Seat :  {{countSeats}}</p>
-        <button type="button" class="btn btn-dark" routerLink="/manager/map/{{map.id}}">View Details</button>
+        <button type="button" class="btn btn-outline-danger" routerLink="/manager/map/{{map.id}}">View Details</button>
       </div>
     </div>
     <br/>

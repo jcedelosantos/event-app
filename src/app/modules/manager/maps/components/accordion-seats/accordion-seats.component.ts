@@ -6,7 +6,7 @@ import { Seat } from '../../../../../models/maps/seat';
   imports: [],
   template: `
   @if(seats){
-    <div class="accordion accordion-flush p-2" [id]="'accordionFlushSeats-' + id">
+    <div class="accordion accordion-flush p-1" [id]="'accordionFlushSeats-' + id">
      <div class="accordion-item">
        <h2 class="accordion-header" [id]="'flush-headingSeats-' + id">
       
@@ -15,12 +15,19 @@ import { Seat } from '../../../../../models/maps/seat';
              <div class="col-6">
                  Seats
              </div>
-             <div class="col-3">
-              <span class="badge bg-primary rounded-pill">{{seats.length}}</span> 
-             </div>
-             <div class="col-3 d-fled">
-                 
-             </div>
+             <div class="col-6">
+              <div class="row">
+                  <div class="col-4">
+                    <i class="bi bi-pen-fill"></i>
+                  </div>
+                  <div class="col-4">
+                    <span class="badge bg-primary rounded-pill">{{seats.length}}</span> 
+                  </div>
+                  <div class="col-4">
+                    <i class="bi bi-file-x-fill"></i>
+                  </div>
+                </div>
+              </div>
            </div>
          </button>
        </h2>

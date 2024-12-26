@@ -5,6 +5,7 @@ export interface Area {
     id: number;
     name: string;
     img: string;
+    icon: string;
     seats: Array<Seat>;
     tables: Array<Table>;
     type: string;

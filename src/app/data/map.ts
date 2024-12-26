@@ -181,6 +181,7 @@ const area_1: Area = {
     id: 111,
     name: "Area 1",
     img: "",
+    icon: "",
     seats: [
         seat_9,
     ],
@@ -204,6 +205,7 @@ const area_2: Area = {
     id: 112,
     name: "Area 2",
     img: "",
+    icon: "",
     seats: [
         seat_10,
     ],
