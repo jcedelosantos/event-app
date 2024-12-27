@@ -5,6 +5,7 @@ import { LayoutPageComponent } from './layout-page/layout-page.component';
 import { DashBoardComponent } from './dash-board/dash-board.component';
 import { MapsComponent } from './maps/maps.component';
 import { MapComponent } from './maps/map/map.component';
+import { EventsComponent } from './events/events.component';
 
 const routes: Routes = [
     {
@@ -23,6 +24,14 @@ const routes: Routes = [
                 path: 'map/:id',
               component: MapComponent
             },
+            {
+                path: 'events',
+              component: EventsComponent
+            },
+            // {
+            //     path: 'event/:id',
+            //   component: EventsComponent
+            // },
             {
                 path: '**',
                 redirectTo: 'sign-in'

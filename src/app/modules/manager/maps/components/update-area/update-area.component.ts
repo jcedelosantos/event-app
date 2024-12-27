@@ -145,26 +145,9 @@ export class UpdateAreaComponent implements OnChanges {
     this.areaUpdateLoading = false;
     this.areaUpdateForm = this.initFormat();
   }
-  ngOnChanges(changes: SimpleChanges): void {
-    if (this.area) {
-      this.areaUpdateForm = this.fb.group({
-        editName: [this.area.name, Validators.required],
-        editImg: [this.area.img],
-        editDescription: [this.area.description],
-        editColor: [this.area.color, Validators.required],
-        editBackGround: [this.area.backGround, Validators.required],
-        editIcon: [this.area.icon],
-        editSize: [this.area.size, Validators.required],
-        editX: [this.area.x, Validators.required],
-        editY: [this.area.y, Validators.required]
-      });
-      // this.icons.map((icon) => {
-      //   if(icon.value === this.area?.icon){
 
-      //   }
-      // });
-      this.selectedIcon = this.area.icon;
-    }
+  ngOnChanges(changes: SimpleChanges): void {
+    this.addArea();
   }
 
   initFormat() {
@@ -180,6 +163,22 @@ export class UpdateAreaComponent implements OnChanges {
       editY: [0, Validators.required]
     });
   }
+  addArea(){
+    if (this.area) {
+      this.areaUpdateForm = this.fb.group({
+        editName: [this.area.name, Validators.required],
+        editImg: [this.area.img],
+        editDescription: [this.area.description],
+        editColor: [this.area.color, Validators.required],
+        editBackGround: [this.area.backGround, Validators.required],
+        editIcon: [this.area.icon],
+        editSize: [this.area.size, Validators.required],
+        editX: [this.area.x, Validators.required],
+        editY: [this.area.y, Validators.required]
+      });
+      this.selectedIcon = this.area.icon;
+    }
+  }
 
   clickPostAreaUpdate() {
     alert("Area Update");
@@ -189,6 +188,7 @@ export class UpdateAreaComponent implements OnChanges {
 
   closeModal() {
     this.modal.hide();
+    this.addArea();
   }
 
   getIcon() {

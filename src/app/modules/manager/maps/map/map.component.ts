@@ -1,5 +1,8 @@
 import { ChangeDetectionStrategy, Component, OnInit, ElementRef, ViewChild, AfterViewInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
+import { ReactiveFormsModule } from '@angular/forms';
+import { GoogleMapsModule } from '@angular/google-maps';
+declare var bootstrap: any;
 
 import { maps } from '../../../../data/map';
 import { Map } from "../../../../models/maps/map";
@@ -8,11 +11,7 @@ import { NavBarMapComponent } from "../components/nav-bar-map/nav-bar-map.compon
 import { AccordionSeatsComponent } from "../components/accordion-seats/accordion-seats.component";
 import { AccordionTablesComponent } from "../components/accordion-tables/accordion-tables.component";
 import { CreateAreaComponent } from "../components/create-area/create-area.component";
-import { ReactiveFormsModule } from '@angular/forms';
 import { UpdateAreaComponent } from "../components/update-area/update-area.component";
-import { GoogleMapsModule } from '@angular/google-maps';
-
-declare var bootstrap: any;
 
 @Component({
   selector: 'app-map',
@@ -129,10 +128,7 @@ declare var bootstrap: any;
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MapComponent implements OnInit, AfterViewInit {
-  updateArea(arg0: Area) {
-  throw new Error('Method not implemented.');
-  }
-  center: google.maps.LatLngLiteral = { lat: 18.4628068, lng: -70.0412847 };  
+  center: google.maps.LatLngLiteral = { lat: 18.4628068, lng: -70.0412847 };
   zoom = 20;
 
   id: string | null = '';
@@ -156,7 +152,7 @@ export class MapComponent implements OnInit, AfterViewInit {
 
   modalUpdateArea: any;
   areaUpdate: Area | undefined;
-  
+
   constructor(private route: ActivatedRoute, private router: Router) { }
 
   ngOnInit(): void {
@@ -215,8 +211,8 @@ export class MapComponent implements OnInit, AfterViewInit {
   moveButton(event: MouseEvent) {
     if (this.isDragging && this.activeButtonIndex !== null) {
       const rect = this.imageContainer.nativeElement.getBoundingClientRect();
-      const btnWidth = 80;  
-      const btnHeight = 40; 
+      const btnWidth = 80;
+      const btnHeight = 40;
 
       let newX = event.clientX - rect.left - this.offsetX;
       let newY = event.clientY - rect.top - this.offsetY;
@@ -270,7 +266,7 @@ export class MapComponent implements OnInit, AfterViewInit {
 
   addArea(area: Area) {
     console.log(area);
-    if(area && this.areas && this.map){
+    if (area && this.areas && this.map) {
       this.areas.push(area);
       this.map.areas = this.areas;
     }
@@ -281,5 +277,17 @@ export class MapComponent implements OnInit, AfterViewInit {
     this.openUpdateAreaModal();
   }
 
+  updateArea(updateArea: Area) {
+    console.log(updateArea);
+    if (this.areas) {
+      for (let i = 0; i < this.areas.length; i++) {
+        const element = this.areas[i];
+        if (element.id === updateArea.id) {
+          this.areas[i] = updateArea;
+          break;
+        }
+      }
+    }
+  }
 
 }
