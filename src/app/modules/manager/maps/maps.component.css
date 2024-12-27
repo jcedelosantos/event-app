@@ -1,3 +1,6 @@
-:host {
-  display: block;
+.scrollmap {
+  overflow-x: hidden; 
+  height: 90dvh;
+  overflow-y: scroll;
+  scrollbar-width: none;
 }

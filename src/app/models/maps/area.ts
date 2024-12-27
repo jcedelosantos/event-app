@@ -4,6 +4,7 @@ import { Table} from "./table"
 export interface Area {
     id: number;
     name: string;
+    description: string;
     img: string;
     icon: string;
     seats: Array<Seat>;
@@ -17,5 +18,5 @@ export interface Area {
     backGround: string;
     totalTables: number;
     totalSeats: number;
-    totalcount: number;
+    totalCount: number;
 } 

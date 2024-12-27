@@ -13,4 +13,8 @@ export interface Map  {
     color: string;
     size: number;
     backGround: string;
+
+    totalTables: number;
+    totalTablesSeat: number;
+    totalSeats: number;
 } 

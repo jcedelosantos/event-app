@@ -13,18 +13,23 @@ import { GoogleMapsModule } from '@angular/google-maps';
   imports: [RouterLink, GoogleMapsModule],
   template: `
   @if(map){
-    <div class="card">
-      <h3 class="card-header">{{map.name}}</h3>
+    <div class="card p-1">
+      <h4 class="card-header">{{map.name}}</h4>
       <div class="map-container">
-        <google-map  height="400px" width="100%" [center]="center" [zoom]="zoom">
+        <google-map  height="300px" width="100%" [center]="center" [zoom]="zoom">
             <map-marker [position]="center" [label]="'Ubicación X'"></map-marker>
           </google-map>
       </div>
       <div class="card-body">
         <h5 class="card-title">{{map.description}}</h5>
-        <p class="card-text">Areas : {{countAreas}}  Table :  {{countTables}}  Seat : {{countTablesSeat}}  Seat :  {{countSeats}}</p>
-        <button type="button" class="btn btn-outline-danger" routerLink="/manager/map/{{map.id}}">View Details</button>
+        <div class="d-flex justify-content-evenly">
+          <div class="bd-highlight">  Areas : <span class="badge text-bg-danger">{{map.areas.length}}</span></div>
+          <div class="bd-highlight">Tables : <span class="badge text-bg-danger"> {{map.totalTables}}</span> /  <span class="badge text-bg-danger">{{map.totalTablesSeat}}</span></div>
+          <div class="bd-highlight"> Seat : <span class="badge text-bg-danger">{{map.totalSeats}}</span></div>
+        </div>
       </div>
+      <button type="button" class="btn btn-outline-danger btn-md btn-block p" routerLink="/manager/map/{{map.id}}">View Details</button>
+      <br/>
     </div>
     <br/>
   }
@@ -40,59 +45,11 @@ export class CardMapComponent implements OnInit {
   @Input()
   map: Map | undefined;
 
-  countAreas: number  = 0;
-  countTables: number  = 0;
-  countTablesSeat: number  = 0;
-  countSeats: number  = 0;
-
   constructor() { }
 
   ngOnInit(): void {
     if(this.map){
       this.center = { lat: this.map.x, lng: this.map.y };
     }
-    this.setAreasCount();
-    this.setTablesCount();
-    this.setSeatsCount();
-  }
-
-  setAreasCount(){
-    if(this.map?.areas){
-      this.countAreas = this.map?.areas.length;
-    }
-  }
-  setTablesCount(){
-    var tables = 0;
-    var seats = 0;
-    if(this.map?.areas.length){
-      for(var i = 0; i < this.map?.areas.length; i++){
-        var area = this.map.areas[i];
-        if(area?.tables.length){
-          for(var j = 0; j < area?.tables.length; j++){
-            tables += 1;
-            var table = area?.tables[j];
-            if(table.seats.length){
-              seats += table.seats.length
-            }
-          }
-        }
-      }
-    }
-    this.countTablesSeat = seats;
-    this.countTables = tables;
-  }
-  setSeatsCount(){
-    var count = 0;
-    if(this.map?.areas.length){
-      for(var i = 0; i < this.map?.areas.length; i++){
-        var area = this.map.areas[i];
-        if(area?.seats.length){
-          for(var j = 0; j < area?.seats.length; j++){
-            count += 1;
-          }
-        }
-      }
-    }
-    this.countSeats = count;
   }
 }

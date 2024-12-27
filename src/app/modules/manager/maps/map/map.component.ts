@@ -9,47 +9,51 @@ import { AccordionSeatsComponent } from "../components/accordion-seats/accordion
 import { AccordionTablesComponent } from "../components/accordion-tables/accordion-tables.component";
 import { CreateAreaComponent } from "../components/create-area/create-area.component";
 import { ReactiveFormsModule } from '@angular/forms';
+import { UpdateAreaComponent } from "../components/update-area/update-area.component";
+import { GoogleMapsModule } from '@angular/google-maps';
 
 declare var bootstrap: any;
 
 @Component({
   selector: 'app-map',
-  imports: [NavBarMapComponent, AccordionSeatsComponent, AccordionTablesComponent, CreateAreaComponent, ReactiveFormsModule],
+  imports: [GoogleMapsModule, NavBarMapComponent, AccordionSeatsComponent, AccordionTablesComponent, CreateAreaComponent, ReactiveFormsModule, UpdateAreaComponent],
   template: `
       <nav-bar-map [maps]="maps"/>
-      <div class="">
-        <div class="row ">
-          <!-- <div class="col col-lg-2">
-            1 of 3
-          </div>
-          <div class="col-md-auto">
-            Variable width content
-          </div>
-          <div class="col col-lg-2">
-            3 of 3
-          </div>
-        </div>
+      <div class="scrollmap">
         <div class="row">
-          <div class="col">
-            1 of 3
+        <div class="col-xxl-9 col-md-12 ">
+          <div class="card p-1">
+            <h4 class="card-header">{{map?.name}}</h4>
+            <div class="map-container">
+              <google-map  height="280px" width="100%" [center]="center" [zoom]="zoom">
+                  <map-marker [position]="center" [label]="'Ubicación X'"></map-marker>
+                </google-map>
+            </div>
+            <div class="card-body">
+              <div class="card-title">
+                <div class="row">
+                  <div class="col-5">
+                    <h5 class="card-title">{{map?.description}}</h5>
+                  </div>
+                  <div class="col-7">
+                  <div class="d-flex justify-content-evenly">
+                    <div class="bd-highlight">  Areas : <span class="badge text-bg-danger">{{map?.areas?.length}}</span></div>
+                    <div class="bd-highlight">Tables : <span class="badge text-bg-danger"> {{map?.totalTables}}</span> /  <span class="badge text-bg-danger">{{map?.totalTablesSeat}}</span></div>
+                    <div class="bd-highlight"> Seat : <span class="badge text-bg-danger">{{map?.totalSeats}}</span></div>
+                  </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-          <div class="col-md-auto">
-            Variable width content
-          </div>
-          <div class="col col-lg-2">
-            3 of 3
-          </div>
-        </div> -->
-        <div class="col-xxl-8 col-md-12 ">
-          <h2> {{map?.name}}</h2>
-          <p>{{map?.description}}</p>
-          <div class="scrollmenu">
+          <br/>
+          <div class="scrollimg">
           @if(map?.img){
-              <div class="image-container" #imageContainer (mousemove)="moveButton($event)">
+              <div class="image-container " #imageContainer (mousemove)="moveButton($event)">
                 <img #image [src]="map?.img" class="background-image"  (dblclick)="openCreateAreaForm($event)" >
-               
                 @for(area of areas; track area.id;  let idx = $index){
                   <button class="draggable-btn"
+                    (dblclick)="openUpdateAreaForm(area)"
                     (mousedown)="startDragging(idx, $event)"
                     (mouseup)="stopDragging()"
                     (mouseleave)="stopDragging()"
@@ -67,68 +71,70 @@ declare var bootstrap: any;
               </div>
           }
           </div>
-          
         </div>
-        <div class="col-xxl-4 col-md-12">
-          <ol class="list-group-drak row list">
-            @for(area of areas; track area.id;  let idx = $index){
-              <li class="list-group-item d-flex  align-items-start col-xxl-12 col-xl-6 col-lg-6 col-md-6">
-                <div class="">
-                  <div class="fw-bold">
-                    @if(area.icon){
-                      <i class="bi {{area.icon}}"></i>
+        @if(areas){
+          <div class="col-xxl-3 col-md-12">
+            <ol class="list-group-drak row list">
+              @for(area of areas; track area.id;  let idx = $index){
+                <li [class]="areas.length > 1 ? 'list-group-item d-flex justify-content-center col-xxl-12 col-xl-6 col-lg-12 col-md-12' : 'list-group-item d-flex  justify-content-center col-12'">
+                  <div class="">
+                    <div class="fw-bold">
+                      @if(area.icon){
+                        <i class="bi {{area.icon}}"></i>
+                      }
+                      {{area.name}}
+                    </div>
+                    @if(area.tables.length && area.seats.length){
+                      <div class="row">
+                        @if(area.tables.length){
+                          <accordion-tables [tables]="area.tables" [id]="idx"/>
+                        }
+                        @if(area.seats.length){
+                          <accordion-seats [seats]="area.seats" [id]="idx" />
+                        }
+                      </div>
                     }
-                    {{area.name}}
-                  </div>
-                  @if(area.tables.length && area.seats.length){
+                    </div>
                     <div class="row">
-                      @if(area.tables.length){
-                        <accordion-tables [tables]="area.tables" [id]="idx"/>
-                      }
-                      @if(area.seats.length){
-                        <accordion-seats [seats]="area.seats" [id]="idx" />
-                      }
-                    </div>
-                  }
+                      <div class="col-4">
+                        <i class="bi bi-pen-fill"></i>
+                      </div>
+                      <div class="col-4">
+                        <span class="badge bg-primary rounded-pill">{{area.totalCount}}</span>
+                      </div>
+                      <div class="col-4">
+                        <i class="bi bi-file-x-fill"></i>
+                      </div>
                   </div>
-                  <div class="row">
-                    <div class="col-4">
-                      <i class="bi bi-pen-fill"></i>
-                    </div>
-                    <div class="col-4">
-                      <span class="badge bg-primary rounded-pill">{{area.totalcount}}</span>
-                    </div>
-                    <div class="col-4">
-                      <i class="bi bi-file-x-fill"></i>
-                    </div>
-                </div>
-              </li>
-            }
-          </ol>
-         
-            <!-- <div class="col-xxl-12 col-xl-6" style="background-color: blue;">
-              ll
-              </div>
-              <div class="col-xxl-12 col-xl-6" style="background-color: red;">
-              ll
-              </div>
-            </div> -->
-          
+                </li>
+              }
+            </ol>
+          </div>
+        } 
         </div>
-        
       </div>
-      
-      
+     
       <create-area 
-        [modal]="modal"
+        [modal]="modalCreateArea"
         [coordinates]="coordinates"
         (createAreaEvent)="addArea($event.createArea)"
+      />
+      <update-area 
+        [modal]="modalUpdateArea"
+        [area]="areaUpdate"
+        (updateAreaEvent)="updateArea($event.updateArea)"
       />
   `,
   styleUrl: './map.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MapComponent implements OnInit, AfterViewInit {
+  updateArea(arg0: Area) {
+  throw new Error('Method not implemented.');
+  }
+  center: google.maps.LatLngLiteral = { lat: 18.4628068, lng: -70.0412847 };  
+  zoom = 20;
+
   id: string | null = '';
   maps: Array<Map> | undefined;
   map: Map | undefined;
@@ -145,8 +151,12 @@ export class MapComponent implements OnInit, AfterViewInit {
   @ViewChild('image') image!: ElementRef;
 
 
-  modal: any;
+  modalCreateArea: any;
   coordinates = { x: 0.0, y: 0.0 }
+
+  modalUpdateArea: any;
+  areaUpdate: Area | undefined;
+  
   constructor(private route: ActivatedRoute, private router: Router) { }
 
   ngOnInit(): void {
@@ -156,7 +166,6 @@ export class MapComponent implements OnInit, AfterViewInit {
   ngAfterViewInit() {
     this.getSizeImg();
     this.getInitModal();
-
   }
   initMapInfo() {
     this.maps = maps;
@@ -178,6 +187,7 @@ export class MapComponent implements OnInit, AfterViewInit {
       for (var i = 0; i < this.maps?.length; i++) {
         if (this.maps[i].id === id) {
           this.map = this.maps[i];
+          this.center = { lat: this.map.x, lng: this.map.y };
           break;
         }
       }
@@ -193,21 +203,24 @@ export class MapComponent implements OnInit, AfterViewInit {
     }
   }
   getInitModal() {
-    const modalElement = document.getElementById('createAreaModal');
+    var modalElement = document.getElementById('createAreaModal');
     if (modalElement) {
-      this.modal = new bootstrap.Modal(modalElement);
+      this.modalCreateArea = new bootstrap.Modal(modalElement);
+    }
+    modalElement = document.getElementById('updateAreaModal');
+    if (modalElement) {
+      this.modalUpdateArea = new bootstrap.Modal(modalElement);
     }
   }
   moveButton(event: MouseEvent) {
     if (this.isDragging && this.activeButtonIndex !== null) {
       const rect = this.imageContainer.nativeElement.getBoundingClientRect();
-      const btnWidth = 80;  // Ancho aproximado del botón
-      const btnHeight = 40; // Alto aproximado del botón
+      const btnWidth = 80;  
+      const btnHeight = 40; 
 
       let newX = event.clientX - rect.left - this.offsetX;
       let newY = event.clientY - rect.top - this.offsetY;
 
-      // Limitar dentro de los bordes de la imagen
       newX = Math.max(0, Math.min(rect.width - btnWidth, newX));
       newY = Math.max(0, Math.min(rect.height - btnHeight, newY));
       if (this.areas) {
@@ -221,7 +234,6 @@ export class MapComponent implements OnInit, AfterViewInit {
     this.isDragging = true;
     this.activeButtonIndex = index;
 
-    // Calcular offset para mantener el punto de clic dentro del botón
     const rect = (event.target as HTMLElement).getBoundingClientRect();
     this.offsetX = event.clientX - rect.left;
     this.offsetY = event.clientY - rect.top;
@@ -232,7 +244,10 @@ export class MapComponent implements OnInit, AfterViewInit {
     this.activeButtonIndex = null;
   }
   openCreateAreaModal() {
-    this.modal.show();
+    this.modalCreateArea.show();
+  }
+  openUpdateAreaModal() {
+    this.modalUpdateArea.show();
   }
 
   getMouseCoordinates(event: MouseEvent): { y: number; x: number; } {
@@ -260,5 +275,11 @@ export class MapComponent implements OnInit, AfterViewInit {
       this.map.areas = this.areas;
     }
   }
+
+  openUpdateAreaForm(area: Area) {
+    this.areaUpdate = area;
+    this.openUpdateAreaModal();
+  }
+
 
 }

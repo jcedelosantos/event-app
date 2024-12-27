@@ -28,12 +28,12 @@ img{
   cursor: grabbing;
 }
 
-div.scrollmenu {
+div.scrollimg {
   overflow: auto;
   white-space: nowrap;
 }
 
-div.scrollmenu a {
+div.scrollimg a {
   display: inline-block;
   color: white;
   text-align: center;
@@ -41,9 +41,21 @@ div.scrollmenu a {
   text-decoration: none;
 }
 
-div.scrollmenu a:hover {
+div.scrollimg a:hover {
   background-color: #777;
 }
-.list{
-  min-width: 50px;
+
+.scrollmap {
+  overflow-x: hidden; 
+  height: 93dvh;
+  overflow-y: scroll;
+  scrollbar-width: none;
+}
+
+.card {
+  min-width: 200px;
+  height: 380px;
+  -webkit-box-shadow: 9px 11px 5px 1px rgba(0, 0, 0, 0.47);
+  -moz-box-shadow: 9px 11px 5px 1px rgba(0, 0, 0, 0.47);
+  box-shadow: 9px 11px 5px 1px rgba(0, 0, 0, 0.47);
 }

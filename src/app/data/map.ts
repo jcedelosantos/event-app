@@ -180,8 +180,9 @@ const table_3: Table = {
 const area_1: Area = {
     id: 111,
     name: "Area 1",
+    description: "BARRIOS PRECARIOS. BARRIOS POPULARES- TIPO A. BARRIOS POPULARES-TIPO B. BARRIOS MEJORABLES. BARRIOS CONSOLIDADOS. Bo. Las Lilas. N. E. S.",
     img: "",
-    icon: "",
+    icon: "bi-textarea-resize",
     seats: [
         seat_9,
     ],
@@ -190,20 +191,21 @@ const area_1: Area = {
         table_2
     ],
     type: "",
-    x: 200,
-    y: 100,
+    x: 600,
+    y: 350,
     radio: 0,
     color: "#000000",
     size: 24,
     backGround: "#ffffff",
     totalTables: 2,
     totalSeats: 1,
-    totalcount: 7
+    totalCount: 7
 }
 
 const area_2: Area = {
     id: 112,
     name: "Area 2",
+    description: "",
     img: "",
     icon: "",
     seats: [
@@ -221,7 +223,7 @@ const area_2: Area = {
     backGround: "#ff00ff",
     totalTables: 1,
     totalSeats: 1,
-    totalcount: 3
+    totalCount: 3
 }
 
 
@@ -240,6 +242,10 @@ const area_2: Area = {
     color: "#00ff00ff",
     size: 14,
     backGround: "#00ff00ff",
+    
+    totalTables: 1,
+    totalTablesSeat: 2,
+    totalSeats: 3
 }
 
  const map_2: Map = {
@@ -258,9 +264,19 @@ const area_2: Area = {
     color: "#f0f",
     size: 14,
     backGround: "#ff0",
+
+    totalTables: 2,
+    totalTablesSeat: 4,
+    totalSeats: 6
 }
 
 export const maps: Array<Map> = [
+    map_1,
+    map_2,
+    map_1,
+    map_2,
+    map_1,
+    map_2,
     map_1,
     map_2,
 ];

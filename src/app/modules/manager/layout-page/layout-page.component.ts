@@ -6,15 +6,14 @@ import { RouterOutlet } from '@angular/router';
   selector: 'app-layout-page',
   imports: [NavBarMenuComponent, RouterOutlet],
   template: `
-  <div class="row maps" data-bs-theme="dark">
-    <div class="col-md-auto col-sm-1 col-1">
-      <shared-nav-bar-menu />
+    <div class="row maps" data-bs-theme="dark">
+      <div class="col-lg-auto col-md-1 col-sm-1">
+        <shared-nav-bar-menu />
+      </div>
+      <div class="col-11">
+        <router-outlet />
+      </div>
     </div>
-    <div class="col-11">
-      <router-outlet />
-    </div>
-  </div>
-  
   `,
   styleUrl: './layout-page.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,

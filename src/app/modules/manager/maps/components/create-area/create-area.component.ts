@@ -190,6 +190,7 @@ export class CreateAreaComponent  implements OnChanges{
     this.area = {
       id: id,
       name: this.areaCreateForm.get('editName')?.value,
+      description: this.areaCreateForm.get('editDescriptio')?.value,
       img:  this.areaCreateForm.get('editImg')?.value,
       seats: [],
       tables: [],
@@ -203,7 +204,7 @@ export class CreateAreaComponent  implements OnChanges{
       icon: this.areaCreateForm.get('editIcon')?.value,
       totalTables: 0,
       totalSeats: 0,
-      totalcount: 0,
+      totalCount: 0,
     }
     this.createAreaEvent.emit({createArea: this.area});
     this.areaCreateForm =  this.initFormat();
