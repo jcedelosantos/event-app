@@ -4,11 +4,7 @@ import { CommonModule } from '@angular/common';
 import { ManagerRoutingModule } from './manager-routing.module';
 
 @NgModule({
-    declarations: [
-    ],
-    imports: [
-        CommonModule,
-        ManagerRoutingModule
-    ]
+	declarations: [],
+	imports: [CommonModule, ManagerRoutingModule],
 })
-export class LoginModule { }
+export class LoginModule {}

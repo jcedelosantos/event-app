@@ -1,65 +1,65 @@
 .image-container {
-  position: relative;
-  display: inline-block;
+	position: relative;
+	display: inline-block;
 }
-img{
-  border-radius: 1%;
+img {
+	border-radius: 1%;
 }
 .background-image {
-  display: block;
+	display: block;
 }
 
 .draggable-btn {
-  position: absolute;
-  cursor: grab;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 5px;
-  height: auto;
-  text-align: center;
-  width: auto;
-  -webkit-box-shadow: 9px 11px 5px 1px rgba(0, 0, 0, 0.47);
-  -moz-box-shadow: 9px 11px 5px 1px rgba(0, 0, 0, 0.47);
-  box-shadow: 9px 11px 5px 1px rgba(0, 0, 0, 0.47);
-
+	position: absolute;
+	cursor: grab;
+	border: none;
+	padding: 10px 20px;
+	border-radius: 5px;
+	height: auto;
+	text-align: center;
+	width: auto;
+	-webkit-box-shadow: 9px 11px 5px 1px rgba(0, 0, 0, 0.47);
+	-moz-box-shadow: 9px 11px 5px 1px rgba(0, 0, 0, 0.47);
+	box-shadow: 9px 11px 5px 1px rgba(0, 0, 0, 0.47);
 }
 
 .draggable-btn:active {
-  cursor: grabbing;
+	cursor: grabbing;
 }
 
 div.scrollimg {
-  overflow: auto;
-  white-space: nowrap;
+	overflow: auto;
+	white-space: nowrap;
 }
 
 div.scrollimg a {
-  display: inline-block;
-  color: white;
-  text-align: center;
-  padding: 14px;
-  text-decoration: none;
+	display: inline-block;
+	color: white;
+	text-align: center;
+	padding: 14px;
+	text-decoration: none;
 }
 
 div.scrollimg a:hover {
-  background-color: #777;
+	background-color: #777;
 }
 
-.scrollmap {
-  overflow-x: hidden; 
-  overflow-y: scroll;
-  scrollbar-width: none;
+.scroll-map {
+	overflow-x: hidden;
+	height: 95vh;
+	overflow-y: scroll;
+	scrollbar-width: none;
 }
 
 .scroll-list {
-  overflow-x: hidden; 
-  height: 90vh;
-  overflow-y: scroll;
-  scrollbar-width: none;
+	overflow-x: hidden;
+	height: 90vh;
+	overflow-y: scroll;
+	scrollbar-width: none;
 }
 
 .card {
-  -webkit-box-shadow: 9px 11px 5px 1px rgba(0, 0, 0, 0.47);
-  -moz-box-shadow: 9px 11px 5px 1px rgba(0, 0, 0, 0.47);
-  box-shadow: 9px 11px 5px 1px rgba(0, 0, 0, 0.47);
+	-webkit-box-shadow: 9px 11px 5px 1px rgba(0, 0, 0, 0.47);
+	-moz-box-shadow: 9px 11px 5px 1px rgba(0, 0, 0, 0.47);
+	box-shadow: 9px 11px 5px 1px rgba(0, 0, 0, 0.47);
 }

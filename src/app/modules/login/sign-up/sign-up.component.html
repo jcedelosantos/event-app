@@ -1,36 +1,36 @@
 <div class="row container-sign-in">
-    <div class="col-12">
-        <h2>Sing Up</h2>
-    </div>
-    <div class="col-12">
-        <form [formGroup]="formGroupInput">
-            <div class="mb-3">
-                <label for="username" class="form-label" >User Name</label>
-                <input type="text" id="username" class="form-control"  formControlName="username" required>
-            </div>
-            <div class="mb-3">
-                <label for="password" class="form-label">Password</label>
-                <input type="password" class="form-control" id="password" formControlName="password" required>
-            </div>
-            <div class="mb-3">
-                <label for="password_confirme" class="form-label">Password Confirme</label>
-                <input type="password" class="form-control" id="password_confirme" formControlName="password_confirme" required>
-            </div>
-            <div class="mb-3">
-                <label for="email" class="form-label">Email</label>
-                <input type="email" class="form-control" id="email" formControlName="email" required>
-            </div>
-            @if(status){
-                <div class="form-text">{{status}}</div>
-            }
-           
-            <div class="col-12 text-end">
-                <button type="button" class="btn btn-link" routerLink="/login/sign-in">Sign In</button>
-            </div>
-            <br />
-            <div class="d-grid gap-2">
-                <button type="button" class="btn btn-dark" (click)="signUp()">Register</button>
-            </div>
-        </form>
-    </div>
+	<div class="col-12">
+		<h2>Sing Up</h2>
+	</div>
+	<div class="col-12">
+		<form [formGroup]="formGroupInput">
+			<div class="mb-3">
+				<label for="username" class="form-label">User Name</label>
+				<input type="text" id="username" class="form-control" formControlName="username" required />
+			</div>
+			<div class="mb-3">
+				<label for="password" class="form-label">Password</label>
+				<input type="password" class="form-control" id="password" formControlName="password" required />
+			</div>
+			<div class="mb-3">
+				<label for="password_confirme" class="form-label">Password Confirme</label>
+				<input type="password" class="form-control" id="password_confirme" formControlName="password_confirme" required />
+			</div>
+			<div class="mb-3">
+				<label for="email" class="form-label">Email</label>
+				<input type="email" class="form-control" id="email" formControlName="email" required />
+			</div>
+			@if (status) {
+				<div class="form-text">{{ status }}</div>
+			}
+
+			<div class="col-12 text-end">
+				<button type="button" class="btn btn-link" routerLink="/login/sign-in">Sign In</button>
+			</div>
+			<br />
+			<div class="d-grid gap-2">
+				<button type="button" class="btn btn-dark" (click)="signUp()">Register</button>
+			</div>
+		</form>
+	</div>
 </div>

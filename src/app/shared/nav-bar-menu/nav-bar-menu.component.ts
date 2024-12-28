@@ -1,63 +1,100 @@
-import { Component } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { Component, AfterViewInit } from '@angular/core';
+import { NavigationEnd, Router, RouterLink } from '@angular/router';
+import { filter } from 'rxjs';
 @Component({
-  selector: 'shared-nav-bar-menu',
-  imports: [RouterLink],
-  template: `
-  
-    <a class="nav-bar-h btn btn-dark" data-bs-toggle="offcanvas" href="#offcanvasExample" role="button" aria-controls="offcanvasExample">
-    
-    </a>
-    <div class="offcanvas offcanvas-start menu" tabindex="-1" id="offcanvasExample" aria-labelledby="offcanvasExampleLabel">
-      <div class="offcanvas-header">
-        <h5 class="offcanvas-title" id="offcanvasExampleLabel">Menu</h5>
-        <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
-      </div>
-      <div class="offcanvas-body">
-        <div class="img-menu">
-        <!-- <img src="assets/images/Screenshot.png" alt="Logo"> -->
+	selector: 'shared-nav-bar-menu',
+	imports: [RouterLink],
+	template: `
+		<div class="d-flex flex-column mb-3 nav-bar-h">
+			<div class="p-3" style="height: 10%">
+				<a data-bs-toggle="offcanvas" href="#offcanvas" aria-controls="offcanvas" style="height: 100%">
+					<i class="bi bi-list"></i>
+				</a>
+			</div>
+			<div class="p-1 d-flex justify-content-center  flex-column" style="height: 80%">
+				@for (item of menuList; track item.title) {
+					<div class="mb-1">
+						<button [class]="path.includes(item.url) ? 'btn btn-danger mb-2  btn-lg' : 'btn btn-dark mb-2'" routerLink="{{ item.url }}">
+							@if (item.icon) {
+								<i class="{{ item.icon }}"></i>
+							}
+						</button>
+					</div>
+				}
+			</div>
+			<div class="p-1" style="height: 10%">
+				<div class="d-flex align-items-start flex-column mb-3" style="height: 100%">
+					<div class="mt-auto">
+						@for (item of menuExit; track item.title) {
+							<button class="btn btn-dark mb-2" routerLink="{{ item.url }}">
+								@if (item.icon) {
+									<i class="{{ item.icon }}"></i>
+								}
+							</button>
+						}
+					</div>
+				</div>
+			</div>
+		</div>
 
-        </div>
-        <br/>
-        <ul class="menu-list">
-          @for(item of menuList; track item.title){
-            <div class="p-1">
-              <button class="btn btn-dark" routerLink="{{item.url}}">
-                @if(item.icon){
-                  <i class={{item.icon}}></i>
-                }
-                {{item.title}}
-              </button>
-            </div>
-          }
-        </ul>
-        <ul class="menu-exit">
-          @for(item of menuExit; track item.title){
-            <div class="p-1">
-              <button class="btn btn-dark" routerLink="{{item.url}}">
-                @if(item.icon){
-                  <i class={{item.icon}}></i>
-                }
-                {{item.title}}
-              </button>
-            </div>
-          }
-        </ul>
-      </div>
-    </div>
-  `,
-  styleUrl: './nav-bar-menu.component.css'
+		<div class="offcanvas offcanvas-start" tabindex="-1" id="offcanvas" aria-labelledby="offcanvasLabel">
+			<div class="p-1" style="height: 10%">
+				<div class="d-flex flex-row  mb-3">
+					<div class="p-2 flex-grow-1">
+						<h5>Seat App version 1.0.0</h5>
+					</div>
+					<div class="p-2">
+						<button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+					</div>
+				</div>
+			</div>
+			<div class="p-1 d-flex justify-content-center  flex-column" style="height: 80%">
+				@for (item of menuList; track item.title) {
+					<div class="mb-1 ms-3">
+						<button [class]="path.includes(item.url) ? 'btn btn-danger mb-2' : 'btn btn-dark mb-2'" routerLink="{{ item.url }}">
+							@if (item.icon) {
+								<i class="{{ item.icon }}"></i>
+							}
+							{{ item.title }}
+						</button>
+					</div>
+				}
+			</div>
+			<div class="p-1" style="height: 10%">
+				<div class="d-flex align-items-end flex-column mb-3" style="height: 100%">
+					<div class="mt-auto">
+						@for (item of menuExit; track item.title) {
+							<button class="btn btn-dark mb-2" routerLink="{{ item.url }}">
+								@if (item.icon) {
+									<i class="{{ item.icon }}"></i>
+								}
+							</button>
+						}
+					</div>
+				</div>
+			</div>
+		</div>
+	`,
+	styleUrl: './nav-bar-menu.component.css',
 })
-export class NavBarMenuComponent {
+export class NavBarMenuComponent implements AfterViewInit {
+	path = '';
+	menuList: Array<{ title: string; icon: string; url: string }> = [
+		{
+			title: 'Dash Board',
+			icon: 'bi bi-speedometer',
+			url: '/manager/dash-board',
+		},
+		{ title: 'Maps', icon: 'bi bi-map', url: '/manager/maps' },
+		{ title: 'Events', icon: 'bi bi-calendar-event', url: '/manager/events' },
+	];
 
-  menuList: Array<{ title: string; icon: string; url: string; }> = [
-    { title: "Dash Board", icon: "bi bi-speedometer", url: "/manager/dash-board" },
-    { title: "Maps", icon: "bi bi-map", url: "/manager/maps" },
+	menuExit: Array<{ title: string; icon: string; url: string }> = [{ title: 'Exit', icon: 'bi bi-box-arrow-left', url: '/site-web' }];
 
-  ];
-
-  menuExit: Array<{ title: string; icon: string; url: string; }> = [
-    { title: "Exit", icon: "bi bi-box-arrow-left", url: "/site-web" }
-  ];
-
+	constructor(private router: Router) {}
+	ngAfterViewInit(): void {
+		this.router.events.pipe(filter((event) => event instanceof NavigationEnd)).subscribe((event: NavigationEnd) => {
+			this.path = event.urlAfterRedirects;
+		});
+	}
 }

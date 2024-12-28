@@ -5,13 +5,8 @@ import { AppRoutingModule } from './app.routes';
 import { GoogleMapsModule } from '@angular/google-maps';
 
 @NgModule({
-  declarations: [
-  ],
-  imports: [
-    BrowserModule,
-    AppRoutingModule,
-    
-  ],
-  providers: [],
+	declarations: [],
+	imports: [BrowserModule, AppRoutingModule],
+	providers: [],
 })
-export class AppModule { }
+export class AppModule {}

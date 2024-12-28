@@ -8,43 +8,40 @@ import { MapComponent } from './maps/map/map.component';
 import { EventsComponent } from './events/events.component';
 
 const routes: Routes = [
-    {
-        path: '',
-        component: LayoutPageComponent,
-        children: [
-            {
-                path: 'dash-board',
-                component: DashBoardComponent
-            },
-            {
-                path: 'maps',
-              component: MapsComponent
-            },
-            {
-                path: 'map/:id',
-              component: MapComponent
-            },
-            {
-                path: 'events',
-              component: EventsComponent
-            },
-            // {
-            //     path: 'event/:id',
-            //   component: EventsComponent
-            // },
-            {
-                path: '**',
-                redirectTo: 'sign-in'
-            },
-        ]
-    }
+	{
+		path: '',
+		component: LayoutPageComponent,
+		children: [
+			{
+				path: 'dash-board',
+				component: DashBoardComponent,
+			},
+			{
+				path: 'maps',
+				component: MapsComponent,
+			},
+			{
+				path: 'maps/:id',
+				component: MapComponent,
+			},
+			{
+				path: 'events',
+				component: EventsComponent,
+			},
+			// {
+			//     path: 'event/:id',
+			//   component: EventsComponent
+			// },
+			{
+				path: '**',
+				redirectTo: 'sign-in',
+			},
+		],
+	},
 ];
 
 @NgModule({
-    imports: [
-        CommonModule,
-        RouterModule.forChild(routes)
-    ],
-    exports: [RouterModule, ]
+	imports: [CommonModule, RouterModule.forChild(routes)],
+	exports: [RouterModule],
 })
-export class ManagerRoutingModule { }
+export class ManagerRoutingModule {}

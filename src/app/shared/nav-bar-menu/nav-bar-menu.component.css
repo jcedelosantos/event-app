@@ -1,23 +1,23 @@
 .nav-bar-h {
-  height: 98dvh;
-  width: 45px;
-  background-color: rgb(24, 24, 24);
+	height: 98vh;
+	width: 50px;
+	background-color: rgb(8, 8, 8);
 }
 .img-menu {
-  margin: auto;
-  height: 200px;
-  width: 350px;
-  background-color: rgb(17, 17, 17);
-  border-radius: 10%;
+	margin: auto;
+	height: 200px;
+	width: 350px;
+	background-color: rgb(17, 17, 17);
+	border-radius: 10%;
 }
-.menu{
-  background-color: rgb(24, 24, 24);
-  color: white;
+.menu {
+	background-color: rgb(24, 24, 24);
+	color: white;
 }
 
-.menu-list{
-  height: 60dvh;
+.menu-list {
+	height: 60dvh;
 }
-.menu-exit{
-  height: 10dvh;
+.menu-exit {
+	height: 10dvh;
 }
