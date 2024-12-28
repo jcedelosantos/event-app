@@ -43,29 +43,14 @@ import { Area } from '../../../../../models/maps/area';
                         </div>
 
                         <div class="col-md-6 mb-2">
-                          <div class="form-group">
-                            <label for="editIcons">Color</label>
-                            <div class="row p-2">
-                              <div class="col-4">
-                                <div class="row">
-                                  <div class="col-4">
-                                    <h6>Text</h6>
-                                  </div>
-                                  <div class="col-8">
-                                    <input type="color" formControlName='editColor' />
-                                  </div>
-                                </div>
-                              </div>
-                              <div class="col-8">
-                                <div class="row">
-                                  <div class="col-6">
-                                  <h6>BackGround</h6>
-                                  </div>
-                                  <div class="col-6">
-                                    <input type="color"  formControlName='editBackGround' value="#ffffff" />
-                                  </div>
-                                </div>
-                              </div>
+                          <div class="row">
+                            <div class="col-4">
+                              <label for="colorInput" class="form-label">Text</label>
+                              <input type="color" class="form-control form-control-color" id="colorInput"  formControlName='editColor'>
+                            </div>
+                            <div class="col-8">
+                              <label for="colorBackInput" class="form-label">BackGround</label>
+                              <input type="color" class="form-control form-control-color" id="colorBackInput"  formControlName='editBackGround'>
                             </div>
                           </div>
                         </div>

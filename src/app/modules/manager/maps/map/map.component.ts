@@ -8,106 +8,93 @@ import { maps } from '../../../../data/map';
 import { Map } from "../../../../models/maps/map";
 import { Area } from '../../../../models/maps/area';
 import { NavBarMapComponent } from "../components/nav-bar-map/nav-bar-map.component";
-import { AccordionSeatsComponent } from "../components/accordion-seats/accordion-seats.component";
-import { AccordionTablesComponent } from "../components/accordion-tables/accordion-tables.component";
+import {  CollapseSeatsComponent } from "../components/collapse-seats/collapse-seats.component";
+import { CollapseTablesComponent } from "../components/accordion-tables/collapse-tables.component";
 import { CreateAreaComponent } from "../components/create-area/create-area.component";
 import { UpdateAreaComponent } from "../components/update-area/update-area.component";
 
 @Component({
   selector: 'app-map',
-  imports: [GoogleMapsModule, NavBarMapComponent, AccordionSeatsComponent, AccordionTablesComponent, CreateAreaComponent, ReactiveFormsModule, UpdateAreaComponent],
+  imports: [GoogleMapsModule, NavBarMapComponent, CollapseTablesComponent, CreateAreaComponent, ReactiveFormsModule, UpdateAreaComponent, CollapseSeatsComponent],
   template: `
       <nav-bar-map [maps]="maps"/>
       <div class="scrollmap">
         <div class="row">
         <div class="col-xxl-9 col-md-12 ">
-          <div class="card p-1">
-            <h4 class="card-header">{{map?.name}}</h4>
-            <div class="map-container">
-              <google-map  height="280px" width="100%" [center]="center" [zoom]="zoom">
-                  <map-marker [position]="center" [label]="'Ubicación X'"></map-marker>
-                </google-map>
+          <div class="card" >
+            <div class="card-header">
+              <h4>{{map?.name}}</h4>
             </div>
-            <div class="card-body">
-              <div class="card-title">
+            <ul class="list-group list-group-flush">
+              <google-map  height="280px" width="100%" [center]="center" [zoom]="zoom">
+                <map-marker [position]="center" [label]="'Ubicación X'"></map-marker>
+              </google-map>
+              <li class="list-group-item">
                 <div class="row">
                   <div class="col-5">
                     <h5 class="card-title">{{map?.description}}</h5>
                   </div>
                   <div class="col-7">
-                  <div class="d-flex justify-content-evenly">
-                    <div class="bd-highlight">  Areas : <span class="badge text-bg-danger">{{map?.areas?.length}}</span></div>
-                    <div class="bd-highlight">Tables : <span class="badge text-bg-danger"> {{map?.totalTables}}</span> /  <span class="badge text-bg-danger">{{map?.totalTablesSeat}}</span></div>
-                    <div class="bd-highlight"> Seat : <span class="badge text-bg-danger">{{map?.totalSeats}}</span></div>
+                  <div class="d-flex justify-content-end">
+                    <div class="bd-highlight me-4">  Areas : <span class="badge text-bg-danger">{{map?.areas?.length}}</span></div>
+                    <div class="bd-highlight me-4">Tables : <span class="badge text-bg-danger"> {{map?.totalTables}}</span> /  <span class="badge text-bg-danger">{{map?.totalTablesSeat}}</span></div>
+                    <div class="bd-highlight me-"> Seat : <span class="badge text-bg-danger">{{map?.totalSeats}}</span></div>
                   </div>
                   </div>
                 </div>
-              </div>
-            </div>
+              </li>
+            </ul>
           </div>
           <br/>
           <div class="scrollimg">
-          @if(map?.img){
-              <div class="image-container " #imageContainer (mousemove)="moveButton($event)">
-                <img #image [src]="map?.img" class="background-image"  (dblclick)="openCreateAreaForm($event)" >
-                @for(area of areas; track area.id;  let idx = $index){
-                  <button class="draggable-btn"
-                    (dblclick)="openUpdateAreaForm(area)"
-                    (mousedown)="startDragging(idx, $event)"
-                    (mouseup)="stopDragging()"
-                    (mouseleave)="stopDragging()"
-                    [style.color]="area.color"
-                    [style.background]="area.backGround"
-                    [style.font-size.px]="area.size"
-                    [style.top.px]="area.y"
-                    [style.left.px]="area.x">
-                    @if(area.icon){
-                      <i class="bi {{area.icon}}"></i>
+            <div class="container">
+              @if(map?.img){
+                  <div class="image-container " #imageContainer (mousemove)="moveButton($event)">
+                    <img #image [src]="map?.img" class="background-image"  (dblclick)="openCreateAreaForm($event)" >
+                    @for(area of areas; track area.id;  let idx = $index){
+                      <button class="draggable-btn "
+                        (dblclick)="openUpdateAreaForm(area)"
+                        (mousedown)="startDragging(idx, $event)"
+                        (mouseup)="stopDragging()"
+                        (mouseleave)="stopDragging()"
+                        [style.color]="area.color"
+                        [style.background]="area.backGround"
+                        [style.font-size.px]="area.size"
+                        [style.top.px]="area.y"
+                        [style.left.px]="area.x">
+                        @if(area.icon){
+                          <i class="bi {{area.icon}}"></i>
+                        }
+                       {{ area.name }}
+                    </button>
                     }
-                   {{ area.name }}
-                </button>
-                }
-              </div>
-          }
+                  </div>
+              }
+            </div>
           </div>
         </div>
         @if(areas){
           <div class="col-xxl-3 col-md-12">
-            <ol class="list-group-drak row list">
+            <div class="scroll-list">
               @for(area of areas; track area.id;  let idx = $index){
-                <li [class]="areas.length > 1 ? 'list-group-item d-flex justify-content-center col-xxl-12 col-xl-6 col-lg-12 col-md-12' : 'list-group-item d-flex  justify-content-center col-12'">
-                  <div class="">
-                    <div class="fw-bold">
-                      @if(area.icon){
-                        <i class="bi {{area.icon}}"></i>
-                      }
-                      {{area.name}}
-                    </div>
-                    @if(area.tables.length && area.seats.length){
-                      <div class="row">
-                        @if(area.tables.length){
-                          <accordion-tables [tables]="area.tables" [id]="idx"/>
-                        }
-                        @if(area.seats.length){
-                          <accordion-seats [seats]="area.seats" [id]="idx" />
-                        }
-                      </div>
+                <div class="card" >
+                  <div class="card-header">
+                  @if(area.icon){
+                      <i class="bi {{area.icon}}"></i>
                     }
-                    </div>
-                    <div class="row">
-                      <div class="col-4">
-                        <i class="bi bi-pen-fill"></i>
-                      </div>
-                      <div class="col-4">
-                        <span class="badge bg-primary rounded-pill">{{area.totalCount}}</span>
-                      </div>
-                      <div class="col-4">
-                        <i class="bi bi-file-x-fill"></i>
-                      </div>
+                    {{area.name}}
                   </div>
-                </li>
+                  <ul class="list-group list-group-flush">
+                    <collapse-seats [seats]="area.seats" [id]="idx" />
+                    <collapse-tables [tables]="area.tables" [id]="idx"/>
+                    <li class="list-group-item">
+                    
+                    </li>
+                  </ul>
+                </div>
+                <br/>
               }
-            </ol>
+            </div>
           </div>
         } 
         </div>
@@ -152,6 +139,7 @@ export class MapComponent implements OnInit, AfterViewInit {
 
   modalUpdateArea: any;
   areaUpdate: Area | undefined;
+  
 
   constructor(private route: ActivatedRoute, private router: Router) { }
 

@@ -47,14 +47,18 @@ div.scrollimg a:hover {
 
 .scrollmap {
   overflow-x: hidden; 
-  height: 93dvh;
+  overflow-y: scroll;
+  scrollbar-width: none;
+}
+
+.scroll-list {
+  overflow-x: hidden; 
+  height: 90vh;
   overflow-y: scroll;
   scrollbar-width: none;
 }
 
 .card {
-  min-width: 200px;
-  height: 380px;
   -webkit-box-shadow: 9px 11px 5px 1px rgba(0, 0, 0, 0.47);
   -moz-box-shadow: 9px 11px 5px 1px rgba(0, 0, 0, 0.47);
   box-shadow: 9px 11px 5px 1px rgba(0, 0, 0, 0.47);
