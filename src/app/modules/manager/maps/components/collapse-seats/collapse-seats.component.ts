@@ -13,8 +13,8 @@ import { Seat } from '../../../../../models/maps/seat';
 						<span class="badge rounded-pill bg-danger">{{ seats.length }}</span>
 					</button>
 				</div>
-				<div class="p-2">
-					<button class="btn " type="button"><i class="bi bi-pencil"></i></button>
+				<div class="p-4">
+					<i></i>
 				</div>
 				<div class="p-2">
 					<button type="button" class="btn btn-sm "><i class="bi bi-x-lg"></i></button>

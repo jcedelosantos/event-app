@@ -1,0 +1,39 @@
+.image-container {
+	position: relative;
+	display: inline-block;
+}
+img {
+	border-radius: 1%;
+}
+
+.background-image {
+	display: block;
+}
+
+.draggable-btn {
+	position: absolute;
+	cursor: grab;
+	border: none;
+	text-align: center;
+}
+
+.draggable-btn:active {
+	cursor: grabbing;
+}
+
+div.scrollimg {
+	overflow: auto;
+	white-space: nowrap;
+}
+
+div.scrollimg a {
+	display: inline-block;
+	color: white;
+	text-align: center;
+	padding: 14px;
+	text-decoration: none;
+}
+
+div.scrollimg a:hover {
+	background-color: #777;
+}

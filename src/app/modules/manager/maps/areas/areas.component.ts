@@ -14,16 +14,19 @@ import { CreateAreaComponent } from '../components/create-area/create-area.compo
 import { UpdateAreaComponent } from '../components/update-area/update-area.component';
 
 @Component({
-	selector: 'app-map',
+	selector: 'app-areas',
 	imports: [GoogleMapsModule, NavBarMapComponent, CollapseTablesComponent, CreateAreaComponent, ReactiveFormsModule, UpdateAreaComponent, CollapseSeatsComponent],
 	template: `
 		<nav-bar-map [maps]="maps" />
+		<div class="col-xxl-9 col-md-12 ">
+			<h3>Manager Areas</h3>
+		</div>
 		<div class="scroll-map">
 			<div class="row">
 				<div class="col-xxl-9 col-md-12 ">
 					<div class="card">
 						<div class="card-header">
-							<h4>{{ map?.name }}</h4>
+							<h5>{{ map?.name }}</h5>
 						</div>
 						<ul class="list-group list-group-flush">
 							<google-map height="280px" width="100%" [center]="center" [zoom]="zoom">
@@ -32,7 +35,7 @@ import { UpdateAreaComponent } from '../components/update-area/update-area.compo
 							<li class="list-group-item">
 								<div class="row">
 									<div class="col-5">
-										<h5 class="card-title">{{ map?.description }}</h5>
+										<h6 class="card-title">{{ map?.description }}</h6>
 									</div>
 									<div class="col-7">
 										<div class="d-flex justify-content-end">
@@ -52,15 +55,15 @@ import { UpdateAreaComponent } from '../components/update-area/update-area.compo
 						</ul>
 					</div>
 					<br />
-					<div class="scrollimg">
-						<div class="container">
-							@if (map?.img) {
+					@if (map?.img) {
+						<div class="scrollimg">
+							<div class="container">
 								<div class="image-container " #imageContainer (mousemove)="moveButton($event)">
 									<img #image [src]="map?.img" class="background-image" (dblclick)="openCreateAreaForm($event)" />
 									@for (area of areas; track area.id; let idx = $index) {
 										<button
 											class="draggable-btn "
-											(dblclick)="openUpdateAreaForm(area)"
+											(dblclick)="routeArea(area)"
 											(mousedown)="startDragging(idx, $event)"
 											(mouseup)="stopDragging()"
 											(mouseleave)="stopDragging()"
@@ -73,24 +76,43 @@ import { UpdateAreaComponent } from '../components/update-area/update-area.compo
 											@if (area.icon) {
 												<i class="bi {{ area.icon }}"></i>
 											}
-											{{ area.name }}
+											<span>
+												{{ area.name }}
+											</span>
+											<button type="button" class="btn btn-dark btn-sm rounded-circle" (click)="openUpdateAreaForm(area)">
+												<i class="bi bi-pencil"></i>
+											</button>
 										</button>
 									}
 								</div>
-							}
+							</div>
 						</div>
-					</div>
+					}
+					<br />
 				</div>
 				@if (areas) {
 					<div class="col-xxl-3 col-md-12">
+						<h5>List areas</h5>
 						<div class="scroll-list">
 							@for (area of areas; track area.id; let idx = $index) {
 								<div class="card">
 									<div class="card-header">
-										@if (area.icon) {
-											<i class="bi {{ area.icon }}"></i>
-										}
-										{{ area.name }}
+										<div class="d-flex flex-row  justify-content-between">
+											<div class="p-2">
+												<button type="button" class="btn btn-outline-danger btn-sm me-2">
+													@if (area.icon) {
+														<i class="bi {{ area.icon }}"></i>
+													}
+													{{ area.name }}
+												</button>
+												<button type="button" class="btn btn-dark btn-sm rounded-circle"><i class=" bi bi-pencil " (click)="openUpdateAreaForm(area)"></i></button>
+											</div>
+											<div class="p-2"></div>
+											<div class="p-2"></div>
+											<div class="p-2">
+												<button type="button" class="btn btn-sm "><i class="bi bi-x-lg"></i></button>
+											</div>
+										</div>
 									</div>
 									<ul class="list-group list-group-flush">
 										<collapse-seats [seats]="area.seats" [id]="idx" />
@@ -109,10 +131,10 @@ import { UpdateAreaComponent } from '../components/update-area/update-area.compo
 		<create-area [modal]="modalCreateArea" [coordinates]="coordinates" (createAreaEvent)="addArea($event.createArea)" />
 		<update-area [modal]="modalUpdateArea" [area]="areaUpdate" (updateAreaEvent)="updateArea($event.updateArea)" />
 	`,
-	styleUrl: './map.component.css',
+	styleUrl: './areas.component.css',
 	changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class MapComponent implements OnInit, AfterViewInit {
+export class AreasComponent implements OnInit, AfterViewInit {
 	center: google.maps.LatLngLiteral = { lat: 18.4628068, lng: -70.0412847 };
 	zoom = 20;
 
@@ -269,6 +291,12 @@ export class MapComponent implements OnInit, AfterViewInit {
 					break;
 				}
 			}
+		}
+	}
+
+	routeArea(area: Area) {
+		if (this.map) {
+			this['router'].navigate(['/manager/maps/' + this.map.id + '/areas/' + area.id]);
 		}
 	}
 }

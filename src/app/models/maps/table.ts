@@ -3,7 +3,7 @@ import { Seat } from './seat';
 export interface Table {
 	id: number;
 	name: string;
-	img: string;
+	icon: string;
 	seats: Array<Seat>;
 	type: string;
 	x: number;
@@ -11,5 +11,4 @@ export interface Table {
 	radio: number;
 	color: string;
 	size: number;
-	backGround: string;
 }

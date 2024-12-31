@@ -4,8 +4,9 @@ import { RouterModule, Routes } from '@angular/router';
 import { LayoutPageComponent } from './layout-page/layout-page.component';
 import { DashBoardComponent } from './dash-board/dash-board.component';
 import { MapsComponent } from './maps/maps.component';
-import { MapComponent } from './maps/map/map.component';
+import { AreasComponent } from './maps/areas/areas.component';
 import { EventsComponent } from './events/events.component';
+import { SeatsComponent } from './maps/seats/seats.component';
 
 const routes: Routes = [
 	{
@@ -21,8 +22,12 @@ const routes: Routes = [
 				component: MapsComponent,
 			},
 			{
-				path: 'maps/:id',
-				component: MapComponent,
+				path: 'maps/:id/areas',
+				component: AreasComponent,
+			},
+			{
+				path: 'maps/:id_map/areas/:id_area',
+				component: SeatsComponent,
 			},
 			{
 				path: 'events',

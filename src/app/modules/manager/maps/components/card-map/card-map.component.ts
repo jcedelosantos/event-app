@@ -33,7 +33,7 @@ import { GoogleMapsModule } from '@angular/google-maps';
 						</div>
 					</div>
 				</div>
-				<button type="button" class="btn btn-outline-danger btn-md btn-block p" routerLink="/manager/maps/{{ map.id }}">View Details</button>
+				<button type="button" class="btn btn-outline-danger btn-md btn-block p" routerLink="/manager/maps/{{ map.id }}/areas">View Details</button>
 				<br />
 			</div>
 			<br />
