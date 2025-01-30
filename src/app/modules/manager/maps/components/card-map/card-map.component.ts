@@ -44,7 +44,7 @@ import { GoogleMapsModule } from '@angular/google-maps';
 })
 export class CardMapComponent implements OnInit {
 	center: google.maps.LatLngLiteral = { lat: 18.4628068, lng: -70.0412847 };
-	zoom = 20;
+	zoom = 18;
 
 	@Input()
 	map: Map | undefined;

@@ -57,34 +57,32 @@ import { UpdateAreaComponent } from '../components/update-area/update-area.compo
 					<br />
 					@if (map?.img) {
 						<div class="scrollimg">
-							<div class="container">
-								<div class="image-container " #imageContainer (mousemove)="moveButton($event)">
-									<img #image [src]="map?.img" class="background-image" (dblclick)="openCreateAreaForm($event)" />
-									@for (area of areas; track area.id; let idx = $index) {
-										<button
-											class="draggable-btn "
-											(dblclick)="routeArea(area)"
-											(mousedown)="startDragging(idx, $event)"
-											(mouseup)="stopDragging()"
-											(mouseleave)="stopDragging()"
-											[style.color]="area.color"
-											[style.background]="area.backGround"
-											[style.font-size.px]="area.size"
-											[style.top.px]="area.y"
-											[style.left.px]="area.x"
-										>
-											@if (area.icon) {
-												<i class="bi {{ area.icon }}"></i>
-											}
-											<span>
-												{{ area.name }}
-											</span>
-											<button type="button" class="btn btn-dark btn-sm rounded-circle" (click)="openUpdateAreaForm(area)">
-												<i class="bi bi-pencil"></i>
-											</button>
+							<div class="image-container " #imageContainer (mousemove)="moveButton($event)">
+								<img #image [src]="map?.img" class="background-image" (dblclick)="openCreateAreaForm($event)" />
+								@for (area of areas; track area.id; let idx = $index) {
+									<button
+										class="draggable-btn "
+										(dblclick)="routeArea(area)"
+										(mousedown)="startDragging(idx, $event)"
+										(mouseup)="stopDragging()"
+										(mouseleave)="stopDragging()"
+										[style.color]="area.color"
+										[style.background]="area.backGround"
+										[style.font-size.px]="area.size"
+										[style.top.px]="area.y"
+										[style.left.px]="area.x"
+									>
+										@if (area.icon) {
+											<i class="bi {{ area.icon }}"></i>
+										}
+										<span [style.font-size.px]="area.size * 0.8">
+											{{ area.name }}
+										</span>
+										<button type="button" class="btn btn-dark btn-sm rounded-circle" (click)="openUpdateAreaForm(area)">
+											<i class="bi bi-pencil"></i>
 										</button>
-									}
-								</div>
+									</button>
+								}
 							</div>
 						</div>
 					}
@@ -99,7 +97,7 @@ import { UpdateAreaComponent } from '../components/update-area/update-area.compo
 									<div class="card-header">
 										<div class="d-flex flex-row  justify-content-between">
 											<div class="p-2">
-												<button type="button" class="btn btn-outline-danger btn-sm me-2">
+												<button type="button" class="btn btn-outline-danger btn-sm me-2" (click)="routeArea(area)">
 													@if (area.icon) {
 														<i class="bi {{ area.icon }}"></i>
 													}

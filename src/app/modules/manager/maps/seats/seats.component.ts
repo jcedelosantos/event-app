@@ -38,7 +38,6 @@ import { CollapseTablesComponent } from "../components/accordion-tables/collapse
 													</div>
 												</div>
 											}
-											<span> </span>
 										</div>
 									}
 									<!-- @for (table of area?.tables; track table.id; let idx = $index) {

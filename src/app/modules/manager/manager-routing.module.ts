@@ -7,6 +7,13 @@ import { MapsComponent } from './maps/maps.component';
 import { AreasComponent } from './maps/areas/areas.component';
 import { EventsComponent } from './events/events.component';
 import { SeatsComponent } from './maps/seats/seats.component';
+import { TicketsComponent } from './tickets/tickets.component';
+import { UsersComponent } from './users/users.component';
+import { ReportsComponent } from './reports/reports.component';
+import { HistoryComponent } from './history/history.component';
+import { QrsComponent } from './qrs/qrs.component';
+import { ProductsComponent } from './products/products.component';
+import { SalesComponent } from './sales/sales.component';
 
 const routes: Routes = [
 	{
@@ -32,6 +39,34 @@ const routes: Routes = [
 			{
 				path: 'events',
 				component: EventsComponent,
+			},
+			{
+				path: 'tickets',
+				component: TicketsComponent,
+			},
+			{
+				path: 'users',
+				component: UsersComponent,
+			},
+			{
+				path: 'reports',
+				component: ReportsComponent,
+			},
+			{
+				path: 'history',
+				component: HistoryComponent,
+			},
+			{
+				path: 'qrs',
+				component: QrsComponent,
+			},
+			{
+				path: 'products',
+				component: ProductsComponent,
+			},
+			{
+				path: 'sales',
+				component: SalesComponent,
 			},
 			// {
 			//     path: 'event/:id',

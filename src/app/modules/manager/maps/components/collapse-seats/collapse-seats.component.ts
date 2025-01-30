@@ -26,7 +26,7 @@ import { Seat } from '../../../../../models/maps/seat';
 						<li class="list-group-item">
 							<div class="d-flex justify-content-evenly align-items-center">
 								<input class="form-control" type="text" [placeholder]="seat.name" />
-								<button type="button" class="btn btn-sm"><i class="bi bi-x-circle-fill"></i></button>
+								<button type="button" class="btn btn-sm" linkrou><i class="bi bi-x-circle-fill"></i></button>
 							</div>
 						</li>
 					}
