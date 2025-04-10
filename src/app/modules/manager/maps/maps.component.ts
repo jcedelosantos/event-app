@@ -9,7 +9,10 @@ import { NavBarMapsComponent } from './components/nav-bar-maps/nav-bar-maps.comp
 	selector: 'app-maps',
 	imports: [CardMapComponent, NavBarMapsComponent],
 	template: `
+		<br />
+		<br />
 		<div class="row">
+			<h2>Manger Maps</h2>
 			<app-nav-bar-maps />
 
 			<div class="col-12 ">

@@ -13,7 +13,16 @@ import { GoogleMapsModule } from '@angular/google-maps';
 	template: `
 		@if (map) {
 			<div class="card p-1">
-				<h4 class="card-header">{{ map.name }}</h4>
+				<div class="d-flex justify-content-between">
+					<div class="m-2">
+						<h4>{{ map.name }}</h4>
+					</div>
+					<div>
+						<button type="button" class="btn btn-dark btn-sm rounded-circle"><i class="bi bi-pencil"></i></button>
+						<button type="button" class="btn btn-dark btn-sm rounded-circle"><i class="bi bi-x-lg"></i></button>
+					</div>
+				</div>
+
 				<div class="map-container">
 					<google-map height="300px" width="100%" [center]="center" [zoom]="zoom">
 						<map-marker [position]="center" [label]="'Ubicación X'"></map-marker>

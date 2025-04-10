@@ -10,6 +10,7 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
 					<nav class="navbar">
 						<div class="container-fluid">
 							<form class="d-flex" role="search">
+								<button type="button" class="me-4 btn btn-danger">Create </button>
 								<input class="form-control me-3" type="search" placeholder="Name" aria-label="Search" />
 								<input class="form-control me-3" type="search" placeholder="Location" aria-label="Search" />
 								<button class="btn btn-outline-danger" type="button">Search</button>

@@ -1,0 +1,31 @@
+/* .circleLeft {
+	position: absolute;
+	left: 0px;
+	width: 12px;
+	height: 24px;
+	background-color: #ffffff;
+	border-radius: 0 12px 12px 0;
+}
+.ripLine {
+	position: relative;
+	top: 12px;
+	width: 100%;
+	border-top: 3px solid #ffffff;
+	border-top-style: dashed;
+}
+.circleRight {
+	position: absolute;
+
+	right: 0px;
+	width: 12px;
+	height: 24px;
+	background-color: #ffffff;
+	border-radius: 12px 0 0 12px;
+} */
+.barcode {
+	display: flex;
+	justify-content: center;
+}
+/* .ticketRip{
+    padding-bottom: 10px;
+} */
