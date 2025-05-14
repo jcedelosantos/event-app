@@ -11,5 +11,5 @@ export interface User {
 	email: string;
 	carnet: number;
 	adress: string;
-	phone: number;
+	phone: string | number;
 }

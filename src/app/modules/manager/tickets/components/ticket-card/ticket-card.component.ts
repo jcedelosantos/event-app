@@ -48,7 +48,7 @@ import { Ticket } from '../../../../../models/tickets/ticket';
 				</div>
 			</div>
 		}
-		<app-update-ticket-modal />
+		<app-update-ticket-modal [ticket]="ticket"  />
 		<app-delet-ticket-modal />
 	`,
 	styleUrl: './ticket-card.component.css',
