@@ -26,6 +26,12 @@
 	display: flex;
 	justify-content: center;
 }
+
 /* .ticketRip{
     padding-bottom: 10px;
 } */
+
+.text-bg-purple {
+	background-color: #6f42c1;
+	color: white;
+}
