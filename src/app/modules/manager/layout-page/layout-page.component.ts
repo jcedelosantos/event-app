@@ -6,11 +6,11 @@ import { RouterOutlet } from '@angular/router';
 	selector: 'app-layout-page',
 	imports: [NavBarMenuComponent, RouterOutlet],
 	template: `
-		<div class="row maps" data-bs-theme="dark">
+		<div class="row maps " data-bs-theme="dark">
 			<div class="col-lg-auto col-md-1 col-sm-1">
 				<shared-nav-bar-menu />
 			</div>
-			<div class="col-11">
+			<div class="col-11 pt-5">
 				<router-outlet />
 			</div>
 		</div>

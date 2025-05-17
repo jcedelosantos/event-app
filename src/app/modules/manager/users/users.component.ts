@@ -1,16 +1,17 @@
-import { ChangeDetectionStrategy, Component, OnInit } from '@angular/core';
+import { AfterViewInit, ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import * as bootstrap from "bootstrap";
 
-import { CreateUserModalComponent } from "./components/create-user-modal/create-user-modal.component";
-import { UpdateUserModalComponent } from "./components/update-user-modal/update-user-modal.component";
 import { DeletUserModalComponent } from './components/delet-user-modal/delet-user-modal.component';
-import { ImportUsersModalComponent } from './components/import-users-modal/import-users-modal.component';
 import { ExportUsersModalComponent } from './components/export-users-modal/export-users-modal.component';
+import { ImportUsersModalComponent } from './components/import-users-modal/import-users-modal.component';
+import { UpdateUserModalComponent } from "./components/update-user-modal/update-user-modal.component";
 
-import { users } from '../../../data/users';
+
 import { User } from '../../../models/users/user';
+import { UserService } from './services/user.service';
 @Component({
 	selector: 'app-users',
-	imports: [CreateUserModalComponent, UpdateUserModalComponent, DeletUserModalComponent, ImportUsersModalComponent, ExportUsersModalComponent],
+	imports: [UpdateUserModalComponent, DeletUserModalComponent, ImportUsersModalComponent, ExportUsersModalComponent],
 	template: `
 		<br />
 		<br />
@@ -19,10 +20,10 @@ import { User } from '../../../models/users/user';
 		<nav class="navbar border-bottom border-body">
 			<div class="container-fluid">
 				<form class="d-flex" role="search">
-					<button type="button" class="btn btn-danger  me-4" data-bs-toggle="modal" data-bs-target="#createUserModal">Create</button>
+					<button type="button" class="btn btn-primary me-4" (click)="openUpdateUserModal(null)">Create</button>
 					<input class="form-control me-2" type="search" placeholder="Search" aria-label="Name" />
-					<button class="btn btn-dark me-4" type="submit">Search</button>
-					<button class="btn btn-danger" type="button" data-bs-toggle="modal" data-bs-target="#deletUserModal"><i class="bi bi-trash-fill"></i></button>
+					<button class="btn btn-dark me-4" type="submit"> Search</button>
+					<button class="btn btn-danger" type="button" ><i class="bi bi-eraser-fill"></i></button>
 				</form>
 				<div class="navbar-brand">
 					<div class="row">
@@ -43,7 +44,7 @@ import { User } from '../../../models/users/user';
 				<div class="d-flex justify-content-between">
 					<div class="p-2">
 						List of users
-						{{ users?.length }}
+						{{ users().length }}
 						/ 10
 					</div>
 					<div class="p-2">
@@ -71,55 +72,47 @@ import { User } from '../../../models/users/user';
 				<tr>
 					<th scope="col"><input class="form-check-input mb-2" type="checkbox" id="checkAll" /></th>
 					<th scope="col">
-						<input type="radio" class="btn-check" name="options-base" id="optionName" autocomplete="off" checked />
-						<label class="btn" for="optionName">Name</label>
-					</th>
-
-					<th scope="col">
-						<input type="radio" class="btn-check" name="options-base" id="optionLastName" autocomplete="off" />
-						<label class="btn" for="optionLastName">LastName</label>
+						Name
 					</th>
 					<th scope="col">
-						<input type="radio" class="btn-check" name="options-base" id="optionCarnet" autocomplete="off" />
-						<label class="btn" for="optionCarnet">Carnet</label>
+						LastName
 					</th>
 					<th scope="col">
-						<input type="radio" class="btn-check" name="options-base" id="optionUserName" autocomplete="off" />
-						<label class="btn" for="optionUserName">UserName</label>
+						Carnet
 					</th>
 					<th scope="col">
-						<input type="radio" class="btn-check" name="options-base" id="optionEmail" autocomplete="off" />
-						<label class="btn" for="optionEmail">Email</label>
+						UserName
 					</th>
 					<th scope="col">
-						<input type="radio" class="btn-check" name="options-base" id="optionPhone" autocomplete="off" />
-						<label class="btn" for="optionPhone">Phone</label>
+						Email
 					</th>
 					<th scope="col">
-						<input type="radio" class="btn-check" name="options-base" id="optionType" autocomplete="off" />
-						<label class="btn" for="optionType">Type</label>
+						Phone
+					</th>
+					<th scope="col">
+						Type
 					</th>
 				</tr>
 			</thead>
 			<tbody>
-				@for (user of users; track $index) {
+				@for (user of users(); track $index) {
 					<tr>
 						<td scope="row">
 							<input class="form-check-input" type="checkbox" id="check_{{ $index }}" />
 						</td>
-						<td>{{ user.name }}</td>
-						<td>{{ user.lastname }}</td>
-						<td>{{ user.carnet }}</td>
-						<td>{{ user.username }}</td>
-						<td>{{ user.email }}</td>
-						<td>{{ user.phone }}</td>
+						<td class="ml-2">{{ user.name }}</td>
+						<td class="ml-2">{{ user.lastname }}</td>
+						<td class="ml-2">{{ user.carnet }}</td>
+						<td class="ml-2">{{ user.username }}</td>
+						<td class="ml-2">{{ user.email }}</td>
+						<td class="ml-2">{{ user.phone }}</td>
 						<td>
 							<div class="row">
 								<div class="col">{{ user.type.name }}</div>
 								<div class="col">
 									<div class="d-flex flex-row-reverse">
-										<button type="button" class="btn btn-dark btn-sm rounded-circle" data-bs-toggle="modal" data-bs-target="#deletUserModal"><i class="bi bi-x-lg"></i></button>
-										<button type="button" class="btn btn-dark btn-sm rounded-circle me-2" data-bs-toggle="modal" data-bs-target="#updateUserModal"><i class="bi bi-pencil"></i></button>
+										<button type="button" class="btn btn-dark btn-sm rounded-circle"><i class="bi bi-x-lg"></i></button>
+										<button type="button" class="btn btn-dark btn-sm rounded-circle me-2" (click)="openUpdateUserModal(user)"><i class="bi bi-pencil"></i></button>
 									</div>
 								</div>
 							</div>
@@ -128,19 +121,27 @@ import { User } from '../../../models/users/user';
 				}
 			</tbody>
 		</table>
-		<app-create-user-modal />
-		<app-update-user-modal />
-		<app-delet-user-modal />
+		<!-- <app-create-user-modal /> -->
+		<app-update-user-modal [user]="selectedUser()"/>
+		<!-- <app-delet-user-modal /> -->
 		<app-import-users-modal />
 		<app-export-users-modal />
 	`,
 	styleUrl: './users.component.css',
 	changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class UsersComponent implements OnInit {
-	users: Array<User> | undefined;
+export class UsersComponent implements AfterViewInit {
+	userService = inject(UserService);
+	users = signal<User[]>(this.userService.getUsers());
+	selectedUser = signal<User | null>(null);
+	userUpdateModal: any;
+	
+	ngAfterViewInit(): void {
+		this.userUpdateModal = new bootstrap.Modal("#updateUserModal", { backdrop: true });
+	}
 
-	ngOnInit(): void {
-		this.users = users;
+	openUpdateUserModal(user: User | null) {
+		this.selectedUser.set(user);
+		this.userUpdateModal?.show();
 	}
 }

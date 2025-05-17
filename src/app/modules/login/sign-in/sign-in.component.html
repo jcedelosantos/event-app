@@ -10,7 +10,7 @@
 			</div>
 			<div class="mb-3">
 				<label for="password" class="form-label">Password</label>
-				<input type="password" class="form-control" id="password" formControlName="password" required />
+				<input type="password" class="form-control" id="password" formControlName="password" required (keyup.enter)="signIn()" />
 			</div>
 			@if (status) {
 				<div class="form-text">{{ status }}</div>
