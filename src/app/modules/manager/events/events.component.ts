@@ -1,14 +1,13 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
-import { CreateEventModalComponent } from './components/create-event-modal/create-event-modal.component';
-import { ScheduleComponent } from '../../../shared/schedule/schedule.component';
-import { Event } from '../../../models/events/events';
-import { EventsService } from './services/events.service';
-import { EventCardComponent } from './components/event-card/event-card.component';
+import { ChangeDetectionStrategy, Component } from '@angular/core';
+
+import { CreateEventModalComponent } from './component/create-event-modal/create-event-modal.component';
 
 @Component({
 	selector: 'app-events',
-	imports: [CreateEventModalComponent, ScheduleComponent, EventCardComponent],
+	imports: [CreateEventModalComponent],
 	template: `
+		<br />
+		<br />
 		<h2>Events Manager</h2>
 		<br />
 
@@ -33,116 +32,8 @@ import { EventCardComponent } from './components/event-card/event-card.component
 		</nav>
 		<br />
 		<app-create-event-modal />
-		<div class="row">
-			<div class="col-9">
-				<div class="d-flex flex-column vh-100">
-					<div class="text-white p-1" style="flex: 0 0 20%;">
-						<h5>Now</h5>
-
-						<div id="carouselEvents" class="carousel slide">
-							<div class="carousel-inner">
-								@for (eventNow of eventsNow(); track $index; let idx = $index) {
-									<div [class]="0 === idx ? 'carousel-item active' : 'carousel-item'">
-										<div class="d-flex flex-row">
-											@for (event of eventNow; track $index) {
-												<div class="p-2">
-													<event-card [event]="event" />
-												</div>
-											}
-										</div>
-									</div>
-								}
-							</div>
-							<button class="carousel-control-prev" type="button" data-bs-target="#carouselEvents" data-bs-slide="prev">
-								<span class="carousel-control-prev-icon" aria-hidden="true"></span>
-								<span class="visually-hidden">Previous</span>
-							</button>
-							<button class="carousel-control-next" type="button" data-bs-target="#carouselEvents" data-bs-slide="next">
-								<span class="carousel-control-next-icon" aria-hidden="true"></span>
-								<span class="visually-hidden">Next</span>
-							</button>
-						</div>
-					</div>
-					<div class="text-white p-1" >
-						<h5>Up Coming</h5>
-
-						<div id="carouselEventsUpComing" class="carousel slide">
-							<div class="carousel-inner">
-								@for (eventUpcoming of eventsUpcoming(); track $index; let idx = $index) {
-									<div [class]="0 === idx ? 'carousel-item active' : 'carousel-item'">
-										<div class="d-flex flex-row">
-											@for (event of eventUpcoming; track $index) {
-												<div class="p-2">
-													<event-card [event]="event" />
-												</div>
-											}
-										</div>
-									</div>
-								}
-							</div>
-							<button class="carousel-control-prev" type="button" data-bs-target="#carouselEventsUpComing" data-bs-slide="prev">
-								<span class="carousel-control-prev-icon" aria-hidden="true"></span>
-								<span class="visually-hidden">Previous</span>
-							</button>
-							<button class="carousel-control-next" type="button" data-bs-target="#carouselEventsUpComing" data-bs-slide="next">
-								<span class="carousel-control-next-icon" aria-hidden="true"></span>
-								<span class="visually-hidden">Next</span>
-							</button>
-						</div>
-
-						<div id="carouselEventsUpComingLast" class="carousel slide">
-							<div class="carousel-inner">
-								@for (eventUpcoming of eventsUpcoming(); track $index; let idx = $index) {
-									<div [class]="0 === idx ? 'carousel-item active' : 'carousel-item'">
-										<div class="d-flex flex-row">
-											@for (event of eventUpcoming; track $index) {
-												<div class="p-2">
-													<event-card [event]="event" />
-												</div>
-											}
-										</div>
-									</div>
-								}
-							</div>
-							<button class="carousel-control-prev" type="button" data-bs-target="#carouselEventsUpComingLast" data-bs-slide="prev">
-								<span class="carousel-control-prev-icon" aria-hidden="true"></span>
-								<span class="visually-hidden">Previous</span>
-							</button>
-							<button class="carousel-control-next" type="button" data-bs-target="#carouselEventsUpComingLast" data-bs-slide="next">
-								<span class="carousel-control-next-icon" aria-hidden="true"></span>
-								<span class="visually-hidden">Next</span>
-							</button>
-						</div>
-					</div>
-				</div>
-			</div>
-			<div class="col-3">
-				<app-schedule />
-			</div>
-		</div>
 	`,
 	styleUrl: './events.component.css',
 	changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class EventsComponent {
-	private readonly eventSrv = inject(EventsService);
-
-	events = signal<Event[]>([]);
-	eventsNow = computed(() => this.chunkArray(this.events(), 3));
-	eventsUpcoming = computed(() => this.chunkArray(this.events(), 4));
-
-	constructor() {
-		effect(() => {
-			const data = this.eventSrv.getEvents();
-			this.events.set(data ?? []);
-		});
-	}
-
-	private chunkArray<T>(array: T[], size: number): T[][] {
-		const result: T[][] = [];
-		for (let i = 0; i < array.length; i += size) {
-			result.push(array.slice(i, i + size));
-		}
-		return result;
-	}
-}
+export class EventsComponent {}

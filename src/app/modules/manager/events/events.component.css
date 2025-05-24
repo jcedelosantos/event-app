@@ -1,5 +1,3 @@
-.scroll-events-now {
-	background-color: lightblue;
-  width: auto;
-  overflow-x: scroll;
+:host {
+	display: block;
 }

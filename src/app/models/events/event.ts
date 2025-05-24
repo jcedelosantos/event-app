@@ -3,7 +3,7 @@ import { Area } from '../maps/area';
 import { Ticket } from '../tickets/ticket';
 import { Catalog } from '../products/catalog';
 
-export interface Events {
+export interface Event {
 	id: number;
 	userId: number;
 	clientId: number;
@@ -17,7 +17,8 @@ export interface Events {
 	dateOff: Date;
 	active: boolean;
 	map: Map;
-	areas: Array<number>;
+	areas: Array<Area>;
 	tickets: Array<Ticket>;
+	locaction: [string, string];
 	catalogs: Array<Catalog>;
 }
