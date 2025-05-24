@@ -1,0 +1,32 @@
+.schedule-box {
+  background-color: #0a0a0a;
+  border-radius: 2%;
+  padding: 20px;
+  height: 80vh;
+  width: 25vw;
+}
+
+.calendar {
+  border-collapse: collapse;
+  width: 100%;
+  text-align: center;
+}
+
+.calendar td, .calendar th {
+  border: 1px solid #613434;
+  padding: 8px;
+  width: 14.2%;
+  height: 50px;
+  background-color: #111111;
+}
+
+.calendar td.out {
+  background-color: #242424;
+}
+
+.scroll-events {
+	overflow-x: hidden;
+	height: 38vh;
+	overflow-y: scroll;
+	scrollbar-width: none;
+}

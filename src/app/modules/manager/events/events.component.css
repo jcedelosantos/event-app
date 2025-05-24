@@ -1,3 +1,5 @@
-:host {
-	display: block;
+.scroll-events-now {
+	background-color: lightblue;
+  width: auto;
+  overflow-x: scroll;
 }
