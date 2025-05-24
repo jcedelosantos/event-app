@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
 import { CreateEventModalComponent } from './components/create-event-modal/create-event-modal.component';
 import { ScheduleComponent } from '../../../shared/schedule/schedule.component';
-import { Event } from '../../../models/events/events';
+import { Events } from '../../../models/events/events';
 import { EventsService } from './services/events.service';
 import { EventCardComponent } from './components/event-card/event-card.component';
 
@@ -127,7 +127,7 @@ import { EventCardComponent } from './components/event-card/event-card.component
 export class EventsComponent {
 	private readonly eventSrv = inject(EventsService);
 
-	events = signal<Event[]>([]);
+	events = signal<Events[]>([]);
 	eventsNow = computed(() => this.chunkArray(this.events(), 3));
 	eventsUpcoming = computed(() => this.chunkArray(this.events(), 4));
 
