@@ -1,8 +1,9 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { ReactiveFormsModule } from '@angular/forms';
 
 @Component({
 	selector: 'app-create-event-modal',
-	imports: [],
+	imports: [ReactiveFormsModule],
 	template: ` 
   <div class="modal fade" id="createEventModal" tabindex="-1" aria-labelledby="createEventModalLabel" aria-hidden="true">
 		<div class="modal-dialog">
@@ -14,9 +15,13 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
 				<div class="modal-body">
 					<form class="needs-validation" novalidate="">
 						<div class="row">
+							<div class="col-md-12 mb-3">
+								<label for="name">Event Name </label>
+								<input type="text" class="form-control" placeholder="eventName" formControlName="eventName"  />
+							</div>
 							<div class="col-md-6 mb-3">
-								<label for="name">Name </label>
-								<input type="text" class="form-control" />
+								<label for="code">Start Date </label>
+								<input type="date" class="form-control" formControlName="eventName" />
 							</div>
 							<div class="col-md-6 mb-3">
 								<label for="code">Code </label>

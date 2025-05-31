@@ -1,17 +1,15 @@
-import { ChangeDetectionStrategy, Component, Input, AfterViewInit, input, signal, output } from '@angular/core';
+import { AfterViewInit, ChangeDetectionStrategy, Component, input, output } from '@angular/core';
 
-import { QRCodeComponent } from 'angularx-qrcode';
 import JsBarcode /* , { Options as jsBarcodeOptions } */ from 'jsbarcode';
 
-import { UpdateTicketModalComponent } from '../update-ticket-modal/update-ticket-modal.component';
 import { DeletTicketModalComponent } from '../delet-ticket-modal/delet-ticket-modal.component';
 
-import { Ticket } from '../../../../../models/tickets/ticket';
 import { NgClass } from '@angular/common';
+import { Ticket } from '../../../../../models/tickets/ticket';
 
 @Component({
 	selector: 'ticket-card',
-	imports: [QRCodeComponent, UpdateTicketModalComponent, DeletTicketModalComponent, NgClass],
+	imports: [ DeletTicketModalComponent, NgClass],
 	template: `
 		@if (ticket()) {
 			<div class="card text-white bg-dark mb-3  " style="max-width: 35rem; ">

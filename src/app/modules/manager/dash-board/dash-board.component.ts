@@ -1,12 +1,12 @@
-import { ChangeDetectionStrategy, Component, AfterViewInit } from '@angular/core';
+import { AfterViewInit, Component, signal } from '@angular/core';
 
-declare var bootstrap: any;
+declare const bootstrap: any;
 
 @Component({
 	selector: 'app-dash-board',
 	imports: [],
 	template: `
-		@if (notification) {
+		@if (notification()) {
 			<div class="modal" id="notificationModal" data-backdrop="static" data-keyboard="false" tabindex="-1" aria-labelledby="notificationModalLabel" aria-hidden="true">
 				<div class="modal-dialog">
 					<div class="modal-content">
@@ -27,26 +27,24 @@ declare var bootstrap: any;
 		}
 	`,
 	styleUrl: './dash-board.component.css',
-	changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class DashBoardComponent implements AfterViewInit {
-	notification: boolean = true;
+	notification = signal<boolean>(false);
 	modalNotification: any;
-	constructor() {}
 
 	ngAfterViewInit(): void {
 		this.getInitModal();
-		if (this.notification) {
+		if (this.notification()) {
 			this.openNotificationModal();
 		}
 	}
 
 	setNotification(value: boolean) {
-		this.notification = value;
+		this.notification.set(value);
 	}
 
 	getInitModal() {
-		var modalElement = document.getElementById('notificationModal');
+		const modalElement = document.getElementById('notificationModal');
 		if (modalElement) {
 			this.modalNotification = new bootstrap.Modal(modalElement);
 		}
