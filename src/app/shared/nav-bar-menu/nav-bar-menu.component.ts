@@ -1,4 +1,4 @@
-import { Component, AfterViewInit } from '@angular/core';
+import { Component, AfterViewInit, inject } from '@angular/core';
 import { NavigationEnd, Router, RouterLink } from '@angular/router';
 import { filter } from 'rxjs';
 @Component({
@@ -37,7 +37,7 @@ import { filter } from 'rxjs';
 			</div>
 		</div>
 
-		<div class="offcanvas offcanvas-start" tabindex="-1" id="offcanvas" aria-labelledby="offcanvasLabel" style="width: 300px;">
+		<div class="offcanvas offcanvas-start" tabindex="-1" id="offcanvas" aria-labelledby="offcanvasLabel" style="width: 12vw;">
 			<div class="p-1" style="height: 5%">
 				<div class="d-flex flex-row  mb-3">
 					<div class="p-2 flex-grow-1">
@@ -92,9 +92,9 @@ export class NavBarMenuComponent implements AfterViewInit {
 
 	menuExit: Array<{ title: string; icon: string; url: string }> = [{ title: 'Exit', icon: 'bi bi-box-arrow-left', url: '/site-web' }];
 
-	constructor(private router: Router) {}
 	ngAfterViewInit(): void {
-		this.router.events.pipe(filter((event) => event instanceof NavigationEnd)).subscribe((event: NavigationEnd) => {
+		const router = inject(Router)
+		router.events.pipe(filter((event) => event instanceof NavigationEnd)).subscribe((event: NavigationEnd) => {
 			this.path = event.urlAfterRedirects;
 		});
 	}

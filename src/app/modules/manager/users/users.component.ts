@@ -1,7 +1,6 @@
 import { AfterViewInit, ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import * as bootstrap from "bootstrap";
 
-import { DeletUserModalComponent } from './components/delet-user-modal/delet-user-modal.component';
 import { ExportUsersModalComponent } from './components/export-users-modal/export-users-modal.component';
 import { ImportUsersModalComponent } from './components/import-users-modal/import-users-modal.component';
 import { UpdateUserModalComponent } from "./components/update-user-modal/update-user-modal.component";
@@ -11,7 +10,7 @@ import { User } from '../../../models/users/user';
 import { UserService } from './services/user.service';
 @Component({
 	selector: 'app-users',
-	imports: [UpdateUserModalComponent, DeletUserModalComponent, ImportUsersModalComponent, ExportUsersModalComponent],
+	imports: [UpdateUserModalComponent, ImportUsersModalComponent, ExportUsersModalComponent],
 	template: `
 		<br />
 		<br />
