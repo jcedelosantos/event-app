@@ -9,7 +9,7 @@ import { Events } from '../../../../models/events/event';
 export class EventsService {
   private readonly httpClient = inject(HttpClient);
 
-  mockTickets() {
+  createRandomEvent() {
     return {
       id: faker.number.int({ min: 1, max: 100 }),
       userId: faker.number.int({ min: 1, max: 100 }),

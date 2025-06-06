@@ -1,0 +1,56 @@
+<div class="modal fade" id="eventDetailModal" tabindex="-1" aria-labelledby="eventDetailModalLabel" aria-hidden="true">
+		<div class="modal-dialog">
+			<div class="modal-content">
+				<div class="modal-header">
+					<h1 class="modal-title fs-5" id="eventDetailModalLabel">Event Detail</h1>
+					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+				</div>
+				<div class="modal-body">
+					<form [formGroup]="eventDetailForm">
+						<div class="row">
+							<div class="col-md-12 mb-3">
+								<label for="name">Event Name </label>
+								<input type="text" class="form-control" formControlName="name"  />
+							</div>
+							<div class="col-md-6 mb-3">
+								<label for="code">Start Date </label>
+								<input type="text" class="form-control" formControlName="date" />
+							</div>
+							<div class="col-md-6 mb-3">
+								<label for="code">Code </label>
+								<input type="text" class="form-control" formControlName="code" />
+							</div>
+							<div class="col-md-6 mb-3">
+								<label for="code">Map </label>
+								<input type="text" class="form-control" formControlName="map" />
+							</div>
+							<div class="col-md-6 mb-3">
+								<label for="code">Area </label>
+								<input type="text" class="form-control" formControlName="area" />
+							</div>
+							<div class="col-md-6 mb-3">
+								<label for="code">Seat </label>
+								<input type="number" class="form-control" formControlName="seat" />
+							</div>
+							<div class="col-md-6 mb-3">
+								<label for="code">Ticket </label>
+								<input type="text" class="form-control" formControlName="ticket" />
+							</div>
+							<div class="col-md-6 mb-3">
+								<label for="code">Type </label>
+								<input type="text" class="form-control" formControlName="type" />
+							</div>
+							
+						</div>
+						
+					</form>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-danger" data-bs-dismiss="modal">Close</button>
+				</div>
+			</div>
+		</div>
+	</div>
+
+
+    

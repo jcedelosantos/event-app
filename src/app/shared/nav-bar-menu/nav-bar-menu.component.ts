@@ -1,22 +1,25 @@
-import { Component, AfterViewInit, inject } from '@angular/core';
+import { Component, AfterViewInit, inject, signal } from '@angular/core';
 import { NavigationEnd, Router, RouterLink } from '@angular/router';
+import * as bootstrap from "bootstrap";
 import { filter } from 'rxjs';
+
+type MenuItem = { title: string; icon: string; url: string};
 @Component({
 	selector: 'shared-nav-bar-menu',
 	imports: [RouterLink],
 	template: `
 		<div class="d-flex flex-column mb-3 nav-bar-h">
 			<div class="p-3" style="height: 5%">
-				<a data-bs-toggle="offcanvas" href="#offcanvas" aria-controls="offcanvas" style="height: 100%">
+				<a data-bs-toggle="offcanvas" id="offCanvasBtn" href="#offcanvas" aria-controls="offcanvas" style="height: 100%">
 					<i class="bi bi-list"></i>
 				</a>
 			</div>
 			<div class="p-1 d-flex justify-content-center  flex-column" style="height: 90%">
 				@for (item of menuList; track item.title) {
 					<div class="mb-1">
-						<button [class]="path.includes(item.url) ? 'btn btn-danger mb-2  btn-lg' : 'btn btn-dark mb-2'" routerLink="{{ item.url }}">
+						<button [class]="path().includes(item.url) ? 'btn btn-danger mb-2' : 'btn btn-dark mb-2'" [routerLink]="item.url">
 							@if (item.icon) {
-								<i class="{{ item.icon }}"></i>
+								<i [class]="item.icon"></i>
 							}
 						</button>
 					</div>
@@ -26,9 +29,9 @@ import { filter } from 'rxjs';
 				<div class="d-flex align-items-start flex-column mb-3" style="height: 100%">
 					<div class="mt-auto">
 						@for (item of menuExit; track item.title) {
-							<button class="btn btn-dark mb-2" routerLink="{{ item.url }}">
+							<button class="btn btn-dark mb-2" [routerLink]="item.url">
 								@if (item.icon) {
-									<i class="{{ item.icon }}"></i>
+									<i [class]="item.icon"></i>
 								}
 							</button>
 						}
@@ -50,9 +53,9 @@ import { filter } from 'rxjs';
 			</div>
 			<div class=" d-flex justify-content-center  flex-column" style="height: 90%">
 				@for (item of menuList; track item.title) {
-					<button [class]="path.includes(item.url) ? 'btn btn-danger mb-2' : 'btn btn-dark mb-2'" routerLink="{{ item.url }}" style="width: 100%;">
+					<button [class]="path().includes(item.url) ? 'btn btn-danger mb-2' : 'btn btn-dark mb-2'" [routerLink]="item.url" style="width: 100%;">
 						@if (item.icon) {
-							<i class="{{ item.icon }}"></i>
+							<i [class]="item.icon"></i>
 						}
 						{{ item.title }}
 					</button>
@@ -62,9 +65,9 @@ import { filter } from 'rxjs';
 				<div class="d-flex align-items-end flex-column mb-3" style="height: 100%">
 					<div class="mt-auto">
 						@for (item of menuExit; track item.title) {
-							<button class="btn btn-dark mb-2" routerLink="{{ item.url }}">
+							<button class="btn btn-dark mb-2" [routerLink]="item.url">
 								@if (item.icon) {
-									<i class="{{ item.icon }}"></i>
+									<i [class]="item.icon"></i>
 								}
 							</button>
 						}
@@ -76,9 +79,10 @@ import { filter } from 'rxjs';
 	styleUrl: './nav-bar-menu.component.css',
 })
 export class NavBarMenuComponent implements AfterViewInit {
-	path = '';
-	menuList: Array<{ title: string; icon: string; url: string }> = [
-		{ title: 'Dash Board', icon: 'bi bi-speedometer', url: '/manager/dash-board'},
+	router = inject(Router)
+	path = signal<string>('');
+	menuList: Array<MenuItem> = [
+		{ title: 'Dash Board', icon: 'bi bi-speedometer', url: '/manager/dash-board' },
 		{ title: 'Events', icon: 'bi bi-calendar-event', url: '/manager/events' },
 		{ title: 'Maps', icon: 'bi bi-map', url: '/manager/maps' },
 		{ title: 'Tickets', icon: 'bi bi-ticket-fill', url: '/manager/tickets' },
@@ -90,12 +94,20 @@ export class NavBarMenuComponent implements AfterViewInit {
 		{ title: 'History', icon: 'bi bi-clock-history', url: '/manager/history' },
 	];
 
-	menuExit: Array<{ title: string; icon: string; url: string }> = [{ title: 'Exit', icon: 'bi bi-box-arrow-left', url: '/site-web' }];
+	menuExit: Array<MenuItem> = [{ title: 'Exit', icon: 'bi bi-box-arrow-left', url: '/site-web' }];
 
 	ngAfterViewInit(): void {
-		const router = inject(Router)
-		router.events.pipe(filter((event) => event instanceof NavigationEnd)).subscribe((event: NavigationEnd) => {
-			this.path = event.urlAfterRedirects;
+		this.router.events.pipe(filter((event) => event instanceof NavigationEnd)).subscribe((event: NavigationEnd) => {
+			this.path.set(event.urlAfterRedirects);
 		});
+		this.showOffCanvas();
+	}
+
+	showOffCanvas() {
+		const offCanvas = document.getElementById('offcanvas');
+		if (offCanvas) {
+			const bsOffCanvas = new bootstrap.Offcanvas(offCanvas);
+			bsOffCanvas.show();
+		}
 	}
 }

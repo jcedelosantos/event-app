@@ -14,6 +14,7 @@ import { HistoryComponent } from './history/history.component';
 import { QrsComponent } from './qrs/qrs.component';
 import { ProductsComponent } from './products/products.component';
 import { SalesComponent } from './sales/sales.component';
+import { QrScannerComponent } from './events/component/qr-scanner/qr-scanner.component';
 
 const routes: Routes = [
 	{
@@ -38,7 +39,10 @@ const routes: Routes = [
 			},
 			{
 				path: 'events',
-				component: EventsComponent,
+				children: [
+					{ path: '', component: EventsComponent },
+					{ path: 'qr-scanner', component: QrScannerComponent },
+				]
 			},
 			{
 				path: 'tickets',
