@@ -14,6 +14,7 @@ import { HistoryComponent } from './history/history.component';
 import { QrsComponent } from './qrs/qrs.component';
 import { ProductsComponent } from './products/products.component';
 import { SalesComponent } from './sales/sales.component';
+import { EventDetailsComponent } from './events/event-details/event-details.component';
 
 const routes: Routes = [
 	{
@@ -41,6 +42,10 @@ const routes: Routes = [
 				component: EventsComponent,
 			},
 			{
+				path: 'events/:id_event',
+				component: EventDetailsComponent,
+			},
+			{
 				path: 'tickets',
 				component: TicketsComponent,
 			},
@@ -66,6 +71,10 @@ const routes: Routes = [
 			},
 			{
 				path: 'sales',
+				component: SalesComponent,
+			},
+			{
+				path: 'sales/:id_sale',
 				component: SalesComponent,
 			},
 			// {

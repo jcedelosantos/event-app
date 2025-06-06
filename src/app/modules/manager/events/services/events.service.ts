@@ -27,7 +27,7 @@ export class EventsService {
 			dateOff: faker.date.anytime(),
 			active: faker.helpers.arrayElement([true, false]),
 			map: maps[0],
-			areas: [maps[0].areas[0].id, maps[0].areas[1].id],
+			areas: [maps[0].areas[0].id, maps[1].areas[0].id],
 			tickets: tickets,
 			catalogs: [],
 		} as Events;

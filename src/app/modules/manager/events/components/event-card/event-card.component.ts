@@ -1,22 +1,46 @@
-import { ChangeDetectionStrategy, Component, Input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, Input, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Events } from '../../../../../models/events/events';
+import { RouterLink } from '@angular/router';
 
 @Component({
 	selector: 'event-card',
 	standalone: true,
-	imports: [CommonModule],
+	imports: [CommonModule, RouterLink],
 	template: `
 		@if (event) {
-			<div class="card text-center" style="height: 300px; min-width: 200px;">
+			<div class="card text-center" style="height: 340px; min-width: 300px;">
 				<div class="card-header">{{ event.name }}</div>
 				<div class="card-body">
-					<h5 class="card-title">{{ event.code }}</h5>
+					<!-- <h5 class="card-title">{{ event.code }}</h5> -->
+					<div class="d-flex justify-content-between flex-row ">
+						<span class="p-1"> Date: {{ event.dateOn.toISOString().split('T')[0] }}</span>
+						<span class="p-1"> Start Time: {{ event.dateSale.toISOString().split('T')[1].split('.')[0] }}</span>
+					</div>
+					<hr />
+
 					<p class="card-text">{{ event.description }}</p>
-					<a class="btn btn-danger">Sale</a>
+					<p class="card-text">{{ event.map.description }}</p>
+					<div class="d-flex justify-content-start flex-row ">
+						<div class="p-1">
+							<span> Ticket </span>
+						</div>
+
+						@for (ticket of event.tickets; track $index; let idx = $index) {
+							<div class="p-1">
+								<span class="badge rounded-pill text-bg-warning">{{ ticket.type }}</span>
+							</div>
+						}
+					</div>
 				</div>
 				<div class="card-footer text-body-secondary">
-					{{ eventDateRelative(event.dateOn) }}
+					<!-- {{ eventDateRelative(event.dateOn) }} -->
+
+					<div class="d-flex justify-content-between flex-row ">
+						<!-- <div class="p-2">Flex item 1</div> -->
+						<div class="p-1"><button class="btn btn-danger" routerLink="/manager/sales/1" >Sale</button></div>
+						<div class="p-1"><button class="btn btn-danger" routerLink="/manager/events/1">Details</button></div>
+					</div>
 				</div>
 			</div>
 		} @else {

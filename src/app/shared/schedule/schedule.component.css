@@ -1,9 +1,10 @@
 .schedule-box {
   background-color: #0a0a0a;
   border-radius: 2%;
-  padding: 20px;
-  height: 80vh;
-  width: 25vw;
+  padding: 10px;
+  height: 82vh;
+ 
+  max-width: 600px;
 }
 
 .calendar {
@@ -26,7 +27,7 @@
 
 .scroll-events {
 	overflow-x: hidden;
-	height: 38vh;
+	height: 35vh;
 	overflow-y: scroll;
 	scrollbar-width: none;
 }
