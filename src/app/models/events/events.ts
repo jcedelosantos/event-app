@@ -17,8 +17,7 @@ export interface Events {
 	dateOff: Date;
 	active: boolean;
 	map: Map;
-	areas: Array<Area>;
+	areas: Array<number>;
 	tickets: Array<Ticket>;
-	location: {latitude: number; longitude: number};
 	catalogs: Array<Catalog>;
 }

@@ -1,5 +1,4 @@
-import { AfterViewInit, ChangeDetectionStrategy, Component, input, output } from '@angular/core';
-
+import { ChangeDetectionStrategy, Component, Input, AfterViewInit, input, signal, output } from '@angular/core';
 import JsBarcode /* , { Options as jsBarcodeOptions } */ from 'jsbarcode';
 
 import { DeletTicketModalComponent } from '../delet-ticket-modal/delet-ticket-modal.component';

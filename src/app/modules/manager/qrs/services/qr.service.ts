@@ -1,12 +1,12 @@
 import { inject, Injectable } from '@angular/core';
 import { faker } from '@faker-js/faker';
-import { UserService } from '../../users/services/user.service';
-import { EventsService } from '../../events/services/events.service';
-import { User } from '../../../../models/users/user';
-import { Events } from '../../../../models/events/event';
-import { Map } from '../../../../models/maps/map';
 import { Area } from '../../../../models/maps/area';
+import { Map } from '../../../../models/maps/map';
 import { Ticket } from '../../../../models/tickets/ticket';
+import { User } from '../../../../models/users/user';
+import { EventsService } from '../../events/services/events.service';
+import { UserService } from '../../users/services/user.service';
+import { Events } from '../../../../models/events/events';
 
 @Injectable({
   providedIn: 'root'
@@ -23,7 +23,6 @@ export class QRService {
       date: faker.date.past().toISOString(),
       events: event,
       map: event.map,
-      area: event.areas[faker.number.int({ min: 0, max: event.areas.length - 1 })],
       seats: faker.number.int({ min: 1, max: 100 }),
       ticket: event.tickets[faker.number.int({ min: 0, max: event.tickets.length - 1 })],
       type: faker.helpers.arrayElement(['VIP', 'Regular', 'Student']),
