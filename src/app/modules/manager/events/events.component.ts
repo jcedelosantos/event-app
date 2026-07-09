@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
 import { CreateEventModalComponent } from './components/create-event-modal/create-event-modal.component';
 import { ScheduleComponent } from '../../../shared/schedule/schedule.component';
 import { Events } from '../../../models/events/events';
@@ -123,18 +123,19 @@ import { EventCardComponent } from './components/event-card/event-card.component
 	styleUrl: './events.component.css',
 	changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class EventsComponent {
+export class EventsComponent implements OnInit {
 	private readonly eventSrv = inject(EventsService);
 
 	events = signal<Events[]>([]);
 	eventsNow = computed(() => this.chunkArray(this.events(), 2));
 	eventsUpcoming = computed(() => this.chunkArray(this.events(), 3));
 
-	constructor() {
-		effect(() => {
-			const data = this.eventSrv.getEvents();
-			this.events.set(data ?? []);
-		});
+	ngOnInit(): void {
+		this.loadEvents();
+	}
+
+	loadEvents() {
+		this.eventSrv.getEvents().subscribe((events) => this.events.set(events));
 	}
 
 	onEventCreated(event: Events) {

@@ -1,6 +1,8 @@
 import { ChangeDetectionStrategy, Component, inject, output } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { HttpErrorResponse } from '@angular/common/http';
 import { Events } from '../../../../../models/events/events';
+import { EventsService } from '../../services/events.service';
 
 declare const bootstrap: any;
 
@@ -35,18 +37,6 @@ declare const bootstrap: any;
 							<label for="description">Description </label>
 							<input type="text" class="form-control" formControlName="description" />
 						</div>
-						<div class="row">
-							<div class="col-md-6 mb-3">
-								<label for="firstName">Count</label>
-								<input type="number" class="form-control" formControlName="count" required />
-								<div class="invalid-feedback">Valid count is required.</div>
-							</div>
-							<div class="col-md-6 mb-3">
-								<label for="lastName">Price</label>
-								<input type="number" class="form-control" formControlName="price" required />
-								<div class="invalid-feedback">Valid price is required.</div>
-							</div>
-						</div>
 
 						<div class="row">
 							<div class="col-md-6 mb-3">
@@ -66,6 +56,9 @@ declare const bootstrap: any;
 								</select>
 							</div>
 						</div>
+						@if (errorMessage) {
+							<div class="text-danger">{{ errorMessage }}</div>
+						}
 					</form>
 				</div>
 				<div class="modal-footer">
@@ -79,16 +72,16 @@ declare const bootstrap: any;
 })
 export class CreateEventModalComponent {
 	private readonly fb = inject(FormBuilder);
+	private readonly eventsService = inject(EventsService);
 
 	eventCreated = output<Events>();
+	errorMessage = '';
 
 	eventForm = this.fb.group({
 		name: ['', Validators.required],
 		code: [''],
 		description: [''],
 		dateOn: ['', Validators.required],
-		count: [null as number | null, Validators.required],
-		price: [null as number | null, Validators.required],
 		type: ['', Validators.required],
 		active: [true, Validators.required],
 	});
@@ -100,33 +93,28 @@ export class CreateEventModalComponent {
 		}
 
 		const value = this.eventForm.getRawValue();
-		const now = new Date();
-
-		const newEvent: Events = {
-			id: Date.now(),
-			userId: 0,
-			clientId: 0,
-			name: value.name!,
-			img: '',
-			code: value.code ?? '',
-			type: value.type!,
-			description: value.description ?? '',
-			dateSale: now,
-			dateOn: value.dateOn ? new Date(value.dateOn) : now,
-			dateOff: now,
-			active: value.active!,
-			// El mapa se asigna después, desde el módulo de Maps — no existe selector de mapa en este form.
-			areas: [],
-			tickets: [],
-			catalogs: [],
-		};
-
-		this.eventCreated.emit(newEvent);
-		this.eventForm.reset({ active: true });
-
-		const modalEl = document.getElementById('createEventModal');
-		if (modalEl) {
-			bootstrap.Modal.getOrCreateInstance(modalEl).hide();
-		}
+		this.eventsService
+			.createEvent({
+				name: value.name!,
+				code: value.code ?? '',
+				description: value.description ?? '',
+				type: value.type!,
+				dateOn: value.dateOn!,
+				active: value.active!,
+			})
+			.subscribe({
+				next: (event) => {
+					this.eventCreated.emit(event);
+					this.eventForm.reset({ active: true });
+					this.errorMessage = '';
+					const modalEl = document.getElementById('createEventModal');
+					if (modalEl) {
+						bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+					}
+				},
+				error: (err: HttpErrorResponse) => {
+					this.errorMessage = err.error?.error ?? err.message;
+				},
+			});
 	}
 }

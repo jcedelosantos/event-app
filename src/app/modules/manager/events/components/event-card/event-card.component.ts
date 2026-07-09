@@ -38,8 +38,8 @@ import { RouterLink } from '@angular/router';
 
 					<div class="d-flex justify-content-between flex-row ">
 						<!-- <div class="p-2">Flex item 1</div> -->
-						<div class="p-1"><button class="btn btn-danger" routerLink="/manager/sales/1" >Sale</button></div>
-						<div class="p-1"><button class="btn btn-danger" routerLink="/manager/events/1">Details</button></div>
+						<div class="p-1"><button class="btn btn-danger" [routerLink]="['/manager/sales', event.id]">Sale</button></div>
+						<div class="p-1"><button class="btn btn-danger" [routerLink]="['/manager/events', event.id]">Details</button></div>
 					</div>
 				</div>
 			</div>
