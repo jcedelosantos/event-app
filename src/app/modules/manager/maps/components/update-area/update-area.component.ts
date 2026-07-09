@@ -1,6 +1,8 @@
-import { ChangeDetectionStrategy, Component, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
+import { ChangeDetectionStrategy, Component, EventEmitter, inject, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { HttpErrorResponse } from '@angular/common/http';
 import { Area } from '../../../../../models/maps/area';
+import { AreasService } from '../../services/areas.service';
 
 @Component({
 	selector: 'update-area',
@@ -28,13 +30,13 @@ import { Area } from '../../../../../models/maps/area';
 								</div>
 
 								<div class="col-md-2 mb-2">
-									<h6>Y</h6>
+									<h6>X</h6>
 									<input type="number" min="1" max="10000" class="form-control" formControlName="editX" placeholder="0.0" />
 								</div>
 
 								<div class="col-md-2 mb-2">
 									<h6>Y</h6>
-									<input type="number" min="1" max="10000" class="form-control" formControlName="editX" placeholder="0.0" />
+									<input type="number" min="1" max="10000" class="form-control" formControlName="editY" placeholder="0.0" />
 								</div>
 
 								<div class="col-md-2 mb-2">
@@ -80,13 +82,13 @@ import { Area } from '../../../../../models/maps/area';
 								</div>
 
 								<div class="col-md-8 mb-2">
-									<label for="formFile" class="form-label">Image</label>
-									<input class="form-control" type="file" id="formFile" formControlName="editImg" />
+									<label for="editImg" class="form-label">Image URL</label>
+									<input class="form-control" type="text" id="editImg" formControlName="editImg" placeholder="https://..." />
 								</div>
 							</div>
-							<div class="col-12">
-								<!-- <app-loading-container [loading]="terminalsCreateLoading"/> -->
-							</div>
+							@if (errorMessage) {
+								<div class="text-danger">{{ errorMessage }}</div>
+							}
 						</div>
 						<div class="modal-footer">
 							<button type="button" class="btn btn-secondary" (click)="closeModal()">Cerrar</button>
@@ -100,8 +102,11 @@ import { Area } from '../../../../../models/maps/area';
 	changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class UpdateAreaComponent implements OnChanges {
-	areaUpdateLoading: boolean;
+	private readonly fb = inject(FormBuilder);
+	private readonly areasService = inject(AreasService);
+
 	areaUpdateForm: FormGroup;
+	errorMessage = '';
 	icons = [
 		{ label: '', value: '' },
 		{ label: 'Curso', value: 'bi-input-cursor' },
@@ -123,13 +128,12 @@ export class UpdateAreaComponent implements OnChanges {
 	@Output()
 	updateAreaEvent = new EventEmitter<{ updateArea: Area }>();
 
-	constructor(private fb: FormBuilder) {
-		this.areaUpdateLoading = false;
+	constructor() {
 		this.areaUpdateForm = this.initFormat();
 	}
 
 	ngOnChanges(changes: SimpleChanges): void {
-		this.addArea();
+		this.fillForm();
 	}
 
 	initFormat() {
@@ -145,7 +149,7 @@ export class UpdateAreaComponent implements OnChanges {
 			editY: [0, Validators.required],
 		});
 	}
-	addArea() {
+	fillForm() {
 		if (this.area) {
 			this.areaUpdateForm = this.fb.group({
 				editName: [this.area.name, Validators.required],
@@ -163,13 +167,12 @@ export class UpdateAreaComponent implements OnChanges {
 	}
 
 	clickPostAreaUpdate() {
-		alert('Area Update');
 		this.postUpdateArea();
 	}
 
 	closeModal() {
 		this.modal.hide();
-		this.addArea();
+		this.fillForm();
 	}
 
 	getIcon() {
@@ -177,31 +180,33 @@ export class UpdateAreaComponent implements OnChanges {
 	}
 
 	postUpdateArea() {
-		//TODO: post service
-
-		//format data
-		if (this.area) {
-			this.area = {
-				id: this.area.id,
-				description: this.areaUpdateForm.get('editDescription')?.value,
-				name: this.areaUpdateForm.get('editName')?.value,
-				img: this.areaUpdateForm.get('editImg')?.value,
-				seats: this.area.seats ? this.area.seats : [],
-				tables: this.area.tables ? this.area.tables : [],
-				type: '',
-				x: this.areaUpdateForm.get('editX')?.value,
-				y: this.areaUpdateForm.get('editY')?.value,
-				radio: 0,
-				color: this.areaUpdateForm.get('editColor')?.value,
-				size: this.areaUpdateForm.get('editSize')?.value,
-				backGround: this.areaUpdateForm.get('editBackGround')?.value,
-				icon: this.areaUpdateForm.get('editIcon')?.value,
-				totalTables: this.area.totalTables,
-				totalSeats: this.area.totalSeats,
-				totalCount: this.area.totalCount,
-			};
-			this.updateAreaEvent.emit({ updateArea: this.area });
+		if (this.areaUpdateForm.invalid || !this.area) {
+			this.areaUpdateForm.markAllAsTouched();
+			return;
 		}
-		this.closeModal();
+
+		const value = this.areaUpdateForm.getRawValue();
+		this.areasService
+			.updateArea(this.area.id, {
+				name: value.editName,
+				description: value.editDescription ?? '',
+				img: value.editImg ?? '',
+				icon: value.editIcon ?? '',
+				x: value.editX,
+				y: value.editY,
+				size: value.editSize,
+				color: value.editColor,
+				backGround: value.editBackGround,
+			})
+			.subscribe({
+				next: (area) => {
+					this.updateAreaEvent.emit({ updateArea: area });
+					this.errorMessage = '';
+					this.closeModal();
+				},
+				error: (err: HttpErrorResponse) => {
+					this.errorMessage = err.error?.error ?? err.message;
+				},
+			});
 	}
 }

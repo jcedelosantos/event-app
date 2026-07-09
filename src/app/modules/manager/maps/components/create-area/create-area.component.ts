@@ -1,6 +1,8 @@
-import { ChangeDetectionStrategy, Component, EventEmitter, Input, OnChanges, Output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, EventEmitter, inject, Input, OnChanges, Output } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { HttpErrorResponse } from '@angular/common/http';
 import { Area } from '../../../../../models/maps/area';
+import { AreasService } from '../../services/areas.service';
 
 @Component({
 	selector: 'create-area',
@@ -27,13 +29,13 @@ import { Area } from '../../../../../models/maps/area';
 							</div>
 
 							<div class="col-md-2 mb-2">
-								<h6>Y</h6>
+								<h6>X</h6>
 								<input type="number" min="1" max="10000" class="form-control" formControlName="editX" placeholder="0.0" />
 							</div>
 
 							<div class="col-md-2 mb-2">
 								<h6>Y</h6>
-								<input type="number" min="1" max="10000" class="form-control" formControlName="editX" placeholder="0.0" />
+								<input type="number" min="1" max="10000" class="form-control" formControlName="editY" placeholder="0.0" />
 							</div>
 
 							<div class="col-md-2 mb-2">
@@ -79,13 +81,13 @@ import { Area } from '../../../../../models/maps/area';
 							</div>
 
 							<div class="col-md-8 mb-2">
-								<label for="formFile" class="form-label">Image</label>
-								<input class="form-control" type="file" id="formFile" formControlName="editImg" />
+								<label for="editImg" class="form-label">Image URL</label>
+								<input class="form-control" type="text" id="editImg" formControlName="editImg" placeholder="https://..." />
 							</div>
 						</div>
-						<div class="col-12">
-							<!-- <app-loading-container [loading]="terminalsCreateLoading"/> -->
-						</div>
+						@if (errorMessage) {
+							<div class="text-danger">{{ errorMessage }}</div>
+						}
 					</div>
 					<div class="modal-footer">
 						<button type="button" class="btn btn-secondary" (click)="closeModal()">Cerrar</button>
@@ -98,8 +100,11 @@ import { Area } from '../../../../../models/maps/area';
 	changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class CreateAreaComponent implements OnChanges {
-	areaCreateLoading: boolean;
+	private readonly fb = inject(FormBuilder);
+	private readonly areasService = inject(AreasService);
+
 	areaCreateForm: FormGroup;
+	errorMessage = '';
 	icons = [
 		{ label: '', value: '' },
 		{ label: 'Curso', value: 'bi-input-cursor' },
@@ -112,18 +117,17 @@ export class CreateAreaComponent implements OnChanges {
 	];
 	selectedIcon: string = this.icons[0].value;
 
-	area: Area | undefined;
-
 	@Input()
 	modal: any;
 	@Input()
 	coordinates: { y: number; x: number } | undefined;
+	@Input()
+	mapId: number | undefined;
 
 	@Output()
 	createAreaEvent = new EventEmitter<{ createArea: Area }>();
 
-	constructor(private fb: FormBuilder) {
-		this.areaCreateLoading = false;
+	constructor() {
 		this.areaCreateForm = this.initFormat();
 	}
 
@@ -149,7 +153,6 @@ export class CreateAreaComponent implements OnChanges {
 	}
 
 	clickPostAreaCreate() {
-		alert('Area create');
 		this.postCreateArea();
 	}
 
@@ -162,31 +165,35 @@ export class CreateAreaComponent implements OnChanges {
 	}
 
 	postCreateArea() {
-		//TODO: post service
-		var id = 1000;
+		if (this.areaCreateForm.invalid || !this.mapId) {
+			this.areaCreateForm.markAllAsTouched();
+			return;
+		}
 
-		//format data
-		this.area = {
-			id: id,
-			name: this.areaCreateForm.get('editName')?.value,
-			description: this.areaCreateForm.get('editDescriptio')?.value,
-			img: this.areaCreateForm.get('editImg')?.value,
-			seats: [],
-			tables: [],
-			type: '',
-			x: this.areaCreateForm.get('editX')?.value,
-			y: this.areaCreateForm.get('editY')?.value,
-			radio: 0,
-			color: this.areaCreateForm.get('editColor')?.value,
-			size: this.areaCreateForm.get('editSize')?.value,
-			backGround: this.areaCreateForm.get('editBackGround')?.value,
-			icon: this.areaCreateForm.get('editIcon')?.value,
-			totalTables: 0,
-			totalSeats: 0,
-			totalCount: 0,
-		};
-		this.createAreaEvent.emit({ createArea: this.area });
-		this.areaCreateForm = this.initFormat();
-		this.closeModal();
+		const value = this.areaCreateForm.getRawValue();
+		this.areasService
+			.createArea({
+				name: value.editName,
+				description: value.editDescription ?? '',
+				img: value.editImg ?? '',
+				icon: value.editIcon ?? '',
+				x: value.editX,
+				y: value.editY,
+				size: value.editSize,
+				color: value.editColor,
+				backGround: value.editBackGround,
+				mapId: this.mapId,
+			})
+			.subscribe({
+				next: (area) => {
+					this.createAreaEvent.emit({ createArea: area });
+					this.areaCreateForm = this.initFormat();
+					this.errorMessage = '';
+					this.closeModal();
+				},
+				error: (err: HttpErrorResponse) => {
+					this.errorMessage = err.error?.error ?? err.message;
+				},
+			});
 	}
 }

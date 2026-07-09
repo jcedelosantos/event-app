@@ -1,10 +1,9 @@
-import { ChangeDetectionStrategy, Component, OnInit, ElementRef, ViewChild, AfterViewInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, ElementRef, ViewChild, AfterViewInit, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ReactiveFormsModule } from '@angular/forms';
 import { GoogleMapsModule } from '@angular/google-maps';
 declare var bootstrap: any;
 
-import { maps } from '../../../../data/map';
 import { Map } from '../../../../models/maps/map';
 import { Area } from '../../../../models/maps/area';
 import { NavBarMapComponent } from '../components/nav-bar-map/nav-bar-map.component';
@@ -12,12 +11,14 @@ import { CollapseSeatsComponent } from '../components/collapse-seats/collapse-se
 import { CollapseTablesComponent } from '../components/accordion-tables/collapse-tables.component';
 import { CreateAreaComponent } from '../components/create-area/create-area.component';
 import { UpdateAreaComponent } from '../components/update-area/update-area.component';
+import { MapsService } from '../services/maps.service';
+import { AreasService } from '../services/areas.service';
 
 @Component({
 	selector: 'app-areas',
 	imports: [GoogleMapsModule, NavBarMapComponent, CollapseTablesComponent, CreateAreaComponent, ReactiveFormsModule, UpdateAreaComponent, CollapseSeatsComponent],
 	template: `
-		<nav-bar-map [maps]="maps" />
+		<nav-bar-map [maps]="maps()" [idMap]="map()?.id" [areas]="areas()" />
 		<div class="col-xxl-9 col-md-12 ">
 			<h3>Manager Areas</h3>
 		</div>
@@ -26,7 +27,7 @@ import { UpdateAreaComponent } from '../components/update-area/update-area.compo
 				<div class="col-xxl-9 col-md-12 ">
 					<div class="card">
 						<div class="card-header">
-							<h5>{{ map?.name }}</h5>
+							<h5>{{ map()?.name }}</h5>
 						</div>
 						<ul class="list-group list-group-flush">
 							<google-map height="280px" width="100%" [center]="center" [zoom]="zoom">
@@ -35,18 +36,18 @@ import { UpdateAreaComponent } from '../components/update-area/update-area.compo
 							<li class="list-group-item">
 								<div class="row">
 									<div class="col-5">
-										<h6 class="card-title">{{ map?.description }}</h6>
+										<h6 class="card-title">{{ map()?.description }}</h6>
 									</div>
 									<div class="col-7">
 										<div class="d-flex justify-content-end">
 											<div class="bd-highlight me-4">
-												Areas : <span class="badge text-bg-danger">{{ map?.areas?.length }}</span>
+												Areas : <span class="badge text-bg-danger">{{ areas().length }}</span>
 											</div>
 											<div class="bd-highlight me-4">
-												Tables : <span class="badge text-bg-danger"> {{ map?.totalTables }}</span> / <span class="badge text-bg-danger">{{ map?.totalTablesSeat }}</span>
+												Tables : <span class="badge text-bg-danger"> {{ map()?.totalTables }}</span> / <span class="badge text-bg-danger">{{ map()?.totalTablesSeat }}</span>
 											</div>
 											<div class="bd-highlight me-">
-												Seat : <span class="badge text-bg-danger">{{ map?.totalSeats }}</span>
+												Seat : <span class="badge text-bg-danger">{{ map()?.totalSeats }}</span>
 											</div>
 										</div>
 									</div>
@@ -55,11 +56,11 @@ import { UpdateAreaComponent } from '../components/update-area/update-area.compo
 						</ul>
 					</div>
 					<br />
-					@if (map?.img) {
+					@if (map()?.img) {
 						<div class="scrollimg">
 							<div class="image-container " #imageContainer (mousemove)="moveButton($event)">
-								<img #image [src]="map?.img" class="background-image" (dblclick)="openCreateAreaForm($event)" />
-								@for (area of areas; track area.id; let idx = $index) {
+								<img #image [src]="map()?.img" class="background-image" (dblclick)="openCreateAreaForm($event)" />
+								@for (area of areas(); track area.id; let idx = $index) {
 									<button
 										class="draggable-btn "
 										(dblclick)="routeArea(area)"
@@ -88,11 +89,11 @@ import { UpdateAreaComponent } from '../components/update-area/update-area.compo
 					}
 					<br />
 				</div>
-				@if (areas) {
+				@if (areas().length) {
 					<div class="col-xxl-3 col-md-12">
 						<h5>List areas</h5>
 						<div class="scroll-list">
-							@for (area of areas; track area.id; let idx = $index) {
+							@for (area of areas(); track area.id; let idx = $index) {
 								<div class="card">
 									<div class="card-header">
 										<div class="d-flex flex-row  justify-content-between">
@@ -108,7 +109,7 @@ import { UpdateAreaComponent } from '../components/update-area/update-area.compo
 											<div class="p-2"></div>
 											<div class="p-2"></div>
 											<div class="p-2">
-												<button type="button" class="btn btn-sm "><i class="bi bi-x-lg"></i></button>
+												<button type="button" class="btn btn-sm " (click)="deleteArea(area)"><i class="bi bi-x-lg"></i></button>
 											</div>
 										</div>
 									</div>
@@ -126,20 +127,22 @@ import { UpdateAreaComponent } from '../components/update-area/update-area.compo
 			</div>
 		</div>
 
-		<create-area [modal]="modalCreateArea" [coordinates]="coordinates" (createAreaEvent)="addArea($event.createArea)" />
-		<update-area [modal]="modalUpdateArea" [area]="areaUpdate" (updateAreaEvent)="updateArea($event.updateArea)" />
+		<create-area [modal]="modalCreateArea" [coordinates]="coordinates" [mapId]="map()?.id" (createAreaEvent)="addArea($event.createArea)" />
+		<update-area [modal]="modalUpdateArea" [area]="areaUpdate" (updateAreaEvent)="onAreaUpdated($event.updateArea)" />
 	`,
 	styleUrl: './areas.component.css',
 	changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AreasComponent implements OnInit, AfterViewInit {
+	private readonly mapsService = inject(MapsService);
+	private readonly areasService = inject(AreasService);
+
 	center: google.maps.LatLngLiteral = { lat: 18.4628068, lng: -70.0412847 };
 	zoom = 20;
 
-	id: string | null = '';
-	maps: Array<Map> | undefined;
-	map: Map | undefined;
-	areas: Array<Area> | undefined;
+	maps = signal<Map[]>([]);
+	map = signal<Map | undefined>(undefined);
+	areas = signal<Area[]>([]);
 
 	isDragging = false;
 	activeButtonIndex: number | null = null;
@@ -163,44 +166,32 @@ export class AreasComponent implements OnInit, AfterViewInit {
 	) {}
 
 	ngOnInit(): void {
-		this.initMapInfo();
+		this.mapsService.getMaps().subscribe((maps) => this.maps.set(maps));
+		this.route.paramMap.subscribe((params) => {
+			const id = params.get('id');
+			if (!id || Number.isNaN(Number(id))) {
+				this.router.navigate(['/manager/maps']);
+				return;
+			}
+			this.mapsService.getMap(Number(id)).subscribe({
+				next: (map) => {
+					this.map.set(map);
+					this.areas.set(map.areas ?? []);
+					this.center = { lat: map.x, lng: map.y };
+				},
+				error: () => this.router.navigate(['/manager/maps']),
+			});
+		});
 	}
 
 	ngAfterViewInit() {
 		this.getSizeImg();
 		this.getInitModal();
 	}
-	initMapInfo() {
-		this.maps = maps;
-		this.route.paramMap.subscribe((params) => {
-			this.id = params.get('id');
-			if (this.id) {
-				this.getMap(parseInt(this.id));
-				if (this.map?.areas) {
-					this.areas = this.map?.areas;
-				}
-			} else {
-				this['router'].navigate(['/manager/maps']);
-			}
-		});
-	}
-	getMap(id: number) {
-		if (this.maps) {
-			for (var i = 0; i < this.maps?.length; i++) {
-				if (this.maps[i].id === id) {
-					this.map = this.maps[i];
-					this.center = { lat: this.map.x, lng: this.map.y };
-					break;
-				}
-			}
-		}
-	}
 	getSizeImg() {
 		if (this.image && this.imageContainer) {
 			this.imgWidth = this.image.nativeElement.naturalWidth;
 			this.imgHeight = this.image.nativeElement.naturalHeight;
-		} else {
-			console.warn('No se pudo obtener el tamaño de la imagen.');
 		}
 	}
 	getInitModal() {
@@ -224,10 +215,9 @@ export class AreasComponent implements OnInit, AfterViewInit {
 
 			newX = Math.max(0, Math.min(rect.width - btnWidth, newX));
 			newY = Math.max(0, Math.min(rect.height - btnHeight, newY));
-			if (this.areas) {
-				this.areas[this.activeButtonIndex].x = newX;
-				this.areas[this.activeButtonIndex].y = newY;
-			}
+
+			const idx = this.activeButtonIndex;
+			this.areas.update((list) => list.map((a, i) => (i === idx ? { ...a, x: newX, y: newY } : a)));
 		}
 	}
 	startDragging(index: number, event: MouseEvent) {
@@ -240,6 +230,10 @@ export class AreasComponent implements OnInit, AfterViewInit {
 	}
 
 	stopDragging() {
+		if (this.isDragging && this.activeButtonIndex !== null) {
+			const area = this.areas()[this.activeButtonIndex];
+			this.areasService.updateArea(area.id, { x: area.x, y: area.y }).subscribe();
+		}
 		this.isDragging = false;
 		this.activeButtonIndex = null;
 	}
@@ -269,10 +263,7 @@ export class AreasComponent implements OnInit, AfterViewInit {
 	}
 
 	addArea(area: Area) {
-		if (area && this.areas && this.map) {
-			this.areas.push(area);
-			this.map.areas = this.areas;
-		}
+		this.areas.update((list) => [...list, area]);
 	}
 
 	openUpdateAreaForm(area: Area) {
@@ -280,21 +271,20 @@ export class AreasComponent implements OnInit, AfterViewInit {
 		this.openUpdateAreaModal();
 	}
 
-	updateArea(updateArea: Area) {
-		if (this.areas) {
-			for (let i = 0; i < this.areas.length; i++) {
-				const element = this.areas[i];
-				if (element.id === updateArea.id) {
-					this.areas[i] = updateArea;
-					break;
-				}
-			}
-		}
+	onAreaUpdated(updateArea: Area) {
+		this.areas.update((list) => list.map((a) => (a.id === updateArea.id ? updateArea : a)));
+	}
+
+	deleteArea(area: Area) {
+		this.areasService.deleteArea(area.id).subscribe(() => {
+			this.areas.update((list) => list.filter((a) => a.id !== area.id));
+		});
 	}
 
 	routeArea(area: Area) {
-		if (this.map) {
-			this['router'].navigate(['/manager/maps/' + this.map.id + '/areas/' + area.id]);
+		const map = this.map();
+		if (map) {
+			this.router.navigate(['/manager/maps/' + map.id + '/areas/' + area.id]);
 		}
 	}
 }
