@@ -6,6 +6,7 @@ import { usersRouter } from './routes/users';
 import { eventsRouter } from './routes/events';
 import { mapsRouter } from './routes/maps';
 import { areasRouter } from './routes/areas';
+import { ticketsRouter } from './routes/tickets';
 
 const app = express();
 
@@ -19,6 +20,7 @@ app.use('/users', usersRouter);
 app.use('/events', eventsRouter);
 app.use('/maps', mapsRouter);
 app.use('/areas', areasRouter);
+app.use('/tickets', ticketsRouter);
 
 app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
 	console.error(err);

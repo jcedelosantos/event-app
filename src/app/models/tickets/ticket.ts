@@ -5,8 +5,8 @@ export interface Ticket {
 	name: string;
 	description: string;
 	type: string;
-	count:number;
+	count: number;
 	active: boolean;
 	price: number;
-	date: string;
+	eventId: number;
 }

@@ -1,6 +1,12 @@
-import { ChangeDetectionStrategy, Component, effect, model, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, effect, inject, model, OnInit, output, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { HttpErrorResponse } from '@angular/common/http';
 import { Ticket } from '../../../../../models/tickets/ticket';
+import { Events } from '../../../../../models/events/events';
+import { TicketsService } from '../../services/tickets.service';
+import { EventsService } from '../../../events/services/events.service';
+
+declare const bootstrap: any;
 
 @Component({
 	selector: 'app-update-ticket-modal',
@@ -9,7 +15,7 @@ import { Ticket } from '../../../../../models/tickets/ticket';
 		<div class="modal-dialog">
 			<div class="modal-content">
 				<div class="modal-header">
-					<h1 class="modal-title fs-5" id="updateTicketModalLabel">{{(ticket()?.id ?? 0) > 0 ? 'Update' : 'Create'}} ticket</h1>
+					<h1 class="modal-title fs-5" id="updateTicketModalLabel">{{ (ticket()?.id ?? 0) > 0 ? 'Update' : 'Create' }} ticket</h1>
 					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
 				</div>
 				<div class="modal-body">
@@ -21,18 +27,26 @@ import { Ticket } from '../../../../../models/tickets/ticket';
 							</div>
 							<div class="col-md-6 mb-3">
 								<label for="code">Code </label>
-								<input type="text" class="form-control"  formControlName="code" />
+								<input type="text" class="form-control" formControlName="code" />
 							</div>
 						</div>
 						<div class="mb-3">
 							<label for="description">Description </label>
-							<input type="text" class="form-control"  formControlName="description" />
+							<input type="text" class="form-control" formControlName="description" />
+						</div>
+						<div class="mb-3">
+							<label for="event">Event</label>
+							<select class="custom-select d-block w-100" formControlName="eventId">
+								<option [ngValue]="null">Choose...</option>
+								@for (event of events(); track event.id) {
+									<option [ngValue]="event.id">{{ event.name }}</option>
+								}
+							</select>
 						</div>
 						<div class="row">
 							<div class="col-md-6 mb-3">
 								<label for="count">Count</label>
 								<input type="number" class="form-control" formControlName="count" />
-								<!-- <div class="invalid-feedback">Valid first name is required.</div> -->
 							</div>
 							<div class="col-md-6 mb-3">
 								<label for="price">Price</label>
@@ -45,72 +59,112 @@ import { Ticket } from '../../../../../models/tickets/ticket';
 								<label for="type">Type</label>
 								<select class="custom-select d-block w-100" formControlName="type">
 									@for (type of typeList(); track type) {
-										<option [ngValue]="type">type</option>
+										<option [ngValue]="type">{{ type }}</option>
 									}
 								</select>
-								<!-- <div class="invalid-feedback">Please select a valid country.</div> -->
 							</div>
 							<div class="col-md-6 mb-3">
 								<label for="state">Status</label>
 								<select class="custom-select d-block w-100" formControlName="active">
-									@for (status of activeList(); track status) {
-										<option [ngValue]="status.value">{{status.label}}</option>
+									@for (status of activeList(); track status.label) {
+										<option [ngValue]="status.value">{{ status.label }}</option>
 									}
 								</select>
-								<!-- <div class="invalid-feedback">Please provide a valid state.</div> -->
 							</div>
 						</div>
+						@if (errorMessage) {
+							<div class="text-danger">{{ errorMessage }}</div>
+						}
 					</form>
 				</div>
 				<div class="modal-footer">
 					<button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal"><i class="bi bi-x-lg"></i> Close</button>
-					<button type="button" class="btn btn-primary btn-sm"> <i class="bi bi-floppy-fill" aria-hidden="true"></i> Update</button>
+					<button type="button" class="btn btn-primary btn-sm" [disabled]="form.invalid" (click)="save()">
+						<i class="bi bi-floppy-fill" aria-hidden="true"></i> {{ (ticket()?.id ?? 0) > 0 ? 'Update' : 'Create' }}
+					</button>
 				</div>
 			</div>
 		</div>
 	</div>`,
 	changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class UpdateTicketModalComponent {
+export class UpdateTicketModalComponent implements OnInit {
+	private readonly ticketsService = inject(TicketsService);
+	private readonly eventsService = inject(EventsService);
 
-	ticket = model<Ticket | null>(null)
+	ticket = model<Ticket | null>(null);
+	ticketSaved = output<void>();
+	errorMessage = '';
 
-	typeList = signal<string[]>(['VIP', 'Normal'])
-	activeList = signal<{ label: string, value: boolean | null }[]>([
+	events = signal<Events[]>([]);
+
+	typeList = signal<string[]>(['VIP', 'Normal']);
+	activeList = signal<{ label: string; value: boolean }[]>([
 		{ label: 'Active', value: true },
-		{ label: 'Inactive', value: false }
-	])
+		{ label: 'Inactive', value: false },
+	]);
 
 	form = new FormGroup({
-		id: new FormControl<number>(0, [Validators.required]),
-		img: new FormControl<string | null>(''),
 		code: new FormControl<string>('', [Validators.required]),
 		name: new FormControl<string | null>(null, Validators.required),
-		description: new FormControl<string | null>(null, Validators.required),
+		description: new FormControl<string | null>(null),
+		eventId: new FormControl<number | null>(null, Validators.required),
 		type: new FormControl<string | null>(null, Validators.required),
 		count: new FormControl<number | null>(null, Validators.required),
 		active: new FormControl<boolean>(true, [Validators.required]),
 		price: new FormControl<number | null>(null, Validators.required),
-		date: new FormControl<string | null>(null, Validators.required),
 	});
 
 	constructor() {
 		effect(() => {
-			if (this.ticket()) {
-				this.setForm();
+			this.errorMessage = '';
+			const current = this.ticket();
+			if (current) {
+				this.form.patchValue({ ...current });
 			} else {
-				this.form.reset();
+				this.form.reset({ active: true });
 			}
-		})
+		});
 	}
 
+	ngOnInit(): void {
+		this.eventsService.getEvents().subscribe((events) => this.events.set(events));
+	}
 
-	setForm() {
-		if (this.ticket()) {
-			this.form.patchValue({ ...this.ticket() });
+	save() {
+		if (this.form.invalid) {
+			this.form.markAllAsTouched();
+			return;
 		}
+
+		const value = this.form.getRawValue();
+		const payload = {
+			name: value.name!,
+			code: value.code ?? '',
+			description: value.description ?? '',
+			eventId: value.eventId!,
+			type: value.type!,
+			count: value.count!,
+			active: value.active!,
+			price: value.price!,
+		};
+
+		const current = this.ticket();
+		const request = current ? this.ticketsService.updateTicket(current.id, payload) : this.ticketsService.createTicket(payload);
+
+		request.subscribe({
+			next: () => {
+				this.ticketSaved.emit();
+				this.ticket.set(null);
+				this.errorMessage = '';
+				const modalEl = document.getElementById('updateTicketModal');
+				if (modalEl) {
+					bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+				}
+			},
+			error: (err: HttpErrorResponse) => {
+				this.errorMessage = err.error?.error ?? err.message;
+			},
+		});
 	}
-
-
-
 }

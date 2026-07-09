@@ -1,14 +1,12 @@
-import { ChangeDetectionStrategy, Component, Input, AfterViewInit, input, signal, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, AfterViewInit, input, output } from '@angular/core';
 import JsBarcode /* , { Options as jsBarcodeOptions } */ from 'jsbarcode';
-
-import { DeletTicketModalComponent } from '../delet-ticket-modal/delet-ticket-modal.component';
 
 import { NgClass } from '@angular/common';
 import { Ticket } from '../../../../../models/tickets/ticket';
 
 @Component({
 	selector: 'ticket-card',
-	imports: [ DeletTicketModalComponent, NgClass],
+	imports: [NgClass],
 	template: `
 		@if (ticket()) {
 			<div class="card text-white bg-dark mb-3  " style="max-width: 35rem; ">
@@ -28,7 +26,7 @@ import { Ticket } from '../../../../../models/tickets/ticket';
 						</div>
 						<div class="col-3">
 							<div class="d-flex flex-row-reverse">
-								<button type="button" class="btn btn-dark btn-sm rounded-circle" data-bs-toggle="modal" data-bs-target="#deletTicketModal"><i class="bi bi-x-lg"></i></button>
+								<button type="button" class="btn btn-dark btn-sm rounded-circle" (click)="deleteTicket.emit(ticket())"><i class="bi bi-x-lg"></i></button>
 								<button type="button" class="btn btn-dark btn-sm rounded-circle me-2" (click)="selectedTicket.emit(ticket())" data-bs-toggle="modal" data-bs-target="#updateTicketModal"><i class="bi bi-pencil"></i></button>
 							</div>
 						</div>
@@ -49,7 +47,6 @@ import { Ticket } from '../../../../../models/tickets/ticket';
 				</div>
 			</div>
 		}
-		<app-delet-ticket-modal />
 	`,
 	styleUrl: './ticket-card.component.css',
 	changeDetection: ChangeDetectionStrategy.OnPush,
@@ -58,6 +55,7 @@ export class TicketCardComponent implements AfterViewInit {
 
 	ticket = input.required<Ticket>();
 	selectedTicket = output<Ticket | null>();
+	deleteTicket = output<Ticket>();
 
 	ngAfterViewInit(): void {
 		

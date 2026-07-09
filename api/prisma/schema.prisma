@@ -158,7 +158,6 @@ model Ticket {
   count       Int
   active      Boolean  @default(true)
   price       Float
-  date        String
 
   eventId Int
   event   Event @relation(fields: [eventId], references: [id])

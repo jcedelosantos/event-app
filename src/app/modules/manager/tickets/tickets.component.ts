@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, OnInit, signal } from '@angular/core';
 
 import { Ticket } from '../../../models/tickets/ticket';
 
@@ -8,10 +8,11 @@ import { ExportTicketsModalComponent } from './components/export-tickets-modal/e
 import { ImportTicketsModalComponent } from './components/import-tickets-modal/import-tickets-modal.component';
 import { TicketsService } from './services/tickets.service';
 import { UpdateTicketModalComponent } from './components/update-ticket-modal/update-ticket-modal.component';
+import { confirm } from '../../../utils/messages';
 
 @Component({
 	selector: 'app-tickets',
-	imports: [TicketCardComponent, UpdateTicketModalComponent,  ExportTicketsModalComponent, ImportTicketsModalComponent],
+	imports: [TicketCardComponent, UpdateTicketModalComponent, ExportTicketsModalComponent, ImportTicketsModalComponent],
 	template: `
 		<h2>Tickets Manager</h2>
 
@@ -39,21 +40,37 @@ import { UpdateTicketModalComponent } from './components/update-ticket-modal/upd
 			<div class="row">
 				@for (ticket of tickets(); track ticket.id) {
 					<div class="col-xxl-3 col-xl-4 col-lg-12 col-md-12 col-sm-12 col-12 ">
-						<ticket-card [ticket]="ticket" (selectedTicket)="selectedTicket.set($event)" />
+						<ticket-card [ticket]="ticket" (selectedTicket)="selectedTicket.set($event)" (deleteTicket)="onDeleteTicket($event)" />
 					</div>
 				}
 			</div>
 		}
-		<app-update-ticket-modal [ticket]="selectedTicket()"/>
+		<app-update-ticket-modal [ticket]="selectedTicket()" (ticketSaved)="loadTickets()" />
 		<app-export-tickets-modal />
 		<app-import-tickets-modal />
 	`,
 	styleUrl: './tickets.component.css',
 	changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class TicketsComponent {
+export class TicketsComponent implements OnInit {
 	private readonly ticketSrv = inject(TicketsService);
 
-	tickets = signal<Ticket[]>(this.ticketSrv.getTickets() ?? []);
+	tickets = signal<Ticket[]>([]);
 	selectedTicket = signal<Ticket | null>(null);
+
+	ngOnInit(): void {
+		this.loadTickets();
+	}
+
+	loadTickets() {
+		this.ticketSrv.getTickets().subscribe((tickets) => this.tickets.set(tickets));
+	}
+
+	onDeleteTicket(ticket: Ticket) {
+		confirm(`¿Eliminar el ticket "${ticket.name}"?`, {
+			onConfirm: () => {
+				this.ticketSrv.deleteTicket(ticket.id).subscribe(() => this.loadTickets());
+			},
+		});
+	}
 }

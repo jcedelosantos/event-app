@@ -10,7 +10,7 @@ const ticket_1: Ticket = {
 	count: 100,
 	active: true,
 	price: 1500,
-	date: ""
+	eventId: 0,
 };
 const ticket_2: Ticket = {
 	id: 2,
@@ -22,7 +22,7 @@ const ticket_2: Ticket = {
 	count: 1000,
 	active: true,
 	price: 500,
-	date: '',
+	eventId: 0,
 };
 
 export const tickets: Array<Ticket> = [ticket_1, ticket_2];
