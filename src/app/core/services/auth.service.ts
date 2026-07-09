@@ -36,6 +36,25 @@ export class AuthService {
 	}
 
 	isAuthenticated(): boolean {
-		return !!this.getToken();
+		const token = this.getToken();
+		if (!token) return false;
+
+		const expiresAt = decodeJwtExpiry(token);
+		if (expiresAt !== null && expiresAt <= Date.now()) {
+			this.logout();
+			return false;
+		}
+		return true;
+	}
+}
+
+// Decodifica el payload del JWT en el cliente (sin verificar firma, solo para leer `exp` y evitar
+// mandar requests con un token que ya sabemos vencido). La firma la valida siempre el servidor.
+function decodeJwtExpiry(token: string): number | null {
+	try {
+		const payload = JSON.parse(atob(token.split('.')[1]));
+		return typeof payload.exp === 'number' ? payload.exp * 1000 : null;
+	} catch {
+		return null;
 	}
 }
