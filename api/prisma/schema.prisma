@@ -1,0 +1,241 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model UserType {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String
+  type        String
+  license     String // JSON-encoded string[] (SQLite has no native array type)
+  users       User[]
+}
+
+model User {
+  id         Int      @id @default(autoincrement())
+  username   String   @unique
+  password   String // bcrypt hash
+  name       String
+  lastname   String
+  gender     String
+  email      String   @unique
+  carnet     Int
+  adress     String
+  phone      String
+  typeId     Int
+  type       UserType @relation(fields: [typeId], references: [id])
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  eventsCreated    Event[]       @relation("EventCreatedBy")
+  salesAsSeller    SaleProduct[] @relation("SaleProductSeller")
+  salesAsClient    SaleProduct[] @relation("SaleProductClient")
+  ticketSalesAsSeller SaleTicket[] @relation("SaleTicketSeller")
+  ticketSalesAsClient SaleTicket[] @relation("SaleTicketClient")
+}
+
+model Event {
+  id          Int      @id @default(autoincrement())
+  name        String
+  img         String
+  code        String
+  type        String
+  description String
+  dateSale    DateTime
+  dateOn      DateTime
+  dateOff     DateTime
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  userId    Int
+  createdBy User @relation("EventCreatedBy", fields: [userId], references: [id])
+
+  mapId Int?
+  map   Map? @relation(fields: [mapId], references: [id])
+
+  tickets      Ticket[]
+  catalogs     Catalog[]
+  saleProducts SaleProduct[]
+  saleTickets  SaleTicket[]
+}
+
+model Map {
+  id             Int      @id @default(autoincrement())
+  name           String
+  description    String
+  img            String
+  type           String
+  x              Float
+  y              Float
+  radio          Float
+  color          String
+  size           Float
+  backGround     String
+  totalTables    Int      @default(0)
+  totalTablesSeat Int     @default(0)
+  totalSeats     Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  areas  Area[]
+  events Event[]
+}
+
+model Area {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String
+  img         String
+  icon        String
+  type        String
+  x           Float
+  y           Float
+  radio       Float
+  color       String
+  size        Float
+  backGround  String
+  totalTables Int      @default(0)
+  totalSeats  Int      @default(0)
+  totalCount  Int      @default(0)
+
+  mapId Int
+  map   Map @relation(fields: [mapId], references: [id])
+
+  seats  Seat[]
+  tables Table[]
+}
+
+model Table {
+  id     Int    @id @default(autoincrement())
+  name   String
+  icon   String
+  type   String
+  x      Float
+  y      Float
+  radio  Float
+  color  String
+  size   Float
+
+  areaId Int
+  area   Area @relation(fields: [areaId], references: [id])
+
+  seats Seat[]
+}
+
+model Seat {
+  id     Int    @id @default(autoincrement())
+  name   String
+  icon   String
+  type   String
+  x      Float
+  y      Float
+  radio  Float
+  color  String
+  size   Float
+
+  areaId Int
+  area   Area @relation(fields: [areaId], references: [id])
+
+  tableId Int?
+  table   Table? @relation(fields: [tableId], references: [id])
+
+  saleTickets SaleTicket[]
+}
+
+model Ticket {
+  id          Int      @id @default(autoincrement())
+  img         String
+  code        String
+  name        String
+  description String
+  type        String
+  count       Int
+  active      Boolean  @default(true)
+  price       Float
+  date        String
+
+  eventId Int
+  event   Event @relation(fields: [eventId], references: [id])
+}
+
+model Stock {
+  id          Int    @id @default(autoincrement())
+  name        String
+  description String
+
+  catalogs Catalog[]
+}
+
+model Catalog {
+  id          Int    @id @default(autoincrement())
+  name        String
+  type        String
+  description String
+
+  stockId Int?
+  stock   Stock? @relation(fields: [stockId], references: [id])
+
+  eventId Int?
+  event   Event? @relation(fields: [eventId], references: [id])
+
+  products Product[]
+}
+
+model Product {
+  id          Int      @id @default(autoincrement())
+  code        String
+  img         String
+  name        String
+  description String
+  dateCommit  DateTime
+  type        String
+  count       Int
+  active      Boolean  @default(true)
+  price       Float
+
+  catalogId Int
+  catalog   Catalog @relation(fields: [catalogId], references: [id])
+}
+
+model SaleProduct {
+  id       Int      @id @default(autoincrement())
+  dateSold DateTime @default(now())
+  paidType String
+
+  eventId Int
+  event   Event @relation(fields: [eventId], references: [id])
+
+  userId Int
+  seller User @relation("SaleProductSeller", fields: [userId], references: [id])
+
+  clientId Int
+  client   User @relation("SaleProductClient", fields: [clientId], references: [id])
+}
+
+model SaleTicket {
+  id          Int      @id @default(autoincrement())
+  status      Int
+  active      Boolean  @default(true)
+  description String
+  dateSold    DateTime @default(now())
+  paidType    String
+  codeQR      String
+
+  eventId Int
+  event   Event @relation(fields: [eventId], references: [id])
+
+  seatId Int
+  seat   Seat @relation(fields: [seatId], references: [id])
+
+  userId Int
+  seller User @relation("SaleTicketSeller", fields: [userId], references: [id])
+
+  clientId Int
+  client   User @relation("SaleTicketClient", fields: [clientId], references: [id])
+}
