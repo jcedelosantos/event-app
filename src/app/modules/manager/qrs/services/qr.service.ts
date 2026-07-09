@@ -5,20 +5,19 @@ import { Map } from '../../../../models/maps/map';
 import { Ticket } from '../../../../models/tickets/ticket';
 import { User } from '../../../../models/users/user';
 import { EventsService } from '../../events/services/events.service';
-import { UserService } from '../../users/services/user.service';
+import { mockUser } from '../../../../data/mock-users';
 import { Events } from '../../../../models/events/events';
 
 @Injectable({
   providedIn: 'root'
 })
 export class QRService {
-  userService = inject(UserService);
   eventService = inject(EventsService);
 
   mockQRList() {
     const event = this.eventService.createRandomEvent();
     return {
-      user: this.userService.createRamdomUser(),
+      user: mockUser(),
       client: faker.company.name(),
       date: faker.date.past().toISOString(),
       events: event,

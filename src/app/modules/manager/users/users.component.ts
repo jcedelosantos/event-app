@@ -8,6 +8,7 @@ import { UpdateUserModalComponent } from "./components/update-user-modal/update-
 
 import { User } from '../../../models/users/user';
 import { UserService } from './services/user.service';
+import { confirm } from '../../../utils/messages';
 @Component({
 	selector: 'app-users',
 	imports: [UpdateUserModalComponent, ImportUsersModalComponent, ExportUsersModalComponent],
@@ -110,7 +111,7 @@ import { UserService } from './services/user.service';
 								<div class="col">{{ user.type.name }}</div>
 								<div class="col">
 									<div class="d-flex flex-row-reverse">
-										<button type="button" class="btn btn-dark btn-sm rounded-circle"><i class="bi bi-x-lg"></i></button>
+										<button type="button" class="btn btn-dark btn-sm rounded-circle" (click)="deleteUser(user)"><i class="bi bi-x-lg"></i></button>
 										<button type="button" class="btn btn-dark btn-sm rounded-circle me-2" (click)="openUpdateUserModal(user)"><i class="bi bi-pencil"></i></button>
 									</div>
 								</div>
@@ -121,7 +122,7 @@ import { UserService } from './services/user.service';
 			</tbody>
 		</table>
 		<!-- <app-create-user-modal /> -->
-		<app-update-user-modal [user]="selectedUser()"/>
+		<app-update-user-modal [user]="selectedUser()" (userSaved)="loadUsers()" />
 		<!-- <app-delet-user-modal /> -->
 		<app-import-users-modal />
 		<app-export-users-modal />
@@ -131,16 +132,27 @@ import { UserService } from './services/user.service';
 })
 export class UsersComponent implements AfterViewInit {
 	userService = inject(UserService);
-	users = signal<User[]>(this.userService.getUsers());
+	users = signal<User[]>([]);
 	selectedUser = signal<User | null>(null);
 	userUpdateModal: any;
-	
+
 	ngAfterViewInit(): void {
 		this.userUpdateModal = new bootstrap.Modal("#updateUserModal", { backdrop: true });
+		this.loadUsers();
+	}
+
+	loadUsers() {
+		this.userService.getUsers().subscribe((users) => this.users.set(users));
 	}
 
 	openUpdateUserModal(user: User | null) {
 		this.selectedUser.set(user);
 		this.userUpdateModal?.show();
+	}
+
+	deleteUser(user: User) {
+		confirm(`¿Eliminar al usuario ${user.username}?`, {
+			onConfirm: () => this.userService.deleteUser(user.id).subscribe(() => this.loadUsers()),
+		});
 	}
 }

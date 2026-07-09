@@ -2,6 +2,7 @@ import { Component, AfterViewInit, inject, signal } from '@angular/core';
 import { NavigationEnd, Router, RouterLink } from '@angular/router';
 import * as bootstrap from "bootstrap";
 import { filter } from 'rxjs';
+import { AuthService } from '../../core/services/auth.service';
 
 type MenuItem = { title: string; icon: string; url: string};
 @Component({
@@ -29,7 +30,7 @@ type MenuItem = { title: string; icon: string; url: string};
 				<div class="d-flex align-items-start flex-column mb-3" style="height: 100%">
 					<div class="mt-auto">
 						@for (item of menuExit; track item.title) {
-							<button class="btn btn-dark mb-2" [routerLink]="item.url">
+							<button class="btn btn-dark mb-2" (click)="logout()">
 								@if (item.icon) {
 									<i [class]="item.icon"></i>
 								}
@@ -65,7 +66,7 @@ type MenuItem = { title: string; icon: string; url: string};
 				<div class="d-flex align-items-end flex-column mb-3" style="height: 100%">
 					<div class="mt-auto">
 						@for (item of menuExit; track item.title) {
-							<button class="btn btn-dark mb-2" [routerLink]="item.url">
+							<button class="btn btn-dark mb-2" (click)="logout()">
 								@if (item.icon) {
 									<i [class]="item.icon"></i>
 								}
@@ -80,6 +81,7 @@ type MenuItem = { title: string; icon: string; url: string};
 })
 export class NavBarMenuComponent implements AfterViewInit {
 	router = inject(Router)
+	private readonly authService = inject(AuthService);
 	path = signal<string>('');
 	menuList: Array<MenuItem> = [
 		{ title: 'Dash Board', icon: 'bi bi-speedometer', url: '/manager/dash-board' },
@@ -109,5 +111,10 @@ export class NavBarMenuComponent implements AfterViewInit {
 			const bsOffCanvas = new bootstrap.Offcanvas(offCanvas);
 			bsOffCanvas.show();
 		}
+	}
+
+	logout() {
+		this.authService.logout();
+		this.router.navigate(['/site-web']);
 	}
 }

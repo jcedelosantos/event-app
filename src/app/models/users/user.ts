@@ -3,7 +3,8 @@ import { UserType } from './user-type';
 export interface User {
 	id: number;
 	username: string;
-	password: string;
+	// La API nunca devuelve el hash; solo se envía al crear/actualizar.
+	password?: string;
 	type: UserType;
 	name: string;
 	lastname: string;

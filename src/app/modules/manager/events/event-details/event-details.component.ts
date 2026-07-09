@@ -3,8 +3,8 @@ import { ChangeDetectionStrategy, Component, inject, OnInit, signal } from '@ang
 import { ActivatedRoute, Router } from '@angular/router';
 import { Events } from '../../../../models/events/events';
 import { EventsService } from '../services/events.service';
-import { UserService } from '../../users/services/user.service';
 import { User } from '../../../../models/users/user';
+import { mockUsers } from '../../../../data/mock-users';
 
 import { maps } from '../../../../data/map';
 import { Map } from '../../../../models/maps/map';
@@ -170,8 +170,7 @@ export class EventDetailsComponent implements OnInit {
 
 	event = signal<Events>(this.eventSrv.mockEvents());
 
-	private readonly userSrv = inject(UserService);
-	users = signal<User[]>(this.userSrv.getUsers());
+	users = signal<User[]>(mockUsers());
 
 	id: string | null = '';
 

@@ -1,9 +1,9 @@
-import { ChangeDetectionStrategy, Component, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { RouterLink, Router } from '@angular/router';
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { HttpErrorResponse } from '@angular/common/http';
 
-import { users } from '../../../data/users';
-import { User } from '../../../models/users/user';
+import { AuthService } from '../../../core/services/auth.service';
 
 @Component({
 	selector: 'app-sign-in',
@@ -12,15 +12,14 @@ import { User } from '../../../models/users/user';
 	imports: [RouterLink, ReactiveFormsModule],
 	changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class SignInComponent implements OnInit {
-	users: Array<User> | undefined;
+export class SignInComponent {
+	private readonly authService = inject(AuthService);
+	private readonly router = inject(Router);
+
 	formGroupInput: FormGroup;
 	status: string;
 
-	constructor(
-		private fb: FormBuilder,
-		private router: Router,
-	) {
+	constructor(private fb: FormBuilder) {
 		this.formGroupInput = this.fb.group({
 			username: new FormControl('', Validators.required),
 			password: new FormControl('', Validators.required),
@@ -28,25 +27,19 @@ export class SignInComponent implements OnInit {
 		});
 		this.status = '';
 	}
-	ngOnInit(): void {
-		this.users = users;
-	}
 
 	signIn() {
-		if (this.formGroupInput.valid && this.users) {
-			var find: boolean = false;
-			for (var i = 0; i < this.users.length; i++) {
-				if (this.users[i].username === this.formGroupInput.get('username')?.value && this.users[i].password === this.formGroupInput.get('password')?.value) {
-					this['router'].navigate(['/manager/dash-board']);
-					find = true;
-					break;
-				}
-			}
-			if (!find) {
-				this.status = 'username or password incorrect';
-			}
-		} else {
+		if (!this.formGroupInput.valid) {
 			this.status = 'Please fill in the fields';
+			return;
 		}
+
+		const { username, password } = this.formGroupInput.value;
+		this.authService.login(username, password).subscribe({
+			next: () => this.router.navigate(['/manager/dash-board']),
+			error: (err: HttpErrorResponse) => {
+				this.status = err.status === 401 ? 'username or password incorrect' : 'No se pudo conectar con el servidor';
+			},
+		});
 	}
 }
