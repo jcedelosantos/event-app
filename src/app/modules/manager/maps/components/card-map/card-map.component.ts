@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, Input, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, Input, OnInit, output } from '@angular/core';
 
 import { Map } from '../../../../../models/maps/map';
 import { RouterLink } from '@angular/router';
@@ -18,8 +18,8 @@ import { GoogleMapsModule } from '@angular/google-maps';
 						<h4>{{ map.name }}</h4>
 					</div>
 					<div>
-						<button type="button" class="btn btn-dark btn-sm rounded-circle"><i class="bi bi-pencil"></i></button>
-						<button type="button" class="btn btn-dark btn-sm rounded-circle"><i class="bi bi-x-lg"></i></button>
+						<button type="button" class="btn btn-dark btn-sm rounded-circle" (click)="editMap.emit(map)"><i class="bi bi-pencil"></i></button>
+						<button type="button" class="btn btn-dark btn-sm rounded-circle" (click)="deleteMap.emit(map)"><i class="bi bi-x-lg"></i></button>
 					</div>
 				</div>
 
@@ -57,6 +57,9 @@ export class CardMapComponent implements OnInit {
 
 	@Input()
 	map: Map | undefined;
+
+	editMap = output<Map | undefined>();
+	deleteMap = output<Map | undefined>();
 
 	constructor() {}
 

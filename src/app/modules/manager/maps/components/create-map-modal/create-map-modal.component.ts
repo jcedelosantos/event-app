@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, effect, inject, model, output } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Map } from '../../../../../models/maps/map';
@@ -14,7 +14,7 @@ declare const bootstrap: any;
 			<div class="modal-dialog">
 				<div class="modal-content">
 					<div class="modal-header">
-						<h1 class="modal-title fs-5" id="createMapModalLabel">Create map</h1>
+						<h1 class="modal-title fs-5" id="createMapModalLabel">{{ map() ? 'Update' : 'Create' }} map</h1>
 						<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
 					</div>
 					<div class="modal-body">
@@ -48,7 +48,7 @@ declare const bootstrap: any;
 					</div>
 					<div class="modal-footer">
 						<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-						<button type="button" class="btn btn-danger" (click)="submit()">Create</button>
+						<button type="button" class="btn btn-danger" (click)="submit()">{{ map() ? 'Update' : 'Create' }}</button>
 					</div>
 				</div>
 			</div>
@@ -60,7 +60,9 @@ export class CreateMapModalComponent {
 	private readonly fb = inject(FormBuilder);
 	private readonly mapsService = inject(MapsService);
 
+	map = model<Map | null>(null);
 	mapCreated = output<Map>();
+	mapUpdated = output<Map>();
 	errorMessage = '';
 
 	mapForm = this.fb.group({
@@ -71,6 +73,24 @@ export class CreateMapModalComponent {
 		y: [-70.0412847, Validators.required],
 	});
 
+	constructor() {
+		effect(() => {
+			const current = this.map();
+			this.errorMessage = '';
+			if (current) {
+				this.mapForm.patchValue({
+					name: current.name,
+					description: current.description,
+					img: current.img,
+					x: current.x,
+					y: current.y,
+				});
+			} else {
+				this.mapForm.reset({ name: '', description: '', img: '', x: 18.4628068, y: -70.0412847 });
+			}
+		});
+	}
+
 	submit() {
 		if (this.mapForm.invalid) {
 			this.mapForm.markAllAsTouched();
@@ -78,27 +98,34 @@ export class CreateMapModalComponent {
 		}
 
 		const value = this.mapForm.getRawValue();
-		this.mapsService
-			.createMap({
-				name: value.name!,
-				description: value.description ?? '',
-				img: value.img ?? '',
-				x: value.x!,
-				y: value.y!,
-			})
-			.subscribe({
-				next: (map) => {
+		const payload = {
+			name: value.name!,
+			description: value.description ?? '',
+			img: value.img ?? '',
+			x: value.x!,
+			y: value.y!,
+		};
+
+		const current = this.map();
+		const request = current ? this.mapsService.updateMap(current.id, payload) : this.mapsService.createMap(payload);
+
+		request.subscribe({
+			next: (map) => {
+				if (current) {
+					this.mapUpdated.emit(map);
+				} else {
 					this.mapCreated.emit(map);
-					this.mapForm.reset({ x: 18.4628068, y: -70.0412847 });
-					this.errorMessage = '';
-					const modalEl = document.getElementById('createMapModal');
-					if (modalEl) {
-						bootstrap.Modal.getOrCreateInstance(modalEl).hide();
-					}
-				},
-				error: (err: HttpErrorResponse) => {
-					this.errorMessage = err.error?.error ?? err.message;
-				},
-			});
+				}
+				this.map.set(null);
+				this.errorMessage = '';
+				const modalEl = document.getElementById('createMapModal');
+				if (modalEl) {
+					bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+				}
+			},
+			error: (err: HttpErrorResponse) => {
+				this.errorMessage = err.error?.error ?? err.message;
+			},
+		});
 	}
 }
