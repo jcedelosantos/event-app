@@ -15,7 +15,7 @@ import { QrsComponent } from './qrs/qrs.component';
 import { ProductsComponent } from './products/products.component';
 import { SalesComponent } from './sales/sales.component';
 import { EventDetailsComponent } from './events/event-details/event-details.component';
-import { QrScannerComponent } from './events/component/qr-scanner/qr-scanner.component';
+import { QrScannerComponent } from './events/components/qr-scanner/qr-scanner.component';
 
 const routes: Routes = [
 	{

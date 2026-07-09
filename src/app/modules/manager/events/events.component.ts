@@ -30,7 +30,7 @@ import { EventCardComponent } from './components/event-card/event-card.component
 				</div>
 			</nav>
 			<br />
-			<app-create-event-modal />
+			<app-create-event-modal (eventCreated)="onEventCreated($event)" />
 			<div class="row">
 				<div class="col-8">
 					<div class="d-flex flex-column vh-85">
@@ -135,6 +135,10 @@ export class EventsComponent {
 			const data = this.eventSrv.getEvents();
 			this.events.set(data ?? []);
 		});
+	}
+
+	onEventCreated(event: Events) {
+		this.events.update((list) => [event, ...list]);
 	}
 
 	private chunkArray<T>(array: T[], size: number): T[][] {

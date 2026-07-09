@@ -16,7 +16,7 @@ export interface Events {
 	dateOn: Date;
 	dateOff: Date;
 	active: boolean;
-	map: Map;
+	map?: Map;
 	areas: Array<number>;
 	tickets: Array<Ticket>;
 	catalogs: Array<Catalog>;

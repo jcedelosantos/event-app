@@ -20,7 +20,7 @@ import { RouterLink } from '@angular/router';
 					<hr />
 
 					<p class="card-text">{{ event.description }}</p>
-					<p class="card-text">{{ event.map.description }}</p>
+					<p class="card-text">{{ event.map?.description }}</p>
 					<div class="d-flex justify-content-start flex-row ">
 						<div class="p-1">
 							<span> Ticket </span>

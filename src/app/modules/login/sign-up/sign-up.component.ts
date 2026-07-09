@@ -3,7 +3,7 @@ import { RouterLink, Router } from '@angular/router';
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 
 @Component({
-	selector: 'app-sing-up',
+	selector: 'app-sign-up',
 	templateUrl: './sign-up.component.html',
 	styleUrl: './sign-up.component.css',
 	imports: [RouterLink, ReactiveFormsModule],
