@@ -1,6 +1,6 @@
 import { Component, effect, input } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
-import { QR } from '../../services/qr.service';
+import { SaleTicket } from '../../services/qr.service';
 
 @Component({
   selector: 'app-event-detail-modal',
@@ -9,15 +9,14 @@ import { QR } from '../../services/qr.service';
   styleUrl: './event-detail-modal.component.css'
 })
 export class EventDetailModalComponent {
-  eventDetail = input<QR | null>(null);
+  eventDetail = input<SaleTicket | null>(null);
 
   eventDetailForm = new FormGroup({
     name: new FormControl<string>(''),
-    map: new FormControl<string>(''),
     area: new FormControl<string>(''),
     seat: new FormControl<string>(''),
     ticket: new FormControl<string>(''),
-    type: new FormControl<string>(''),
+    client: new FormControl<string>(''),
     code: new FormControl<string>(''),
     date: new FormControl<string>('')
   });
@@ -32,16 +31,16 @@ export class EventDetailModalComponent {
 
 
   fillForm() {
-    if (this.eventDetail()) {
+    const detail = this.eventDetail();
+    if (detail) {
       this.eventDetailForm.patchValue({
-        name: this.eventDetail()?.events.name,
-        map: this.eventDetail()?.map.name,
-        area: this.eventDetail()?.area.name,
-        seat: this.eventDetail()?.seats.toString(),
-        ticket: this.eventDetail()?.ticket.name,
-        type: this.eventDetail()?.type,
-        code: this.eventDetail()?.code,
-        date: this.eventDetail()?.events.dateOn.toISOString().slice(0, 10)
+        name: detail.event.name,
+        area: detail.seat.area.name,
+        seat: detail.seat.name,
+        ticket: detail.ticket.name,
+        client: `${detail.client.name} ${detail.client.lastname}`,
+        code: detail.codeQR,
+        date: new Date(detail.dateSold).toLocaleDateString()
       });
       this.eventDetailForm.disable();
     }

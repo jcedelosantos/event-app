@@ -8,6 +8,7 @@ import { mapsRouter } from './routes/maps';
 import { areasRouter } from './routes/areas';
 import { ticketsRouter } from './routes/tickets';
 import { seatsRouter } from './routes/seats';
+import { saleTicketsRouter } from './routes/sale-tickets';
 
 const app = express();
 
@@ -23,6 +24,7 @@ app.use('/maps', mapsRouter);
 app.use('/areas', areasRouter);
 app.use('/tickets', ticketsRouter);
 app.use('/seats', seatsRouter);
+app.use('/sale-tickets', saleTicketsRouter);
 
 app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
 	console.error(err);

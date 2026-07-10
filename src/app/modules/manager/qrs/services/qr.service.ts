@@ -1,51 +1,57 @@
+import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
-import { faker } from '@faker-js/faker';
+import { Observable } from 'rxjs';
+import { Events } from '../../../../models/events/events';
+import { Seat } from '../../../../models/maps/seat';
 import { Area } from '../../../../models/maps/area';
-import { Map } from '../../../../models/maps/map';
 import { Ticket } from '../../../../models/tickets/ticket';
 import { User } from '../../../../models/users/user';
-import { EventsService } from '../../events/services/events.service';
-import { mockUser } from '../../../../data/mock-users';
-import { Events } from '../../../../models/events/events';
+import { environment } from '../../../../../environments/environment';
+
+export type SaleTicket = {
+	id: number;
+	status: number;
+	active: boolean;
+	description: string;
+	dateSold: string;
+	paidType: string;
+	codeQR: string;
+	eventId: number;
+	seatId: number;
+	ticketId: number;
+	clientId: number;
+	event: Events;
+	seat: Seat & { area: Area };
+	ticket: Ticket;
+	client: User;
+	seller: User;
+};
+
+export type SaleTicketInput = {
+	eventId: number;
+	seatId: number;
+	ticketId: number;
+	clientId: number;
+	paidType: string;
+	description?: string;
+};
 
 @Injectable({
-  providedIn: 'root'
+	providedIn: 'root',
 })
 export class QRService {
-  eventService = inject(EventsService);
+	private readonly httpClient = inject(HttpClient);
+	private readonly baseUrl = `${environment.apiUrl}/sale-tickets`;
 
-  mockQRList() {
-    const event = this.eventService.createRandomEvent();
-    return {
-      user: mockUser(),
-      client: faker.company.name(),
-      date: faker.date.past().toISOString(),
-      events: event,
-      map: event.map,
-      seats: faker.number.int({ min: 1, max: 100 }),
-      ticket: event.tickets[faker.number.int({ min: 0, max: event.tickets.length - 1 })],
-      type: faker.helpers.arrayElement(['VIP', 'Regular', 'Student']),
-      code: faker.string.alphanumeric(10),
-      price: faker.commerce.price({ min: 10, max: 500, dec: 2, symbol: '$' })
-    } as QR;
+	getQRs(): Observable<SaleTicket[]> {
+		return this.httpClient.get<SaleTicket[]>(this.baseUrl);
+	}
 
-  }
+	createQR(saleTicket: SaleTicketInput): Observable<SaleTicket> {
+		return this.httpClient.post<SaleTicket>(this.baseUrl, saleTicket);
+	}
 
-  getQRs(): QR[] {
-    return faker.helpers.multiple(() => this.mockQRList(), { count: 10 });
-  }
-}
-
-export type QR = {
-  user: User;
-  client: string;
-  date: string;
-  events: Events;
-  map: Map;
-  area: Area;
-  seats: number;
-  ticket: Ticket;
-  type: string;
-  code: string;
-  price: string;
+	deleteQR(id: number): Observable<void> {
+		return this.httpClient.delete<void>(`${this.baseUrl}/${id}`);
+	}
 }

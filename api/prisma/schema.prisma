@@ -161,6 +161,8 @@ model Ticket {
 
   eventId Int
   event   Event @relation(fields: [eventId], references: [id])
+
+  saleTickets SaleTicket[]
 }
 
 model Stock {
@@ -219,7 +221,7 @@ model SaleProduct {
 
 model SaleTicket {
   id          Int      @id @default(autoincrement())
-  status      Int
+  status      Int      @default(1)
   active      Boolean  @default(true)
   description String
   dateSold    DateTime @default(now())
@@ -231,6 +233,9 @@ model SaleTicket {
 
   seatId Int
   seat   Seat @relation(fields: [seatId], references: [id])
+
+  ticketId Int
+  ticket   Ticket @relation(fields: [ticketId], references: [id])
 
   userId Int
   seller User @relation("SaleTicketSeller", fields: [userId], references: [id])

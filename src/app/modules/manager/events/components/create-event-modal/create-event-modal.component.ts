@@ -1,8 +1,10 @@
-import { ChangeDetectionStrategy, Component, inject, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, OnInit, output, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Events } from '../../../../../models/events/events';
 import { EventsService } from '../../services/events.service';
+import { Map } from '../../../../../models/maps/map';
+import { MapsService } from '../../../maps/services/maps.service';
 
 declare const bootstrap: any;
 
@@ -55,6 +57,15 @@ declare const bootstrap: any;
 									<option [ngValue]="false">Inactive</option>
 								</select>
 							</div>
+							<div class="col-md-12 mb-3">
+								<label for="map">Map <span class="text-muted">(opcional — necesario para vender tickets con asiento)</span></label>
+								<select class="custom-select d-block w-100" formControlName="mapId">
+									<option [ngValue]="null">Sin asignar</option>
+									@for (map of maps(); track map.id) {
+										<option [ngValue]="map.id">{{ map.name }}</option>
+									}
+								</select>
+							</div>
 						</div>
 						@if (errorMessage) {
 							<div class="text-danger">{{ errorMessage }}</div>
@@ -70,12 +81,14 @@ declare const bootstrap: any;
 	</div>`,
 	changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class CreateEventModalComponent {
+export class CreateEventModalComponent implements OnInit {
 	private readonly fb = inject(FormBuilder);
 	private readonly eventsService = inject(EventsService);
+	private readonly mapsService = inject(MapsService);
 
 	eventCreated = output<Events>();
 	errorMessage = '';
+	maps = signal<Map[]>([]);
 
 	eventForm = this.fb.group({
 		name: ['', Validators.required],
@@ -84,7 +97,12 @@ export class CreateEventModalComponent {
 		dateOn: ['', Validators.required],
 		type: ['', Validators.required],
 		active: [true, Validators.required],
+		mapId: this.fb.control<number | null>(null),
 	});
+
+	ngOnInit(): void {
+		this.mapsService.getMaps().subscribe((maps) => this.maps.set(maps));
+	}
 
 	submit() {
 		if (this.eventForm.invalid) {
@@ -101,11 +119,12 @@ export class CreateEventModalComponent {
 				type: value.type!,
 				dateOn: value.dateOn!,
 				active: value.active!,
+				...(value.mapId ? { mapId: value.mapId } : {}),
 			})
 			.subscribe({
 				next: (event) => {
 					this.eventCreated.emit(event);
-					this.eventForm.reset({ active: true });
+					this.eventForm.reset({ active: true, mapId: null });
 					this.errorMessage = '';
 					const modalEl = document.getElementById('createEventModal');
 					if (modalEl) {

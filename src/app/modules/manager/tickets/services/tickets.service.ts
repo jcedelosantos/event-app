@@ -2,7 +2,6 @@ import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { Ticket } from '../../../../models/tickets/ticket';
-import { faker } from '@faker-js/faker';
 import { environment } from '../../../../../environments/environment';
 
 export type TicketInput = {
@@ -24,24 +23,12 @@ export class TicketsService {
 	private readonly httpClient = inject(HttpClient);
 	private readonly baseUrl = `${environment.apiUrl}/tickets`;
 
-	// Usado únicamente por módulos que aún no se conectan a la API (QRs, Sales — pendiente).
-	mockTickets() {
-		return {
-			id: faker.number.int({ min: 1, max: 100 }),
-			img: faker.image.urlPicsumPhotos(),
-			code: faker.string.uuid(),
-			name: faker.commerce.productName(),
-			description: faker.commerce.productDescription(),
-			type: faker.helpers.arrayElement(['Normal', 'VIP']),
-			count: faker.number.int({ min: 1, max: 100 }),
-			active: faker.helpers.arrayElement([true, false]),
-			price: Number(faker.commerce.price()),
-			eventId: 0,
-		} as Ticket;
-	}
-
 	getTickets(): Observable<Ticket[]> {
 		return this.httpClient.get<Ticket[]>(this.baseUrl);
+	}
+
+	getTicketsByEvent(eventId: number): Observable<Ticket[]> {
+		return this.httpClient.get<Ticket[]>(this.baseUrl, { params: { eventId } });
 	}
 
 	createTicket(ticket: TicketInput): Observable<Ticket> {
