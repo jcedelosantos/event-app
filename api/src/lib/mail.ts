@@ -30,9 +30,16 @@ function formatEventDate(date: Date): string {
 	return new Date(date).toLocaleDateString('es-DO', { year: 'numeric', month: 'long', day: 'numeric' });
 }
 
-async function ticketCardHtml(event: EventModel, sale: SaleTicketForEmail): Promise<string> {
-	const qrDataUrl = await QRCode.toDataURL(sale.codeQR, { margin: 1, width: 220 });
-	return `
+type CardResult = { html: string; attachment: { filename: string; content: Buffer; contentId: string } };
+
+// Gmail y otros clientes bloquean imágenes `data:` URI embebidas directo en el <img src> (riesgo de
+// tracking/XSS) — el QR se veía como caja vacía en vez de la imagen. El QR va como attachment inline
+// con contentId, referenciado en el HTML vía `cid:`, que es el mecanismo estándar soportado por
+// Resend/la mayoría de los clientes de correo para imágenes embebidas en un email.
+async function ticketCardHtml(event: EventModel, sale: SaleTicketForEmail): Promise<CardResult> {
+	const cid = `qr-ticket-${sale.id}`;
+	const qrBuffer = await QRCode.toBuffer(sale.codeQR, { margin: 1, width: 220 });
+	const html = `
 		<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#111;border-radius:12px;overflow:hidden;margin-bottom:16px;border:1px solid #2a2a2a;">
 			<tr>
 				<td style="padding:20px;">
@@ -51,7 +58,7 @@ async function ticketCardHtml(event: EventModel, sale: SaleTicketForEmail): Prom
 									<div style="font-size:15px;">${sale.ticket.name} — ${sale.ticket.price} USD</div>
 								</td>
 								<td style="width:120px;text-align:right;vertical-align:top;">
-									<img src="${qrDataUrl}" width="110" height="110" alt="QR" style="border-radius:6px;" />
+									<img src="cid:${cid}" width="110" height="110" alt="QR" style="border-radius:6px;" />
 								</td>
 							</tr>
 						</table>
@@ -60,11 +67,13 @@ async function ticketCardHtml(event: EventModel, sale: SaleTicketForEmail): Prom
 			</tr>
 		</table>
 	`;
+	return { html, attachment: { filename: `qr-ticket-${sale.id}.png`, content: qrBuffer, contentId: cid } };
 }
 
-async function productCardHtml(event: EventModel, sale: SaleProductForEmail): Promise<string> {
-	const qrDataUrl = await QRCode.toDataURL(sale.codeQR, { margin: 1, width: 220 });
-	return `
+async function productCardHtml(event: EventModel, sale: SaleProductForEmail): Promise<CardResult> {
+	const cid = `qr-product-${sale.id}`;
+	const qrBuffer = await QRCode.toBuffer(sale.codeQR, { margin: 1, width: 220 });
+	const html = `
 		<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#111;border-radius:12px;overflow:hidden;margin-bottom:16px;border:1px solid #2a2a2a;">
 			<tr>
 				<td style="padding:20px;">
@@ -80,7 +89,7 @@ async function productCardHtml(event: EventModel, sale: SaleProductForEmail): Pr
 									<div style="font-size:15px;">${sale.quantity}</div>
 								</td>
 								<td style="width:120px;text-align:right;vertical-align:top;">
-									<img src="${qrDataUrl}" width="110" height="110" alt="QR" style="border-radius:6px;" />
+									<img src="cid:${cid}" width="110" height="110" alt="QR" style="border-radius:6px;" />
 								</td>
 							</tr>
 						</table>
@@ -89,6 +98,7 @@ async function productCardHtml(event: EventModel, sale: SaleProductForEmail): Pr
 			</tr>
 		</table>
 	`;
+	return { html, attachment: { filename: `qr-product-${sale.id}.png`, content: qrBuffer, contentId: cid } };
 }
 
 export async function sendProductEmail(args: { to: string; clientName: string; event: EventModel; saleProducts: SaleProductForEmail[] }) {
@@ -101,7 +111,7 @@ export async function sendProductEmail(args: { to: string; clientName: string; e
 		<div style="background:#000;padding:24px;font-family:Arial,Helvetica,sans-serif;">
 			<h2 style="color:#fff;">¡Hola ${args.clientName}!</h2>
 			<p style="color:#ccc;">Tu compra de productos para <strong style="color:#fff;">${args.event.name}</strong> quedó confirmada. Presentá el código QR en el stand de entrega — es válido una sola vez.</p>
-			${cards.join('')}
+			${cards.map((c) => c.html).join('')}
 			<p style="color:#666;font-size:12px;">Este correo fue generado automáticamente por Seat App.</p>
 		</div>
 	`;
@@ -111,6 +121,7 @@ export async function sendProductEmail(args: { to: string; clientName: string; e
 		to: args.to,
 		subject: `Tus productos para ${args.event.name}`,
 		html,
+		attachments: cards.map((c) => c.attachment),
 	});
 }
 
@@ -124,7 +135,7 @@ export async function sendTicketEmail(args: { to: string; clientName: string; ev
 		<div style="background:#000;padding:24px;font-family:Arial,Helvetica,sans-serif;">
 			<h2 style="color:#fff;">¡Hola ${args.clientName}!</h2>
 			<p style="color:#ccc;">Tu compra para <strong style="color:#fff;">${args.event.name}</strong> quedó confirmada. Presentá el código QR de cada ticket en la entrada — cada uno es válido una sola vez.</p>
-			${cards.join('')}
+			${cards.map((c) => c.html).join('')}
 			<p style="color:#666;font-size:12px;">Este correo fue generado automáticamente por Seat App.</p>
 		</div>
 	`;
@@ -134,5 +145,6 @@ export async function sendTicketEmail(args: { to: string; clientName: string; ev
 		to: args.to,
 		subject: `Tus tickets para ${args.event.name}`,
 		html,
+		attachments: cards.map((c) => c.attachment),
 	});
 }
