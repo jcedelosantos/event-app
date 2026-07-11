@@ -147,8 +147,12 @@ export class BulkCreateSeatsModalComponent {
 	}
 
 	private generateTables(tableCount: number, prefix: string, cols: number, seatsPerTable: number, tableIcon: string) {
-		const tableSpacing = 90;
-		const ringRadius = 22;
+		// Los asientos del picker público son círculos fijos de 22px — con 10 por mesa, el radio del
+		// anillo tiene que ser lo bastante grande para que no se toquen entre sí (mínimo ~42px para
+		// 10 puntos), y la separación entre mesas mayor al diámetro del anillo para que no se pisen
+		// mesas vecinas.
+		const tableSpacing = 140;
+		const ringRadius = 45;
 		const tableRequests = Array.from({ length: tableCount }, (_, i) => {
 			const col = i % cols;
 			const row = Math.floor(i / cols);

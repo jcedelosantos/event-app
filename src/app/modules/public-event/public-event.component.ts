@@ -5,6 +5,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { QRCodeComponent } from 'angularx-qrcode';
 import { PublicEvent, PublicEventService, PublicSeat, PurchasedSaleTicket } from './services/public-event.service';
 import { extractErrorMessage } from '../../utils/api-error';
+import { shortSeatLabel } from '../../utils/seat-label';
 
 const MAX_SEATS = 5;
 
@@ -95,9 +96,10 @@ const MAX_SEATS = 5;
 															[disabled]="!seat.available"
 															[style.top.px]="seat.y"
 															[style.left.px]="seat.x"
+															[title]="seat.name"
 															(click)="toggleSeat(seat)"
 														>
-															{{ seat.name }}
+															{{ seatLabel(seat) }}
 														</button>
 													}
 												</div>
@@ -181,14 +183,20 @@ const MAX_SEATS = 5;
 			}
 			.seat-btn {
 				position: absolute;
-				min-width: 32px;
-				padding: 2px 6px;
-				font-size: 11px;
-				border-radius: 4px;
+				width: 22px;
+				height: 22px;
+				padding: 0;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				font-size: 10px;
+				line-height: 1;
+				border-radius: 50%;
 				border: 1px solid #dc3545;
 				background: #1c1f24;
 				color: #fff;
 				cursor: pointer;
+				transform: translate(-50%, -50%);
 			}
 			.seat-btn.seat-selected {
 				background: #dc3545;
@@ -243,6 +251,10 @@ export class PublicEventComponent implements OnInit {
 	isInvalid(name: keyof typeof this.registerForm.controls): boolean {
 		const control = this.registerForm.controls[name];
 		return control.invalid && control.touched;
+	}
+
+	seatLabel(seat: PublicSeat): string {
+		return shortSeatLabel(seat.name);
 	}
 
 	toggleSeat(seat: PublicSeat) {

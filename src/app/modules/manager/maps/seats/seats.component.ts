@@ -15,6 +15,7 @@ import { SeatsService } from '../services/seats.service';
 import { TablesService } from '../services/tables.service';
 import { confirm, error } from '../../../../utils/messages';
 import { extractErrorMessage } from '../../../../utils/api-error';
+import { shortSeatLabel } from '../../../../utils/seat-label';
 import { HttpErrorResponse } from '@angular/common/http';
 
 declare const bootstrap: any;
@@ -76,7 +77,7 @@ declare const bootstrap: any;
 													<span class="seat-icon-label" [style.font-size.px]="seat.size * 0.32">{{ seat.name }}</span>
 												</div>
 											} @else {
-												<span [style.color]="seat.color" [style.font-size.px]="seat.size * 0.8">{{ seat.name }}</span>
+												<span [style.color]="seat.color" [style.font-size.px]="seat.size * 0.8">{{ seatLabel(seat) }}</span>
 											}
 										</button>
 									}
@@ -193,6 +194,10 @@ export class SeatsComponent implements OnInit, AfterViewInit {
 
 	loadTables(areaId: number) {
 		this.tablesService.getTablesByArea(areaId).subscribe((tables) => this.tables.set(tables));
+	}
+
+	seatLabel(seat: Seat): string {
+		return shortSeatLabel(seat.name);
 	}
 
 	// Los asientos que no pertenecen a ninguna mesa se listan sueltos; los que sí, se ven agrupados
