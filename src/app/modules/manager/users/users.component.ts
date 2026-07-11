@@ -1,4 +1,4 @@
-import { AfterViewInit, ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { AfterViewInit, ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import * as bootstrap from "bootstrap";
 
 import { ExportUsersModalComponent } from './components/export-users-modal/export-users-modal.component';
@@ -11,6 +11,9 @@ import { UserService } from './services/user.service';
 import { confirm, error } from '../../../utils/messages';
 import { extractErrorMessage } from '../../../utils/api-error';
 import { HttpErrorResponse } from '@angular/common/http';
+
+type SortKey = 'carnet' | 'name' | 'lastname' | 'username' | 'email' | 'phone' | 'type';
+
 @Component({
 	selector: 'app-users',
 	imports: [UpdateUserModalComponent, ImportUsersModalComponent, ExportUsersModalComponent],
@@ -41,7 +44,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 		</nav>
 		<br />
 
-		<table class="table table-hover ">
+		<table class="table table-hover table-sm align-middle users-table">
 			<caption>
 				<div class="d-flex justify-content-between">
 					<div class="p-2">
@@ -72,52 +75,33 @@ import { HttpErrorResponse } from '@angular/common/http';
 			</caption>
 			<thead>
 				<tr>
-					<th scope="col"><input class="form-check-input mb-2" type="checkbox" id="checkAll" /></th>
-					<th scope="col">
-						Name
-					</th>
-					<th scope="col">
-						LastName
-					</th>
-					<th scope="col">
-						Carnet
-					</th>
-					<th scope="col">
-						UserName
-					</th>
-					<th scope="col">
-						Email
-					</th>
-					<th scope="col">
-						Phone
-					</th>
-					<th scope="col">
-						Type
-					</th>
+					<th scope="col"><input class="form-check-input" type="checkbox" id="checkAll" /></th>
+					<th scope="col" role="button" (click)="toggleSort('carnet')">Carnet <i class="bi" [class]="sortIcon('carnet')"></i></th>
+					<th scope="col" role="button" (click)="toggleSort('name')">Name <i class="bi" [class]="sortIcon('name')"></i></th>
+					<th scope="col" role="button" (click)="toggleSort('lastname')">LastName <i class="bi" [class]="sortIcon('lastname')"></i></th>
+					<th scope="col" role="button" (click)="toggleSort('username')">UserName <i class="bi" [class]="sortIcon('username')"></i></th>
+					<th scope="col" role="button" (click)="toggleSort('email')">Email <i class="bi" [class]="sortIcon('email')"></i></th>
+					<th scope="col" role="button" (click)="toggleSort('phone')">Phone <i class="bi" [class]="sortIcon('phone')"></i></th>
+					<th scope="col" role="button" (click)="toggleSort('type')">Type <i class="bi" [class]="sortIcon('type')"></i></th>
+					<th scope="col"></th>
 				</tr>
 			</thead>
 			<tbody>
-				@for (user of users(); track $index) {
+				@for (user of sortedUsers(); track user.id) {
 					<tr>
 						<td scope="row">
 							<input class="form-check-input" type="checkbox" id="check_{{ $index }}" />
 						</td>
-						<td class="ml-2">{{ user.name }}</td>
-						<td class="ml-2">{{ user.lastname }}</td>
-						<td class="ml-2">{{ user.carnet }}</td>
-						<td class="ml-2">{{ user.username }}</td>
-						<td class="ml-2">{{ user.email }}</td>
-						<td class="ml-2">{{ user.phone }}</td>
-						<td>
-							<div class="row">
-								<div class="col">{{ user.type.name }}</div>
-								<div class="col">
-									<div class="d-flex flex-row-reverse">
-										<button type="button" class="btn btn-dark btn-sm rounded-circle" (click)="deleteUser(user)"><i class="bi bi-x-lg"></i></button>
-										<button type="button" class="btn btn-dark btn-sm rounded-circle me-2" (click)="openUpdateUserModal(user)"><i class="bi bi-pencil"></i></button>
-									</div>
-								</div>
-							</div>
+						<td>{{ user.carnet }}</td>
+						<td>{{ user.name }}</td>
+						<td>{{ user.lastname }}</td>
+						<td>{{ user.username }}</td>
+						<td>{{ user.email }}</td>
+						<td>{{ user.phone }}</td>
+						<td>{{ user.type.name }}</td>
+						<td class="text-end text-nowrap">
+							<button type="button" class="btn btn-dark btn-sm rounded-circle me-1" (click)="openUpdateUserModal(user)"><i class="bi bi-pencil"></i></button>
+							<button type="button" class="btn btn-dark btn-sm rounded-circle" (click)="deleteUser(user)"><i class="bi bi-x-lg"></i></button>
 						</td>
 					</tr>
 				}
@@ -138,6 +122,21 @@ export class UsersComponent implements AfterViewInit {
 	selectedUser = signal<User | null>(null);
 	userUpdateModal: any;
 
+	sortKey = signal<SortKey | null>(null);
+	sortDir = signal<'asc' | 'desc'>('asc');
+
+	sortedUsers = computed(() => {
+		const key = this.sortKey();
+		const list = [...this.users()];
+		if (!key) return list;
+		const dir = this.sortDir() === 'asc' ? 1 : -1;
+		return list.sort((a, b) => {
+			const av = key === 'type' ? a.type.name : a[key];
+			const bv = key === 'type' ? b.type.name : b[key];
+			return String(av ?? '').localeCompare(String(bv ?? '')) * dir;
+		});
+	});
+
 	ngAfterViewInit(): void {
 		this.userUpdateModal = new bootstrap.Modal("#updateUserModal", { backdrop: true });
 		this.loadUsers();
@@ -150,6 +149,20 @@ export class UsersComponent implements AfterViewInit {
 	openUpdateUserModal(user: User | null) {
 		this.selectedUser.set(user);
 		this.userUpdateModal?.show();
+	}
+
+	toggleSort(key: SortKey) {
+		if (this.sortKey() === key) {
+			this.sortDir.update((d) => (d === 'asc' ? 'desc' : 'asc'));
+		} else {
+			this.sortKey.set(key);
+			this.sortDir.set('asc');
+		}
+	}
+
+	sortIcon(key: SortKey): string {
+		if (this.sortKey() !== key) return 'bi-arrow-down-up text-muted small';
+		return this.sortDir() === 'asc' ? 'bi-sort-alpha-down' : 'bi-sort-alpha-up';
 	}
 
 	deleteUser(user: User) {

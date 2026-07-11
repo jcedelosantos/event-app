@@ -1,3 +1,16 @@
-td{
-  padding-top: 20px;
+.users-table {
+	font-size: 0.9rem;
+}
+.users-table th,
+.users-table td {
+	padding: 0.45rem 0.6rem;
+	vertical-align: middle;
+}
+.users-table th[role='button'] {
+	cursor: pointer;
+	user-select: none;
+	white-space: nowrap;
+}
+.users-table th[role='button']:hover {
+	color: #dc3545;
 }
