@@ -242,6 +242,10 @@ export class PublicEventComponent implements OnInit {
 		this.publicEventService.getEvent(code).subscribe({
 			next: (event) => {
 				this.event.set(event);
+				// La mayoría de los invitados compra el ticket general — preseleccionarlo evita un
+				// click extra. Si no hay uno de tipo "Normal", cae al primero de la lista.
+				const defaultTicket = event.tickets.find((t) => t.type.toLowerCase() === 'normal') ?? event.tickets[0];
+				if (defaultTicket) this.selectedTicketId.set(defaultTicket.id);
 				this.step.set('ready');
 			},
 			error: () => this.step.set('not-found'),

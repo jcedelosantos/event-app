@@ -43,6 +43,10 @@ export class ProductSalesService {
 		return this.httpClient.get<SaleProduct[]>(this.baseUrl);
 	}
 
+	getSaleProductsByEvent(eventId: number): Observable<SaleProduct[]> {
+		return this.httpClient.get<SaleProduct[]>(this.baseUrl, { params: { eventId } });
+	}
+
 	createSaleProduct(saleProduct: SaleProductInput): Observable<SaleProduct> {
 		return this.httpClient.post<SaleProduct>(this.baseUrl, saleProduct);
 	}

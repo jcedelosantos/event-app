@@ -17,6 +17,22 @@
     </div>
 </div>
 
+<div class="row my-3">
+    <div class="col-sm-4">
+        <label class="form-label small text-body-secondary mb-1">Evento</label>
+        <select class="form-select form-select-sm" [ngModel]="selectedEventId()" (ngModelChange)="selectedEventId.set($event); onEventFilterChange()">
+            <option [ngValue]="null">Todos los eventos</option>
+            @for (event of events(); track event.id) {
+                <option [ngValue]="event.id">{{ event.name }}</option>
+            }
+        </select>
+    </div>
+    <div class="col-sm-4">
+        <label class="form-label small text-body-secondary mb-1">Buscar cliente / código QR</label>
+        <input type="search" class="form-control form-control-sm" placeholder="Nombre, apellido o código..." [ngModel]="searchText()" (ngModelChange)="searchText.set($event)" />
+    </div>
+</div>
+
 <table class="table table-striped  table-hover">
     <thead>
         <tr>
@@ -30,7 +46,7 @@
         </tr>
     </thead>
     <tbody>
-        @for (qr of qrList(); track qr.id) {
+        @for (qr of filteredQrList(); track qr.id) {
         <tr>
             <td scope="row">{{qr.seller.username}}</td>
             <td scope="row">{{qr.client.name}} {{qr.client.lastname}}</td>
@@ -76,7 +92,7 @@
         </tr>
     </thead>
     <tbody>
-        @for (sale of productSaleList(); track sale.id) {
+        @for (sale of filteredProductSaleList(); track sale.id) {
         <tr>
             <td scope="row">{{sale.seller.username}}</td>
             <td scope="row">{{sale.client.name}} {{sale.client.lastname}}</td>
