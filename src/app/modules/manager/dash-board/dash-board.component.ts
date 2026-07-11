@@ -52,44 +52,59 @@ const LIVE_REFRESH_MS = 20_000;
 
 		<div class="row g-3 mb-4">
 			<div class="col-md-3 col-sm-6">
-				<div class="card stat-card">
-					<div class="card-body">
-						<div class="stat-label">Eventos próximos</div>
-						<div class="stat-value">{{ upcomingEvents().length }}</div>
+				<a routerLink="/manager/events" class="card stat-card stat-card-link text-decoration-none">
+					<div class="card-body d-flex align-items-center gap-3">
+						<i class="bi bi-calendar-event stat-icon"></i>
+						<div>
+							<div class="stat-label">Eventos próximos</div>
+							<div class="stat-value">{{ upcomingEvents().length }}</div>
+						</div>
 					</div>
-				</div>
+				</a>
 			</div>
 			<div class="col-md-3 col-sm-6">
-				<div class="card stat-card">
-					<div class="card-body">
-						<div class="stat-label">Tickets vendidos</div>
-						<div class="stat-value">{{ saleTickets().length }}</div>
+				<a routerLink="/manager/qrs" class="card stat-card stat-card-link text-decoration-none">
+					<div class="card-body d-flex align-items-center gap-3">
+						<i class="bi bi-ticket-perforated stat-icon"></i>
+						<div>
+							<div class="stat-label">Tickets vendidos</div>
+							<div class="stat-value">{{ saleTickets().length }}</div>
+						</div>
 					</div>
-				</div>
+				</a>
 			</div>
 			<div class="col-md-3 col-sm-6">
-				<div class="card stat-card">
-					<div class="card-body">
-						<div class="stat-label">Ingresos totales</div>
-						<div class="stat-value">{{ totalRevenue() }} USD</div>
+				<a routerLink="/manager/qrs" class="card stat-card stat-card-link text-decoration-none">
+					<div class="card-body d-flex align-items-center gap-3">
+						<i class="bi bi-cash-stack stat-icon"></i>
+						<div>
+							<div class="stat-label">Ingresos totales</div>
+							<div class="stat-value">{{ totalRevenue() }} USD</div>
+						</div>
 					</div>
-				</div>
+				</a>
 			</div>
 			<div class="col-md-3 col-sm-6">
-				<div class="card stat-card">
-					<div class="card-body">
-						<div class="stat-label">Ventas de productos</div>
-						<div class="stat-value">{{ saleProducts().length }}</div>
+				<a routerLink="/manager/qrs" class="card stat-card stat-card-link text-decoration-none">
+					<div class="card-body d-flex align-items-center gap-3">
+						<i class="bi bi-bag-check stat-icon"></i>
+						<div>
+							<div class="stat-label">Ventas de productos</div>
+							<div class="stat-value">{{ saleProducts().length }}</div>
+						</div>
 					</div>
-				</div>
+				</a>
 			</div>
 			<div class="col-md-3 col-sm-6">
-				<div class="card stat-card">
-					<div class="card-body">
-						<div class="stat-label">Clientes registrados</div>
-						<div class="stat-value">{{ clients().length }}</div>
+				<a routerLink="/manager/users" class="card stat-card stat-card-link text-decoration-none">
+					<div class="card-body d-flex align-items-center gap-3">
+						<i class="bi bi-people stat-icon"></i>
+						<div>
+							<div class="stat-label">Clientes registrados</div>
+							<div class="stat-value">{{ clients().length }}</div>
+						</div>
 					</div>
-				</div>
+				</a>
 			</div>
 		</div>
 

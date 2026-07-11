@@ -1,6 +1,20 @@
 .stat-card {
 	border-left: 4px solid #dc3545;
 }
+.stat-card-link {
+	display: block;
+	color: inherit;
+	transition: background-color 0.15s ease;
+}
+.stat-card-link:hover {
+	background-color: rgba(220, 53, 69, 0.08);
+	cursor: pointer;
+}
+.stat-icon {
+	font-size: 1.6rem;
+	color: #dc3545;
+	flex-shrink: 0;
+}
 .stat-label {
 	font-size: 0.85rem;
 	color: #adb5bd;
