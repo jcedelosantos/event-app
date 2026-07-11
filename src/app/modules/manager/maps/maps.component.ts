@@ -5,7 +5,9 @@ import { CardMapComponent } from './components/card-map/card-map.component';
 import { NavBarMapsComponent } from './components/nav-bar-maps/nav-bar-maps.component';
 import { CreateMapModalComponent } from './components/create-map-modal/create-map-modal.component';
 import { MapsService } from './services/maps.service';
-import { confirm } from '../../../utils/messages';
+import { confirm, error } from '../../../utils/messages';
+import { extractErrorMessage } from '../../../utils/api-error';
+import { HttpErrorResponse } from '@angular/common/http';
 
 declare const bootstrap: any;
 
@@ -76,8 +78,11 @@ export class MapsComponent implements OnInit, AfterViewInit {
 		if (!map) return;
 		confirm(`¿Eliminar el mapa "${map.name}"?`, {
 			onConfirm: () => {
-				this.mapsService.deleteMap(map.id).subscribe(() => {
-					this.maps.update((list) => list.filter((m) => m.id !== map.id));
+				this.mapsService.deleteMap(map.id).subscribe({
+					next: () => {
+						this.maps.update((list) => list.filter((m) => m.id !== map.id));
+					},
+					error: (err: HttpErrorResponse) => error(extractErrorMessage(err)),
 				});
 			},
 		});

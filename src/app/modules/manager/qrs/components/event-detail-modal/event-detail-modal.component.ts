@@ -1,49 +1,43 @@
-import { Component, effect, input } from '@angular/core';
-import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
-import { SaleTicket } from '../../services/qr.service';
+import { ChangeDetectionStrategy, Component, inject, input, signal } from '@angular/core';
+import { DatePipe } from '@angular/common';
+import { QRCodeComponent } from 'angularx-qrcode';
+import { HttpErrorResponse } from '@angular/common/http';
+import { QRService, SaleTicket } from '../../services/qr.service';
+import { extractErrorMessage } from '../../../../../utils/api-error';
 
 @Component({
-  selector: 'app-event-detail-modal',
-  imports: [ReactiveFormsModule],
-  templateUrl: './event-detail-modal.component.html',
-  styleUrl: './event-detail-modal.component.css'
+	selector: 'app-event-detail-modal',
+	imports: [DatePipe, QRCodeComponent],
+	templateUrl: './event-detail-modal.component.html',
+	styleUrl: './event-detail-modal.component.css',
+	changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class EventDetailModalComponent {
-  eventDetail = input<SaleTicket | null>(null);
+	private readonly qrService = inject(QRService);
 
-  eventDetailForm = new FormGroup({
-    name: new FormControl<string>(''),
-    area: new FormControl<string>(''),
-    seat: new FormControl<string>(''),
-    ticket: new FormControl<string>(''),
-    client: new FormControl<string>(''),
-    code: new FormControl<string>(''),
-    date: new FormControl<string>('')
-  });
+	eventDetail = input<SaleTicket | null>(null);
 
-  constructor() {
-    effect(() => {
-      if (this.eventDetail()) {
-        this.fillForm();
-      }
-    });
-  }
+	resending = signal(false);
+	resendMessage = signal('');
+	resendOk = signal(false);
 
+	resend() {
+		const detail = this.eventDetail();
+		if (!detail) return;
 
-  fillForm() {
-    const detail = this.eventDetail();
-    if (detail) {
-      this.eventDetailForm.patchValue({
-        name: detail.event.name,
-        area: detail.seat.area.name,
-        seat: detail.seat.name,
-        ticket: detail.ticket.name,
-        client: `${detail.client.name} ${detail.client.lastname}`,
-        code: detail.codeQR,
-        date: new Date(detail.dateSold).toLocaleDateString()
-      });
-      this.eventDetailForm.disable();
-    }
-  }
-
+		this.resending.set(true);
+		this.resendMessage.set('');
+		this.qrService.resendQR(detail.id).subscribe({
+			next: () => {
+				this.resending.set(false);
+				this.resendOk.set(true);
+				this.resendMessage.set(`Correo reenviado a ${detail.client.email}.`);
+			},
+			error: (err: HttpErrorResponse) => {
+				this.resending.set(false);
+				this.resendOk.set(false);
+				this.resendMessage.set(extractErrorMessage(err));
+			},
+		});
+	}
 }

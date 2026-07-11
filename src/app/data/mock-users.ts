@@ -21,7 +21,7 @@ export function mockUser(): User {
 		lastname: faker.person.lastName(),
 		gender: faker.person.gender(),
 		email: faker.internet.email(),
-		carnet: faker.number.int({ min: 1, max: 100 }),
+		carnet: faker.string.numeric(8),
 		adress: faker.location.streetAddress(),
 		phone: faker.phone.number({ style: 'international' }),
 	};

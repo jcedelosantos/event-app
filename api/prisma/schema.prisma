@@ -24,7 +24,7 @@ model User {
   lastname   String
   gender     String
   email      String   @unique
-  carnet     Int
+  carnet     String
   adress     String
   phone      String
   typeId     Int
@@ -43,7 +43,7 @@ model Event {
   id          Int      @id @default(autoincrement())
   name        String
   img         String
-  code        String
+  code        String   @unique
   type        String
   description String
   dateSale    DateTime
@@ -60,7 +60,7 @@ model Event {
   map   Map? @relation(fields: [mapId], references: [id])
 
   tickets      Ticket[]
-  catalogs     Catalog[]
+  products     Product[]
   saleProducts SaleProduct[]
   saleTickets  SaleTicket[]
 }
@@ -151,7 +151,7 @@ model Seat {
 model Ticket {
   id          Int      @id @default(autoincrement())
   img         String
-  code        String
+  code        String   @unique
   name        String
   description String
   type        String
@@ -165,52 +165,38 @@ model Ticket {
   saleTickets SaleTicket[]
 }
 
-model Stock {
-  id          Int    @id @default(autoincrement())
-  name        String
-  description String
-
-  catalogs Catalog[]
-}
-
-model Catalog {
-  id          Int    @id @default(autoincrement())
-  name        String
-  type        String
-  description String
-
-  stockId Int?
-  stock   Stock? @relation(fields: [stockId], references: [id])
-
-  eventId Int?
-  event   Event? @relation(fields: [eventId], references: [id])
-
-  products Product[]
-}
-
 model Product {
   id          Int      @id @default(autoincrement())
-  code        String
+  code        String   @unique
   img         String
   name        String
   description String
-  dateCommit  DateTime
   type        String
+  variant     String   @default("")
   count       Int
   active      Boolean  @default(true)
   price       Float
 
-  catalogId Int
-  catalog   Catalog @relation(fields: [catalogId], references: [id])
+  eventId Int
+  event   Event @relation(fields: [eventId], references: [id])
+
+  saleProducts SaleProduct[]
 }
 
 model SaleProduct {
-  id       Int      @id @default(autoincrement())
-  dateSold DateTime @default(now())
-  paidType String
+  id          Int       @id @default(autoincrement())
+  quantity    Int       @default(1)
+  description String    @default("")
+  dateSold    DateTime  @default(now())
+  paidType    String
+  codeQR      String    @unique
+  deliveredAt DateTime?
 
   eventId Int
   event   Event @relation(fields: [eventId], references: [id])
+
+  productId Int
+  product   Product @relation(fields: [productId], references: [id])
 
   userId Int
   seller User @relation("SaleProductSeller", fields: [userId], references: [id])
@@ -220,13 +206,14 @@ model SaleProduct {
 }
 
 model SaleTicket {
-  id          Int      @id @default(autoincrement())
-  status      Int      @default(1)
-  active      Boolean  @default(true)
+  id          Int       @id @default(autoincrement())
+  status      Int       @default(1)
+  active      Boolean   @default(true)
   description String
-  dateSold    DateTime @default(now())
+  dateSold    DateTime  @default(now())
   paidType    String
-  codeQR      String
+  codeQR      String    @unique
+  checkedInAt DateTime?
 
   eventId Int
   event   Event @relation(fields: [eventId], references: [id])
@@ -242,4 +229,7 @@ model SaleTicket {
 
   clientId Int
   client   User @relation("SaleTicketClient", fields: [clientId], references: [id])
+
+  // Un mismo asiento no se puede vender dos veces para el mismo evento.
+  @@unique([eventId, seatId])
 }

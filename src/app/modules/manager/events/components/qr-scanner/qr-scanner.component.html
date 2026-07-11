@@ -1,30 +1,68 @@
 <h1 class="text-center">QR Scanner</h1>
 
-<div class="row d-flex my-3" style="height: 80vh ;">
-    <div class="col-8 d-flex justify-content-center align-items-center border-end">
-        <form class="d-flex justify-content-center" [formGroup]="scannerForm" (ngSubmit)="onSubmit()">
-            <div class="form-group">
-                <input type="text" class="form-control" formControlName="code" placeholder="Enter QR Code" />
-            </div>
-            <button type="button" class="btn btn-primary btn-sm mx-1"><i class="bi bi-qr-code" aria-hidden="true"></i>
-                Scan
-                Code</button>
-            <button type="submit" class="btn btn-success btn-sm mx-1" [disabled]="scannerForm.controls.code.invalid"><i class="bi bi-check" aria-hidden="true"></i>
-                Validate Code</button>
-        </form>
-    </div>
-    <div class="col-4 ">
-        <h5 class="text-center">Last Actions</h5>
+<div class="row d-flex my-3" style="min-height: 80vh;">
+	<div class="col-8 border-end">
+		<div class="text-center mb-3">
+			<div id="qr-reader" class="qr-reader"></div>
+			@if (cameraError()) {
+				<p class="text-danger mt-2">{{ cameraError() }}</p>
+			}
+		</div>
 
-        <div style="height: 80vh;" class="overflow-y-auto">
-            @for (action of lastActions(); track $index) {
-            <div class="alert alert-secondary" role="alert">
-                {{action}}
-            </div>
-            }
-        </div>
+		<form class="d-flex justify-content-center" [formGroup]="scannerForm" (ngSubmit)="onSubmit()">
+			<div class="form-group">
+				<input type="text" class="form-control" formControlName="code" placeholder="O pegá el código manualmente" />
+			</div>
+			<button type="submit" class="btn btn-success btn-sm mx-1" [disabled]="scannerForm.controls.code.invalid">
+				<i class="bi bi-check" aria-hidden="true"></i>
+				Validar
+			</button>
+		</form>
 
+		@if (lastResult(); as result) {
+			<div class="card mt-3 mx-auto" style="max-width: 420px;">
+				<div class="card-body">
+					@if (result.type === 'ticket') {
+						<h6>{{ result.saleTicket.event.name }}</h6>
+						<div>Cliente: {{ result.saleTicket.client.name }} {{ result.saleTicket.client.lastname }}</div>
+						<div>Área / Asiento: {{ result.saleTicket.seat.area.name }} / {{ result.saleTicket.seat.name }}</div>
+						<div>Ticket: {{ result.saleTicket.ticket.name }}</div>
+						<div>
+							Estado:
+							@if (result.saleTicket.checkedInAt) {
+								<span class="badge text-bg-success">Ingresado {{ result.saleTicket.checkedInAt | date: 'short' }}</span>
+							} @else {
+								<span class="badge text-bg-secondary">Sin ingresar</span>
+							}
+						</div>
+					} @else {
+						<h6>{{ result.saleProduct.event.name }}</h6>
+						<div>Cliente: {{ result.saleProduct.client.name }} {{ result.saleProduct.client.lastname }}</div>
+						<div>Producto: {{ result.saleProduct.product.name }} x{{ result.saleProduct.quantity }}</div>
+						<div>
+							Estado:
+							@if (result.saleProduct.deliveredAt) {
+								<span class="badge text-bg-success">Entregado {{ result.saleProduct.deliveredAt | date: 'short' }}</span>
+							} @else {
+								<span class="badge text-bg-secondary">Sin entregar</span>
+							}
+						</div>
+					}
+				</div>
+			</div>
+		}
+	</div>
+	<div class="col-4">
+		<h5 class="text-center">Últimos escaneos</h5>
 
-
-    </div>
+		<div style="height: 75vh;" class="overflow-y-auto">
+			@for (action of lastActions(); track $index) {
+				<div class="alert" [class.alert-success]="action.ok" [class.alert-danger]="!action.ok" role="alert">
+					{{ action.message }}
+				</div>
+			} @empty {
+				<p class="text-body-secondary text-center">Todavía no escaneaste ningún QR.</p>
+			}
+		</div>
+	</div>
 </div>

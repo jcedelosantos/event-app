@@ -63,3 +63,21 @@ div.scrollimg a:hover {
 	-moz-box-shadow: 9px 11px 5px 1px rgba(0, 0, 0, 0.47);
 	box-shadow: 9px 11px 5px 1px rgba(0, 0, 0, 0.47);
 }
+
+.map-placeholder {
+	height: 140px;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 0.5rem;
+	background: linear-gradient(135deg, #2a2f36, #1c1f24);
+	color: #dc3545;
+}
+.map-placeholder .bi-geo-alt-fill {
+	font-size: 2.5rem;
+}
+.map-placeholder-coords {
+	font-size: 0.8rem;
+	color: #adb5bd;
+}

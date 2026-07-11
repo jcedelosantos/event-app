@@ -1,5 +1,6 @@
 export const environment = {
 	production: true,
-	// TODO: reemplazar cuando se decida dónde se deploya seat-app-api
-	apiUrl: 'https://api.seat-app.example.com',
+	// La API sirve también el build de Angular en el mismo proceso/origen (ver server.ts) —
+	// mismo dominio, sin CORS ni URL aparte que mantener sincronizada.
+	apiUrl: '',
 };

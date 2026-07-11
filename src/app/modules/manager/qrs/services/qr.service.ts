@@ -16,6 +16,7 @@ export type SaleTicket = {
 	dateSold: string;
 	paidType: string;
 	codeQR: string;
+	checkedInAt: string | null;
 	eventId: number;
 	seatId: number;
 	ticketId: number;
@@ -47,11 +48,19 @@ export class QRService {
 		return this.httpClient.get<SaleTicket[]>(this.baseUrl);
 	}
 
+	getQRsByEvent(eventId: number): Observable<SaleTicket[]> {
+		return this.httpClient.get<SaleTicket[]>(this.baseUrl, { params: { eventId } });
+	}
+
 	createQR(saleTicket: SaleTicketInput): Observable<SaleTicket> {
 		return this.httpClient.post<SaleTicket>(this.baseUrl, saleTicket);
 	}
 
 	deleteQR(id: number): Observable<void> {
 		return this.httpClient.delete<void>(`${this.baseUrl}/${id}`);
+	}
+
+	resendQR(id: number): Observable<{ ok: boolean }> {
+		return this.httpClient.post<{ ok: boolean }>(`${this.baseUrl}/${id}/resend`, {});
 	}
 }

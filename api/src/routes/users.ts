@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { prisma } from '../lib/prisma';
 import { requireAuth } from '../middleware/auth';
 import { toPublicUser } from '../lib/serialize';
+import { asyncHandler } from '../lib/async-handler';
 
 export const usersRouter = Router();
 usersRouter.use(requireAuth);
@@ -17,18 +18,18 @@ const userInputSchema = z.object({
 	lastname: z.string().min(1),
 	gender: z.string().min(1),
 	email: z.string().email(),
-	carnet: z.coerce.number().int(),
+	carnet: z.string().min(1),
 	adress: z.string(),
 	phone: z.string(),
 	userType: z.enum(USER_TYPE_CODES),
 });
 
-usersRouter.get('/', async (_req, res) => {
+usersRouter.get('/', asyncHandler(async (_req, res) => {
 	const users = await prisma.user.findMany({ include: { type: true }, orderBy: { id: 'asc' } });
 	res.json(users.map(toPublicUser));
-});
+}));
 
-usersRouter.get('/:id', async (req, res) => {
+usersRouter.get('/:id', asyncHandler(async (req, res) => {
 	const id = Number(req.params.id);
 	const user = await prisma.user.findUnique({ where: { id }, include: { type: true } });
 	if (!user) {
@@ -36,9 +37,9 @@ usersRouter.get('/:id', async (req, res) => {
 		return;
 	}
 	res.json(toPublicUser(user));
-});
+}));
 
-usersRouter.post('/', async (req, res) => {
+usersRouter.post('/', asyncHandler(async (req, res) => {
 	const parsed = userInputSchema.required({ password: true }).safeParse(req.body);
 	if (!parsed.success) {
 		res.status(400).json({ error: parsed.error.flatten() });
@@ -66,9 +67,9 @@ usersRouter.post('/', async (req, res) => {
 		}
 		throw err;
 	}
-});
+}));
 
-usersRouter.put('/:id', async (req, res) => {
+usersRouter.put('/:id', asyncHandler(async (req, res) => {
 	const id = Number(req.params.id);
 	const parsed = userInputSchema.partial().safeParse(req.body);
 	if (!parsed.success) {
@@ -95,12 +96,27 @@ usersRouter.put('/:id', async (req, res) => {
 			res.status(404).json({ error: 'Usuario no encontrado' });
 			return;
 		}
+		if (err.code === 'P2002') {
+			res.status(409).json({ error: 'username o email ya en uso' });
+			return;
+		}
 		throw err;
 	}
-});
+}));
 
-usersRouter.delete('/:id', async (req, res) => {
+usersRouter.delete('/:id', asyncHandler(async (req, res) => {
 	const id = Number(req.params.id);
+
+	const [eventCount, sellerCount, clientCount] = await Promise.all([
+		prisma.event.count({ where: { userId: id } }),
+		prisma.saleTicket.count({ where: { userId: id } }),
+		prisma.saleTicket.count({ where: { clientId: id } }),
+	]);
+	if (eventCount > 0 || sellerCount > 0 || clientCount > 0) {
+		res.status(409).json({ error: 'No se puede borrar: este usuario tiene eventos o ventas asociadas.' });
+		return;
+	}
+
 	try {
 		await prisma.user.delete({ where: { id } });
 		res.status(204).send();
@@ -111,4 +127,4 @@ usersRouter.delete('/:id', async (req, res) => {
 		}
 		throw err;
 	}
-});
+}));

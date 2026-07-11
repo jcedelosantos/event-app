@@ -1,12 +1,11 @@
-import { ChangeDetectionStrategy, Component, inject, OnInit, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, Input, output } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Events } from '../../../../../models/events/events';
 import { EventsService } from '../../services/events.service';
 import { Map } from '../../../../../models/maps/map';
-import { MapsService } from '../../../maps/services/maps.service';
-
-declare const bootstrap: any;
+import { extractErrorMessage } from '../../../../../utils/api-error';
+import { closeModal } from '../../../../../utils/modal';
 
 @Component({
 	selector: 'app-create-event-modal',
@@ -22,73 +21,89 @@ declare const bootstrap: any;
 				<div class="modal-body">
 					<form class="needs-validation" [formGroup]="eventForm" novalidate>
 						<div class="row">
-							<div class="col-md-12 mb-3">
-								<label for="name">Event Name </label>
-								<input type="text" class="form-control" placeholder="eventName" formControlName="name" />
+							<div class="col-md-12 mb-2">
+								<label for="name" class="small mb-1">Event Name *</label>
+								<input type="text" class="form-control form-control-sm" [class.is-invalid]="isInvalid('name')" placeholder="eventName" formControlName="name" />
+								@if (isInvalid('name')) {
+									<div class="invalid-feedback">El nombre es obligatorio.</div>
+								}
 							</div>
-							<div class="col-md-6 mb-3">
-								<label for="code">Start Date </label>
-								<input type="date" class="form-control" formControlName="dateOn" />
+							<div class="col-md-6 mb-2">
+								<label for="code" class="small mb-1">Start Date *</label>
+								<input type="date" class="form-control form-control-sm" [class.is-invalid]="isInvalid('dateOn')" formControlName="dateOn" />
+								@if (isInvalid('dateOn')) {
+									<div class="invalid-feedback">Elegí una fecha.</div>
+								}
 							</div>
-							<div class="col-md-6 mb-3">
-								<label for="code">Code </label>
-								<input type="text" class="form-control" formControlName="code" />
+							<div class="col-md-6 mb-2">
+								<label for="code" class="small mb-1">Code </label>
+								<input type="text" class="form-control form-control-sm" formControlName="code" />
 							</div>
 						</div>
-						<div class="mb-3">
-							<label for="description">Description </label>
-							<input type="text" class="form-control" formControlName="description" />
+						<div class="mb-2">
+							<label for="description" class="small mb-1">Description </label>
+							<input type="text" class="form-control form-control-sm" formControlName="description" />
 						</div>
 
 						<div class="row">
-							<div class="col-md-6 mb-3">
-								<label for="type">Type</label>
-								<select class="custom-select d-block w-100" formControlName="type" required>
+							<div class="col-md-6 mb-2">
+								<label for="type" class="small mb-1">Type *</label>
+								<select class="form-select form-select-sm" [class.is-invalid]="isInvalid('type')" formControlName="type">
 									<option value="">Choose...</option>
 									<option value="VIP">VIP</option>
 									<option value="Normal">NORMAL</option>
 								</select>
+								@if (isInvalid('type')) {
+									<div class="invalid-feedback">Elegí un tipo de evento.</div>
+								}
 							</div>
-							<div class="col-md-6 mb-3">
-								<label for="state">Statu</label>
-								<select class="custom-select d-block w-100" formControlName="active" required>
+							<div class="col-md-6 mb-2">
+								<label for="state" class="small mb-1">Statu *</label>
+								<select class="form-select form-select-sm" [class.is-invalid]="isInvalid('active')" formControlName="active">
 									<option value="">Choose...</option>
 									<option [ngValue]="true">Active</option>
 									<option [ngValue]="false">Inactive</option>
 								</select>
+								@if (isInvalid('active')) {
+									<div class="invalid-feedback">Elegí un estado.</div>
+								}
 							</div>
-							<div class="col-md-12 mb-3">
-								<label for="map">Map <span class="text-muted">(opcional — necesario para vender tickets con asiento)</span></label>
-								<select class="custom-select d-block w-100" formControlName="mapId">
-									<option [ngValue]="null">Sin asignar</option>
-									@for (map of maps(); track map.id) {
-										<option [ngValue]="map.id">{{ map.name }}</option>
-									}
-								</select>
+							<div class="col-md-12 mb-2">
+								<label for="map" class="small mb-1">Map <span class="text-muted">(opcional — necesario para vender tickets con asiento)</span></label>
+								<div class="d-flex gap-2">
+									<select class="form-select form-select-sm" formControlName="mapId">
+										<option [ngValue]="null">Sin asignar</option>
+										@for (map of maps; track map.id) {
+											<option [ngValue]="map.id">{{ map.name }}</option>
+										}
+									</select>
+									<button type="button" class="btn btn-outline-danger btn-sm text-nowrap" data-bs-toggle="modal" data-bs-target="#createMapModal">+ Map</button>
+								</div>
+								<div class="form-text">¿No está el mapa que buscás? Creá uno con "+ Map" y elegilo acá al volver.</div>
 							</div>
 						</div>
 						@if (errorMessage) {
-							<div class="text-danger">{{ errorMessage }}</div>
+							<div class="text-danger mt-2">{{ errorMessage }}</div>
 						}
 					</form>
 				</div>
 				<div class="modal-footer">
-					<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-					<button type="button" class="btn btn-danger" (click)="submit()">Create</button>
+					<button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+					<button type="button" class="btn btn-danger btn-sm" (click)="submit()">Create</button>
 				</div>
 			</div>
 		</div>
 	</div>`,
 	changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class CreateEventModalComponent implements OnInit {
+export class CreateEventModalComponent {
 	private readonly fb = inject(FormBuilder);
 	private readonly eventsService = inject(EventsService);
-	private readonly mapsService = inject(MapsService);
+
+	@Input() maps: Map[] = [];
 
 	eventCreated = output<Events>();
 	errorMessage = '';
-	maps = signal<Map[]>([]);
 
 	eventForm = this.fb.group({
 		name: ['', Validators.required],
@@ -100,8 +115,9 @@ export class CreateEventModalComponent implements OnInit {
 		mapId: this.fb.control<number | null>(null),
 	});
 
-	ngOnInit(): void {
-		this.mapsService.getMaps().subscribe((maps) => this.maps.set(maps));
+	isInvalid(controlName: keyof typeof this.eventForm.controls): boolean {
+		const control = this.eventForm.controls[controlName];
+		return control.invalid && control.touched;
 	}
 
 	submit() {
@@ -126,13 +142,10 @@ export class CreateEventModalComponent implements OnInit {
 					this.eventCreated.emit(event);
 					this.eventForm.reset({ active: true, mapId: null });
 					this.errorMessage = '';
-					const modalEl = document.getElementById('createEventModal');
-					if (modalEl) {
-						bootstrap.Modal.getOrCreateInstance(modalEl).hide();
-					}
+					closeModal('createEventModal');
 				},
 				error: (err: HttpErrorResponse) => {
-					this.errorMessage = err.error?.error ?? err.message;
+					this.errorMessage = extractErrorMessage(err);
 				},
 			});
 	}

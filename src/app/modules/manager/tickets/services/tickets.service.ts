@@ -6,7 +6,6 @@ import { environment } from '../../../../../environments/environment';
 
 export type TicketInput = {
 	name: string;
-	code?: string;
 	img?: string;
 	description?: string;
 	type: string;

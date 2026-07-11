@@ -1,15 +1,12 @@
-import { ChangeDetectionStrategy, Component, Input, OnInit, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, Input, output } from '@angular/core';
+import { DecimalPipe } from '@angular/common';
 
 import { Map } from '../../../../../models/maps/map';
 import { RouterLink } from '@angular/router';
-import { GoogleMapsModule } from '@angular/google-maps';
-// import { Area } from "../../../../models/maps/area";
-// import { Seat } from "../../../../models/maps/seat";
-// import { Table } from "../../../../models/maps/table";
 
 @Component({
 	selector: 'card-map',
-	imports: [RouterLink, GoogleMapsModule],
+	imports: [RouterLink, DecimalPipe],
 	template: `
 		@if (map) {
 			<div class="card p-1">
@@ -23,10 +20,9 @@ import { GoogleMapsModule } from '@angular/google-maps';
 					</div>
 				</div>
 
-				<div class="map-container">
-					<google-map height="300px" width="100%" [center]="center" [zoom]="zoom">
-						<map-marker [position]="center" [label]="'Ubicación X'"></map-marker>
-					</google-map>
+				<div class="map-placeholder">
+					<i class="bi bi-geo-alt-fill"></i>
+					<span class="map-placeholder-coords">{{ map.x | number: '1.4-4' }}, {{ map.y | number: '1.4-4' }}</span>
 				</div>
 				<div class="card-body">
 					<h5 class="card-title">{{ map.description }}</h5>
@@ -35,10 +31,10 @@ import { GoogleMapsModule } from '@angular/google-maps';
 							Areas : <span class="badge text-bg-danger">{{ map.areas.length }}</span>
 						</div>
 						<div class="bd-highlight">
-							Tables : <span class="badge text-bg-danger"> {{ map.totalTables }}</span> / <span class="badge text-bg-danger">{{ map.totalTablesSeat }}</span>
+							Mesas : <span class="badge text-bg-danger">{{ tableCount(map) }}</span>
 						</div>
 						<div class="bd-highlight">
-							Seat : <span class="badge text-bg-danger">{{ map.totalSeats }}</span>
+							Asientos : <span class="badge text-bg-danger">{{ seatCount(map) }}</span>
 						</div>
 					</div>
 				</div>
@@ -51,21 +47,18 @@ import { GoogleMapsModule } from '@angular/google-maps';
 	styleUrl: './card-map.component.css',
 	changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class CardMapComponent implements OnInit {
-	center: google.maps.LatLngLiteral = { lat: 18.4628068, lng: -70.0412847 };
-	zoom = 18;
-
+export class CardMapComponent {
 	@Input()
 	map: Map | undefined;
 
 	editMap = output<Map | undefined>();
 	deleteMap = output<Map | undefined>();
 
-	constructor() {}
+	tableCount(map: Map): number {
+		return map.areas.reduce((sum, area) => sum + (area.tables?.length ?? 0), 0);
+	}
 
-	ngOnInit(): void {
-		if (this.map) {
-			this.center = { lat: this.map.x, lng: this.map.y };
-		}
+	seatCount(map: Map): number {
+		return map.areas.reduce((sum, area) => sum + (area.seats?.length ?? 0), 0);
 	}
 }

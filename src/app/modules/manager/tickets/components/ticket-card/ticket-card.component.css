@@ -25,6 +25,19 @@
 .barcode {
 	display: flex;
 	justify-content: center;
+	overflow-x: auto;
+}
+.barcode svg {
+	max-width: 100%;
+	height: auto;
+}
+
+.ticket-description {
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+	min-height: 2.6em;
 }
 
 /* .ticketRip{

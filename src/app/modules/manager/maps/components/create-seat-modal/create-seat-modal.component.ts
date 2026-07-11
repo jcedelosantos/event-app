@@ -3,8 +3,8 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Seat } from '../../../../../models/maps/seat';
 import { SeatsService } from '../../services/seats.service';
-
-declare const bootstrap: any;
+import { extractErrorMessage } from '../../../../../utils/api-error';
+import { closeModal } from '../../../../../utils/modal';
 
 @Component({
 	selector: 'create-seat-modal',
@@ -21,8 +21,11 @@ declare const bootstrap: any;
 						<form [formGroup]="seatForm" novalidate>
 							<div class="row">
 								<div class="col-md-6 mb-3">
-									<label>Name</label>
-									<input type="text" class="form-control" formControlName="name" />
+									<label>Name *</label>
+									<input type="text" class="form-control" [class.is-invalid]="isInvalid('name')" formControlName="name" />
+									@if (isInvalid('name')) {
+										<div class="invalid-feedback">El nombre es obligatorio.</div>
+									}
 								</div>
 								<div class="col-md-6 mb-3">
 									<label>Size</label>
@@ -60,7 +63,7 @@ declare const bootstrap: any;
 					</div>
 					<div class="modal-footer">
 						<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-						<button type="button" class="btn btn-danger" [disabled]="seatForm.invalid" (click)="submit()">{{ seat() ? 'Update' : 'Create' }}</button>
+						<button type="button" class="btn btn-danger" (click)="submit()">{{ seat() ? 'Update' : 'Create' }}</button>
 					</div>
 				</div>
 			</div>
@@ -85,6 +88,8 @@ export class CreateSeatModalComponent implements OnChanges {
 		{ label: 'Chair', value: 'bi-person-fill' },
 		{ label: 'Star', value: 'bi-star-fill' },
 		{ label: 'Check', value: 'bi-check-circle-fill' },
+		{ label: 'Mesa redonda', value: 'bi-circle-fill' },
+		{ label: 'Mesa rectangular', value: 'bi-square-fill' },
 	];
 
 	seatForm = this.fb.group({
@@ -119,6 +124,11 @@ export class CreateSeatModalComponent implements OnChanges {
 		}
 	}
 
+	isInvalid(controlName: keyof typeof this.seatForm.controls): boolean {
+		const control = this.seatForm.controls[controlName];
+		return control.invalid && control.touched;
+	}
+
 	submit() {
 		if (this.seatForm.invalid || !this.areaId) {
 			this.seatForm.markAllAsTouched();
@@ -149,13 +159,10 @@ export class CreateSeatModalComponent implements OnChanges {
 				this.seat.set(null);
 				this.seatForm.reset({ color: '#000000', size: 12, x: 0, y: 0 });
 				this.errorMessage = '';
-				const modalEl = document.getElementById('createSeatModal');
-				if (modalEl) {
-					bootstrap.Modal.getOrCreateInstance(modalEl).hide();
-				}
+				closeModal('createSeatModal');
 			},
 			error: (err: HttpErrorResponse) => {
-				this.errorMessage = err.error?.error ?? err.message;
+				this.errorMessage = extractErrorMessage(err);
 			},
 		});
 	}

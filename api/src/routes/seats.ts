@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
 import { requireAuth } from '../middleware/auth';
+import { asyncHandler } from '../lib/async-handler';
 
 export const seatsRouter = Router();
 seatsRouter.use(requireAuth);
@@ -19,13 +20,13 @@ const seatInputSchema = z.object({
 	tableId: z.number().int().nullable().optional(),
 });
 
-seatsRouter.get('/', async (req, res) => {
+seatsRouter.get('/', asyncHandler(async (req, res) => {
 	const areaId = req.query.areaId ? Number(req.query.areaId) : undefined;
 	const seats = await prisma.seat.findMany({ where: areaId ? { areaId } : undefined, orderBy: { id: 'asc' } });
 	res.json(seats);
-});
+}));
 
-seatsRouter.get('/:id', async (req, res) => {
+seatsRouter.get('/:id', asyncHandler(async (req, res) => {
 	const id = Number(req.params.id);
 	const seat = await prisma.seat.findUnique({ where: { id } });
 	if (!seat) {
@@ -33,9 +34,9 @@ seatsRouter.get('/:id', async (req, res) => {
 		return;
 	}
 	res.json(seat);
-});
+}));
 
-seatsRouter.post('/', async (req, res) => {
+seatsRouter.post('/', asyncHandler(async (req, res) => {
 	const parsed = seatInputSchema.safeParse(req.body);
 	if (!parsed.success) {
 		res.status(400).json({ error: parsed.error.flatten() });
@@ -52,9 +53,9 @@ seatsRouter.post('/', async (req, res) => {
 		}
 		throw err;
 	}
-});
+}));
 
-seatsRouter.put('/:id', async (req, res) => {
+seatsRouter.put('/:id', asyncHandler(async (req, res) => {
 	const id = Number(req.params.id);
 	const parsed = seatInputSchema.partial().safeParse(req.body);
 	if (!parsed.success) {
@@ -72,10 +73,17 @@ seatsRouter.put('/:id', async (req, res) => {
 		}
 		throw err;
 	}
-});
+}));
 
-seatsRouter.delete('/:id', async (req, res) => {
+seatsRouter.delete('/:id', asyncHandler(async (req, res) => {
 	const id = Number(req.params.id);
+
+	const soldCount = await prisma.saleTicket.count({ where: { seatId: id } });
+	if (soldCount > 0) {
+		res.status(409).json({ error: `No se puede borrar: hay ${soldCount} ticket(s) vendido(s) para este asiento.` });
+		return;
+	}
+
 	try {
 		await prisma.seat.delete({ where: { id } });
 		res.status(204).send();
@@ -86,4 +94,4 @@ seatsRouter.delete('/:id', async (req, res) => {
 		}
 		throw err;
 	}
-});
+}));

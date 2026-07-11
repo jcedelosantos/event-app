@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, Input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, Input, output } from '@angular/core';
 import { Table } from '../../../../../models/maps/table';
 import { CollapseSeatsComponent } from '../collapse-seats/collapse-seats.component';
 
@@ -12,14 +12,11 @@ import { CollapseSeatsComponent } from '../collapse-seats/collapse-seats.compone
 					<div class="p-2">
 						<button class="btn position-relative" type="button" data-bs-toggle="collapse" attr.data-bs-target="#{{ 'collapseTables-' + table.id }}" aria-expanded="false">
 							{{ table.name }}
-							<span class="badge rounded-pill bg-danger">{{ tables.length }}</span>
+							<span class="badge rounded-pill bg-danger">{{ table.seats.length }}</span>
 						</button>
 					</div>
 					<div class="p-2">
-						<button class="btn " type="button"><i class="bi bi-pencil"></i></button>
-					</div>
-					<div class="p-2">
-						<button type="button" class="btn btn-sm "><i class="bi bi-x-lg"></i></button>
+						<button type="button" class="btn btn-sm" (click)="deleteTable.emit(table)"><i class="bi bi-x-lg"></i></button>
 					</div>
 				</div>
 				<div class="collapse" [id]="'collapseTables-' + table.id">
@@ -37,4 +34,6 @@ export class CollapseTablesComponent {
 	tables: Array<Table> = [];
 	@Input()
 	id: number = 0;
+
+	deleteTable = output<Table>();
 }

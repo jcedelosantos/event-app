@@ -13,7 +13,7 @@ export type UserInput = {
 	lastname: string;
 	gender: string;
 	email: string;
-	carnet: number;
+	carnet: string;
 	adress: string;
 	phone: string;
 	userType: UserTypeCode;

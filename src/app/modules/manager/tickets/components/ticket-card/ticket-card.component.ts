@@ -9,17 +9,17 @@ import { Ticket } from '../../../../../models/tickets/ticket';
 	imports: [NgClass],
 	template: `
 		@if (ticket()) {
-			<div class="card text-white bg-dark mb-3  " style="max-width: 35rem; ">
+			<div class="card text-white bg-dark mb-3 h-100 d-flex flex-column">
 				<div class="card-header">
 					<div class="row">
 						<div class="col-9">
-								<span class="badge " 
-									[ngClass]="{'text-bg-success': ticket().active, 
+								<span class="badge "
+									[ngClass]="{'text-bg-success': ticket().active,
 												'text-bg-danger': !ticket().active}">
 									{{ticket().active ? 'Active' : 'Inactive'}}
 								</span>
-							<span class="badge m-1" 
-							[ngClass]="{'text-bg-purple ': ticket().type === 'VIP', 
+							<span class="badge m-1"
+							[ngClass]="{'text-bg-purple ': ticket().type === 'VIP',
 										'text-bg-secondary': ticket().type !== 'VIP'}">
 										{{ ticket().type }}
 									</span>
@@ -32,15 +32,15 @@ import { Ticket } from '../../../../../models/tickets/ticket';
 						</div>
 					</div>
 				</div>
-				<div class="card-body">
+				<div class="card-body d-flex flex-column flex-grow-1">
 					<h5 class="card-title">{{ ticket().name }}</h5>
-					<p class="card-text ps-3">{{ ticket().description }}</p>
+					<p class="card-text ps-3 ticket-description">{{ ticket().description }}</p>
 					<hr />
 					<div class="d-flex justify-content-around">
 						<h5 class="text-body-secondary"><i class="bi bi-ticket"></i> {{ ticket().count }}</h5>
 						<h5 class="text-body-secondary"><i class="bi bi-currency-dollar"></i>{{ ticket().price }}</h5>
 					</div>
-					<hr />
+					<hr class="mt-auto" />
 					<div class="barcode">
 						<svg id="barcode_{{ ticket().id }}"></svg>
 					</div>

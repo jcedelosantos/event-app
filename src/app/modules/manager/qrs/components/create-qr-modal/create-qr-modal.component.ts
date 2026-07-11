@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, OnInit, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, OnInit, output, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { QRService, SaleTicket } from '../../services/qr.service';
@@ -11,8 +11,8 @@ import { EventsService } from '../../../events/services/events.service';
 import { TicketsService } from '../../../tickets/services/tickets.service';
 import { SeatsService } from '../../../maps/services/seats.service';
 import { UserService } from '../../../users/services/user.service';
-
-declare const bootstrap: any;
+import { extractErrorMessage } from '../../../../../utils/api-error';
+import { closeModal } from '../../../../../utils/modal';
 
 @Component({
 	selector: 'create-qr-modal',
@@ -28,64 +28,85 @@ declare const bootstrap: any;
 					<div class="modal-body">
 						<form [formGroup]="form" novalidate>
 							<div class="mb-3">
-								<label>Event</label>
-								<select class="custom-select d-block w-100" formControlName="eventId" (change)="onEventChange()">
+								<label>Event *</label>
+								<select class="custom-select d-block w-100" [class.is-invalid]="isInvalid('eventId')" formControlName="eventId" (change)="onEventChange()">
 									<option [ngValue]="null">Choose...</option>
 									@for (event of events(); track event.id) {
 										<option [ngValue]="event.id">{{ event.name }}</option>
 									}
 								</select>
+								@if (isInvalid('eventId')) {
+									<div class="invalid-feedback">Elegí el evento.</div>
+								}
 							</div>
 							<div class="row">
 								<div class="col-md-6 mb-3">
-									<label>Ticket type</label>
-									<select class="custom-select d-block w-100" formControlName="ticketId">
+									<label>Ticket type *</label>
+									<select class="custom-select d-block w-100" [class.is-invalid]="isInvalid('ticketId')" formControlName="ticketId">
 										<option [ngValue]="null">Choose...</option>
 										@for (ticket of tickets(); track ticket.id) {
 											<option [ngValue]="ticket.id">{{ ticket.name }} — {{ ticket.type }} ({{ ticket.price }} USD)</option>
 										}
 									</select>
+									@if (isInvalid('ticketId')) {
+										<div class="invalid-feedback">Elegí el tipo de ticket.</div>
+									}
+									@if (form.controls.eventId.value && !tickets().length) {
+										<div class="form-text">Este evento todavía no tiene tickets creados.</div>
+									}
 								</div>
 								<div class="col-md-6 mb-3">
-									<label>Area</label>
-									<select class="custom-select d-block w-100" [formControl]="areaControl" (change)="onAreaChange()">
+									<label>Area *</label>
+									<select class="custom-select d-block w-100" [class.is-invalid]="areaControl.invalid && areaControl.touched" [formControl]="areaControl" (change)="onAreaChange()">
 										<option [ngValue]="null">Choose...</option>
 										@for (area of areas(); track area.id) {
 											<option [ngValue]="area.id">{{ area.name }}</option>
 										}
 									</select>
+									@if (form.controls.eventId.value && !areas().length) {
+										<div class="form-text">Este evento no tiene un mapa asignado, o su mapa no tiene áreas.</div>
+									}
 								</div>
 							</div>
 							<div class="mb-3">
-								<label>Seat</label>
-								<select class="custom-select d-block w-100" formControlName="seatId">
+								<label>Seat *</label>
+								<select class="custom-select d-block w-100" [class.is-invalid]="isInvalid('seatId')" formControlName="seatId">
 									<option [ngValue]="null">Choose...</option>
-									@for (seat of seats(); track seat.id) {
+									@for (seat of availableSeats(); track seat.id) {
 										<option [ngValue]="seat.id">{{ seat.name }}</option>
 									}
 								</select>
-								@if (areaControl.value && !seats().length) {
-									<div class="form-text">Esta área todavía no tiene asientos creados.</div>
+								@if (isInvalid('seatId')) {
+									<div class="invalid-feedback">Elegí un asiento.</div>
+								}
+								@if (areaControl.value) {
+									<div class="form-text">{{ availableSeats().length }} disponible(s) de {{ seats().length }} en esta área.</div>
 								}
 							</div>
 							<div class="mb-3">
-								<label>Client</label>
-								<select class="custom-select d-block w-100" formControlName="clientId">
+								<label>Client *</label>
+								<select class="custom-select d-block w-100" [class.is-invalid]="isInvalid('clientId')" formControlName="clientId">
 									<option [ngValue]="null">Choose...</option>
 									@for (client of clients(); track client.id) {
 										<option [ngValue]="client.id">{{ client.name }} {{ client.lastname }} ({{ client.username }})</option>
 									}
 								</select>
+								@if (isInvalid('clientId')) {
+									<div class="invalid-feedback">Elegí el comprador — tiene que ser un usuario de tipo Client.</div>
+								}
 							</div>
 							<div class="row">
 								<div class="col-md-6 mb-3">
-									<label>Paid type</label>
-									<select class="custom-select d-block w-100" formControlName="paidType">
+									<label>Paid type *</label>
+									<select class="custom-select d-block w-100" [class.is-invalid]="isInvalid('paidType')" formControlName="paidType">
 										<option value="">Choose...</option>
 										<option value="Cash">Cash</option>
 										<option value="Card">Card</option>
 										<option value="Transfer">Transfer</option>
 									</select>
+									@if (isInvalid('paidType')) {
+										<div class="invalid-feedback">Elegí la forma de pago.</div>
+									}
 								</div>
 								<div class="col-md-6 mb-3">
 									<label>Description</label>
@@ -99,7 +120,7 @@ declare const bootstrap: any;
 					</div>
 					<div class="modal-footer">
 						<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-						<button type="button" class="btn btn-danger" [disabled]="form.invalid" (click)="submit()">Create</button>
+						<button type="button" class="btn btn-danger" (click)="submit()">Create</button>
 					</div>
 				</div>
 			</div>
@@ -123,6 +144,9 @@ export class CreateQrModalComponent implements OnInit {
 	seats = signal<Seat[]>([]);
 	tickets = signal<Ticket[]>([]);
 	clients = signal<User[]>([]);
+	soldSeatIds = signal<Set<number>>(new Set());
+
+	availableSeats = computed(() => this.seats().filter((seat) => !this.soldSeatIds().has(seat.id)));
 
 	areaControl = this.fb.control<number | null>(null);
 
@@ -145,6 +169,7 @@ export class CreateQrModalComponent implements OnInit {
 		this.areas.set([]);
 		this.seats.set([]);
 		this.tickets.set([]);
+		this.soldSeatIds.set(new Set());
 		this.areaControl.setValue(null);
 		this.form.patchValue({ seatId: null, ticketId: null });
 
@@ -152,6 +177,12 @@ export class CreateQrModalComponent implements OnInit {
 
 		this.ticketsService.getTicketsByEvent(eventId).subscribe((tickets) => this.tickets.set(tickets));
 		this.eventsService.getEvent(eventId).subscribe((event) => this.areas.set(event.map?.areas ?? []));
+		this.qrService.getQRsByEvent(eventId).subscribe((sales) => this.soldSeatIds.set(new Set(sales.map((s) => s.seatId))));
+	}
+
+	isInvalid(controlName: keyof typeof this.form.controls): boolean {
+		const control = this.form.controls[controlName];
+		return control.invalid && control.touched;
 	}
 
 	onAreaChange() {
@@ -185,13 +216,10 @@ export class CreateQrModalComponent implements OnInit {
 					this.qrCreated.emit(saleTicket);
 					this.reset();
 					this.errorMessage = '';
-					const modalEl = document.getElementById('createQrModal');
-					if (modalEl) {
-						bootstrap.Modal.getOrCreateInstance(modalEl).hide();
-					}
+					closeModal('createQrModal');
 				},
 				error: (err: HttpErrorResponse) => {
-					this.errorMessage = err.error?.error ?? err.message;
+					this.errorMessage = extractErrorMessage(err);
 				},
 			});
 	}
@@ -202,5 +230,6 @@ export class CreateQrModalComponent implements OnInit {
 		this.areas.set([]);
 		this.seats.set([]);
 		this.tickets.set([]);
+		this.soldSeatIds.set(new Set());
 	}
 }

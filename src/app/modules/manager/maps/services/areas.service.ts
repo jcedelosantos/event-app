@@ -43,4 +43,8 @@ export class AreasService {
 	deleteArea(id: number): Observable<void> {
 		return this.httpClient.delete<void>(`${this.baseUrl}/${id}`);
 	}
+
+	duplicateArea(id: number, name: string): Observable<Area> {
+		return this.httpClient.post<Area>(`${this.baseUrl}/${id}/duplicate`, { name });
+	}
 }

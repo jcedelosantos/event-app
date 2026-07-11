@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, OnInit, ElementRef, ViewChild, AfterViewInit, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ReactiveFormsModule } from '@angular/forms';
-import { GoogleMapsModule } from '@angular/google-maps';
+import { DecimalPipe } from '@angular/common';
 declare var bootstrap: any;
 
 import { Map } from '../../../../models/maps/map';
@@ -13,117 +13,121 @@ import { CreateAreaComponent } from '../components/create-area/create-area.compo
 import { UpdateAreaComponent } from '../components/update-area/update-area.component';
 import { MapsService } from '../services/maps.service';
 import { AreasService } from '../services/areas.service';
+import { promptText, error, confirm } from '../../../../utils/messages';
+import { extractErrorMessage } from '../../../../utils/api-error';
+import { HttpErrorResponse } from '@angular/common/http';
 
 @Component({
 	selector: 'app-areas',
-	imports: [GoogleMapsModule, NavBarMapComponent, CollapseTablesComponent, CreateAreaComponent, ReactiveFormsModule, UpdateAreaComponent, CollapseSeatsComponent],
+	imports: [DecimalPipe, NavBarMapComponent, CollapseTablesComponent, CreateAreaComponent, ReactiveFormsModule, UpdateAreaComponent, CollapseSeatsComponent],
 	template: `
 		<nav-bar-map [maps]="maps()" [idMap]="map()?.id" [areas]="areas()" />
-		<div class="col-xxl-9 col-md-12 ">
+		<div class="col-xxl-9 col-md-12 d-flex justify-content-between align-items-center">
 			<h3>Manager Areas</h3>
+			<button type="button" class="btn btn-danger btn-sm" (click)="openCreateAreaModal()"><i class="bi bi-plus-lg"></i> Add Area</button>
 		</div>
 		<div class="scroll-map">
-			<div class="row">
-				<div class="col-xxl-9 col-md-12 ">
-					<div class="card">
-						<div class="card-header">
-							<h5>{{ map()?.name }}</h5>
-						</div>
-						<ul class="list-group list-group-flush">
-							<google-map height="280px" width="100%" [center]="center" [zoom]="zoom">
-								<map-marker [position]="center" [label]="'Ubicación X'"></map-marker>
-							</google-map>
-							<li class="list-group-item">
-								<div class="row">
-									<div class="col-5">
-										<h6 class="card-title">{{ map()?.description }}</h6>
+			<div class="card">
+				<div class="card-header">
+					<h5>{{ map()?.name }}</h5>
+				</div>
+				<ul class="list-group list-group-flush">
+					<div class="map-placeholder">
+						<i class="bi bi-geo-alt-fill"></i>
+						<span class="map-placeholder-coords">{{ center.lat | number: '1.4-4' }}, {{ center.lng | number: '1.4-4' }}</span>
+					</div>
+					<li class="list-group-item">
+						<div class="row">
+							<div class="col-5">
+								<h6 class="card-title">{{ map()?.description }}</h6>
+							</div>
+							<div class="col-7">
+								<div class="d-flex justify-content-end">
+									<div class="bd-highlight me-4">
+										Areas : <span class="badge text-bg-danger">{{ areas().length }}</span>
 									</div>
-									<div class="col-7">
-										<div class="d-flex justify-content-end">
-											<div class="bd-highlight me-4">
-												Areas : <span class="badge text-bg-danger">{{ areas().length }}</span>
-											</div>
-											<div class="bd-highlight me-4">
-												Tables : <span class="badge text-bg-danger"> {{ map()?.totalTables }}</span> / <span class="badge text-bg-danger">{{ map()?.totalTablesSeat }}</span>
-											</div>
-											<div class="bd-highlight me-">
-												Seat : <span class="badge text-bg-danger">{{ map()?.totalSeats }}</span>
-											</div>
-										</div>
+									<div class="bd-highlight me-4">
+										Mesas : <span class="badge text-bg-danger">{{ tableCount() }}</span>
+									</div>
+									<div class="bd-highlight me-">
+										Asientos : <span class="badge text-bg-danger">{{ seatCount() }}</span>
 									</div>
 								</div>
-							</li>
-						</ul>
-					</div>
-					<br />
-					@if (map()?.img) {
-						<div class="scrollimg">
-							<div class="image-container " #imageContainer (mousemove)="moveButton($event)">
-								<img #image [src]="map()?.img" class="background-image" (dblclick)="openCreateAreaForm($event)" />
-								@for (area of areas(); track area.id; let idx = $index) {
-									<button
-										class="draggable-btn "
-										(dblclick)="routeArea(area)"
-										(mousedown)="startDragging(idx, $event)"
-										(mouseup)="stopDragging()"
-										(mouseleave)="stopDragging()"
-										[style.color]="area.color"
-										[style.background]="area.backGround"
-										[style.font-size.px]="area.size"
-										[style.top.px]="area.y"
-										[style.left.px]="area.x"
-									>
-										@if (area.icon) {
-											<i class="bi {{ area.icon }}"></i>
-										}
-										<span [style.font-size.px]="area.size * 0.8">
-											{{ area.name }}
-										</span>
-										<button type="button" class="btn btn-dark btn-sm rounded-circle" (click)="openUpdateAreaForm(area)">
-											<i class="bi bi-pencil"></i>
-										</button>
-									</button>
-								}
 							</div>
 						</div>
-					}
-					<br />
-				</div>
-				@if (areas().length) {
-					<div class="col-xxl-3 col-md-12">
-						<h5>List areas</h5>
-						<div class="scroll-list">
+					</li>
+				</ul>
+
+				@if (map()?.img) {
+					<div class="scrollimg">
+						<div class="image-container " #imageContainer (mousemove)="moveButton($event)">
+							<img #image [src]="map()?.img" class="background-image" (dblclick)="openCreateAreaForm($event)" />
 							@for (area of areas(); track area.id; let idx = $index) {
-								<div class="card">
-									<div class="card-header">
-										<div class="d-flex flex-row  justify-content-between">
-											<div class="p-2">
-												<button type="button" class="btn btn-outline-danger btn-sm me-2" (click)="routeArea(area)">
-													@if (area.icon) {
-														<i class="bi {{ area.icon }}"></i>
-													}
-													{{ area.name }}
-												</button>
-												<button type="button" class="btn btn-dark btn-sm rounded-circle"><i class=" bi bi-pencil " (click)="openUpdateAreaForm(area)"></i></button>
-											</div>
-											<div class="p-2"></div>
-											<div class="p-2"></div>
-											<div class="p-2">
-												<button type="button" class="btn btn-sm " (click)="deleteArea(area)"><i class="bi bi-x-lg"></i></button>
-											</div>
-										</div>
-									</div>
-									<ul class="list-group list-group-flush">
-										<collapse-seats [seats]="area.seats" [id]="idx" />
-										<collapse-tables [tables]="area.tables" [id]="idx" />
-										<li class="list-group-item"></li>
-									</ul>
-								</div>
-								<br />
+								<button
+									class="draggable-btn "
+									(dblclick)="routeArea(area)"
+									(mousedown)="startDragging(idx, $event)"
+									(mouseup)="stopDragging()"
+									(mouseleave)="stopDragging()"
+									[style.color]="area.color"
+									[style.background]="area.backGround"
+									[style.font-size.px]="area.size"
+									[style.top.px]="area.y"
+									[style.left.px]="area.x"
+								>
+									@if (area.icon) {
+										<i class="bi {{ area.icon }}"></i>
+									}
+									<span [style.font-size.px]="area.size * 0.8">
+										{{ area.name }}
+									</span>
+									<button type="button" class="btn btn-dark btn-sm rounded-circle" (click)="openUpdateAreaForm(area)">
+										<i class="bi bi-pencil"></i>
+									</button>
+								</button>
 							}
 						</div>
 					</div>
 				}
+
+				<div class="card-body border-top">
+					<h6 class="mb-3">Áreas de "{{ map()?.name }}"</h6>
+					<div class="scroll-list">
+						@if (!areas().length) {
+							<p class="text-muted">Sin áreas — usá el botón "Add Area" arriba para crear la primera.</p>
+						}
+						<div class="row">
+							@for (area of areas(); track area.id; let idx = $index) {
+								<div class="col-xxl-4 col-md-6 mb-3">
+									<div class="card h-100">
+										<div class="card-header">
+											<div class="d-flex flex-row  justify-content-between">
+												<div class="p-2">
+													<button type="button" class="btn btn-outline-danger btn-sm me-2" (click)="routeArea(area)">
+														@if (area.icon) {
+															<i class="bi {{ area.icon }}"></i>
+														}
+														{{ area.name }}
+													</button>
+													<button type="button" class="btn btn-dark btn-sm rounded-circle"><i class=" bi bi-pencil " (click)="openUpdateAreaForm(area)"></i></button>
+													<button type="button" class="btn btn-dark btn-sm rounded-circle" title="Duplicar área" (click)="duplicateArea(area)"><i class="bi bi-copy"></i></button>
+												</div>
+												<div class="p-2">
+													<button type="button" class="btn btn-sm " (click)="deleteArea(area)"><i class="bi bi-x-lg"></i></button>
+												</div>
+											</div>
+										</div>
+										<ul class="list-group list-group-flush">
+											<collapse-seats [seats]="area.seats" [id]="idx" />
+											<collapse-tables [tables]="area.tables" [id]="idx" />
+											<li class="list-group-item"></li>
+										</ul>
+									</div>
+								</div>
+							}
+						</div>
+					</div>
+				</div>
 			</div>
 		</div>
 
@@ -137,8 +141,7 @@ export class AreasComponent implements OnInit, AfterViewInit {
 	private readonly mapsService = inject(MapsService);
 	private readonly areasService = inject(AreasService);
 
-	center: google.maps.LatLngLiteral = { lat: 18.4628068, lng: -70.0412847 };
-	zoom = 20;
+	center: { lat: number; lng: number } = { lat: 18.4628068, lng: -70.0412847 };
 
 	maps = signal<Map[]>([]);
 	map = signal<Map | undefined>(undefined);
@@ -159,6 +162,14 @@ export class AreasComponent implements OnInit, AfterViewInit {
 
 	modalUpdateArea: any;
 	areaUpdate: Area | undefined;
+
+	tableCount(): number {
+		return this.areas().reduce((sum, area) => sum + (area.tables?.length ?? 0), 0);
+	}
+
+	seatCount(): number {
+		return this.areas().reduce((sum, area) => sum + (area.seats?.length ?? 0), 0);
+	}
 
 	constructor(
 		private route: ActivatedRoute,
@@ -276,8 +287,24 @@ export class AreasComponent implements OnInit, AfterViewInit {
 	}
 
 	deleteArea(area: Area) {
-		this.areasService.deleteArea(area.id).subscribe(() => {
-			this.areas.update((list) => list.filter((a) => a.id !== area.id));
+		confirm(`¿Eliminar el área "${area.name}"?`, {
+			onConfirm: () => {
+				this.areasService.deleteArea(area.id).subscribe({
+					next: () => {
+						this.areas.update((list) => list.filter((a) => a.id !== area.id));
+					},
+					error: (err: HttpErrorResponse) => error(extractErrorMessage(err)),
+				});
+			},
+		});
+	}
+
+	async duplicateArea(area: Area) {
+		const name = await promptText('Nombre de la copia', `${area.name} (copia)`);
+		if (!name) return;
+
+		this.areasService.duplicateArea(area.id, name).subscribe((newArea) => {
+			this.areas.update((list) => [...list, newArea]);
 		});
 	}
 

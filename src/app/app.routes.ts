@@ -16,6 +16,10 @@ export const routes: Routes = [
 		loadChildren: () => import('./modules/manager/manager.module').then((m) => m.ManagerModule),
 	},
 	{
+		path: 'e/:code',
+		loadComponent: () => import('./modules/public-event/public-event.component').then((m) => m.PublicEventComponent),
+	},
+	{
 		path: '',
 		redirectTo: 'site-web',
 		pathMatch: 'full',

@@ -1,6 +1,6 @@
 import { Map } from '../maps/map';
 import { Ticket } from '../tickets/ticket';
-import { Catalog } from '../products/catalog';
+import { Product } from '../products/product';
 
 export interface Events {
 	id: number;
@@ -16,5 +16,5 @@ export interface Events {
 	active: boolean;
 	map?: Map;
 	tickets: Array<Ticket>;
-	catalogs: Array<Catalog>;
+	products: Array<Product>;
 }

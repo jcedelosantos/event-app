@@ -15,14 +15,29 @@
 
 .calendar td, .calendar th {
   border: 1px solid #613434;
-  padding: 8px;
+  padding: 4px;
   width: 14.2%;
-  height: 50px;
+  height: 40px;
   background-color: #111111;
 }
 
 .calendar td.out {
   background-color: #242424;
+}
+
+.calendar td {
+  position: relative;
+}
+
+.event-dot {
+  position: absolute;
+  bottom: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: #dc3545;
 }
 
 .scroll-events {

@@ -1,12 +1,13 @@
 export interface Product {
 	id: number;
-	code: string;
 	img: string;
+	code: string;
 	name: string;
 	description: string;
-	dateCommit: Date;
 	type: string;
-	count: string;
+	variant: string;
+	count: number;
 	active: boolean;
 	price: number;
+	eventId: number;
 }

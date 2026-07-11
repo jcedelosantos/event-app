@@ -1,52 +1,39 @@
 <div class="modal fade" id="eventDetailModal" tabindex="-1" aria-labelledby="eventDetailModalLabel" aria-hidden="true">
-		<div class="modal-dialog">
-			<div class="modal-content">
-				<div class="modal-header">
-					<h1 class="modal-title fs-5" id="eventDetailModalLabel">Event Detail</h1>
-					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-				</div>
-				<div class="modal-body">
-					<form [formGroup]="eventDetailForm">
-						<div class="row">
-							<div class="col-md-12 mb-3">
-								<label for="name">Event Name </label>
-								<input type="text" class="form-control" formControlName="name"  />
-							</div>
-							<div class="col-md-6 mb-3">
-								<label for="code">Start Date </label>
-								<input type="text" class="form-control" formControlName="date" />
-							</div>
-							<div class="col-md-6 mb-3">
-								<label for="code">Code </label>
-								<input type="text" class="form-control" formControlName="code" />
-							</div>
-							<div class="col-md-6 mb-3">
-								<label for="code">Area </label>
-								<input type="text" class="form-control" formControlName="area" />
-							</div>
-							<div class="col-md-6 mb-3">
-								<label for="code">Seat </label>
-								<input type="text" class="form-control" formControlName="seat" />
-							</div>
-							<div class="col-md-6 mb-3">
-								<label for="code">Ticket </label>
-								<input type="text" class="form-control" formControlName="ticket" />
-							</div>
-							<div class="col-md-6 mb-3">
-								<label for="code">Client </label>
-								<input type="text" class="form-control" formControlName="client" />
-							</div>
-
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h1 class="modal-title fs-5" id="eventDetailModalLabel">{{ eventDetail()?.event?.name }}</h1>
+				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+			</div>
+			<div class="modal-body">
+				@if (eventDetail(); as detail) {
+					<div class="text-center mb-3">
+						<qrcode [qrdata]="detail.codeQR" [width]="180" [errorCorrectionLevel]="'M'"></qrcode>
+						<div class="mt-2">
+							@if (detail.checkedInAt) {
+								<span class="badge text-bg-success">Escaneado el {{ detail.checkedInAt | date: 'short' }}</span>
+							} @else {
+								<span class="badge text-bg-secondary">Sin escanear todavía</span>
+							}
 						</div>
-						
-					</form>
-				</div>
-				<div class="modal-footer">
-					<button type="button" class="btn btn-danger" data-bs-dismiss="modal">Close</button>
-				</div>
+					</div>
+					<div class="row">
+						<div class="col-6 mb-2"><strong>Área:</strong> {{ detail.seat.area.name }}</div>
+						<div class="col-6 mb-2"><strong>Asiento:</strong> {{ detail.seat.name }}</div>
+						<div class="col-6 mb-2"><strong>Ticket:</strong> {{ detail.ticket.name }}</div>
+						<div class="col-6 mb-2"><strong>Cliente:</strong> {{ detail.client.name }} {{ detail.client.lastname }}</div>
+						<div class="col-6 mb-2"><strong>Email:</strong> {{ detail.client.email }}</div>
+						<div class="col-6 mb-2"><strong>Vendido:</strong> {{ detail.dateSold | date: 'short' }}</div>
+					</div>
+					@if (resendMessage()) {
+						<div class="alert" [class.alert-success]="resendOk()" [class.alert-danger]="!resendOk()">{{ resendMessage() }}</div>
+					}
+				}
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-outline-danger" [disabled]="resending()" (click)="resend()"><i class="bi bi-envelope"></i> Reenviar por correo</button>
+				<button type="button" class="btn btn-danger" data-bs-dismiss="modal">Close</button>
 			</div>
 		</div>
 	</div>
-
-
-    
+</div>

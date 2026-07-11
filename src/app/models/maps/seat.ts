@@ -8,4 +8,5 @@ export interface Seat {
 	radio: number;
 	color: string;
 	size: number;
+	tableId?: number | null;
 }

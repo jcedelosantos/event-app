@@ -8,7 +8,9 @@ import { ExportTicketsModalComponent } from './components/export-tickets-modal/e
 import { ImportTicketsModalComponent } from './components/import-tickets-modal/import-tickets-modal.component';
 import { TicketsService } from './services/tickets.service';
 import { UpdateTicketModalComponent } from './components/update-ticket-modal/update-ticket-modal.component';
-import { confirm } from '../../../utils/messages';
+import { confirm, error } from '../../../utils/messages';
+import { extractErrorMessage } from '../../../utils/api-error';
+import { HttpErrorResponse } from '@angular/common/http';
 
 @Component({
 	selector: 'app-tickets',
@@ -69,7 +71,10 @@ export class TicketsComponent implements OnInit {
 	onDeleteTicket(ticket: Ticket) {
 		confirm(`¿Eliminar el ticket "${ticket.name}"?`, {
 			onConfirm: () => {
-				this.ticketSrv.deleteTicket(ticket.id).subscribe(() => this.loadTickets());
+				this.ticketSrv.deleteTicket(ticket.id).subscribe({
+					next: () => this.loadTickets(),
+					error: (err: HttpErrorResponse) => error(extractErrorMessage(err)),
+				});
 			},
 		});
 	}

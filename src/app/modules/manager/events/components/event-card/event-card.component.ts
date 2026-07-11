@@ -9,37 +9,27 @@ import { RouterLink } from '@angular/router';
 	imports: [CommonModule, RouterLink],
 	template: `
 		@if (event) {
-			<div class="card text-center" style="height: 340px; min-width: 300px;">
-				<div class="card-header">{{ event.name }}</div>
-				<div class="card-body">
-					<!-- <h5 class="card-title">{{ event.code }}</h5> -->
-					<div class="d-flex justify-content-between flex-row ">
-						<span class="p-1"> Date: {{ event.dateOn.toISOString().split('T')[0] }}</span>
-						<span class="p-1"> Start Time: {{ event.dateSale.toISOString().split('T')[1].split('.')[0] }}</span>
+			<div class="card text-center" style="height: 220px; min-width: 240px;">
+				<div class="card-header py-2">{{ event.name }}</div>
+				<div class="card-body py-2">
+					<div class="d-flex justify-content-between flex-row small">
+						<span class="p-1"> {{ event.dateOn.toISOString().split('T')[0] }}</span>
+						<span class="p-1"> {{ event.dateSale.toISOString().split('T')[1].split('.')[0] }}</span>
 					</div>
-					<hr />
+					<hr class="my-1" />
 
-					<p class="card-text">{{ event.description }}</p>
-					<p class="card-text">{{ event.map?.description }}</p>
-					<div class="d-flex justify-content-start flex-row ">
-						<div class="p-1">
-							<span> Ticket </span>
-						</div>
-
+					<p class="card-text small mb-1">{{ event.description }}</p>
+					<p class="card-text small text-body-secondary mb-1">{{ event.map?.description }}</p>
+					<div class="d-flex justify-content-start flex-row flex-wrap gap-1">
 						@for (ticket of event.tickets; track $index; let idx = $index) {
-							<div class="p-1">
-								<span class="badge rounded-pill text-bg-warning">{{ ticket.type }}</span>
-							</div>
+							<span class="badge rounded-pill text-bg-warning">{{ ticket.type }}</span>
 						}
 					</div>
 				</div>
-				<div class="card-footer text-body-secondary">
-					<!-- {{ eventDateRelative(event.dateOn) }} -->
-
-					<div class="d-flex justify-content-between flex-row ">
-						<!-- <div class="p-2">Flex item 1</div> -->
-						<div class="p-1"><button class="btn btn-danger" [routerLink]="['/manager/sales', event.id]">Sale</button></div>
-						<div class="p-1"><button class="btn btn-danger" [routerLink]="['/manager/events', event.id]">Details</button></div>
+				<div class="card-footer text-body-secondary py-2">
+					<div class="d-flex justify-content-between flex-row">
+						<button class="btn btn-danger btn-sm" [routerLink]="['/manager/sales', event.id]">Sale</button>
+						<button class="btn btn-danger btn-sm" [routerLink]="['/manager/events', event.id]">Details</button>
 					</div>
 				</div>
 			</div>

@@ -3,11 +3,13 @@ import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { HttpErrorResponse } from '@angular/common/http';
 import { Area } from '../../../../../models/maps/area';
 import { AreasService } from '../../services/areas.service';
+import { extractErrorMessage } from '../../../../../utils/api-error';
+import { cleanupOrphanedModalBackdrop } from '../../../../../utils/modal';
 
 @Component({
 	selector: 'create-area',
 	imports: [ReactiveFormsModule],
-	template: ` <div class="modal fade" id="createAreaModal" data-backdrop="static" data-keyboard="false" tabindex="-1" aria-labelledby="createAreaModalLabel" aria-hidden="true">
+	template: ` <div class="modal fade" id="createAreaModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="createAreaModalLabel" aria-hidden="true">
 		<div class="modal-dialog modal-dialog-scrollable modal-lg">
 			<div class="modal-content">
 				<form [formGroup]="areaCreateForm" (ngSubmit)="clickPostAreaCreate()">
@@ -15,74 +17,81 @@ import { AreasService } from '../../services/areas.service';
 						<h4>Create Area</h4>
 					</div>
 					<div class="modal-body">
-						<div class="row">
-							<div class="col-md-4 mb-2">
-								<h6>Name *</h6>
-								<div class="input-group">
-									<input type="text" minlength="3" maxlength="12" class="form-control" formControlName="editName" placeholder="Name Area input" />
+						<p class="text-muted">Un área es una zona de tu venue (ej. "VIP", "Platea", "General") donde después vas a poder agregar asientos o mesas.</p>
+						<div class="mb-3">
+							<h6>Nombre *</h6>
+							<input type="text" maxlength="40" class="form-control" [class.is-invalid]="isInvalid('editName')" formControlName="editName" placeholder="Ej: VIP, Platea, General..." />
+							@if (isInvalid('editName')) {
+								<div class="invalid-feedback">El nombre es obligatorio (máx. 40 caracteres).</div>
+							}
+						</div>
+
+						<div class="mb-3">
+							<h6>Descripción</h6>
+							<input type="text" class="form-control" formControlName="editDescription" maxlength="100" placeholder="Opcional" />
+						</div>
+
+						<button class="btn btn-link ps-0" type="button" data-bs-toggle="collapse" data-bs-target="#createAreaAdvanced">
+							Personalizar apariencia (opcional) <i class="bi bi-chevron-down"></i>
+						</button>
+						<div class="collapse" id="createAreaAdvanced">
+							<div class="row border-top pt-3 mt-1">
+								<div class="col-md-2 mb-2">
+									<h6>X</h6>
+									<input type="number" min="0" max="10000" class="form-control" formControlName="editX" placeholder="0.0" />
 								</div>
-							</div>
 
-							<div class="col-md-8 mb-4">
-								<h6>Description</h6>
-								<input type="text" class="form-control" formControlName="editDescription" minlength="0" maxlength="100" placeholder="Name Description input" />
-							</div>
-
-							<div class="col-md-2 mb-2">
-								<h6>X</h6>
-								<input type="number" min="1" max="10000" class="form-control" formControlName="editX" placeholder="0.0" />
-							</div>
-
-							<div class="col-md-2 mb-2">
-								<h6>Y</h6>
-								<input type="number" min="1" max="10000" class="form-control" formControlName="editY" placeholder="0.0" />
-							</div>
-
-							<div class="col-md-2 mb-2">
-								<h6>Size</h6>
-								<input type="number" min="1" max="32" class="form-control" formControlName="editSize" placeholder="0" />
-							</div>
-
-							<div class="col-md-6 mb-2">
-								<div class="row">
-									<div class="col-4">
-										<label for="colorInput" class="form-label">Text</label>
-										<input type="color" class="form-control form-control-color" id="colorInput" formControlName="editColor" />
-									</div>
-									<div class="col-8">
-										<label for="colorBackInput" class="form-label">BackGround</label>
-										<input type="color" class="form-control form-control-color" id="colorBackInput" formControlName="editBackGround" />
-									</div>
+								<div class="col-md-2 mb-2">
+									<h6>Y</h6>
+									<input type="number" min="0" max="10000" class="form-control" formControlName="editY" placeholder="0.0" />
 								</div>
-							</div>
 
-							<div class="col-md-4 mb-2">
-								<div class="form-group">
-									<label for="editIcons">Icons</label>
-									<div class="row p-2">
+								<div class="col-md-2 mb-2">
+									<h6>Size</h6>
+									<input type="number" min="1" max="32" class="form-control" formControlName="editSize" placeholder="0" />
+								</div>
+
+								<div class="col-md-6 mb-2">
+									<div class="row">
+										<div class="col-4">
+											<label for="colorInput" class="form-label">Text</label>
+											<input type="color" class="form-control form-control-color" id="colorInput" formControlName="editColor" />
+										</div>
 										<div class="col-8">
-											<select id="editIcon" class="form-control " name="editIcon" formControlName="editIcon" (change)="getIcon()">
-												@for (icon of icons; track $index) {
-													<option [value]="icon.value">
-														{{ icon.label }}
-													</option>
-												}
-											</select>
-										</div>
-										<div class="col-4 mt-2">
-											@if (selectedIcon) {
-												<i class="bi {{ selectedIcon }}"></i>
-											} @else {
-												<i class="bi bi-dash-lg"></i>
-											}
+											<label for="colorBackInput" class="form-label">BackGround</label>
+											<input type="color" class="form-control form-control-color" id="colorBackInput" formControlName="editBackGround" />
 										</div>
 									</div>
 								</div>
-							</div>
 
-							<div class="col-md-8 mb-2">
-								<label for="editImg" class="form-label">Image URL</label>
-								<input class="form-control" type="text" id="editImg" formControlName="editImg" placeholder="https://..." />
+								<div class="col-md-4 mb-2">
+									<div class="form-group">
+										<label for="editIcons">Icons</label>
+										<div class="row p-2">
+											<div class="col-8">
+												<select id="editIcon" class="form-control " name="editIcon" formControlName="editIcon" (change)="getIcon()">
+													@for (icon of icons; track $index) {
+														<option [value]="icon.value">
+															{{ icon.label }}
+														</option>
+													}
+												</select>
+											</div>
+											<div class="col-4 mt-2">
+												@if (selectedIcon) {
+													<i class="bi {{ selectedIcon }}"></i>
+												} @else {
+													<i class="bi bi-dash-lg"></i>
+												}
+											</div>
+										</div>
+									</div>
+								</div>
+
+								<div class="col-md-8 mb-2">
+									<label for="editImg" class="form-label">Image URL</label>
+									<input class="form-control" type="text" id="editImg" formControlName="editImg" placeholder="https://..." />
+								</div>
 							</div>
 						</div>
 						@if (errorMessage) {
@@ -91,7 +100,7 @@ import { AreasService } from '../../services/areas.service';
 					</div>
 					<div class="modal-footer">
 						<button type="button" class="btn btn-secondary" (click)="closeModal()">Cerrar</button>
-						<button type="submit" class="btn btn-primary" [disabled]="areaCreateForm.invalid">Create</button>
+						<button type="submit" class="btn btn-primary">Create</button>
 					</div>
 				</form>
 			</div>
@@ -158,10 +167,16 @@ export class CreateAreaComponent implements OnChanges {
 
 	closeModal() {
 		this.modal.hide();
+		cleanupOrphanedModalBackdrop();
 	}
 
 	getIcon() {
 		this.selectedIcon = this.areaCreateForm.get('editIcon')?.value;
+	}
+
+	isInvalid(controlName: string): boolean {
+		const control = this.areaCreateForm.get(controlName);
+		return !!control && control.invalid && control.touched;
 	}
 
 	postCreateArea() {
@@ -192,7 +207,7 @@ export class CreateAreaComponent implements OnChanges {
 					this.closeModal();
 				},
 				error: (err: HttpErrorResponse) => {
-					this.errorMessage = err.error?.error ?? err.message;
+					this.errorMessage = extractErrorMessage(err);
 				},
 			});
 	}

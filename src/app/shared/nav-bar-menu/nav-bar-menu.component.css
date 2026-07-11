@@ -1,6 +1,6 @@
 .nav-bar-h {
 	height: 98vh;
-	width: 50px;
+	width: 12vw;
 	background-color: rgb(8, 8, 8);
 }
 .img-menu {
@@ -20,4 +20,12 @@
 }
 .menu-exit {
 	height: 10dvh;
+}
+
+.nav-item-btn {
+	width: 100%;
+	text-align: left;
+	display: flex;
+	align-items: center;
+	gap: 0.6rem;
 }

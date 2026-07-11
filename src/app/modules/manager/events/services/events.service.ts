@@ -14,7 +14,7 @@ export type EventInput = {
 	dateOn: string | Date;
 	dateOff?: string | Date;
 	active?: boolean;
-	mapId?: number;
+	mapId?: number | null;
 };
 
 @Injectable({

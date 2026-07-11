@@ -52,9 +52,9 @@ type MenuItem = { title: string; icon: string; url: string};
 					</div>
 				</div>
 			</div>
-			<div class=" d-flex justify-content-center  flex-column" style="height: 90%">
+			<div class="d-flex flex-column" style="height: 90%">
 				@for (item of menuList; track item.title) {
-					<button [class]="path().includes(item.url) ? 'btn btn-danger mb-2' : 'btn btn-dark mb-2'" [routerLink]="item.url" style="width: 100%;">
+					<button [class]="path().includes(item.url) ? 'btn btn-danger mb-2 nav-item-btn' : 'btn btn-dark mb-2 nav-item-btn'" [routerLink]="item.url">
 						@if (item.icon) {
 							<i [class]="item.icon"></i>
 						}
@@ -83,16 +83,19 @@ export class NavBarMenuComponent implements AfterViewInit {
 	router = inject(Router)
 	private readonly authService = inject(AuthService);
 	path = signal<string>('');
+	// Orden alineado al flujo real de trabajo: crear evento → asignar mapa → armar áreas/asientos →
+	// crear tickets → vender/generar QR → ver quién compró. Los módulos aún no implementados
+	// (Sale, Products, Reports, History) quedan al final.
 	menuList: Array<MenuItem> = [
 		{ title: 'Dash Board', icon: 'bi bi-speedometer', url: '/manager/dash-board' },
 		{ title: 'Events', icon: 'bi bi-calendar-event', url: '/manager/events' },
 		{ title: 'Maps', icon: 'bi bi-map', url: '/manager/maps' },
 		{ title: 'Tickets', icon: 'bi bi-ticket-fill', url: '/manager/tickets' },
+		{ title: 'QRs', icon: 'bi bi-qr-code', url: '/manager/qrs' },
 		{ title: 'Users', icon: 'bi bi-people-fill', url: '/manager/users' },
 		{ title: 'Sale', icon: 'bi bi-receipt', url: '/manager/sales' },
 		{ title: 'Products', icon: 'bi bi-calendar2-event-fill', url: '/manager/products' },
 		{ title: 'Reports', icon: 'bi bi-flag-fill', url: '/manager/reports' },
-		{ title: 'QRs', icon: 'bi bi-qr-code', url: '/manager/qrs' },
 		{ title: 'History', icon: 'bi bi-clock-history', url: '/manager/history' },
 	];
 
@@ -108,7 +111,10 @@ export class NavBarMenuComponent implements AfterViewInit {
 	showOffCanvas() {
 		const offCanvas = document.getElementById('offcanvas');
 		if (offCanvas) {
-			const bsOffCanvas = new bootstrap.Offcanvas(offCanvas);
+			// Es un sidebar permanente, no un panel para cerrar con click-afuera/Esc: sin esto,
+			// bootstrap.Offcanvas crea un backdrop full-page con pointer-events:auto que bloquea
+			// todos los clicks del resto de la app apenas carga la página.
+			const bsOffCanvas = new bootstrap.Offcanvas(offCanvas, { backdrop: false, scroll: true });
 			bsOffCanvas.show();
 		}
 	}

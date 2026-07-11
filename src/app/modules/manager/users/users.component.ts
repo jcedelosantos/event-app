@@ -8,7 +8,9 @@ import { UpdateUserModalComponent } from "./components/update-user-modal/update-
 
 import { User } from '../../../models/users/user';
 import { UserService } from './services/user.service';
-import { confirm } from '../../../utils/messages';
+import { confirm, error } from '../../../utils/messages';
+import { extractErrorMessage } from '../../../utils/api-error';
+import { HttpErrorResponse } from '@angular/common/http';
 @Component({
 	selector: 'app-users',
 	imports: [UpdateUserModalComponent, ImportUsersModalComponent, ExportUsersModalComponent],
@@ -152,7 +154,11 @@ export class UsersComponent implements AfterViewInit {
 
 	deleteUser(user: User) {
 		confirm(`¿Eliminar al usuario ${user.username}?`, {
-			onConfirm: () => this.userService.deleteUser(user.id).subscribe(() => this.loadUsers()),
+			onConfirm: () =>
+				this.userService.deleteUser(user.id).subscribe({
+					next: () => this.loadUsers(),
+					error: (err: HttpErrorResponse) => error(extractErrorMessage(err)),
+				}),
 		});
 	}
 }

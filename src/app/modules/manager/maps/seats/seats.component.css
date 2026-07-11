@@ -15,6 +15,9 @@ img {
 	cursor: grab;
 	border: none;
 	text-align: center;
+	padding: 3px;
+	min-width: 14px;
+	min-height: 14px;
 }
 
 .draggable-btn:active {
@@ -36,4 +39,25 @@ div.scrollimg a {
 
 div.scrollimg a:hover {
 	background-color: #777;
+}
+
+.seat-icon-wrap {
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.seat-icon-label {
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	color: #fff;
+	font-weight: 600;
+	white-space: nowrap;
+	text-shadow:
+		0 0 3px rgba(0, 0, 0, 0.85),
+		0 0 1px rgba(0, 0, 0, 0.85);
+	pointer-events: none;
 }

@@ -1,15 +1,14 @@
-import { randomUUID } from 'node:crypto';
 import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
 import { requireAuth } from '../middleware/auth';
+import { asyncHandler } from '../lib/async-handler';
 
 export const ticketsRouter = Router();
 ticketsRouter.use(requireAuth);
 
 const ticketInputSchema = z.object({
 	name: z.string().min(1),
-	code: z.string().optional().default(''),
 	img: z.string().optional().default(''),
 	description: z.string().optional().default(''),
 	type: z.string().min(1),
@@ -19,13 +18,13 @@ const ticketInputSchema = z.object({
 	eventId: z.number().int(),
 });
 
-ticketsRouter.get('/', async (req, res) => {
+ticketsRouter.get('/', asyncHandler(async (req, res) => {
 	const eventId = req.query.eventId ? Number(req.query.eventId) : undefined;
 	const tickets = await prisma.ticket.findMany({ where: eventId ? { eventId } : undefined, orderBy: { id: 'asc' } });
 	res.json(tickets);
-});
+}));
 
-ticketsRouter.get('/:id', async (req, res) => {
+ticketsRouter.get('/:id', asyncHandler(async (req, res) => {
 	const id = Number(req.params.id);
 	const ticket = await prisma.ticket.findUnique({ where: { id } });
 	if (!ticket) {
@@ -33,9 +32,9 @@ ticketsRouter.get('/:id', async (req, res) => {
 		return;
 	}
 	res.json(ticket);
-});
+}));
 
-ticketsRouter.post('/', async (req, res) => {
+ticketsRouter.post('/', asyncHandler(async (req, res) => {
 	const parsed = ticketInputSchema.safeParse(req.body);
 	if (!parsed.success) {
 		res.status(400).json({ error: parsed.error.flatten() });
@@ -43,7 +42,13 @@ ticketsRouter.post('/', async (req, res) => {
 	}
 
 	try {
-		const ticket = await prisma.ticket.create({ data: { ...parsed.data, code: parsed.data.code || randomUUID() } });
+		// El código identifica el ticket en el barcode/escaneo — se genera siempre server-side a
+		// partir del id (único por diseño) para que no puedan colisionar dos tickets distintos.
+		const created = await prisma.ticket.create({ data: { ...parsed.data, code: '' } });
+		const ticket = await prisma.ticket.update({
+			where: { id: created.id },
+			data: { code: `TCK-${String(created.id).padStart(4, '0')}` },
+		});
 		res.status(201).json(ticket);
 	} catch (err: any) {
 		if (err.code === 'P2003') {
@@ -52,9 +57,9 @@ ticketsRouter.post('/', async (req, res) => {
 		}
 		throw err;
 	}
-});
+}));
 
-ticketsRouter.put('/:id', async (req, res) => {
+ticketsRouter.put('/:id', asyncHandler(async (req, res) => {
 	const id = Number(req.params.id);
 	const parsed = ticketInputSchema.partial().safeParse(req.body);
 	if (!parsed.success) {
@@ -72,10 +77,17 @@ ticketsRouter.put('/:id', async (req, res) => {
 		}
 		throw err;
 	}
-});
+}));
 
-ticketsRouter.delete('/:id', async (req, res) => {
+ticketsRouter.delete('/:id', asyncHandler(async (req, res) => {
 	const id = Number(req.params.id);
+
+	const soldCount = await prisma.saleTicket.count({ where: { ticketId: id } });
+	if (soldCount > 0) {
+		res.status(409).json({ error: `No se puede borrar: hay ${soldCount} venta(s) hechas con este ticket.` });
+		return;
+	}
+
 	try {
 		await prisma.ticket.delete({ where: { id } });
 		res.status(204).send();
@@ -86,4 +98,4 @@ ticketsRouter.delete('/:id', async (req, res) => {
 		}
 		throw err;
 	}
-});
+}));

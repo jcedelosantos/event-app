@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
 import { requireAuth } from '../middleware/auth';
+import { asyncHandler } from '../lib/async-handler';
 
 export const mapsRouter = Router();
 mapsRouter.use(requireAuth);
@@ -21,12 +22,12 @@ const mapInputSchema = z.object({
 
 const include = { areas: { include: { seats: true, tables: true } } };
 
-mapsRouter.get('/', async (_req, res) => {
+mapsRouter.get('/', asyncHandler(async (_req, res) => {
 	const maps = await prisma.map.findMany({ include, orderBy: { id: 'asc' } });
 	res.json(maps);
-});
+}));
 
-mapsRouter.get('/:id', async (req, res) => {
+mapsRouter.get('/:id', asyncHandler(async (req, res) => {
 	const id = Number(req.params.id);
 	const map = await prisma.map.findUnique({ where: { id }, include });
 	if (!map) {
@@ -34,9 +35,9 @@ mapsRouter.get('/:id', async (req, res) => {
 		return;
 	}
 	res.json(map);
-});
+}));
 
-mapsRouter.post('/', async (req, res) => {
+mapsRouter.post('/', asyncHandler(async (req, res) => {
 	const parsed = mapInputSchema.safeParse(req.body);
 	if (!parsed.success) {
 		res.status(400).json({ error: parsed.error.flatten() });
@@ -44,9 +45,9 @@ mapsRouter.post('/', async (req, res) => {
 	}
 	const map = await prisma.map.create({ data: parsed.data, include });
 	res.status(201).json(map);
-});
+}));
 
-mapsRouter.put('/:id', async (req, res) => {
+mapsRouter.put('/:id', asyncHandler(async (req, res) => {
 	const id = Number(req.params.id);
 	const parsed = mapInputSchema.partial().safeParse(req.body);
 	if (!parsed.success) {
@@ -63,18 +64,36 @@ mapsRouter.put('/:id', async (req, res) => {
 		}
 		throw err;
 	}
-});
+}));
 
-mapsRouter.delete('/:id', async (req, res) => {
+mapsRouter.delete('/:id', asyncHandler(async (req, res) => {
 	const id = Number(req.params.id);
-	try {
-		await prisma.map.delete({ where: { id } });
-		res.status(204).send();
-	} catch (err: any) {
-		if (err.code === 'P2025') {
-			res.status(404).json({ error: 'Mapa no encontrado' });
-			return;
-		}
-		throw err;
+
+	const map = await prisma.map.findUnique({ where: { id }, include: { areas: { include: { seats: true } } } });
+	if (!map) {
+		res.status(404).json({ error: 'Mapa no encontrado' });
+		return;
 	}
-});
+
+	const eventCount = await prisma.event.count({ where: { mapId: id } });
+	if (eventCount > 0) {
+		res.status(409).json({ error: `No se puede borrar: hay ${eventCount} evento(s) usando este mapa.` });
+		return;
+	}
+
+	const seatIds = map.areas.flatMap((area) => area.seats.map((seat) => seat.id));
+	const soldCount = seatIds.length ? await prisma.saleTicket.count({ where: { seatId: { in: seatIds } } }) : 0;
+	if (soldCount > 0) {
+		res.status(409).json({ error: `No se puede borrar: hay ${soldCount} ticket(s) vendido(s) para asientos de este mapa.` });
+		return;
+	}
+
+	const areaIds = map.areas.map((area) => area.id);
+	await prisma.$transaction([
+		prisma.seat.deleteMany({ where: { areaId: { in: areaIds } } }),
+		prisma.table.deleteMany({ where: { areaId: { in: areaIds } } }),
+		prisma.area.deleteMany({ where: { mapId: id } }),
+		prisma.map.delete({ where: { id } }),
+	]);
+	res.status(204).send();
+}));
