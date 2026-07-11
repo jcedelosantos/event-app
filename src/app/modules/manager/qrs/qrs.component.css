@@ -1,3 +1,20 @@
 :host {
   display: block;
 }
+
+.qrs-table {
+  font-size: 0.9rem;
+}
+.qrs-table th,
+.qrs-table td {
+  padding: 0.4rem 0.6rem;
+  vertical-align: middle;
+}
+.qrs-table th[role='button'] {
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+.qrs-table th[role='button']:hover {
+  color: #dc3545;
+}

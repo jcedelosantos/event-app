@@ -17,6 +17,9 @@ import { eventDateKey, todayKey } from '../../../utils/dates';
 import { HttpErrorResponse } from '@angular/common/http';
 import * as bootstrap from "bootstrap";
 
+type QrSortKey = 'seller' | 'carnet' | 'client' | 'date' | 'event' | 'seat' | 'price';
+type ProductSortKey = 'seller' | 'carnet' | 'client' | 'date' | 'event' | 'product' | 'qty';
+
 @Component({
   selector: 'app-qrs',
   imports: [DatePipe, FormsModule, RouterLink, EventDetailModalComponent, CreateQrModalComponent, ProductSaleDetailModalComponent, CreateProductQrModalComponent, ImportSalesModalComponent],
@@ -63,6 +66,85 @@ export class QrsComponent implements OnInit, AfterViewInit {
         (sale.client.carnet ?? '').toLowerCase().includes(q),
     );
   });
+
+  qrSortKey = signal<QrSortKey | null>(null);
+  qrSortDir = signal<'asc' | 'desc'>('asc');
+
+  sortedQrList = computed(() => {
+    const key = this.qrSortKey();
+    const list = [...this.filteredQrList()];
+    if (!key) return list;
+    const dir = this.qrSortDir() === 'asc' ? 1 : -1;
+    return list.sort((a, b) => this.compareValues(this.qrSortValue(a, key), this.qrSortValue(b, key)) * dir);
+  });
+
+  private qrSortValue(qr: SaleTicket, key: QrSortKey): string | number {
+    switch (key) {
+      case 'seller': return qr.seller.username;
+      case 'carnet': return qr.client.carnet ?? '';
+      case 'client': return `${qr.client.name} ${qr.client.lastname}`;
+      case 'date': return qr.dateSold;
+      case 'event': return qr.event.name;
+      case 'seat': return `${qr.seat.area.name} / ${qr.seat.name}`;
+      case 'price': return qr.ticket.price;
+    }
+  }
+
+  toggleQrSort(key: QrSortKey) {
+    if (this.qrSortKey() === key) {
+      this.qrSortDir.update((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      this.qrSortKey.set(key);
+      this.qrSortDir.set('asc');
+    }
+  }
+
+  qrSortIcon(key: QrSortKey): string {
+    if (this.qrSortKey() !== key) return 'bi-arrow-down-up text-muted small';
+    return this.qrSortDir() === 'asc' ? 'bi-sort-alpha-down' : 'bi-sort-alpha-up';
+  }
+
+  productSortKey = signal<ProductSortKey | null>(null);
+  productSortDir = signal<'asc' | 'desc'>('asc');
+
+  sortedProductSaleList = computed(() => {
+    const key = this.productSortKey();
+    const list = [...this.filteredProductSaleList()];
+    if (!key) return list;
+    const dir = this.productSortDir() === 'asc' ? 1 : -1;
+    return list.sort((a, b) => this.compareValues(this.productSortValue(a, key), this.productSortValue(b, key)) * dir);
+  });
+
+  private productSortValue(sale: SaleProduct, key: ProductSortKey): string | number {
+    switch (key) {
+      case 'seller': return sale.seller.username;
+      case 'carnet': return sale.client.carnet ?? '';
+      case 'client': return `${sale.client.name} ${sale.client.lastname}`;
+      case 'date': return sale.dateSold;
+      case 'event': return sale.event.name;
+      case 'product': return sale.product.name;
+      case 'qty': return sale.quantity;
+    }
+  }
+
+  toggleProductSort(key: ProductSortKey) {
+    if (this.productSortKey() === key) {
+      this.productSortDir.update((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      this.productSortKey.set(key);
+      this.productSortDir.set('asc');
+    }
+  }
+
+  productSortIcon(key: ProductSortKey): string {
+    if (this.productSortKey() !== key) return 'bi-arrow-down-up text-muted small';
+    return this.productSortDir() === 'asc' ? 'bi-sort-alpha-down' : 'bi-sort-alpha-up';
+  }
+
+  private compareValues(av: string | number, bv: string | number): number {
+    if (typeof av === 'number' && typeof bv === 'number') return av - bv;
+    return String(av).localeCompare(String(bv));
+  }
 
   ngOnInit(): void {
     this.eventsService.getEvents().subscribe((events) => {
