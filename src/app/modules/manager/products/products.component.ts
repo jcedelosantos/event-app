@@ -4,6 +4,7 @@ import { Product } from '../../../models/products/product';
 
 import { ProductCardComponent } from './components/product-card/product-card.component';
 import { UpdateProductModalComponent } from './components/update-product-modal/update-product-modal.component';
+import { ImportProductsModalComponent } from './components/import-products-modal/import-products-modal.component';
 import { ProductsService } from './services/products.service';
 import { confirm, error } from '../../../utils/messages';
 import { extractErrorMessage } from '../../../utils/api-error';
@@ -11,7 +12,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 
 @Component({
 	selector: 'app-products',
-	imports: [ProductCardComponent, UpdateProductModalComponent],
+	imports: [ProductCardComponent, UpdateProductModalComponent, ImportProductsModalComponent],
 	template: `
 		<h2>Products Manager</h2>
 
@@ -19,6 +20,9 @@ import { HttpErrorResponse } from '@angular/common/http';
 			<div class="container-fluid">
 				<form class="d-flex" role="search">
 					<button type="button" class="btn btn-danger me-4" (click)="selectedProduct.set(null)" data-bs-toggle="modal" data-bs-target="#updateProductModal">Create</button>
+					<button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#importProductsModal">
+						<i class="bi bi-upload" aria-hidden="true"></i> Importar desde CSV
+					</button>
 				</form>
 			</div>
 		</nav>
@@ -35,6 +39,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 			</div>
 		}
 		<app-update-product-modal [product]="selectedProduct()" (productSaved)="loadProducts()" />
+		<import-products-modal (imported)="loadProducts()" />
 	`,
 	styleUrl: './products.component.css',
 	changeDetection: ChangeDetectionStrategy.OnPush,

@@ -16,6 +16,26 @@ export type ProductInput = {
 	eventId: number;
 };
 
+export type BulkImportProductRow = {
+	name: string;
+	description: string;
+	type: string;
+	variant: string;
+	count: number;
+	price: number;
+	img: string;
+};
+
+export type BulkImportProductsInput = {
+	eventId: number;
+	rows: BulkImportProductRow[];
+};
+
+export type BulkImportResult = {
+	created: number;
+	skipped: { row: number; reason: string }[];
+};
+
 @Injectable({
 	providedIn: 'root',
 })
@@ -41,5 +61,9 @@ export class ProductsService {
 
 	deleteProduct(id: number): Observable<void> {
 		return this.httpClient.delete<void>(`${this.baseUrl}/${id}`);
+	}
+
+	bulkImport(input: BulkImportProductsInput): Observable<BulkImportResult> {
+		return this.httpClient.post<BulkImportResult>(`${this.baseUrl}/bulk-import`, input);
 	}
 }

@@ -10,6 +10,7 @@ import { EventDetailModalComponent } from './components/event-detail-modal/event
 import { CreateQrModalComponent } from './components/create-qr-modal/create-qr-modal.component';
 import { ProductSaleDetailModalComponent } from './components/product-sale-detail-modal/product-sale-detail-modal.component';
 import { CreateProductQrModalComponent } from './components/create-product-qr-modal/create-product-qr-modal.component';
+import { ImportSalesModalComponent } from './components/import-sales-modal/import-sales-modal.component';
 import { confirm, error } from '../../../utils/messages';
 import { extractErrorMessage } from '../../../utils/api-error';
 import { eventDateKey, todayKey } from '../../../utils/dates';
@@ -18,7 +19,7 @@ import * as bootstrap from "bootstrap";
 
 @Component({
   selector: 'app-qrs',
-  imports: [DatePipe, FormsModule, RouterLink, EventDetailModalComponent, CreateQrModalComponent, ProductSaleDetailModalComponent, CreateProductQrModalComponent],
+  imports: [DatePipe, FormsModule, RouterLink, EventDetailModalComponent, CreateQrModalComponent, ProductSaleDetailModalComponent, CreateProductQrModalComponent, ImportSalesModalComponent],
   templateUrl: './qrs.component.html',
   styleUrl: './qrs.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -115,6 +116,13 @@ export class QrsComponent implements OnInit, AfterViewInit {
 
   onProductSaleCreated(sale: SaleProduct) {
     this.productSaleList.update((list) => [sale, ...list]);
+  }
+
+  // La importación masiva crea ventas para el evento que se haya elegido DENTRO del modal, que no
+  // necesariamente es el mismo que el filtro de esta pantalla — recargar contra el filtro actual
+  // (no simplemente insertar en la lista) evita mostrar ventas de otro evento mezcladas.
+  onSalesImported() {
+    this.loadQRs();
   }
 
   deleteQR(qr: SaleTicket) {

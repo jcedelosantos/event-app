@@ -60,6 +60,71 @@ productsRouter.post('/', asyncHandler(async (req, res) => {
 	}
 }));
 
+const bulkImportSchema = z.object({
+	eventId: z.number().int(),
+	rows: z
+		.array(
+			z.object({
+				name: z.string().min(1),
+				description: z.string().optional().default(''),
+				type: z.string().optional().default(''),
+				variant: z.string().optional().default(''),
+				count: z.coerce.number().int().optional().default(0),
+				price: z.coerce.number().optional().default(0),
+				img: z.string().optional().default(''),
+			}),
+		)
+		.min(1)
+		.max(500),
+});
+
+// Carga masiva desde un CSV/Excel del catálogo de un evento — a diferencia del POST normal, procesa
+// cada fila en su propio try/catch (no una sola transacción) para que una fila con datos malos no
+// tumbe todo el lote: el usuario sube un archivo real con errores humanos y necesita un reporte de
+// qué entró y qué no, no un 400 genérico que descarta todo.
+productsRouter.post('/bulk-import', asyncHandler(async (req, res) => {
+	const parsed = bulkImportSchema.safeParse(req.body);
+	if (!parsed.success) {
+		res.status(400).json({ error: parsed.error.flatten() });
+		return;
+	}
+	const { eventId, rows } = parsed.data;
+
+	const event = await prisma.event.findUnique({ where: { id: eventId } });
+	if (!event) {
+		res.status(404).json({ error: 'Evento no encontrado' });
+		return;
+	}
+
+	let created = 0;
+	const skipped: { row: number; reason: string }[] = [];
+
+	for (const [i, row] of rows.entries()) {
+		try {
+			const product = await prisma.product.create({
+				data: {
+					name: row.name,
+					description: row.description,
+					type: row.type,
+					variant: row.variant,
+					count: row.count,
+					price: row.price,
+					img: row.img,
+					active: true,
+					eventId,
+					code: '',
+				},
+			});
+			await prisma.product.update({ where: { id: product.id }, data: { code: `PRD-${String(product.id).padStart(4, '0')}` } });
+			created++;
+		} catch {
+			skipped.push({ row: i + 1, reason: `No se pudo crear "${row.name}"` });
+		}
+	}
+
+	res.json({ created, skipped });
+}));
+
 productsRouter.put('/:id', asyncHandler(async (req, res) => {
 	const id = Number(req.params.id);
 	const parsed = productInputSchema.partial().safeParse(req.body);

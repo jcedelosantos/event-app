@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { Router } from 'express';
 import { z } from 'zod';
+import bcrypt from 'bcryptjs';
 import { prisma } from '../lib/prisma';
 import { requireAuth, AuthenticatedRequest } from '../middleware/auth';
 import { toPublicUser } from '../lib/serialize';
@@ -77,6 +78,126 @@ saleTicketsRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res) 
 		}
 		throw err;
 	}
+}));
+
+const bulkImportRowSchema = z.object({
+	carnet: z.string().optional().default(''),
+	name: z.string().min(1),
+	lastname: z.string().optional().default(''),
+	email: z.string().optional().default(''),
+	phone: z.string().optional().default(''),
+	seatName: z.string().min(1),
+	paidType: z.string().optional().default('Efectivo'),
+});
+
+const bulkImportSchema = z.object({
+	eventId: z.number().int(),
+	ticketId: z.number().int(),
+	rows: z.array(bulkImportRowSchema).min(1).max(1000),
+});
+
+// "N/S" (sin carnet) es el valor real que usa el club para invitados que no son socios — no cuenta
+// como identificador.
+function hasRealCarnet(carnet: string): boolean {
+	return carnet.trim() !== '' && carnet.trim().toUpperCase() !== 'N/S';
+}
+
+// Carga masiva de un CSV de ventas (carnet, nombre, mesa/silla ya vendidos en otro sistema o en
+// papel) contra UN evento — crea o reutiliza el cliente y le asigna el asiento indicado por nombre.
+// Igual que el bulk-import de productos: cada fila en su propio try/catch, nunca una sola transacción
+// para todo el lote, porque un CSV real de gente tiene errores humanos (carnet repetido, asiento que
+// no existe, etc.) y hace falta un reporte de qué entró y qué no, no un 400 que descarta todo.
+saleTicketsRouter.post('/bulk-import', asyncHandler(async (req: AuthenticatedRequest, res) => {
+	const parsed = bulkImportSchema.safeParse(req.body);
+	if (!parsed.success) {
+		res.status(400).json({ error: parsed.error.flatten() });
+		return;
+	}
+	const { eventId, ticketId, rows } = parsed.data;
+
+	const event = await prisma.event.findUnique({ where: { id: eventId }, include: { map: { include: { areas: { include: { seats: true } } } } } });
+	if (!event) {
+		res.status(404).json({ error: 'Evento no encontrado' });
+		return;
+	}
+	const ticket = await prisma.ticket.findFirst({ where: { id: ticketId, eventId } });
+	if (!ticket) {
+		res.status(400).json({ error: 'El ticket elegido no pertenece a este evento' });
+		return;
+	}
+	const clientType = await prisma.userType.findFirst({ where: { type: 'CLIENT' } });
+	if (!clientType) {
+		res.status(500).json({ error: 'No existe el tipo de usuario CLIENT' });
+		return;
+	}
+
+	const seatIdByName = new Map<string, number>();
+	for (const area of event.map?.areas ?? []) {
+		for (const seat of area.seats) seatIdByName.set(seat.name, seat.id);
+	}
+
+	let created = 0;
+	const skipped: { row: number; reason: string }[] = [];
+
+	for (const [i, row] of rows.entries()) {
+		const rowNum = i + 1;
+		const seatId = seatIdByName.get(row.seatName);
+		if (!seatId) {
+			skipped.push({ row: rowNum, reason: `El asiento "${row.seatName}" no existe en el mapa de este evento` });
+			continue;
+		}
+		const alreadySold = await prisma.saleTicket.findFirst({ where: { eventId, seatId } });
+		if (alreadySold) {
+			skipped.push({ row: rowNum, reason: `El asiento "${row.seatName}" ya estaba vendido` });
+			continue;
+		}
+
+		try {
+			let client = hasRealCarnet(row.carnet) ? await prisma.user.findFirst({ where: { carnet: row.carnet } }) : null;
+			if (!client && row.email) {
+				client = await prisma.user.findUnique({ where: { email: row.email } });
+			}
+			if (!client) {
+				// Sin carnet ni correo (invitados) no hay forma de deduplicar — se genera un email
+				// placeholder único ligado al asiento para que el registro sea válido en el schema
+				// (email es @unique y obligatorio) sin bloquear la importación por eso.
+				const email = row.email || `invitado.asiento-${seatId}.evento-${eventId}@sin-correo.local`;
+				const hashed = await bcrypt.hash(randomUUID(), 10);
+				client = await prisma.user.create({
+					data: {
+						username: email,
+						password: hashed,
+						name: row.name,
+						lastname: row.lastname,
+						email,
+						phone: row.phone || 'N/A',
+						gender: '',
+						adress: '',
+						carnet: hasRealCarnet(row.carnet) ? row.carnet : '',
+						typeId: clientType.id,
+					},
+				});
+			}
+
+			await prisma.saleTicket.create({
+				data: {
+					eventId,
+					seatId,
+					ticketId,
+					userId: req.user!.userId,
+					clientId: client.id,
+					paidType: row.paidType,
+					description: 'Importación masiva',
+					codeQR: randomUUID(),
+				},
+			});
+			created++;
+		} catch {
+			skipped.push({ row: rowNum, reason: `No se pudo procesar a "${row.name}" (${row.seatName})` });
+		}
+	}
+
+	res.json({ created, skipped });
 }));
 
 saleTicketsRouter.post('/:id/resend', asyncHandler(async (req, res) => {

@@ -15,6 +15,11 @@
             <i class="bi bi-plus-circle" aria-hidden="true"></i> Vender producto / Generar QR
         </button>
     </div>
+    <div class="col-sm-3">
+        <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#importSalesModal">
+            <i class="bi bi-upload" aria-hidden="true"></i> Importar desde CSV
+        </button>
+    </div>
 </div>
 
 <div class="row my-3">
@@ -130,3 +135,4 @@
 <create-qr-modal (qrCreated)="onQrCreated($event)" />
 <app-product-sale-detail-modal [saleProduct]="selectedProductSaleDetail()" />
 <create-product-qr-modal (saleProductCreated)="onProductSaleCreated($event)" />
+<import-sales-modal (imported)="onSalesImported()" />

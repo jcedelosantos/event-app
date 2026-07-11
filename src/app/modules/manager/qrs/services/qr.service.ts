@@ -37,6 +37,27 @@ export type SaleTicketInput = {
 	description?: string;
 };
 
+export type BulkImportSaleTicketRow = {
+	carnet: string;
+	name: string;
+	lastname: string;
+	email: string;
+	phone: string;
+	seatName: string;
+	paidType: string;
+};
+
+export type BulkImportSaleTicketsInput = {
+	eventId: number;
+	ticketId: number;
+	rows: BulkImportSaleTicketRow[];
+};
+
+export type BulkImportResult = {
+	created: number;
+	skipped: { row: number; reason: string }[];
+};
+
 @Injectable({
 	providedIn: 'root',
 })
@@ -62,5 +83,9 @@ export class QRService {
 
 	resendQR(id: number): Observable<{ ok: boolean }> {
 		return this.httpClient.post<{ ok: boolean }>(`${this.baseUrl}/${id}/resend`, {});
+	}
+
+	bulkImport(input: BulkImportSaleTicketsInput): Observable<BulkImportResult> {
+		return this.httpClient.post<BulkImportResult>(`${this.baseUrl}/bulk-import`, input);
 	}
 }
