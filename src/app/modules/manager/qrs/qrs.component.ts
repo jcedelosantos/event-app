@@ -43,7 +43,12 @@ export class QrsComponent implements OnInit, AfterViewInit {
   filteredQrList = computed(() => {
     const q = this.searchText().trim().toLowerCase();
     if (!q) return this.qrList();
-    return this.qrList().filter((qr) => `${qr.client.name} ${qr.client.lastname}`.toLowerCase().includes(q) || qr.codeQR.toLowerCase().includes(q));
+    return this.qrList().filter(
+      (qr) =>
+        `${qr.client.name} ${qr.client.lastname}`.toLowerCase().includes(q) ||
+        qr.codeQR.toLowerCase().includes(q) ||
+        qr.seat.name.toLowerCase().includes(q),
+    );
   });
 
   filteredProductSaleList = computed(() => {

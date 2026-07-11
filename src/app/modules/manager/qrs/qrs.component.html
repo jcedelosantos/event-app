@@ -40,6 +40,7 @@
             <th>Client</th>
             <th>Date</th>
             <th>Event</th>
+            <th>Mesa/Asiento</th>
             <th>Price</th>
             <th>Estado</th>
             <th></th>
@@ -52,6 +53,7 @@
             <td scope="row">{{qr.client.name}} {{qr.client.lastname}}</td>
             <td scope="row">{{qr.dateSold | date: 'short'}}</td>
             <td scope="row">{{qr.event.name}}</td>
+            <td scope="row">{{qr.seat.area.name}} / {{qr.seat.name}}</td>
             <td scope="row">{{qr.ticket.price}}</td>
             <td scope="row">
                 @if (qr.checkedInAt) {
@@ -71,7 +73,7 @@
         </tr>
         } @empty {
         <tr>
-            <td colspan="7" class="text-muted">Todavía no hay ventas registradas.</td>
+            <td colspan="8" class="text-muted">Todavía no hay ventas registradas.</td>
         </tr>
         }
     </tbody>

@@ -193,6 +193,14 @@ export class CreateQrModalComponent implements OnInit {
 		if (!areaId) return;
 
 		this.seatsService.getSeatsByArea(areaId).subscribe((seats) => this.seats.set(seats));
+
+		// Re-consultar qué asientos ya se vendieron cada vez que se cambia de área (no solo al abrir
+		// el modal) — si el formulario queda abierto un rato y alguien compra por el link público
+		// mientras tanto, esto evita mostrar como disponible un asiento que ya no lo está.
+		const eventId = this.form.controls.eventId.value;
+		if (eventId) {
+			this.qrService.getQRsByEvent(eventId).subscribe((sales) => this.soldSeatIds.set(new Set(sales.map((s) => s.seatId))));
+		}
 	}
 
 	submit() {
@@ -220,6 +228,16 @@ export class CreateQrModalComponent implements OnInit {
 				},
 				error: (err: HttpErrorResponse) => {
 					this.errorMessage = extractErrorMessage(err);
+					if (err.status === 409) {
+						// El asiento se vendió entre que se cargó la lista y este submit — refrescar
+						// para que el dropdown ya no lo muestre como disponible, y soltar la selección
+						// vieja para que quede claro que hay que elegir otro.
+						this.form.patchValue({ seatId: null });
+						const eventId = this.form.controls.eventId.value;
+						if (eventId) {
+							this.qrService.getQRsByEvent(eventId).subscribe((sales) => this.soldSeatIds.set(new Set(sales.map((s) => s.seatId))));
+						}
+					}
 				},
 			});
 	}
