@@ -12,6 +12,17 @@ export type PublicSeat = {
 	size: number;
 	color: string;
 	available: boolean;
+	tableId: number | null;
+};
+
+export type PublicTable = {
+	id: number;
+	name: string;
+	icon: string;
+	x: number;
+	y: number;
+	size: number;
+	color: string;
 };
 
 export type PublicArea = {
@@ -20,6 +31,7 @@ export type PublicArea = {
 	description: string;
 	img: string;
 	seats: PublicSeat[];
+	tables: PublicTable[];
 };
 
 export type PublicMap = {

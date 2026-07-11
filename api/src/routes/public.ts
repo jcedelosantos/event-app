@@ -19,7 +19,7 @@ publicRouter.get('/events/:code', asyncHandler(async (req, res) => {
 	const event = await prisma.event.findUnique({
 		where: { code: req.params.code },
 		include: {
-			map: { include: { areas: { include: { seats: true } } } },
+			map: { include: { areas: { include: { seats: true, tables: true } } } },
 			tickets: { where: { active: true } },
 		},
 	});

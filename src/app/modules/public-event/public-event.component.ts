@@ -1,9 +1,9 @@
-import { ChangeDetectionStrategy, Component, inject, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { QRCodeComponent } from 'angularx-qrcode';
-import { PublicEvent, PublicEventService, PublicSeat, PurchasedSaleTicket } from './services/public-event.service';
+import { PublicArea, PublicEvent, PublicEventService, PublicSeat, PurchasedSaleTicket } from './services/public-event.service';
 import { extractErrorMessage } from '../../utils/api-error';
 import { shortSeatLabel } from '../../utils/seat-label';
 
@@ -88,7 +88,7 @@ const MAX_SEATS = 5;
 												<div class="seat-picker-image">
 													<img [src]="area.img" class="seat-picker-bg" (load)="onImageLoad(area.id, $event)" />
 													@if (imgSizes()[area.id]; as size) {
-														@for (seat of area.seats; track seat.id) {
+														@for (seat of ungroupedSeats(area); track seat.id) {
 															<button
 																type="button"
 																class="seat-btn"
@@ -102,6 +102,24 @@ const MAX_SEATS = 5;
 															>
 																{{ seatLabel(seat) }}
 															</button>
+														}
+														@for (table of area.tables; track table.id) {
+															@if (seatsForTable(area, table.id).length) {
+																<button
+																	type="button"
+																	class="table-btn"
+																	[class.table-full]="tableAvailableCount(area, table.id) === 0"
+																	[style.top.%]="(table.y / size.h) * 100"
+																	[style.left.%]="(table.x / size.w) * 100"
+																	[title]="table.name"
+																	(click)="toggleTable(table.id)"
+																>
+																	<i class="bi {{ table.icon || 'bi-circle-fill' }}"></i>
+																	@if (tableSelectedCount(area, table.id) > 0) {
+																		<span class="table-badge">{{ tableSelectedCount(area, table.id) }}</span>
+																	}
+																</button>
+															}
 														}
 													}
 												</div>
@@ -126,6 +144,36 @@ const MAX_SEATS = 5;
 									</div>
 								}
 							</div>
+
+							@if (expandedTableSeats(); as info) {
+								<div class="table-overlay-backdrop" (click)="expandedTableId.set(null)">
+									<div class="table-overlay-panel" (click)="$event.stopPropagation()">
+										<div class="d-flex justify-content-between align-items-center mb-3">
+											<h6 class="mb-0">{{ info.table.name }}</h6>
+											<button type="button" class="btn-close btn-close-white" aria-label="Cerrar" (click)="expandedTableId.set(null)"></button>
+										</div>
+										<div class="d-flex flex-wrap gap-2 mb-3">
+											@for (seat of info.seats; track seat.id) {
+												<button
+													type="button"
+													class="table-seat-btn"
+													[class.seat-taken]="!seat.available"
+													[class.seat-selected]="selectedSeatIds().has(seat.id)"
+													[disabled]="!seat.available"
+													(click)="toggleSeat(seat)"
+												>
+													{{ seatLabel(seat) }}
+												</button>
+											}
+										</div>
+										<div class="d-flex gap-3 small text-body-secondary">
+											<span><span class="legend-dot" style="background:#28a745"></span> Disponible</span>
+											<span><span class="legend-dot" style="background:#6c757d"></span> Ocupado</span>
+											<span><span class="legend-dot" style="background:#dc3545"></span> Elegido</span>
+										</div>
+									</div>
+								</div>
+							}
 
 							<div class="mb-4">
 								<h5>3. Tus datos</h5>
@@ -212,6 +260,89 @@ const MAX_SEATS = 5;
 				color: #666;
 				cursor: not-allowed;
 			}
+			.table-btn {
+				position: absolute;
+				width: 30px;
+				height: 30px;
+				padding: 0;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				border-radius: 50%;
+				border: 2px solid #dc3545;
+				background: #dc3545;
+				color: #fff;
+				font-size: 15px;
+				cursor: pointer;
+				transform: translate(-50%, -50%);
+			}
+			.table-btn.table-full {
+				border-color: #6c757d;
+				background: #6c757d;
+			}
+			.table-badge {
+				position: absolute;
+				top: -6px;
+				right: -6px;
+				background: #fff;
+				color: #dc3545;
+				font-size: 10px;
+				font-weight: 700;
+				line-height: 1;
+				border-radius: 50%;
+				min-width: 16px;
+				height: 16px;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				padding: 0 2px;
+			}
+			.table-overlay-backdrop {
+				position: fixed;
+				inset: 0;
+				background: rgba(0, 0, 0, 0.7);
+				display: flex;
+				align-items: flex-end;
+				justify-content: center;
+				z-index: 1050;
+			}
+			.table-overlay-panel {
+				background: #16181c;
+				border: 1px solid #2a2a2a;
+				border-radius: 0.75rem 0.75rem 0 0;
+				padding: 20px;
+				width: 100%;
+				max-width: 480px;
+				max-height: 70vh;
+				overflow-y: auto;
+			}
+			.table-seat-btn {
+				min-width: 44px;
+				height: 44px;
+				padding: 0 8px;
+				border-radius: 8px;
+				border: none;
+				background: #28a745;
+				color: #fff;
+				font-weight: 600;
+				cursor: pointer;
+			}
+			.table-seat-btn.seat-selected {
+				background: #dc3545;
+			}
+			.table-seat-btn.seat-taken {
+				background: #6c757d;
+				color: #ccc;
+				cursor: not-allowed;
+			}
+			.legend-dot {
+				display: inline-block;
+				width: 10px;
+				height: 10px;
+				border-radius: 50%;
+				margin-right: 4px;
+				vertical-align: middle;
+			}
 		`,
 	],
 	changeDetection: ChangeDetectionStrategy.OnPush,
@@ -244,6 +375,44 @@ export class PublicEventComponent implements OnInit {
 		const img = event.target as HTMLImageElement;
 		this.imgSizes.update((sizes) => ({ ...sizes, [areaId]: { w: img.naturalWidth, h: img.naturalHeight } }));
 	}
+
+	// Con muchos asientos agrupados en mesas, mostrar cada silla como un punto individual sobre el
+	// plano es difícil de tocar con el dedo y poco amigable para alguien que no conoce el sistema —
+	// en vez de eso, la mesa entera es el botón sobre el mapa; tocarla abre un panel con sus asientos
+	// como pastillas grandes (verde disponible / gris ocupado / rojo ya elegido), igual paleta que
+	// usa el manager en su propio editor de mapa.
+	expandedTableId = signal<number | null>(null);
+
+	ungroupedSeats(area: PublicArea): PublicSeat[] {
+		return area.seats.filter((s) => !s.tableId);
+	}
+
+	seatsForTable(area: PublicArea, tableId: number): PublicSeat[] {
+		return area.seats.filter((s) => s.tableId === tableId);
+	}
+
+	tableAvailableCount(area: PublicArea, tableId: number): number {
+		return this.seatsForTable(area, tableId).filter((s) => s.available).length;
+	}
+
+	tableSelectedCount(area: PublicArea, tableId: number): number {
+		return this.seatsForTable(area, tableId).filter((s) => this.selectedSeatIds().has(s.id)).length;
+	}
+
+	toggleTable(tableId: number) {
+		this.expandedTableId.update((current) => (current === tableId ? null : tableId));
+	}
+
+	expandedTableSeats = computed(() => {
+		const tableId = this.expandedTableId();
+		const ev = this.event();
+		if (!tableId || !ev?.map) return null;
+		for (const area of ev.map.areas) {
+			const table = area.tables.find((t) => t.id === tableId);
+			if (table) return { table, seats: this.seatsForTable(area, tableId) };
+		}
+		return null;
+	});
 
 	registerForm = this.fb.group({
 		name: this.fb.control('', Validators.required),
