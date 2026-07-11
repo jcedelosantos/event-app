@@ -114,7 +114,7 @@ const MAX_SEATS = 5;
 																	[title]="table.name"
 																	(click)="toggleTable(table.id)"
 																>
-																	<i class="bi {{ table.icon || 'bi-circle-fill' }}"></i>
+																	{{ seatLabel(table) }}
 																	@if (tableSelectedCount(area, table.id) > 0) {
 																		<span class="table-badge">{{ tableSelectedCount(area, table.id) }}</span>
 																	}
@@ -262,8 +262,8 @@ const MAX_SEATS = 5;
 			}
 			.table-btn {
 				position: absolute;
-				width: 30px;
-				height: 30px;
+				width: 32px;
+				height: 32px;
 				padding: 0;
 				display: flex;
 				align-items: center;
@@ -272,9 +272,12 @@ const MAX_SEATS = 5;
 				border: 2px solid #dc3545;
 				background: #dc3545;
 				color: #fff;
-				font-size: 15px;
+				font-size: 13px;
+				font-weight: 700;
+				line-height: 1;
 				cursor: pointer;
 				transform: translate(-50%, -50%);
+				text-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
 			}
 			.table-btn.table-full {
 				border-color: #6c757d;
@@ -446,8 +449,8 @@ export class PublicEventComponent implements OnInit {
 		return control.invalid && control.touched;
 	}
 
-	seatLabel(seat: PublicSeat): string {
-		return shortSeatLabel(seat.name);
+	seatLabel(item: { name: string }): string {
+		return shortSeatLabel(item.name);
 	}
 
 	toggleSeat(seat: PublicSeat) {
