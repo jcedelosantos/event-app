@@ -48,7 +48,7 @@ export type PublicEvent = {
 	map: PublicMap;
 };
 
-export type RegisterInput = { name: string; lastname: string; email: string; phone: string };
+export type RegisterInput = { name: string; lastname: string; email: string; phone: string; carnet: string };
 
 export type PurchaseInput = {
 	eventCode: string;

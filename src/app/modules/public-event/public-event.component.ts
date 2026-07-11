@@ -86,21 +86,23 @@ const MAX_SEATS = 5;
 										<div class="card-body">
 											@if (area.img) {
 												<div class="seat-picker-image">
-													<img [src]="area.img" class="seat-picker-bg" />
-													@for (seat of area.seats; track seat.id) {
-														<button
-															type="button"
-															class="seat-btn"
-															[class.seat-taken]="!seat.available"
-															[class.seat-selected]="selectedSeatIds().has(seat.id)"
-															[disabled]="!seat.available"
-															[style.top.px]="seat.y"
-															[style.left.px]="seat.x"
-															[title]="seat.name"
-															(click)="toggleSeat(seat)"
-														>
-															{{ seatLabel(seat) }}
-														</button>
+													<img [src]="area.img" class="seat-picker-bg" (load)="onImageLoad(area.id, $event)" />
+													@if (imgSizes()[area.id]; as size) {
+														@for (seat of area.seats; track seat.id) {
+															<button
+																type="button"
+																class="seat-btn"
+																[class.seat-taken]="!seat.available"
+																[class.seat-selected]="selectedSeatIds().has(seat.id)"
+																[disabled]="!seat.available"
+																[style.top.%]="(seat.y / size.h) * 100"
+																[style.left.%]="(seat.x / size.w) * 100"
+																[title]="seat.name"
+																(click)="toggleSeat(seat)"
+															>
+																{{ seatLabel(seat) }}
+															</button>
+														}
 													}
 												</div>
 											} @else {
@@ -139,6 +141,9 @@ const MAX_SEATS = 5;
 									</div>
 									<div class="col-md-6">
 										<input type="text" class="form-control" placeholder="Teléfono" [class.is-invalid]="isInvalid('phone')" formControlName="phone" />
+									</div>
+									<div class="col-md-6">
+										<input type="text" class="form-control" placeholder="Carnet / Cédula" [class.is-invalid]="isInvalid('carnet')" formControlName="carnet" />
 									</div>
 								</form>
 							</div>
@@ -226,11 +231,26 @@ export class PublicEventComponent implements OnInit {
 	errorMessage = signal('');
 	purchasedTickets = signal<PurchasedSaleTicket[]>([]);
 
+	// seat.x/seat.y se guardaron en píxeles del tamaño NATURAL de la imagen (así los posiciona el
+	// editor del manager, que renderiza la imagen sin escalar). Acá la imagen sí se achica para caber
+	// en pantallas chicas (`max-width:100%`) — sin convertir a porcentaje, los asientos quedaban
+	// anclados a coordenadas en px "de tamaño completo" mientras la imagen visible era mucho más
+	// chica, y terminaban desparramados fuera del mapa. Se captura el tamaño natural al cargar cada
+	// imagen y se posiciona todo en % de ese tamaño, así escala junto con la imagen sin importar el
+	// viewport.
+	imgSizes = signal<Record<number, { w: number; h: number }>>({});
+
+	onImageLoad(areaId: number, event: Event) {
+		const img = event.target as HTMLImageElement;
+		this.imgSizes.update((sizes) => ({ ...sizes, [areaId]: { w: img.naturalWidth, h: img.naturalHeight } }));
+	}
+
 	registerForm = this.fb.group({
 		name: this.fb.control('', Validators.required),
 		lastname: this.fb.control('', Validators.required),
 		email: this.fb.control('', [Validators.required, Validators.email]),
 		phone: this.fb.control('', Validators.required),
+		carnet: this.fb.control('', Validators.required),
 	});
 
 	ngOnInit(): void {
@@ -297,13 +317,13 @@ export class PublicEventComponent implements OnInit {
 			return;
 		}
 
-		const { name, lastname, email, phone } = this.registerForm.getRawValue();
+		const { name, lastname, email, phone, carnet } = this.registerForm.getRawValue();
 		this.submitting.set(true);
 		this.publicEventService
 			.purchase({
 				eventCode: event.code,
 				ticketId: this.selectedTicketId()!,
-				client: { name: name!, lastname: lastname!, email: email!, phone: phone! },
+				client: { name: name!, lastname: lastname!, email: email!, phone: phone!, carnet: carnet! },
 				seatIds: Array.from(this.selectedSeatIds()),
 			})
 			.subscribe({

@@ -59,6 +59,7 @@ const registerSchema = z.object({
 	lastname: z.string().min(1),
 	email: z.string().email(),
 	phone: z.string().min(1),
+	carnet: z.string().min(1),
 });
 
 publicRouter.post('/register', asyncHandler(async (req, res) => {
@@ -70,6 +71,13 @@ publicRouter.post('/register', asyncHandler(async (req, res) => {
 
 	const existing = await prisma.user.findUnique({ where: { email: parsed.data.email }, include: { type: true } });
 	if (existing) {
+		// Si el cliente ya existía de una compra anterior sin carnet (dato agregado después), completarlo
+		// ahora que lo tenemos — no pisar uno que ya esté cargado.
+		if (!existing.carnet && parsed.data.carnet) {
+			const updated = await prisma.user.update({ where: { id: existing.id }, data: { carnet: parsed.data.carnet }, include: { type: true } });
+			res.json(toPublicUser(updated));
+			return;
+		}
 		res.json(toPublicUser(existing));
 		return;
 	}
@@ -92,7 +100,7 @@ publicRouter.post('/register', asyncHandler(async (req, res) => {
 				phone: parsed.data.phone,
 				gender: '',
 				adress: '',
-				carnet: '',
+				carnet: parsed.data.carnet,
 				typeId: clientType.id,
 			},
 			include: { type: true },
@@ -158,10 +166,13 @@ publicRouter.post('/purchase', asyncHandler(async (req, res) => {
 				phone: clientData.phone,
 				gender: '',
 				adress: '',
-				carnet: '',
+				carnet: clientData.carnet,
 				typeId: clientType.id,
 			},
 		});
+	} else if (!client.carnet && clientData.carnet) {
+		// Mismo backfill que en /register — un cliente que ya compró antes sin carnet lo completa acá.
+		client = await prisma.user.update({ where: { id: client.id }, data: { carnet: clientData.carnet } });
 	}
 
 	// Las compras de autoservicio no tienen un vendedor humano — se registran a nombre del primer
