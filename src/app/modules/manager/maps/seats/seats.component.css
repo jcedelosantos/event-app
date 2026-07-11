@@ -18,6 +18,11 @@ img {
 	padding: 3px;
 	min-width: 14px;
 	min-height: 14px;
+	/* x/y se guardan como el CENTRO del asiento/mesa (así se calcula el anillo al generar en bulk) —
+	   sin este transform, top/left ancla la esquina superior izquierda, y como el ícono de mesa es
+	   mucho más grande que los de asiento, su centro visual queda desplazado hacia abajo-derecha
+	   respecto al punto real donde se calculó el anillo, dando el efecto de mesa "descentralizada". */
+	transform: translate(-50%, -50%);
 }
 
 .draggable-btn:active {
@@ -46,6 +51,15 @@ div.scrollimg a:hover {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
+}
+
+.legend-dot {
+	display: inline-block;
+	width: 10px;
+	height: 10px;
+	border-radius: 50%;
+	margin-right: 4px;
+	vertical-align: middle;
 }
 
 .seat-icon-label {

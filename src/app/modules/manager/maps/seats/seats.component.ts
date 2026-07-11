@@ -1,10 +1,12 @@
 import { ChangeDetectionStrategy, Component, ViewChild, OnInit, AfterViewInit, ElementRef, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
+import { FormsModule } from '@angular/forms';
 
 import { Map } from '../../../../models/maps/map';
 import { Area } from '../../../../models/maps/area';
 import { Seat } from '../../../../models/maps/seat';
 import { Table } from '../../../../models/maps/table';
+import { Events } from '../../../../models/events/events';
 import { NavBarMapComponent } from '../components/nav-bar-map/nav-bar-map.component';
 import { CollapseTablesComponent } from '../components/accordion-tables/collapse-tables.component';
 import { CreateSeatModalComponent } from '../components/create-seat-modal/create-seat-modal.component';
@@ -13,16 +15,21 @@ import { MapsService } from '../services/maps.service';
 import { AreasService } from '../services/areas.service';
 import { SeatsService } from '../services/seats.service';
 import { TablesService } from '../services/tables.service';
+import { EventsService } from '../../events/services/events.service';
+import { QRService } from '../../qrs/services/qr.service';
 import { confirm, error } from '../../../../utils/messages';
 import { extractErrorMessage } from '../../../../utils/api-error';
 import { shortSeatLabel } from '../../../../utils/seat-label';
 import { HttpErrorResponse } from '@angular/common/http';
 
+const SEAT_AVAILABLE_COLOR = '#28a745';
+const SEAT_SOLD_COLOR = '#6c757d';
+
 declare const bootstrap: any;
 
 @Component({
 	selector: 'app-seats',
-	imports: [NavBarMapComponent, CollapseTablesComponent, CreateSeatModalComponent, BulkCreateSeatsModalComponent],
+	imports: [FormsModule, NavBarMapComponent, CollapseTablesComponent, CreateSeatModalComponent, BulkCreateSeatsModalComponent],
 	template: `
 		<nav-bar-map [areas]="map()?.areas" [idMap]="map()?.id" />
 		<div class="col-xxl-9 col-md-12 d-flex justify-content-between align-items-center">
@@ -31,6 +38,23 @@ declare const bootstrap: any;
 				<button type="button" class="btn btn-outline-danger btn-sm me-2" data-bs-toggle="modal" data-bs-target="#bulkCreateSeatsModal"><i class="bi bi-grid-3x3-gap"></i> Generar varios</button>
 				<button type="button" class="btn btn-danger btn-sm" (click)="openCreateSeatModal()"><i class="bi bi-plus-lg"></i> Add Seat</button>
 			</div>
+		</div>
+		<div class="col-xxl-9 col-md-12 d-flex align-items-center gap-3 mb-2">
+			<div class="d-flex align-items-center gap-2">
+				<label class="form-label small text-body-secondary mb-0">Ver disponibilidad del evento</label>
+				<select class="form-select form-select-sm" style="width: auto;" [ngModel]="selectedEventId()" (ngModelChange)="onEventFilterChange($event)">
+					<option [ngValue]="null">Sin filtrar (colores propios)</option>
+					@for (event of events(); track event.id) {
+						<option [ngValue]="event.id">{{ event.name }}</option>
+					}
+				</select>
+			</div>
+			@if (selectedEventId()) {
+				<div class="small text-body-secondary d-flex align-items-center gap-3">
+					<span><span class="legend-dot" [style.background]="availableColor"></span> Disponible</span>
+					<span><span class="legend-dot" [style.background]="soldColor"></span> Vendido</span>
+				</div>
+			}
 		</div>
 		<div class="scroll-map">
 			<div class="row">
@@ -73,11 +97,11 @@ declare const bootstrap: any;
 										>
 											@if (seat.icon) {
 												<div class="seat-icon-wrap">
-													<i [class]="'bi ' + seat.icon" [style.color]="seat.color" [style.font-size.px]="seat.size"></i>
+													<i [class]="'bi ' + seat.icon" [style.color]="seatColor(seat)" [style.font-size.px]="seat.size"></i>
 													<span class="seat-icon-label" [style.font-size.px]="seat.size * 0.32">{{ seat.name }}</span>
 												</div>
 											} @else {
-												<span [style.color]="seat.color" [style.font-size.px]="seat.size * 0.8">{{ seatLabel(seat) }}</span>
+												<span [style.color]="seatColor(seat)" [style.font-weight]="selectedEventId() ? 700 : 400" [style.font-size.px]="seat.size * 0.8">{{ seatLabel(seat) }}</span>
 											}
 										</button>
 									}
@@ -136,6 +160,11 @@ export class SeatsComponent implements OnInit, AfterViewInit {
 	private readonly areasService = inject(AreasService);
 	private readonly seatsService = inject(SeatsService);
 	private readonly tablesService = inject(TablesService);
+	private readonly eventsService = inject(EventsService);
+	private readonly qrService = inject(QRService);
+
+	readonly availableColor = SEAT_AVAILABLE_COLOR;
+	readonly soldColor = SEAT_SOLD_COLOR;
 
 	map = signal<Map | undefined>(undefined);
 	area = signal<Area | undefined>(undefined);
@@ -143,6 +172,10 @@ export class SeatsComponent implements OnInit, AfterViewInit {
 	tables = signal<Table[]>([]);
 	seatToEdit = signal<Seat | null>(null);
 	coordinates = { x: 0, y: 0 };
+
+	events = signal<Events[]>([]);
+	selectedEventId = signal<number | null>(null);
+	soldSeatIds = signal<Set<number>>(new Set());
 
 	isDragging = false;
 	activeKind: 'seat' | 'table' | null = null;
@@ -181,11 +214,31 @@ export class SeatsComponent implements OnInit, AfterViewInit {
 				error: () => this.router.navigate(['/manager/maps/' + idMap + '/areas']),
 			});
 		});
+
+		this.eventsService.getEvents().subscribe((events) => this.events.set(events));
 	}
 
 	ngAfterViewInit(): void {
 		const modalEl = document.getElementById('createSeatModal');
 		modalEl?.addEventListener('hidden.bs.modal', () => this.seatToEdit.set(null));
+	}
+
+	onEventFilterChange(eventId: number | null) {
+		this.selectedEventId.set(eventId);
+		if (!eventId) {
+			this.soldSeatIds.set(new Set());
+			return;
+		}
+		this.qrService.getQRsByEvent(eventId).subscribe((sales) => this.soldSeatIds.set(new Set(sales.map((s) => s.seatId))));
+	}
+
+	// Sin evento elegido, cada asiento conserva su color propio (el que se le asignó al crearlo o
+	// generarlo en bulk). Con un evento elegido, el color pasa a reflejar si ESE asiento ya se vendió
+	// para ESE evento — los asientos son reutilizables entre eventos, así que la disponibilidad no es
+	// una propiedad fija del asiento sino algo que depende de qué evento se esté mirando.
+	seatColor(seat: Seat): string {
+		if (!this.selectedEventId()) return seat.color;
+		return this.soldSeatIds().has(seat.id) ? SEAT_SOLD_COLOR : SEAT_AVAILABLE_COLOR;
 	}
 
 	loadSeats(areaId: number) {
