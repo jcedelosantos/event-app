@@ -7,6 +7,9 @@
 			@if (cameraError()) {
 				<p class="text-danger mt-2">{{ cameraError() }}</p>
 			}
+			@if (cooling()) {
+				<p class="text-body-secondary mt-2 mb-0"><i class="bi bi-hourglass-split"></i> Esperando para leer el próximo código...</p>
+			}
 		</div>
 
 		<form class="d-flex justify-content-center" [formGroup]="scannerForm" (ngSubmit)="onSubmit()">

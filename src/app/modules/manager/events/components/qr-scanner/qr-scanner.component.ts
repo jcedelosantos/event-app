@@ -7,6 +7,13 @@ import { ScanService, ScanResult } from '../../../qrs/services/scan.service';
 
 type ScanAction = { message: string; ok: boolean; time: Date };
 
+// El lector de cámara (fps:10) sigue decodificando el mismo QR mientras esté en cuadro — sin
+// pausa, la misma tarjeta se escanea varias veces por segundo apenas termina la request anterior,
+// más rápido de lo que el operador puede reaccionar o alejar el código de la cámara. Este cooldown
+// bloquea nuevas lecturas por un rato después de cada escaneo (éxito o error), dando tiempo real
+// entre una lectura y la siguiente.
+const SCAN_COOLDOWN_MS = 2500;
+
 @Component({
 	selector: 'app-qr-scanner',
 	imports: [ReactiveFormsModule, DatePipe],
@@ -18,12 +25,14 @@ export class QrScannerComponent implements AfterViewInit, OnDestroy {
 	private readonly scanService = inject(ScanService);
 	private scanner: Html5Qrcode | null = null;
 	private processing = false;
+	private cooldownTimer: ReturnType<typeof setTimeout> | null = null;
 
 	scannerForm = new FormGroup({ code: new FormControl<string>('', [Validators.required]) });
 
 	cameraError = signal('');
 	lastActions = signal<ScanAction[]>([]);
 	lastResult = signal<ScanResult | null>(null);
+	cooling = signal(false);
 
 	async ngAfterViewInit(): Promise<void> {
 		try {
@@ -45,6 +54,7 @@ export class QrScannerComponent implements AfterViewInit, OnDestroy {
 	}
 
 	async ngOnDestroy(): Promise<void> {
+		if (this.cooldownTimer) clearTimeout(this.cooldownTimer);
 		if (this.scanner) {
 			try {
 				await this.scanner.stop();
@@ -55,10 +65,12 @@ export class QrScannerComponent implements AfterViewInit, OnDestroy {
 	}
 
 	handleScan(codeQR: string) {
-		if (this.processing) return;
+		if (this.processing || this.cooling()) return;
 		this.processing = true;
 		this.scan(codeQR).add(() => {
 			this.processing = false;
+			this.cooling.set(true);
+			this.cooldownTimer = setTimeout(() => this.cooling.set(false), SCAN_COOLDOWN_MS);
 		});
 	}
 

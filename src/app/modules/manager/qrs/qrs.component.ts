@@ -47,7 +47,8 @@ export class QrsComponent implements OnInit, AfterViewInit {
       (qr) =>
         `${qr.client.name} ${qr.client.lastname}`.toLowerCase().includes(q) ||
         qr.codeQR.toLowerCase().includes(q) ||
-        qr.seat.name.toLowerCase().includes(q),
+        qr.seat.name.toLowerCase().includes(q) ||
+        (qr.client.carnet ?? '').toLowerCase().includes(q),
     );
   });
 
@@ -55,7 +56,10 @@ export class QrsComponent implements OnInit, AfterViewInit {
     const q = this.searchText().trim().toLowerCase();
     if (!q) return this.productSaleList();
     return this.productSaleList().filter(
-      (sale) => `${sale.client.name} ${sale.client.lastname}`.toLowerCase().includes(q) || sale.codeQR.toLowerCase().includes(q),
+      (sale) =>
+        `${sale.client.name} ${sale.client.lastname}`.toLowerCase().includes(q) ||
+        sale.codeQR.toLowerCase().includes(q) ||
+        (sale.client.carnet ?? '').toLowerCase().includes(q),
     );
   });
 

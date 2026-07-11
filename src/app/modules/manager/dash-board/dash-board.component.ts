@@ -1,19 +1,54 @@
-import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, OnDestroy, OnInit, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { EventsService } from '../events/services/events.service';
 import { QRService, SaleTicket } from '../qrs/services/qr.service';
 import { ProductSalesService, SaleProduct } from '../qrs/services/product-sales.service';
 import { UserService } from '../users/services/user.service';
+import { User } from '../../../models/users/user';
 import { Events } from '../../../models/events/events';
 import { eventDateKey, todayKey } from '../../../utils/dates';
 import { MiniBarChartComponent, BarChartItem } from '../../../shared/mini-bar-chart/mini-bar-chart.component';
+
+// Refresco periódico solo de ventas (no eventos/usuarios) mientras el Dashboard está abierto, para
+// que la barra de "Eventos de hoy" refleje los check-ins que va haciendo el scanner en tiempo real
+// sin que alguien tenga que recargar la página a mano.
+const LIVE_REFRESH_MS = 20_000;
 
 @Component({
 	selector: 'app-dash-board',
 	imports: [RouterLink, MiniBarChartComponent],
 	template: `
 		<h2 class="pb-3">Dashboard</h2>
+
+		<div class="card mb-4">
+			<div class="card-header d-flex justify-content-between align-items-center">
+				<span>Eventos de hoy</span>
+				<span class="small text-body-secondary">Se actualiza solo cada 20s con los ingresos registrados</span>
+			</div>
+			<div class="card-body">
+				@if (loading()) {
+					<p class="text-body-secondary mb-0">Cargando...</p>
+				} @else if (!todayEventStats().length) {
+					<p class="text-body-secondary mb-0">No hay eventos programados para hoy.</p>
+				} @else {
+					@for (stat of todayEventStats(); track stat.event.id) {
+						<div class="mb-3">
+							<div class="d-flex justify-content-between align-items-center mb-1">
+								<span class="fw-semibold">{{ stat.event.name }}</span>
+								<span class="small text-body-secondary">{{ stat.checkedIn }} / {{ stat.sold }} ingresaron</span>
+							</div>
+							<div class="progress" style="height: 10px;">
+								<div class="progress-bar bg-danger" [style.width.%]="stat.occupancyPct"></div>
+							</div>
+							<div class="small text-body-secondary mt-1">
+								Capacidad: {{ stat.capacity }} · Vendidos: {{ stat.sold }} · Disponibles: {{ stat.available }}
+							</div>
+						</div>
+					}
+				}
+			</div>
+		</div>
 
 		<div class="row g-3 mb-4">
 			<div class="col-md-3 col-sm-6">
@@ -51,8 +86,8 @@ import { MiniBarChartComponent, BarChartItem } from '../../../shared/mini-bar-ch
 			<div class="col-md-3 col-sm-6">
 				<div class="card stat-card">
 					<div class="card-body">
-						<div class="stat-label">Usuarios registrados</div>
-						<div class="stat-value">{{ users().length }}</div>
+						<div class="stat-label">Clientes registrados</div>
+						<div class="stat-value">{{ clients().length }}</div>
 					</div>
 				</div>
 			</div>
@@ -167,23 +202,41 @@ import { MiniBarChartComponent, BarChartItem } from '../../../shared/mini-bar-ch
 	styleUrl: './dash-board.component.css',
 	changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class DashBoardComponent implements OnInit {
+export class DashBoardComponent implements OnInit, OnDestroy {
 	private readonly eventsService = inject(EventsService);
 	private readonly qrService = inject(QRService);
 	private readonly productSalesService = inject(ProductSalesService);
 	private readonly userService = inject(UserService);
+	private refreshTimer: ReturnType<typeof setInterval> | null = null;
 
 	loading = signal(true);
 	events = signal<Events[]>([]);
 	saleTickets = signal<SaleTicket[]>([]);
 	saleProducts = signal<SaleProduct[]>([]);
-	users = signal<unknown[]>([]);
+	users = signal<User[]>([]);
+
+	clients = computed(() => this.users().filter((u) => u.type?.type === 'CLIENT'));
 
 	upcomingEvents = computed(() => {
 		const today = todayKey();
 		return this.events()
 			.filter((e) => eventDateKey(e.dateOn) >= today)
 			.sort((a, b) => a.dateOn.getTime() - b.dateOn.getTime());
+	});
+
+	todayEventStats = computed(() => {
+		const today = todayKey();
+		return this.events()
+			.filter((e) => eventDateKey(e.dateOn) === today)
+			.map((event) => {
+				const capacity = (event.tickets ?? []).reduce((sum, t) => sum + (t.count ?? 0), 0);
+				const eventSales = this.saleTickets().filter((s) => s.eventId === event.id);
+				const sold = eventSales.length;
+				const checkedIn = eventSales.filter((s) => s.checkedInAt).length;
+				const available = Math.max(capacity - sold, 0);
+				const occupancyPct = sold > 0 ? Math.round((checkedIn / sold) * 100) : 0;
+				return { event, capacity, sold, available, checkedIn, occupancyPct };
+			});
 	});
 
 	totalRevenue = computed(() => {
@@ -251,6 +304,20 @@ export class DashBoardComponent implements OnInit {
 			this.users.set(users);
 			this.loading.set(false);
 		});
+
+		this.refreshTimer = setInterval(() => {
+			forkJoin({
+				saleTickets: this.qrService.getQRs(),
+				saleProducts: this.productSalesService.getSaleProducts(),
+			}).subscribe(({ saleTickets, saleProducts }) => {
+				this.saleTickets.set(saleTickets);
+				this.saleProducts.set(saleProducts);
+			});
+		}, LIVE_REFRESH_MS);
+	}
+
+	ngOnDestroy(): void {
+		if (this.refreshTimer) clearInterval(this.refreshTimer);
 	}
 
 	formatDate(date: Date): string {
