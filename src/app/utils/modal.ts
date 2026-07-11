@@ -9,11 +9,23 @@ declare const bootstrap: any;
 // hizo el hide().
 export function cleanupOrphanedModalBackdrop() {
 	setTimeout(() => {
-		if (document.querySelectorAll('.modal.show').length === 0) {
-			document.querySelectorAll('.modal-backdrop').forEach((el) => el.remove());
+		const openCount = document.querySelectorAll('.modal.show').length;
+		const backdrops = document.querySelectorAll('.modal-backdrop');
+		if (openCount === 0) {
+			backdrops.forEach((el) => el.remove());
 			document.body.classList.remove('modal-open');
 			document.body.style.removeProperty('overflow');
 			document.body.style.removeProperty('padding-right');
+			return;
+		}
+		// Bootstrap apila un backdrop por cada modal abierto (para nested modals) — si un cierre
+		// previo dejó un backdrop fantasma sin sacar, un modal legítimamente abierto puede terminar
+		// con MÁS backdrops que modales realmente abiertos. Sobran, no faltan: de más bloquean
+		// clicks sobre el modal real; de menos nunca pasa por diseño de Bootstrap.
+		if (backdrops.length > openCount) {
+			Array.from(backdrops)
+				.slice(0, backdrops.length - openCount)
+				.forEach((el) => el.remove());
 		}
 	}, 400);
 }
