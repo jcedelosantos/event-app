@@ -35,7 +35,9 @@ import { Product } from '../../../../../models/products/product';
 					<p class="card-text ps-3 product-description">{{ product().description }}</p>
 					<hr class="mt-auto" />
 					<div class="d-flex justify-content-around">
-						<h5 class="text-body-secondary"><i class="bi bi-box-seam"></i> {{ product().count }}</h5>
+						<h5 [class.text-danger]="product().count <= 0" [class.text-body-secondary]="product().count > 0">
+							<i class="bi bi-box-seam"></i> {{ product().count }} en stock
+						</h5>
 						<h5 class="text-body-secondary"><i class="bi bi-currency-dollar"></i>{{ product().price }}</h5>
 					</div>
 					<div class="text-center small text-body-secondary">{{ product().code }}</div>

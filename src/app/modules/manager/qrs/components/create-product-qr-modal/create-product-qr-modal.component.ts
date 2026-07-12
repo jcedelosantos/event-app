@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, OnInit, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, OnInit, output, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ProductSalesService, SaleProduct } from '../../services/product-sales.service';
@@ -40,8 +40,8 @@ import { closeModal } from '../../../../../utils/modal';
 								<label>Product *</label>
 								<select class="custom-select d-block w-100" [class.is-invalid]="isInvalid('productId')" formControlName="productId">
 									<option [ngValue]="null">Choose...</option>
-									@for (product of products(); track product.id) {
-										<option [ngValue]="product.id">{{ product.name }} — {{ product.type }} ({{ product.price }} USD)</option>
+									@for (product of availableProducts(); track product.id) {
+										<option [ngValue]="product.id">{{ product.name }} — {{ product.type }} ({{ product.price }} USD) — {{ product.count }} en stock</option>
 									}
 								</select>
 								@if (isInvalid('productId')) {
@@ -49,6 +49,8 @@ import { closeModal } from '../../../../../utils/modal';
 								}
 								@if (form.controls.eventId.value && !products().length) {
 									<div class="form-text">Este evento todavía no tiene productos creados.</div>
+								} @else if (form.controls.eventId.value && !availableProducts().length) {
+									<div class="form-text">Todos los productos de este evento están agotados.</div>
 								}
 							</div>
 							<div class="mb-3">
@@ -115,6 +117,7 @@ export class CreateProductQrModalComponent implements OnInit {
 
 	events = signal<Events[]>([]);
 	products = signal<Product[]>([]);
+	availableProducts = computed(() => this.products().filter((p) => p.count > 0));
 	clients = signal<User[]>([]);
 
 	form = this.fb.group({

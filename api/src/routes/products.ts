@@ -9,7 +9,7 @@ productsRouter.use(requireAuth);
 
 const productInputSchema = z.object({
 	name: z.string().min(1),
-	img: z.string().optional().default(''),
+	img: z.string().min(1),
 	description: z.string().optional().default(''),
 	type: z.string().min(1),
 	variant: z.string().optional().default(''),

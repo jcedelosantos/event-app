@@ -10,6 +10,8 @@ import { asyncHandler } from '../lib/async-handler';
 export const saleProductsRouter = Router();
 saleProductsRouter.use(requireAuth);
 
+class InsufficientStockError extends Error {}
+
 const saleProductInputSchema = z.object({
 	eventId: z.number().int(),
 	productId: z.number().int(),
@@ -56,16 +58,32 @@ saleProductsRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res)
 	}
 
 	try {
-		const saleProduct = await prisma.saleProduct.create({
-			data: {
-				...parsed.data,
-				codeQR: randomUUID(),
-				userId: req.user!.userId,
-			},
-			include,
+		const saleProduct = await prisma.$transaction(async (tx) => {
+			// updateMany con `count: { gte: quantity }` en el where hace el chequeo-y-descuento en una
+			// sola operación atómica — si otra venta ya se llevó el stock entremedio, `count` da 0 y no
+			// se descontó nada, así que se puede confiar en el resultado sin necesidad de locks manuales.
+			const stockUpdate = await tx.product.updateMany({
+				where: { id: parsed.data.productId, count: { gte: parsed.data.quantity } },
+				data: { count: { decrement: parsed.data.quantity } },
+			});
+			if (stockUpdate.count === 0) {
+				throw new InsufficientStockError();
+			}
+			return tx.saleProduct.create({
+				data: {
+					...parsed.data,
+					codeQR: randomUUID(),
+					userId: req.user!.userId,
+				},
+				include,
+			});
 		});
 		res.status(201).json(toPublicSaleProduct(saleProduct));
 	} catch (err: any) {
+		if (err instanceof InsufficientStockError) {
+			res.status(409).json({ error: 'No hay suficiente stock disponible para esta cantidad.' });
+			return;
+		}
 		if (err.code === 'P2003') {
 			res.status(400).json({ error: 'Evento, producto o cliente inválido' });
 			return;
@@ -99,7 +117,12 @@ saleProductsRouter.post('/:id/resend', asyncHandler(async (req, res) => {
 saleProductsRouter.delete('/:id', asyncHandler(async (req, res) => {
 	const id = Number(req.params.id);
 	try {
-		await prisma.saleProduct.delete({ where: { id } });
+		// Borrar una venta (ej. se cargó mal) devuelve la cantidad al stock del producto — si no se
+		// restaura, cada corrección de un error de captura termina "perdiendo" unidades reales.
+		await prisma.$transaction(async (tx) => {
+			const saleProduct = await tx.saleProduct.delete({ where: { id } });
+			await tx.product.update({ where: { id: saleProduct.productId }, data: { count: { increment: saleProduct.quantity } } });
+		});
 		res.status(204).send();
 	} catch (err: any) {
 		if (err.code === 'P2025') {
