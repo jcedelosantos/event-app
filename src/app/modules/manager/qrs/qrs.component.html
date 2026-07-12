@@ -45,11 +45,11 @@
         </select>
     </div>
     <div class="col-sm-2 d-flex align-items-end">
-        <div class="dropdown">
-            <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+        <div class="dropdown" (click)="$event.stopPropagation()">
+            <button class="btn btn-outline-secondary btn-sm" type="button" (click)="columnsMenuOpen.set(!columnsMenuOpen())">
                 <i class="bi bi-layout-three-columns"></i> Columnas
             </button>
-            <ul class="dropdown-menu p-2">
+            <ul class="dropdown-menu p-2" [class.show]="columnsMenuOpen()">
                 @for (col of qrColumns; track col.key) {
                     <li class="form-check px-2">
                         <input

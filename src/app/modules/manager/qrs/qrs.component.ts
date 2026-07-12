@@ -1,4 +1,4 @@
-import { AfterViewInit, ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
+import { AfterViewInit, ChangeDetectionStrategy, Component, computed, HostListener, inject, OnInit, signal } from '@angular/core';
 import { QRService, SaleTicket } from './services/qr.service';
 import { ProductSalesService, SaleProduct } from './services/product-sales.service';
 import { EventsService } from '../events/services/events.service';
@@ -99,6 +99,18 @@ export class QrsComponent implements OnInit, AfterViewInit {
 
   toggleQrColumn(key: QrColumnKey) {
     this.visibleQrColumns.update((cols) => ({ ...cols, [key]: !cols[key] }));
+  }
+
+  // El data-API de Bootstrap para dropdowns (data-bs-toggle="dropdown") no estaba abriendo el
+  // menú de forma confiable — se maneja directo con un signal en vez de pelear con el ciclo de
+  // vida del componente Dropdown de Bootstrap. El (click) con stopPropagation en el contenedor
+  // evita que clicks adentro del dropdown (el botón, los checkboxes) lleguen a este listener y lo
+  // cierren antes de que el usuario pueda tildar algo.
+  columnsMenuOpen = signal(false);
+
+  @HostListener('document:click')
+  closeColumnsMenu() {
+    this.columnsMenuOpen.set(false);
   }
 
   qrSortKey = signal<QrSortKey | null>(null);

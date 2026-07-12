@@ -1,4 +1,4 @@
-import { AfterViewInit, ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { AfterViewInit, ChangeDetectionStrategy, Component, computed, HostListener, inject, signal } from '@angular/core';
 import * as bootstrap from "bootstrap";
 
 import { ExportUsersModalComponent } from './components/export-users-modal/export-users-modal.component';
@@ -38,11 +38,11 @@ const COLUMN_LABELS: Record<ColumnKey, string> = {
 					<button class="btn btn-danger" type="button" ><i class="bi bi-eraser-fill"></i></button>
 				</form>
 				<div class="navbar-brand d-flex align-items-center gap-3">
-					<div class="dropdown">
-						<button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+					<div class="dropdown" (click)="$event.stopPropagation()">
+						<button class="btn btn-outline-secondary btn-sm" type="button" (click)="columnsMenuOpen.set(!columnsMenuOpen())">
 							<i class="bi bi-layout-three-columns"></i> Columnas
 						</button>
-						<ul class="dropdown-menu p-2">
+						<ul class="dropdown-menu p-2" [class.show]="columnsMenuOpen()">
 							@for (col of columns; track col.key) {
 								<li class="form-check px-2">
 									<input
@@ -188,6 +188,15 @@ export class UsersComponent implements AfterViewInit {
 
 	toggleColumn(key: ColumnKey) {
 		this.visibleColumns.update((cols) => ({ ...cols, [key]: !cols[key] }));
+	}
+
+	// Ver el mismo fix y comentario en qrs.component.ts: el data-API de dropdown de Bootstrap no
+	// abría el menú de forma confiable, así que se maneja con un signal en vez de su ciclo de vida JS.
+	columnsMenuOpen = signal(false);
+
+	@HostListener('document:click')
+	closeColumnsMenu() {
+		this.columnsMenuOpen.set(false);
 	}
 
 	sortedUsers = computed(() => {
