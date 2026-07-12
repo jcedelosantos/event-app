@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, Input, Output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, Input, output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Events } from '../../../../../models/events/events';
 import { RouterLink } from '@angular/router';
@@ -10,7 +10,10 @@ import { RouterLink } from '@angular/router';
 	template: `
 		@if (event) {
 			<div class="card text-center" style="height: 220px; min-width: 240px;">
-				<div class="card-header py-2">{{ event.name }}</div>
+				<div class="card-header py-2 d-flex justify-content-between align-items-center">
+					<span>{{ event.name }}</span>
+					<button type="button" class="btn btn-dark btn-sm rounded-circle" (click)="editEvent.emit(event)" title="Editar evento"><i class="bi bi-pencil"></i></button>
+				</div>
 				<div class="card-body py-2">
 					<div class="d-flex justify-content-between flex-row small">
 						<span class="p-1"> {{ event.dateOn.toISOString().split('T')[0] }}</span>
@@ -45,6 +48,8 @@ import { RouterLink } from '@angular/router';
 export class EventCardComponent {
 	@Input({ required: true })
 	event!: Events;
+
+	editEvent = output<Events>();
 
 	eventDateRelative(date?: string | Date): string {
 		if (!date) return 'Date unknown';

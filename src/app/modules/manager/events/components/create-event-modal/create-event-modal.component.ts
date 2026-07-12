@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, Input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, effect, inject, Input, model, output } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Events } from '../../../../../models/events/events';
@@ -6,6 +6,16 @@ import { EventsService } from '../../services/events.service';
 import { Map } from '../../../../../models/maps/map';
 import { extractErrorMessage } from '../../../../../utils/api-error';
 import { closeModal } from '../../../../../utils/modal';
+
+// dateOn representa un día calendario como medianoche UTC (ver utils/dates.ts) — leerlo con
+// getters UTC evita que el <input type="date"> muestre un día antes/después en timezones
+// detrás de UTC.
+function toDateInputValue(date: Date): string {
+	const yyyy = date.getUTCFullYear();
+	const mm = String(date.getUTCMonth() + 1).padStart(2, '0');
+	const dd = String(date.getUTCDate()).padStart(2, '0');
+	return `${yyyy}-${mm}-${dd}`;
+}
 
 @Component({
 	selector: 'app-create-event-modal',
@@ -15,7 +25,7 @@ import { closeModal } from '../../../../../utils/modal';
 		<div class="modal-dialog">
 			<div class="modal-content">
 				<div class="modal-header">
-					<h1 class="modal-title fs-5" id="createEventModalLabel">Create event</h1>
+					<h1 class="modal-title fs-5" id="createEventModalLabel">{{ event() ? 'Update' : 'Create' }} event</h1>
 					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
 				</div>
 				<div class="modal-body">
@@ -96,7 +106,7 @@ import { closeModal } from '../../../../../utils/modal';
 				</div>
 				<div class="modal-footer">
 					<button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
-					<button type="button" class="btn btn-danger btn-sm" (click)="submit()">Create</button>
+					<button type="button" class="btn btn-danger btn-sm" (click)="submit()">{{ event() ? 'Update' : 'Create' }}</button>
 				</div>
 			</div>
 		</div>
@@ -109,7 +119,9 @@ export class CreateEventModalComponent {
 
 	@Input() maps: Map[] = [];
 
+	event = model<Events | null>(null);
 	eventCreated = output<Events>();
+	eventUpdated = output<Events>();
 	errorMessage = '';
 
 	eventForm = this.fb.group({
@@ -123,6 +135,27 @@ export class CreateEventModalComponent {
 		mapId: this.fb.control<number | null>(null),
 	});
 
+	constructor() {
+		effect(() => {
+			const current = this.event();
+			this.errorMessage = '';
+			if (current) {
+				this.eventForm.patchValue({
+					name: current.name,
+					code: current.code,
+					description: current.description,
+					dateOn: toDateInputValue(current.dateOn),
+					startTime: current.startTime ?? '',
+					type: current.type,
+					active: current.active,
+					mapId: current.map?.id ?? null,
+				});
+			} else {
+				this.eventForm.reset({ active: true, mapId: null });
+			}
+		});
+	}
+
 	isInvalid(controlName: keyof typeof this.eventForm.controls): boolean {
 		const control = this.eventForm.controls[controlName];
 		return control.invalid && control.touched;
@@ -135,27 +168,34 @@ export class CreateEventModalComponent {
 		}
 
 		const value = this.eventForm.getRawValue();
-		this.eventsService
-			.createEvent({
-				name: value.name!,
-				code: value.code ?? '',
-				description: value.description ?? '',
-				type: value.type!,
-				dateOn: value.dateOn!,
-				startTime: value.startTime!,
-				active: value.active!,
-				...(value.mapId ? { mapId: value.mapId } : {}),
-			})
-			.subscribe({
-				next: (event) => {
+		const payload = {
+			name: value.name!,
+			code: value.code ?? '',
+			description: value.description ?? '',
+			type: value.type!,
+			dateOn: value.dateOn!,
+			startTime: value.startTime!,
+			active: value.active!,
+			mapId: value.mapId,
+		};
+
+		const current = this.event();
+		const request = current ? this.eventsService.updateEvent(current.id, payload) : this.eventsService.createEvent(payload);
+
+		request.subscribe({
+			next: (event) => {
+				if (current) {
+					this.eventUpdated.emit(event);
+				} else {
 					this.eventCreated.emit(event);
-					this.eventForm.reset({ active: true, mapId: null });
-					this.errorMessage = '';
-					closeModal('createEventModal');
-				},
-				error: (err: HttpErrorResponse) => {
-					this.errorMessage = extractErrorMessage(err);
-				},
-			});
+				}
+				this.event.set(null);
+				this.errorMessage = '';
+				closeModal('createEventModal');
+			},
+			error: (err: HttpErrorResponse) => {
+				this.errorMessage = extractErrorMessage(err);
+			},
+		});
 	}
 }

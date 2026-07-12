@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
+import { AfterViewInit, ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
 import { CreateEventModalComponent } from './components/create-event-modal/create-event-modal.component';
 import { ScheduleComponent } from '../../../shared/schedule/schedule.component';
 import { Events } from '../../../models/events/events';
@@ -8,6 +8,8 @@ import { CreateMapModalComponent } from '../maps/components/create-map-modal/cre
 import { Map } from '../../../models/maps/map';
 import { MapsService } from '../maps/services/maps.service';
 import { eventDateKey, todayKey } from '../../../utils/dates';
+
+declare const bootstrap: any;
 
 @Component({
 	selector: 'app-events',
@@ -34,7 +36,7 @@ import { eventDateKey, todayKey } from '../../../utils/dates';
 				</div>
 			</nav>
 			<br />
-			<app-create-event-modal [maps]="maps()" (eventCreated)="onEventCreated($event)" />
+			<app-create-event-modal [maps]="maps()" [(event)]="eventToEdit" (eventCreated)="onEventCreated($event)" (eventUpdated)="onEventUpdated($event)" />
 			<create-map-modal (mapCreated)="onMapCreated($event)" />
 			<div class="row">
 				<div class="col-12 col-lg-8">
@@ -50,7 +52,7 @@ import { eventDateKey, todayKey } from '../../../utils/dates';
 												<div class="d-flex flex-row">
 													@for (event of chunk; track event.id) {
 														<div class="p-2">
-															<event-card [event]="event" />
+															<event-card [event]="event" (editEvent)="onEditEvent($event)" />
 														</div>
 													}
 												</div>
@@ -83,7 +85,7 @@ import { eventDateKey, todayKey } from '../../../utils/dates';
 												<div class="d-flex flex-row">
 													@for (event of chunk; track event.id) {
 														<div class="p-2">
-															<event-card [event]="event" />
+															<event-card [event]="event" (editEvent)="onEditEvent($event)" />
 														</div>
 													}
 												</div>
@@ -116,12 +118,13 @@ import { eventDateKey, todayKey } from '../../../utils/dates';
 	styleUrl: './events.component.css',
 	changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class EventsComponent implements OnInit {
+export class EventsComponent implements OnInit, AfterViewInit {
 	private readonly eventSrv = inject(EventsService);
 	private readonly mapsService = inject(MapsService);
 
 	events = signal<Events[]>([]);
 	maps = signal<Map[]>([]);
+	eventToEdit = signal<Events | null>(null);
 
 	eventsNow = computed(() => {
 		const today = todayKey();
@@ -137,6 +140,11 @@ export class EventsComponent implements OnInit {
 		this.loadMaps();
 	}
 
+	ngAfterViewInit(): void {
+		const modalEl = document.getElementById('createEventModal');
+		modalEl?.addEventListener('hidden.bs.modal', () => this.eventToEdit.set(null));
+	}
+
 	loadEvents() {
 		this.eventSrv.getEvents().subscribe((events) => this.events.set(events));
 	}
@@ -147,6 +155,18 @@ export class EventsComponent implements OnInit {
 
 	onEventCreated(event: Events) {
 		this.events.update((list) => [event, ...list]);
+	}
+
+	onEventUpdated(event: Events) {
+		this.events.update((list) => list.map((e) => (e.id === event.id ? event : e)));
+	}
+
+	onEditEvent(event: Events) {
+		this.eventToEdit.set(event);
+		const modalEl = document.getElementById('createEventModal');
+		if (modalEl) {
+			bootstrap.Modal.getOrCreateInstance(modalEl).show();
+		}
 	}
 
 	onMapCreated(map: Map) {
