@@ -28,14 +28,21 @@ import { closeModal } from '../../../../../utils/modal';
 									<div class="invalid-feedback">El nombre es obligatorio.</div>
 								}
 							</div>
-							<div class="col-md-6 mb-2">
+							<div class="col-md-4 mb-2">
 								<label for="code" class="small mb-1">Start Date *</label>
 								<input type="date" class="form-control form-control-sm" [class.is-invalid]="isInvalid('dateOn')" formControlName="dateOn" />
 								@if (isInvalid('dateOn')) {
 									<div class="invalid-feedback">Elegí una fecha.</div>
 								}
 							</div>
-							<div class="col-md-6 mb-2">
+							<div class="col-md-4 mb-2">
+								<label for="startTime" class="small mb-1">Hora de inicio *</label>
+								<input type="time" class="form-control form-control-sm" [class.is-invalid]="isInvalid('startTime')" formControlName="startTime" />
+								@if (isInvalid('startTime')) {
+									<div class="invalid-feedback">Elegí una hora.</div>
+								}
+							</div>
+							<div class="col-md-4 mb-2">
 								<label for="code" class="small mb-1">Code </label>
 								<input type="text" class="form-control form-control-sm" formControlName="code" />
 							</div>
@@ -110,6 +117,7 @@ export class CreateEventModalComponent {
 		code: [''],
 		description: [''],
 		dateOn: ['', Validators.required],
+		startTime: ['', Validators.required],
 		type: ['', Validators.required],
 		active: [true, Validators.required],
 		mapId: this.fb.control<number | null>(null),
@@ -134,6 +142,7 @@ export class CreateEventModalComponent {
 				description: value.description ?? '',
 				type: value.type!,
 				dateOn: value.dateOn!,
+				startTime: value.startTime!,
 				active: value.active!,
 				...(value.mapId ? { mapId: value.mapId } : {}),
 			})

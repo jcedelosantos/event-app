@@ -13,6 +13,7 @@ export type EventInput = {
 	dateSale?: string | Date;
 	dateOn: string | Date;
 	dateOff?: string | Date;
+	startTime?: string;
 	active?: boolean;
 	mapId?: number | null;
 };

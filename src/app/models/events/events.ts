@@ -13,6 +13,7 @@ export interface Events {
 	dateSale: Date;
 	dateOn: Date;
 	dateOff: Date;
+	startTime: string | null;
 	active: boolean;
 	map?: Map;
 	tickets: Array<Ticket>;

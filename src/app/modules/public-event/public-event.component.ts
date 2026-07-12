@@ -77,6 +77,9 @@ const MAX_SEATS = 5;
 									<h5 class="mb-0">2. Elegí tu(s) asiento(s)</h5>
 									<span class="badge text-bg-danger">{{ selectedSeatIds().size }} / {{ maxSeats }}</span>
 								</div>
+								@if (!selectedTicketId()) {
+									<p class="text-body-secondary">Elegí primero un tipo de ticket arriba para poder elegir tu(s) asiento(s).</p>
+								} @else {
 								@if (!ev.map || !ev.map.areas.length) {
 									<p class="text-body-secondary">Este evento todavía no tiene asientos configurados.</p>
 								}
@@ -160,6 +163,7 @@ const MAX_SEATS = 5;
 										</div>
 									</div>
 								}
+								}
 							</div>
 
 							@if (expandedTableSeats(); as info) {
@@ -199,7 +203,7 @@ const MAX_SEATS = 5;
 										<input type="text" class="form-control" placeholder="Nombre" [class.is-invalid]="isInvalid('name')" formControlName="name" />
 									</div>
 									<div class="col-md-6">
-										<input type="text" class="form-control" placeholder="Apellido" [class.is-invalid]="isInvalid('lastname')" formControlName="lastname" />
+										<input type="text" class="form-control" placeholder="Apellido (opcional)" formControlName="lastname" />
 									</div>
 									<div class="col-md-6">
 										<input type="email" class="form-control" placeholder="Email" [class.is-invalid]="isInvalid('email')" formControlName="email" />
@@ -464,7 +468,7 @@ export class PublicEventComponent implements OnInit {
 
 	registerForm = this.fb.group({
 		name: this.fb.control('', Validators.required),
-		lastname: this.fb.control('', Validators.required),
+		lastname: this.fb.control(''),
 		email: this.fb.control('', [Validators.required, Validators.email]),
 		phone: this.fb.control('', Validators.required),
 		carnet: this.fb.control('', Validators.required),
@@ -479,10 +483,9 @@ export class PublicEventComponent implements OnInit {
 		this.publicEventService.getEvent(code).subscribe({
 			next: (event) => {
 				this.event.set(event);
-				// La mayoría de los invitados compra el ticket general — preseleccionarlo evita un
-				// click extra. Si no hay uno de tipo "Normal", cae al primero de la lista.
-				const defaultTicket = event.tickets.find((t) => t.type.toLowerCase() === 'normal') ?? event.tickets[0];
-				if (defaultTicket) this.selectedTicketId.set(defaultTicket.id);
+				// Sin preselección: la selección de asiento queda bloqueada hasta que el invitado
+				// elija explícitamente un tipo de ticket, para que sepa a qué precio/tipo corresponde
+				// el asiento que va a reservar.
 				this.step.set('ready');
 			},
 			error: () => this.step.set('not-found'),

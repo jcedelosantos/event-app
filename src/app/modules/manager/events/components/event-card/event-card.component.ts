@@ -14,7 +14,9 @@ import { RouterLink } from '@angular/router';
 				<div class="card-body py-2">
 					<div class="d-flex justify-content-between flex-row small">
 						<span class="p-1"> {{ event.dateOn.toISOString().split('T')[0] }}</span>
-						<span class="p-1"> {{ event.dateSale.toISOString().split('T')[1].split('.')[0] }}</span>
+						@if (event.startTime) {
+							<span class="p-1"> {{ event.startTime }}</span>
+						}
 					</div>
 					<hr class="my-1" />
 

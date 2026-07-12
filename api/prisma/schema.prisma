@@ -49,6 +49,7 @@ model Event {
   dateSale    DateTime
   dateOn      DateTime
   dateOff     DateTime
+  startTime   String?
   active      Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

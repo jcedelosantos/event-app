@@ -16,6 +16,10 @@ const eventInputSchema = z.object({
 	dateSale: z.coerce.date().optional(),
 	dateOn: z.coerce.date(),
 	dateOff: z.coerce.date().optional(),
+	startTime: z
+		.string()
+		.regex(/^\d{2}:\d{2}$/)
+		.optional(),
 	active: z.boolean().optional().default(true),
 	mapId: z.number().int().nullable().optional(),
 });

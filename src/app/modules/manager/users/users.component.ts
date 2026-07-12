@@ -13,6 +13,16 @@ import { extractErrorMessage } from '../../../utils/api-error';
 import { HttpErrorResponse } from '@angular/common/http';
 
 type SortKey = 'carnet' | 'name' | 'lastname' | 'username' | 'email' | 'type';
+type ColumnKey = SortKey;
+
+const COLUMN_LABELS: Record<ColumnKey, string> = {
+	carnet: 'Carnet',
+	name: 'Name',
+	lastname: 'LastName',
+	username: 'UserName',
+	email: 'Email',
+	type: 'Type',
+};
 
 @Component({
 	selector: 'app-users',
@@ -27,7 +37,26 @@ type SortKey = 'carnet' | 'name' | 'lastname' | 'username' | 'email' | 'type';
 					<button class="btn btn-dark me-4" type="submit"> Search</button>
 					<button class="btn btn-danger" type="button" ><i class="bi bi-eraser-fill"></i></button>
 				</form>
-				<div class="navbar-brand">
+				<div class="navbar-brand d-flex align-items-center gap-3">
+					<div class="dropdown">
+						<button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+							<i class="bi bi-layout-three-columns"></i> Columnas
+						</button>
+						<ul class="dropdown-menu p-2">
+							@for (col of columns; track col.key) {
+								<li class="form-check px-2">
+									<input
+										class="form-check-input"
+										type="checkbox"
+										id="col_{{ col.key }}"
+										[checked]="visibleColumns()[col.key]"
+										(change)="toggleColumn(col.key)"
+									/>
+									<label class="form-check-label" for="col_{{ col.key }}">{{ col.label }}</label>
+								</li>
+							}
+						</ul>
+					</div>
 					<div class="row">
 						<div class="col">
 							<i class="bi bi-arrow-up-circle-fill" data-bs-toggle="modal" data-bs-target="#importUsersModal"></i>
@@ -73,12 +102,24 @@ type SortKey = 'carnet' | 'name' | 'lastname' | 'username' | 'email' | 'type';
 			<thead>
 				<tr>
 					<th scope="col"><input class="form-check-input" type="checkbox" id="checkAll" /></th>
-					<th scope="col" role="button" (click)="toggleSort('carnet')">Carnet <i class="bi" [class]="sortIcon('carnet')"></i></th>
-					<th scope="col" role="button" (click)="toggleSort('name')">Name <i class="bi" [class]="sortIcon('name')"></i></th>
-					<th scope="col" role="button" (click)="toggleSort('lastname')">LastName <i class="bi" [class]="sortIcon('lastname')"></i></th>
-					<th scope="col" role="button" (click)="toggleSort('username')">UserName <i class="bi" [class]="sortIcon('username')"></i></th>
-					<th scope="col" role="button" (click)="toggleSort('email')">Email <i class="bi" [class]="sortIcon('email')"></i></th>
-					<th scope="col" role="button" (click)="toggleSort('type')">Type <i class="bi" [class]="sortIcon('type')"></i></th>
+					@if (visibleColumns()['carnet']) {
+						<th scope="col" role="button" (click)="toggleSort('carnet')">Carnet <i class="bi" [class]="sortIcon('carnet')"></i></th>
+					}
+					@if (visibleColumns()['name']) {
+						<th scope="col" role="button" (click)="toggleSort('name')">Name <i class="bi" [class]="sortIcon('name')"></i></th>
+					}
+					@if (visibleColumns()['lastname']) {
+						<th scope="col" role="button" (click)="toggleSort('lastname')">LastName <i class="bi" [class]="sortIcon('lastname')"></i></th>
+					}
+					@if (visibleColumns()['username']) {
+						<th scope="col" role="button" (click)="toggleSort('username')">UserName <i class="bi" [class]="sortIcon('username')"></i></th>
+					}
+					@if (visibleColumns()['email']) {
+						<th scope="col" role="button" (click)="toggleSort('email')">Email <i class="bi" [class]="sortIcon('email')"></i></th>
+					}
+					@if (visibleColumns()['type']) {
+						<th scope="col" role="button" (click)="toggleSort('type')">Type <i class="bi" [class]="sortIcon('type')"></i></th>
+					}
 					<th scope="col"></th>
 				</tr>
 			</thead>
@@ -88,12 +129,24 @@ type SortKey = 'carnet' | 'name' | 'lastname' | 'username' | 'email' | 'type';
 						<td scope="row">
 							<input class="form-check-input" type="checkbox" id="check_{{ $index }}" />
 						</td>
-						<td>{{ user.carnet }}</td>
-						<td>{{ user.name }}</td>
-						<td>{{ user.lastname }}</td>
-						<td>{{ user.username }}</td>
-						<td>{{ user.email }}</td>
-						<td>{{ user.type.name }}</td>
+						@if (visibleColumns()['carnet']) {
+							<td>{{ user.carnet }}</td>
+						}
+						@if (visibleColumns()['name']) {
+							<td>{{ user.name }}</td>
+						}
+						@if (visibleColumns()['lastname']) {
+							<td>{{ user.lastname }}</td>
+						}
+						@if (visibleColumns()['username']) {
+							<td>{{ user.username }}</td>
+						}
+						@if (visibleColumns()['email']) {
+							<td>{{ user.email }}</td>
+						}
+						@if (visibleColumns()['type']) {
+							<td>{{ user.type.name }}</td>
+						}
 						<td class="text-end text-nowrap">
 							<button type="button" class="btn btn-dark btn-sm rounded-circle me-1" (click)="openUpdateUserModal(user)"><i class="bi bi-pencil"></i></button>
 							<button type="button" class="btn btn-dark btn-sm rounded-circle" (click)="deleteUser(user)"><i class="bi bi-x-lg"></i></button>
@@ -119,6 +172,23 @@ export class UsersComponent implements AfterViewInit {
 
 	sortKey = signal<SortKey | null>(null);
 	sortDir = signal<'asc' | 'desc'>('asc');
+
+	columns = (Object.keys(COLUMN_LABELS) as ColumnKey[]).map((key) => ({ key, label: COLUMN_LABELS[key] }));
+
+	// LastName arranca oculto: las importaciones masivas mandan todo el nombre completo en el campo
+	// Name y dejan LastName vacío, así que mostrar la columna solo agrega ruido por defecto.
+	visibleColumns = signal<Record<ColumnKey, boolean>>({
+		carnet: true,
+		name: true,
+		lastname: false,
+		username: true,
+		email: true,
+		type: true,
+	});
+
+	toggleColumn(key: ColumnKey) {
+		this.visibleColumns.update((cols) => ({ ...cols, [key]: !cols[key] }));
+	}
 
 	sortedUsers = computed(() => {
 		const key = this.sortKey();

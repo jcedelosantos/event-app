@@ -9,11 +9,9 @@ import { RouterLink } from '@angular/router';
 	imports: [RouterLink, DecimalPipe],
 	template: `
 		@if (map) {
-			<div class="card p-1">
-				<div class="d-flex justify-content-between">
-					<div class="m-2">
-						<h4>{{ map.name }}</h4>
-					</div>
+			<div class="card p-1 mb-3">
+				<div class="d-flex justify-content-between align-items-center px-2 pt-1">
+					<h6 class="mb-0">{{ map.name }}</h6>
 					<div>
 						<button type="button" class="btn btn-dark btn-sm rounded-circle" (click)="editMap.emit(map)"><i class="bi bi-pencil"></i></button>
 						<button type="button" class="btn btn-dark btn-sm rounded-circle" (click)="deleteMap.emit(map)"><i class="bi bi-x-lg"></i></button>
@@ -24,9 +22,9 @@ import { RouterLink } from '@angular/router';
 					<i class="bi bi-geo-alt-fill"></i>
 					<span class="map-placeholder-coords">{{ map.x | number: '1.4-4' }}, {{ map.y | number: '1.4-4' }}</span>
 				</div>
-				<div class="card-body">
-					<h5 class="card-title">{{ map.description }}</h5>
-					<div class="d-flex justify-content-evenly">
+				<div class="card-body py-2">
+					<p class="card-text small text-body-secondary mb-2">{{ map.description }}</p>
+					<div class="d-flex justify-content-evenly small">
 						<div class="bd-highlight">
 							Areas : <span class="badge text-bg-danger">{{ map.areas.length }}</span>
 						</div>
@@ -38,10 +36,8 @@ import { RouterLink } from '@angular/router';
 						</div>
 					</div>
 				</div>
-				<button type="button" class="btn btn-outline-danger btn-md btn-block p" routerLink="/manager/maps/{{ map.id }}/areas">View Details</button>
-				<br />
+				<button type="button" class="btn btn-outline-danger btn-sm btn-block" routerLink="/manager/maps/{{ map.id }}/areas">View Details</button>
 			</div>
-			<br />
 		}
 	`,
 	styleUrl: './card-map.component.css',

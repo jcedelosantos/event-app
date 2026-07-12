@@ -9,11 +9,27 @@ export const scanRouter = Router();
 scanRouter.use(requireAuth);
 
 const ENTRY_WINDOW_MS = 60 * 60 * 1000; // el check-in/entrega abre 1 hora antes del inicio del evento
+const CLUB_UTC_OFFSET_HOURS = 4; // República Dominicana, AST fijo todo el año (sin horario de verano)
 
-function entryWindowError(eventDateOn: Date): string | null {
-	const opensAt = new Date(eventDateOn.getTime() - ENTRY_WINDOW_MS);
+// dateOn es el día calendario del evento (medianoche UTC, ver utils/dates.ts). El horario real de
+// inicio vive aparte en startTime ("HH:mm", hora local del club) porque mezclar hora-de-reloj
+// dentro de dateOn rompería la lógica de "día calendario" que usa el resto de la app (dashboard,
+// calendario). Si el evento no tiene startTime cargado (eventos viejos, campo opcional), no hay
+// forma de saber la hora real de inicio — se deja pasar el check-in sin restricción.
+function eventStartInstant(eventDateOn: Date, startTime: string | null): Date | null {
+	if (!startTime) return null;
+	const [hours, minutes] = startTime.split(':').map(Number);
+	return new Date(
+		Date.UTC(eventDateOn.getUTCFullYear(), eventDateOn.getUTCMonth(), eventDateOn.getUTCDate(), hours + CLUB_UTC_OFFSET_HOURS, minutes),
+	);
+}
+
+function entryWindowError(eventDateOn: Date, startTime: string | null): string | null {
+	const startsAt = eventStartInstant(eventDateOn, startTime);
+	if (!startsAt) return null;
+	const opensAt = new Date(startsAt.getTime() - ENTRY_WINDOW_MS);
 	if (new Date() < opensAt) {
-		return `Todavía no se puede ingresar — el evento empieza a las ${eventDateOn.toLocaleString('es-DO')}, el check-in abre 1 hora antes (${opensAt.toLocaleString('es-DO')}).`;
+		return `Todavía no se puede ingresar — el evento empieza a las ${startsAt.toLocaleString('es-DO')}, el check-in abre 1 hora antes (${opensAt.toLocaleString('es-DO')}).`;
 	}
 	return null;
 }
@@ -34,7 +50,7 @@ scanRouter.post('/', asyncHandler(async (req, res) => {
 			res.status(409).json({ type: 'ticket', error: 'Este QR ya fue escaneado', saleTicket: toPublicSaleTicket(saleTicket) });
 			return;
 		}
-		const windowError = entryWindowError(saleTicket.event.dateOn);
+		const windowError = entryWindowError(saleTicket.event.dateOn, saleTicket.event.startTime);
 		if (windowError) {
 			res.status(403).json({ type: 'ticket', error: windowError, saleTicket: toPublicSaleTicket(saleTicket) });
 			return;
@@ -50,7 +66,7 @@ scanRouter.post('/', asyncHandler(async (req, res) => {
 			res.status(409).json({ type: 'product', error: 'Este QR ya fue entregado', saleProduct: toPublicSaleProduct(saleProduct) });
 			return;
 		}
-		const windowError = entryWindowError(saleProduct.event.dateOn);
+		const windowError = entryWindowError(saleProduct.event.dateOn, saleProduct.event.startTime);
 		if (windowError) {
 			res.status(403).json({ type: 'product', error: windowError, saleProduct: toPublicSaleProduct(saleProduct) });
 			return;

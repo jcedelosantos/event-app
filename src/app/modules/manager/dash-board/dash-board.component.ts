@@ -22,9 +22,8 @@ const LIVE_REFRESH_MS = 20_000;
 		<h2 class="section-title">Dashboard</h2>
 
 		<div class="card mb-4">
-			<div class="card-header d-flex justify-content-between align-items-center">
+			<div class="card-header">
 				<span>Eventos de hoy</span>
-				<span class="small text-body-secondary">Se actualiza solo cada 20s con los ingresos registrados</span>
 			</div>
 			<div class="card-body">
 				@if (loading()) {

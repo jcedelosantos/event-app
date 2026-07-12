@@ -24,7 +24,7 @@ declare const bootstrap: any;
 				<div class="scrollmap">
 					<div class="row">
 						@for (map of maps(); track map.id) {
-							<div class="col-xxl-4 col-xl-6 col-lg-12 col-md-12 col-sm-12 col-12 ">
+							<div class="col-xxl-3 col-xl-4 col-lg-4 col-md-6 col-sm-6 col-12">
 								<card-map [map]="map" (editMap)="onEditMap($event)" (deleteMap)="onDeleteMap($event)" />
 							</div>
 						}

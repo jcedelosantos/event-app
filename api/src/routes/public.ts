@@ -56,7 +56,9 @@ publicRouter.get('/events/:code', asyncHandler(async (req, res) => {
 
 const registerSchema = z.object({
 	name: z.string().min(1),
-	lastname: z.string().min(1),
+	// Igual que la importación masiva de CSV: el nombre completo suele venir todo junto en `name`,
+	// así que apellido queda opcional para no bloquear el registro por un dato que ya está incluido.
+	lastname: z.string().optional().default(''),
 	email: z.string().email(),
 	phone: z.string().min(1),
 	carnet: z.string().min(1),
