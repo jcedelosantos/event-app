@@ -249,3 +249,10 @@ model SaleTicket {
   // Un mismo asiento no se puede vender dos veces para el mismo evento.
   @@unique([eventId, seatId])
 }
+
+// Configuración general de la app (ej. color de acento) — key-value genérico en vez de una
+// columna por setting, para no necesitar una migración cada vez que se agrega una opción nueva.
+model AppSetting {
+  key   String @id
+  value String
+}

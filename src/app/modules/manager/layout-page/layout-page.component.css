@@ -2,4 +2,14 @@
 	background-color: rgb(17, 17, 17);
 	color: white;
 	min-height: 100vh;
+	/* Red de seguridad: si algún componente adentro (carruseles, tablas) se desborda un poco en
+	   pantallas angostas, que quede recortado acá en vez de generar scroll horizontal de toda la
+	   página y correr el layout completo hacia un lado. */
+	overflow-x: hidden;
+}
+.content-col {
+	/* Sin esto, un flex item con contenido ancho adentro (tablas, ej. QRs) no se achica: en vez de
+	   scrollear ADENTRO de sí mismo, empuja el ancho de toda la fila y tapa el sidebar en pantallas
+	   angostas. */
+	min-width: 0;
 }

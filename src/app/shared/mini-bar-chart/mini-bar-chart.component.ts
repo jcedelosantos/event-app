@@ -48,7 +48,7 @@ export type BarChartItem = { label: string; value: number };
 				overflow: hidden;
 			}
 			.mini-bar-fill {
-				background: #dc3545;
+				background: var(--app-accent);
 				height: 100%;
 				border-radius: 0.25rem;
 				transition: width 0.3s ease;

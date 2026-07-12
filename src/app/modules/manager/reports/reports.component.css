@@ -2,7 +2,7 @@
 	display: block;
 }
 .report-stat {
-	border-left: 4px solid #dc3545;
+	border-left: 4px solid var(--app-accent);
 }
 .stat-label {
 	font-size: 0.85rem;

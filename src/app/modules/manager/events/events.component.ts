@@ -37,7 +37,7 @@ import { eventDateKey, todayKey } from '../../../utils/dates';
 			<app-create-event-modal [maps]="maps()" (eventCreated)="onEventCreated($event)" />
 			<create-map-modal (mapCreated)="onMapCreated($event)" />
 			<div class="row">
-				<div class="col-8">
+				<div class="col-12 col-lg-8">
 					<div class="d-flex flex-column vh-85">
 						<div class="text-white p-1" style="flex: 0 0 45%;">
 							<h5>Now <span class="badge text-bg-secondary">{{ eventsNow().length }}</span></h5>
@@ -107,7 +107,7 @@ import { eventDateKey, todayKey } from '../../../utils/dates';
 						</div>
 					</div>
 				</div>
-				<div class="col-4">
+				<div class="col-12 col-lg-4">
 					<app-schedule [events]="events()" />
 				</div>
 			</div>

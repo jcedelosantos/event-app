@@ -1,7 +1,15 @@
 .nav-bar-h {
 	height: 98vh;
-	width: 12vw;
+	/* 12vw se iba a 45px en pantallas angostas (apenas cabía el ícono) y a >400px en pantallas
+	   anchas (un riel de solo-íconos no necesita tanto) — clamp lo mantiene en un rango razonable
+	   sin importar el viewport. */
+	width: clamp(56px, 5vw, 90px);
 	background-color: rgb(8, 8, 8);
+}
+.nav-offcanvas {
+	/* Mismo problema que .nav-bar-h: un ancho puramente en vw quedaba angostísimo en celulares
+	   (el texto de cada item se cortaba letra por letra) — clamp fija un rango legible siempre. */
+	width: clamp(220px, 20vw, 280px) !important;
 }
 .img-menu {
 	margin: auto;

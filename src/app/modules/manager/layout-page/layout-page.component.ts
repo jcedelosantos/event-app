@@ -7,10 +7,10 @@ import { RouterOutlet } from '@angular/router';
 	imports: [NavBarMenuComponent, RouterOutlet],
 	template: `
 		<div class="row maps flex-nowrap" data-bs-theme="dark">
-			<div class="col-lg-auto col-md-1 col-sm-1">
+			<div class="col-auto">
 				<shared-nav-bar-menu />
 			</div>
-			<div class="col pt-3">
+			<div class="col pt-3 content-col">
 				<router-outlet />
 			</div>
 		</div>

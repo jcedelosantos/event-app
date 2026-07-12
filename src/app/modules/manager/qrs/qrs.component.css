@@ -17,5 +17,5 @@
   white-space: nowrap;
 }
 .qrs-table th[role='button']:hover {
-  color: #dc3545;
+  color: var(--app-accent);
 }

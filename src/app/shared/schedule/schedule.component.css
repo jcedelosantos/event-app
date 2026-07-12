@@ -10,10 +10,12 @@
 .calendar {
   border-collapse: collapse;
   width: 100%;
+  table-layout: fixed;
   text-align: center;
 }
 
 .calendar td, .calendar th {
+  box-sizing: border-box;
   border: 1px solid #613434;
   padding: 4px;
   width: 14.2%;
@@ -37,7 +39,7 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background-color: #dc3545;
+  background-color: var(--app-accent);
 }
 
 .scroll-events {

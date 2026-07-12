@@ -19,6 +19,17 @@ import * as bootstrap from "bootstrap";
 
 type QrSortKey = 'carnet' | 'client' | 'date' | 'event' | 'seat' | 'price';
 type ProductSortKey = 'carnet' | 'client' | 'date' | 'event' | 'product' | 'qty';
+type QrColumnKey = QrSortKey | 'status';
+
+const QR_COLUMN_LABELS: Record<QrColumnKey, string> = {
+  carnet: 'Carnet',
+  client: 'Client',
+  date: 'Date',
+  event: 'Event',
+  seat: 'Mesa/Asiento',
+  price: 'Price',
+  status: 'Estado',
+};
 
 @Component({
   selector: 'app-qrs',
@@ -66,6 +77,21 @@ export class QrsComponent implements OnInit, AfterViewInit {
         (sale.client.carnet ?? '').toLowerCase().includes(q),
     );
   });
+
+  qrColumns = (Object.keys(QR_COLUMN_LABELS) as QrColumnKey[]).map((key) => ({ key, label: QR_COLUMN_LABELS[key] }));
+  visibleQrColumns = signal<Record<QrColumnKey, boolean>>({
+    carnet: true,
+    client: true,
+    date: true,
+    event: true,
+    seat: true,
+    price: true,
+    status: true,
+  });
+
+  toggleQrColumn(key: QrColumnKey) {
+    this.visibleQrColumns.update((cols) => ({ ...cols, [key]: !cols[key] }));
+  }
 
   qrSortKey = signal<QrSortKey | null>(null);
   qrSortDir = signal<'asc' | 'desc'>('asc');

@@ -1,0 +1,13 @@
+:host {
+	display: block;
+}
+.preset-btn {
+	width: 32px;
+	height: 32px;
+	padding: 0;
+	border-radius: 50%;
+	border: 2px solid transparent;
+}
+.preset-btn.active {
+	border-color: #fff;
+}

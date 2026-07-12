@@ -1,6 +1,7 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, inject, OnInit } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { cleanupOrphanedModalBackdrop } from './utils/modal';
+import { ThemeService } from './core/services/theme.service';
 
 @Component({
 	selector: 'app-root',
@@ -10,8 +11,14 @@ import { cleanupOrphanedModalBackdrop } from './utils/modal';
 })
 export class AppComponent implements OnInit {
 	title = 'seat-app';
+	private readonly themeService = inject(ThemeService);
 
 	ngOnInit(): void {
+		// Aplica el color de acento configurado (o el default) apenas arranca la app, para toda
+		// página — manager, login, y el picker público — no solo dentro del manager.
+		this.themeService.init();
+
+
 		// El fix de "backdrop fantasma" (utils/modal.ts) solo corría cuando el código llamaba a
 		// closeModal() explícitamente — pero la mayoría de los botones "Close"/X de los modales
 		// usan data-bs-dismiss="modal" (el data-API nativo de Bootstrap), que nunca pasa por ahí.

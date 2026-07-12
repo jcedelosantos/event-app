@@ -13,5 +13,5 @@
 	white-space: nowrap;
 }
 .users-table th[role='button']:hover {
-	color: #dc3545;
+	color: var(--app-accent);
 }

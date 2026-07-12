@@ -190,7 +190,7 @@ const MAX_SEATS = 5;
 										<div class="d-flex gap-3 small text-body-secondary">
 											<span><span class="legend-dot" style="background:#28a745"></span> Disponible</span>
 											<span><span class="legend-dot" style="background:#6c757d"></span> Ocupado</span>
-											<span><span class="legend-dot" style="background:#dc3545"></span> Elegido</span>
+											<span><span class="legend-dot" style="background:var(--app-accent)"></span> Elegido</span>
 										</div>
 									</div>
 								</div>
@@ -266,14 +266,14 @@ const MAX_SEATS = 5;
 				font-size: 10px;
 				line-height: 1;
 				border-radius: 50%;
-				border: 1px solid #dc3545;
+				border: 1px solid var(--app-accent);
 				background: #1c1f24;
 				color: #fff;
 				cursor: pointer;
 				transform: translate(-50%, -50%);
 			}
 			.seat-btn.seat-selected {
-				background: #dc3545;
+				background: var(--app-accent);
 			}
 			.seat-btn.seat-taken {
 				background: #2a2a2a;
@@ -290,8 +290,8 @@ const MAX_SEATS = 5;
 				align-items: center;
 				justify-content: center;
 				border-radius: 50%;
-				border: 2px solid #dc3545;
-				background: #dc3545;
+				border: 2px solid var(--app-accent);
+				background: var(--app-accent);
 				color: #fff;
 				font-size: 13px;
 				font-weight: 700;
@@ -309,7 +309,7 @@ const MAX_SEATS = 5;
 				top: -6px;
 				right: -6px;
 				background: #fff;
-				color: #dc3545;
+				color: var(--app-accent);
 				font-size: 10px;
 				font-weight: 700;
 				line-height: 1;
@@ -352,7 +352,7 @@ const MAX_SEATS = 5;
 				cursor: pointer;
 			}
 			.table-seat-btn.seat-selected {
-				background: #dc3545;
+				background: var(--app-accent);
 			}
 			.table-seat-btn.seat-taken {
 				background: #6c757d;
@@ -368,7 +368,7 @@ const MAX_SEATS = 5;
 				top: -6px;
 				right: -6px;
 				background: #fff;
-				color: #dc3545;
+				color: var(--app-accent);
 				font-size: 10px;
 				font-weight: 700;
 				line-height: 1;

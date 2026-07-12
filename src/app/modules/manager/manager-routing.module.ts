@@ -16,6 +16,7 @@ import { ProductsComponent } from './products/products.component';
 import { SalesComponent } from './sales/sales.component';
 import { EventDetailsComponent } from './events/event-details/event-details.component';
 import { QrScannerComponent } from './events/components/qr-scanner/qr-scanner.component';
+import { SettingsComponent } from './settings/settings.component';
 
 const routes: Routes = [
 	{
@@ -64,6 +65,10 @@ const routes: Routes = [
 			{
 				path: 'history',
 				component: HistoryComponent,
+			},
+			{
+				path: 'settings',
+				component: SettingsComponent,
 			},
 			{
 				path: 'qrs',

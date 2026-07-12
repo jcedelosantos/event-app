@@ -72,7 +72,7 @@ div.scrollimg a:hover {
 	justify-content: center;
 	gap: 0.5rem;
 	background: linear-gradient(135deg, #2a2f36, #1c1f24);
-	color: #dc3545;
+	color: var(--app-accent);
 }
 .map-placeholder .bi-geo-alt-fill {
 	font-size: 2.5rem;

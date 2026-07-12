@@ -36,37 +36,86 @@
         <label class="form-label small text-body-secondary mb-1">Buscar cliente / carnet / código QR</label>
         <input type="search" class="form-control form-control-sm" placeholder="Nombre, apellido, carnet o código..." [ngModel]="searchText()" (ngModelChange)="searchText.set($event)" />
     </div>
+    <div class="col-sm-2 d-flex align-items-end">
+        <div class="dropdown">
+            <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="bi bi-layout-three-columns"></i> Columnas
+            </button>
+            <ul class="dropdown-menu p-2">
+                @for (col of qrColumns; track col.key) {
+                    <li class="form-check px-2">
+                        <input
+                            class="form-check-input"
+                            type="checkbox"
+                            id="qrcol_{{ col.key }}"
+                            [checked]="visibleQrColumns()[col.key]"
+                            (change)="toggleQrColumn(col.key)"
+                        />
+                        <label class="form-check-label" for="qrcol_{{ col.key }}">{{ col.label }}</label>
+                    </li>
+                }
+            </ul>
+        </div>
+    </div>
 </div>
 
 <table class="table table-striped table-hover table-sm qrs-table">
     <thead>
         <tr>
-            <th role="button" (click)="toggleQrSort('carnet')">Carnet <i class="bi" [class]="qrSortIcon('carnet')"></i></th>
-            <th role="button" (click)="toggleQrSort('client')">Client <i class="bi" [class]="qrSortIcon('client')"></i></th>
-            <th role="button" (click)="toggleQrSort('date')">Date <i class="bi" [class]="qrSortIcon('date')"></i></th>
-            <th role="button" (click)="toggleQrSort('event')">Event <i class="bi" [class]="qrSortIcon('event')"></i></th>
-            <th role="button" (click)="toggleQrSort('seat')">Mesa/Asiento <i class="bi" [class]="qrSortIcon('seat')"></i></th>
-            <th role="button" (click)="toggleQrSort('price')">Price <i class="bi" [class]="qrSortIcon('price')"></i></th>
-            <th>Estado</th>
+            @if (visibleQrColumns()['carnet']) {
+                <th role="button" (click)="toggleQrSort('carnet')">Carnet <i class="bi" [class]="qrSortIcon('carnet')"></i></th>
+            }
+            @if (visibleQrColumns()['client']) {
+                <th role="button" (click)="toggleQrSort('client')">Client <i class="bi" [class]="qrSortIcon('client')"></i></th>
+            }
+            @if (visibleQrColumns()['date']) {
+                <th role="button" (click)="toggleQrSort('date')">Date <i class="bi" [class]="qrSortIcon('date')"></i></th>
+            }
+            @if (visibleQrColumns()['event']) {
+                <th role="button" (click)="toggleQrSort('event')">Event <i class="bi" [class]="qrSortIcon('event')"></i></th>
+            }
+            @if (visibleQrColumns()['seat']) {
+                <th role="button" (click)="toggleQrSort('seat')">Mesa/Asiento <i class="bi" [class]="qrSortIcon('seat')"></i></th>
+            }
+            @if (visibleQrColumns()['price']) {
+                <th role="button" (click)="toggleQrSort('price')">Price <i class="bi" [class]="qrSortIcon('price')"></i></th>
+            }
+            @if (visibleQrColumns()['status']) {
+                <th>Estado</th>
+            }
             <th></th>
         </tr>
     </thead>
     <tbody>
         @for (qr of sortedQrList(); track qr.id) {
         <tr>
-            <td scope="row">{{qr.client.carnet}}</td>
-            <td scope="row">{{qr.client.name}} {{qr.client.lastname}}</td>
-            <td scope="row">{{qr.dateSold | date: 'short'}}</td>
-            <td scope="row">{{qr.event.name}}</td>
-            <td scope="row">{{qr.seat.area.name}} / {{qr.seat.name}}</td>
-            <td scope="row">{{qr.ticket.price}}</td>
-            <td scope="row">
-                @if (qr.checkedInAt) {
-                    <span class="badge text-bg-success">Ingresó</span>
-                } @else {
-                    <span class="badge text-bg-secondary">Pendiente</span>
-                }
-            </td>
+            @if (visibleQrColumns()['carnet']) {
+                <td scope="row">{{qr.client.carnet}}</td>
+            }
+            @if (visibleQrColumns()['client']) {
+                <td scope="row">{{qr.client.name}} {{qr.client.lastname}}</td>
+            }
+            @if (visibleQrColumns()['date']) {
+                <td scope="row">{{qr.dateSold | date: 'short'}}</td>
+            }
+            @if (visibleQrColumns()['event']) {
+                <td scope="row">{{qr.event.name}}</td>
+            }
+            @if (visibleQrColumns()['seat']) {
+                <td scope="row">{{qr.seat.area.name}} / {{qr.seat.name}}</td>
+            }
+            @if (visibleQrColumns()['price']) {
+                <td scope="row">{{qr.ticket.price}}</td>
+            }
+            @if (visibleQrColumns()['status']) {
+                <td scope="row">
+                    @if (qr.checkedInAt) {
+                        <span class="badge text-bg-success">Ingresó</span>
+                    } @else {
+                        <span class="badge text-bg-secondary">Pendiente</span>
+                    }
+                </td>
+            }
             <td scope="row">
                     <button class="btn btn-primary btn-sm me-2" (click)="openDetailModal(qr)">
                         <i class="bi bi-eye" aria-hidden="true"></i> View

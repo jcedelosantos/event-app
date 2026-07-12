@@ -110,13 +110,13 @@ import { closeModal } from '../../../../../utils/modal';
 				line-height: 1.1;
 			}
 			.icon-choice.active {
-				border-color: #dc3545;
-				background: rgba(220, 53, 69, 0.15);
+				border-color: var(--app-accent);
+				background: rgba(var(--app-accent-rgb), 0.15);
 				color: #fff;
 			}
 			.icon-choice.active i,
 			.icon-choice.active .icon-choice-none {
-				color: #dc3545;
+				color: var(--app-accent);
 			}
 		`,
 	],

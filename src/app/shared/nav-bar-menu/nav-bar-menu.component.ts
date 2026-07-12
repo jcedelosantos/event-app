@@ -41,7 +41,7 @@ type MenuItem = { title: string; icon: string; url: string};
 			</div>
 		</div>
 
-		<div class="offcanvas offcanvas-start" tabindex="-1" id="offcanvas" aria-labelledby="offcanvasLabel" style="width: 12vw;">
+		<div class="offcanvas offcanvas-start nav-offcanvas" tabindex="-1" id="offcanvas" aria-labelledby="offcanvasLabel">
 			<div class="p-1" style="height: 5%">
 				<div class="d-flex flex-row  mb-3">
 					<div class="p-2 flex-grow-1">
@@ -97,24 +97,33 @@ export class NavBarMenuComponent implements AfterViewInit {
 		{ title: 'Products', icon: 'bi bi-calendar2-event-fill', url: '/manager/products' },
 		{ title: 'Reports', icon: 'bi bi-flag-fill', url: '/manager/reports' },
 		{ title: 'History', icon: 'bi bi-clock-history', url: '/manager/history' },
+		{ title: 'Settings', icon: 'bi bi-palette', url: '/manager/settings' },
 	];
 
 	menuExit: Array<MenuItem> = [{ title: 'Exit', icon: 'bi bi-box-arrow-left', url: '/site-web' }];
+
+	// Por debajo de este ancho, dejar el panel con nombres siempre abierto le come la mitad de la
+	// pantalla al contenido real — coincide con el breakpoint "md" de Bootstrap.
+	private static readonly DESKTOP_BREAKPOINT_PX = 768;
 
 	ngAfterViewInit(): void {
 		this.router.events.pipe(filter((event) => event instanceof NavigationEnd)).subscribe((event: NavigationEnd) => {
 			this.path.set(event.urlAfterRedirects);
 		});
-		this.showOffCanvas();
+		this.initOffCanvas();
 	}
 
-	showOffCanvas() {
+	initOffCanvas() {
 		const offCanvas = document.getElementById('offcanvas');
-		if (offCanvas) {
-			// Es un sidebar permanente, no un panel para cerrar con click-afuera/Esc: sin esto,
-			// bootstrap.Offcanvas crea un backdrop full-page con pointer-events:auto que bloquea
-			// todos los clicks del resto de la app apenas carga la página.
-			const bsOffCanvas = new bootstrap.Offcanvas(offCanvas, { backdrop: false, scroll: true });
+		if (!offCanvas) return;
+
+		const isDesktop = window.innerWidth >= NavBarMenuComponent.DESKTOP_BREAKPOINT_PX;
+		// En desktop es un sidebar permanente (backdrop:false, para no bloquear clicks del resto de
+		// la app). En mobile/tablet, en cambio, arranca cerrado y se abre como un drawer normal con
+		// backdrop al tocar el ícono de hamburguesa — si no, el panel con nombres se queda fijo
+		// comiéndose la mitad de una pantalla angosta.
+		const bsOffCanvas = new bootstrap.Offcanvas(offCanvas, { backdrop: !isDesktop, scroll: true });
+		if (isDesktop) {
 			bsOffCanvas.show();
 		}
 	}

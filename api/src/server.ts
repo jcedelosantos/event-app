@@ -16,6 +16,7 @@ import { saleProductsRouter } from './routes/sale-products';
 import { scanRouter } from './routes/scan';
 import { publicRouter } from './routes/public';
 import { auditLogsRouter } from './routes/audit-logs';
+import { settingsRouter } from './routes/settings';
 
 // Red de seguridad: una promesa rechazada sin manejar en cualquier punto del proceso (no solo
 // dentro de una request) tumbaba el server entero en Node moderno. asyncHandler cubre las rutas,
@@ -46,6 +47,7 @@ app.use('/sale-products', saleProductsRouter);
 app.use('/scan', scanRouter);
 app.use('/public', publicRouter);
 app.use('/audit-logs', auditLogsRouter);
+app.use('/settings', settingsRouter);
 
 // En producción, este mismo proceso también sirve el build de Angular (single-service deploy:
 // sin CORS, sin necesidad de un dominio aparte para el frontend). En dev, el frontend corre

@@ -17,3 +17,55 @@ html, body {
 	font-weight: 600;
 	margin: 0 0 0.75rem 0;
 }
+
+/* Color de acento configurable (Manager > Settings). Los valores de acá abajo son el default
+   antes de que ThemeService (core/services/theme.service.ts) los pise en runtime con el color
+   guardado — sin JS, la app sigue viéndose bien con este azul oscuro por defecto. */
+:root {
+	--app-accent: #1e3a8a;
+	--app-accent-rgb: 30, 58, 138;
+	--app-accent-hover: #19316f;
+	--app-accent-active: #142857;
+	--app-accent-text-emphasis: #6f8ad6;
+	--app-accent-bg-subtle: #0c1730;
+	--app-accent-border-subtle: #34509e;
+}
+
+/* Bootstrap resuelve la mayoría de sus utilidades -danger (text-danger, bg-danger, text-bg-danger,
+   alert-danger, is-invalid) a partir de estas variables --bs-danger* — pisarlas acá alcanza para
+   recolorear todas esas clases de una sola vez, sin tocar cada componente. */
+:root,
+[data-bs-theme='dark'],
+[data-bs-theme='light'] {
+	--bs-danger: var(--app-accent);
+	--bs-danger-rgb: var(--app-accent-rgb);
+	--bs-danger-text-emphasis: var(--app-accent-text-emphasis);
+	--bs-danger-bg-subtle: var(--app-accent-bg-subtle);
+	--bs-danger-border-subtle: var(--app-accent-border-subtle);
+	--bs-form-invalid-color: var(--app-accent-text-emphasis);
+	--bs-form-invalid-border-color: var(--app-accent);
+}
+
+/* .btn-danger / .btn-outline-danger definen sus propios --bs-btn-* hardcodeados en vez de
+   heredarlos de --bs-danger, así que necesitan su propio override. */
+.btn-danger {
+	--bs-btn-bg: var(--app-accent);
+	--bs-btn-border-color: var(--app-accent);
+	--bs-btn-hover-bg: var(--app-accent-hover);
+	--bs-btn-hover-border-color: var(--app-accent-hover);
+	--bs-btn-active-bg: var(--app-accent-active);
+	--bs-btn-active-border-color: var(--app-accent-active);
+	--bs-btn-disabled-bg: var(--app-accent);
+	--bs-btn-disabled-border-color: var(--app-accent);
+	--bs-btn-focus-shadow-rgb: var(--app-accent-rgb);
+}
+.btn-outline-danger {
+	--bs-btn-color: var(--app-accent);
+	--bs-btn-border-color: var(--app-accent);
+	--bs-btn-hover-bg: var(--app-accent);
+	--bs-btn-hover-border-color: var(--app-accent);
+	--bs-btn-active-bg: var(--app-accent);
+	--bs-btn-active-border-color: var(--app-accent);
+	--bs-btn-disabled-color: var(--app-accent);
+	--bs-btn-focus-shadow-rgb: var(--app-accent-rgb);
+}
