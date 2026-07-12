@@ -11,9 +11,9 @@
 						<qrcode [qrdata]="detail.codeQR" [width]="180" [errorCorrectionLevel]="'M'"></qrcode>
 						<div class="mt-2">
 							@if (detail.checkedInAt) {
-								<span class="badge text-bg-success">Escaneado el {{ detail.checkedInAt | date: 'short' }}</span>
+								<span class="badge text-bg-success">Registrado el {{ detail.checkedInAt | date: 'short' }}</span>
 							} @else {
-								<span class="badge text-bg-secondary">Sin escanear todavía</span>
+								<span class="badge text-bg-secondary">Todavía no se ha registrado</span>
 							}
 						</div>
 					</div>
@@ -24,6 +24,10 @@
 						<div class="col-6 mb-2"><strong>Cliente:</strong> {{ detail.client.name }} {{ detail.client.lastname }}</div>
 						<div class="col-6 mb-2"><strong>Email:</strong> {{ detail.client.email }}</div>
 						<div class="col-6 mb-2"><strong>Vendido:</strong> {{ detail.dateSold | date: 'short' }}</div>
+						<div class="col-6 mb-2">
+							<strong>Fecha y hora de registro:</strong>
+							{{ detail.checkedInAt ? (detail.checkedInAt | date: 'short') : 'Pendiente' }}
+						</div>
 					</div>
 					@if (resendMessage()) {
 						<div class="alert" [class.alert-success]="resendOk()" [class.alert-danger]="!resendOk()">{{ resendMessage() }}</div>

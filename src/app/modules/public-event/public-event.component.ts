@@ -87,79 +87,49 @@ const MAX_SEATS = 5;
 									<div class="card mb-3">
 										<div class="card-header">{{ area.name }}</div>
 										<div class="card-body">
-											@if (area.img) {
-												<div class="seat-picker-image">
-													<img [src]="area.img" class="seat-picker-bg" (load)="onImageLoad(area.id, $event)" />
-													@if (imgSizes()[area.id]; as size) {
-														@for (seat of ungroupedSeats(area); track seat.id) {
-															<button
-																type="button"
-																class="seat-btn"
-																[class.seat-taken]="!seat.available"
-																[class.seat-selected]="selectedSeatIds().has(seat.id)"
-																[disabled]="!seat.available"
-																[style.top.%]="(seat.y / size.h) * 100"
-																[style.left.%]="(seat.x / size.w) * 100"
-																[title]="seat.name"
-																(click)="toggleSeat(seat)"
-															>
-																{{ seatLabel(seat) }}
-															</button>
-														}
-														@for (table of area.tables; track table.id) {
-															@if (seatsForTable(area, table.id).length) {
-																<button
-																	type="button"
-																	class="table-btn"
-																	[class.table-full]="tableAvailableCount(area, table.id) === 0"
-																	[style.top.%]="(table.y / size.h) * 100"
-																	[style.left.%]="(table.x / size.w) * 100"
-																	[title]="table.name"
-																	(click)="toggleTable(table.id)"
-																>
-																	{{ seatLabel(table) }}
-																	@if (tableSelectedCount(area, table.id) > 0) {
-																		<span class="table-badge">{{ tableSelectedCount(area, table.id) }}</span>
-																	}
-																</button>
-															}
-														}
-													}
-												</div>
-											} @else {
-												<div class="d-flex flex-wrap gap-2">
+											@if (!area.img) {
+												<p class="small text-body-secondary mb-1">
+													Esta área todavía no tiene una foto real del salón — se muestra un plano genérico como referencia.
+												</p>
+											}
+											<div class="seat-picker-image">
+												<img [src]="area.img || defaultAreaBg" class="seat-picker-bg" (load)="onImageLoad(area.id, $event)" />
+												@if (imgSizes()[area.id]; as size) {
 													@for (seat of ungroupedSeats(area); track seat.id) {
 														<button
 															type="button"
-															class="btn btn-sm"
-															[class.btn-secondary]="!seat.available"
-															[class.btn-danger]="seat.available && selectedSeatIds().has(seat.id)"
-															[class.btn-outline-danger]="seat.available && !selectedSeatIds().has(seat.id)"
+															class="seat-btn"
+															[class.seat-taken]="!seat.available"
+															[class.seat-selected]="selectedSeatIds().has(seat.id)"
 															[disabled]="!seat.available"
+															[style.top.%]="(seat.y / size.h) * 100"
+															[style.left.%]="(seat.x / size.w) * 100"
+															[title]="seat.name"
 															(click)="toggleSeat(seat)"
 														>
-															{{ seat.name }}
+															{{ seatLabel(seat) }}
 														</button>
 													}
-													@for (table of area.tables; track table.id) {
+													@for (table of sortedTables(area); track table.id) {
 														@if (seatsForTable(area, table.id).length) {
 															<button
 																type="button"
-																class="btn btn-sm table-flat-btn"
-																[class.btn-secondary]="tableAvailableCount(area, table.id) === 0"
-																[class.btn-danger]="tableAvailableCount(area, table.id) > 0 && tableSelectedCount(area, table.id) > 0"
-																[class.btn-outline-danger]="tableAvailableCount(area, table.id) > 0 && tableSelectedCount(area, table.id) === 0"
+																class="table-btn"
+																[class.table-full]="tableAvailableCount(area, table.id) === 0"
+																[style.top.%]="(table.y / size.h) * 100"
+																[style.left.%]="(table.x / size.w) * 100"
+																[title]="table.name"
 																(click)="toggleTable(table.id)"
 															>
-																{{ table.name }}
+																{{ seatLabel(table) }}
 																@if (tableSelectedCount(area, table.id) > 0) {
-																	<span class="table-badge-flat">{{ tableSelectedCount(area, table.id) }}</span>
+																	<span class="table-badge">{{ tableSelectedCount(area, table.id) }}</span>
 																}
 															</button>
 														}
 													}
-												</div>
-											}
+												}
+											</div>
 										</div>
 									</div>
 								}
@@ -359,27 +329,6 @@ const MAX_SEATS = 5;
 				color: #ccc;
 				cursor: not-allowed;
 			}
-			.table-flat-btn {
-				position: relative;
-				padding-right: 1.75rem;
-			}
-			.table-badge-flat {
-				position: absolute;
-				top: -6px;
-				right: -6px;
-				background: #fff;
-				color: var(--app-accent);
-				font-size: 10px;
-				font-weight: 700;
-				line-height: 1;
-				border-radius: 50%;
-				min-width: 16px;
-				height: 16px;
-				display: flex;
-				align-items: center;
-				justify-content: center;
-				padding: 0 2px;
-			}
 			.legend-dot {
 				display: inline-block;
 				width: 10px;
@@ -398,6 +347,10 @@ export class PublicEventComponent implements OnInit {
 	private readonly fb = inject(FormBuilder);
 
 	readonly maxSeats = MAX_SEATS;
+	// Mismo plano genérico que usa el editor del manager (seats.component.ts) cuando el área
+	// todavía no tiene una foto real — así el picker público siempre tiene una referencia visual
+	// del salón, en vez de caer a una lista plana sin ningún plano.
+	readonly defaultAreaBg = 'assets/images/default-area-bg.svg';
 
 	step = signal<'loading' | 'not-found' | 'ready' | 'confirmed'>('loading');
 	event = signal<PublicEvent | null>(null);
@@ -430,6 +383,12 @@ export class PublicEventComponent implements OnInit {
 
 	ungroupedSeats(area: PublicArea): PublicSeat[] {
 		return area.seats.filter((s) => !s.tableId);
+	}
+
+	// El orden que devuelve la API es el de inserción en la base, no el número de mesa — sin esto
+	// "Mesa 1" podía terminar apareciendo al final de la lista.
+	sortedTables(area: PublicArea) {
+		return [...area.tables].sort((a, b) => this.seatNumber(a.name) - this.seatNumber(b.name));
 	}
 
 	seatsForTable(area: PublicArea, tableId: number): PublicSeat[] {
