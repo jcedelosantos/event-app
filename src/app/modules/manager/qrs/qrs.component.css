@@ -9,6 +9,7 @@
 .qrs-table td {
   padding: 0.4rem 0.6rem;
   vertical-align: middle;
+  white-space: nowrap;
 }
 .qrs-table th[role='button'] {
   cursor: pointer;

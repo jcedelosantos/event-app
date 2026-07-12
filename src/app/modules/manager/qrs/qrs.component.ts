@@ -17,8 +17,8 @@ import { eventDateKey, todayKey } from '../../../utils/dates';
 import { HttpErrorResponse } from '@angular/common/http';
 import * as bootstrap from "bootstrap";
 
-type QrSortKey = 'seller' | 'carnet' | 'client' | 'date' | 'event' | 'seat' | 'price';
-type ProductSortKey = 'seller' | 'carnet' | 'client' | 'date' | 'event' | 'product' | 'qty';
+type QrSortKey = 'carnet' | 'client' | 'date' | 'event' | 'seat' | 'price';
+type ProductSortKey = 'carnet' | 'client' | 'date' | 'event' | 'product' | 'qty';
 
 @Component({
   selector: 'app-qrs',
@@ -80,7 +80,6 @@ export class QrsComponent implements OnInit, AfterViewInit {
 
   private qrSortValue(qr: SaleTicket, key: QrSortKey): string | number {
     switch (key) {
-      case 'seller': return qr.seller.username;
       case 'carnet': return qr.client.carnet ?? '';
       case 'client': return `${qr.client.name} ${qr.client.lastname}`;
       case 'date': return qr.dateSold;
@@ -117,7 +116,6 @@ export class QrsComponent implements OnInit, AfterViewInit {
 
   private productSortValue(sale: SaleProduct, key: ProductSortKey): string | number {
     switch (key) {
-      case 'seller': return sale.seller.username;
       case 'carnet': return sale.client.carnet ?? '';
       case 'client': return `${sale.client.name} ${sale.client.lastname}`;
       case 'date': return sale.dateSold;

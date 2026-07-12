@@ -5,6 +5,7 @@
 .users-table td {
 	padding: 0.45rem 0.6rem;
 	vertical-align: middle;
+	white-space: nowrap;
 }
 .users-table th[role='button'] {
 	cursor: pointer;

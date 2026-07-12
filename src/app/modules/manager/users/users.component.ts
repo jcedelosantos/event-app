@@ -12,7 +12,7 @@ import { confirm, error } from '../../../utils/messages';
 import { extractErrorMessage } from '../../../utils/api-error';
 import { HttpErrorResponse } from '@angular/common/http';
 
-type SortKey = 'carnet' | 'name' | 'lastname' | 'username' | 'email' | 'phone' | 'type';
+type SortKey = 'carnet' | 'name' | 'lastname' | 'username' | 'email' | 'type';
 
 @Component({
 	selector: 'app-users',
@@ -78,7 +78,6 @@ type SortKey = 'carnet' | 'name' | 'lastname' | 'username' | 'email' | 'phone' |
 					<th scope="col" role="button" (click)="toggleSort('lastname')">LastName <i class="bi" [class]="sortIcon('lastname')"></i></th>
 					<th scope="col" role="button" (click)="toggleSort('username')">UserName <i class="bi" [class]="sortIcon('username')"></i></th>
 					<th scope="col" role="button" (click)="toggleSort('email')">Email <i class="bi" [class]="sortIcon('email')"></i></th>
-					<th scope="col" role="button" (click)="toggleSort('phone')">Phone <i class="bi" [class]="sortIcon('phone')"></i></th>
 					<th scope="col" role="button" (click)="toggleSort('type')">Type <i class="bi" [class]="sortIcon('type')"></i></th>
 					<th scope="col"></th>
 				</tr>
@@ -94,7 +93,6 @@ type SortKey = 'carnet' | 'name' | 'lastname' | 'username' | 'email' | 'phone' |
 						<td>{{ user.lastname }}</td>
 						<td>{{ user.username }}</td>
 						<td>{{ user.email }}</td>
-						<td>{{ user.phone }}</td>
 						<td>{{ user.type.name }}</td>
 						<td class="text-end text-nowrap">
 							<button type="button" class="btn btn-dark btn-sm rounded-circle me-1" (click)="openUpdateUserModal(user)"><i class="bi bi-pencil"></i></button>
