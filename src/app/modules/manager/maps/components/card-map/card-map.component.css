@@ -27,3 +27,19 @@ img {
 	font-size: 0.8rem;
 	color: #adb5bd;
 }
+.map-stats {
+	gap: 0.5rem;
+}
+.map-stat {
+	flex: 1 1 0;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 0.15rem;
+}
+.map-stat-label {
+	font-size: 0.75rem;
+	color: #adb5bd;
+	white-space: nowrap;
+}

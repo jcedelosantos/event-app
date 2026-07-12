@@ -24,15 +24,18 @@ import { RouterLink } from '@angular/router';
 				</div>
 				<div class="card-body py-2">
 					<p class="card-text small text-body-secondary mb-2">{{ map.description }}</p>
-					<div class="d-flex justify-content-evenly small">
-						<div class="bd-highlight">
-							Areas : <span class="badge text-bg-danger">{{ map.areas.length }}</span>
+					<div class="d-flex map-stats">
+						<div class="map-stat">
+							<span class="map-stat-label">Areas</span>
+							<span class="badge text-bg-danger">{{ map.areas.length }}</span>
 						</div>
-						<div class="bd-highlight">
-							Mesas : <span class="badge text-bg-danger">{{ tableCount(map) }}</span>
+						<div class="map-stat">
+							<span class="map-stat-label">Mesas</span>
+							<span class="badge text-bg-danger">{{ tableCount(map) }}</span>
 						</div>
-						<div class="bd-highlight">
-							Asientos : <span class="badge text-bg-danger">{{ seatCount(map) }}</span>
+						<div class="map-stat">
+							<span class="map-stat-label">Asientos</span>
+							<span class="badge text-bg-danger">{{ seatCount(map) }}</span>
 						</div>
 					</div>
 				</div>

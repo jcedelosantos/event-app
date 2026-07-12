@@ -15,21 +15,17 @@ declare const bootstrap: any;
 	selector: 'app-maps',
 	imports: [CardMapComponent, NavBarMapsComponent, CreateMapModalComponent],
 	template: `
-		<div class="row">
-			<h2 class="section-title">Manger Maps</h2>
-			<app-nav-bar-maps />
-			<create-map-modal [(map)]="mapToEdit" (mapCreated)="onMapCreated($event)" (mapUpdated)="onMapUpdated($event)" />
+		<h2 class="section-title">Manger Maps</h2>
+		<app-nav-bar-maps />
+		<create-map-modal [(map)]="mapToEdit" (mapCreated)="onMapCreated($event)" (mapUpdated)="onMapUpdated($event)" />
 
-			<div class="col-12 ">
-				<div class="scrollmap">
-					<div class="row">
-						@for (map of maps(); track map.id) {
-							<div class="col-xxl-3 col-xl-4 col-lg-4 col-md-6 col-sm-6 col-12">
-								<card-map [map]="map" (editMap)="onEditMap($event)" (deleteMap)="onDeleteMap($event)" />
-							</div>
-						}
+		<div class="scrollmap">
+			<div class="row">
+				@for (map of maps(); track map.id) {
+					<div class="col-xxl-3 col-xl-4 col-lg-4 col-md-6 col-sm-6 col-12">
+						<card-map [map]="map" (editMap)="onEditMap($event)" (deleteMap)="onDeleteMap($event)" />
 					</div>
-				</div>
+				}
 			</div>
 		</div>
 	`,
