@@ -23,7 +23,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 	template: `
 		<nav-bar-map [maps]="maps()" [idMap]="map()?.id" [areas]="areas()" />
 		<div class="col-xxl-9 col-md-12 d-flex justify-content-between align-items-center">
-			<h3>Manager Areas</h3>
+			<h3 class="section-title mb-0">Manager Areas</h3>
 			<button type="button" class="btn btn-danger btn-sm" (click)="openCreateAreaModal()"><i class="bi bi-plus-lg"></i> Add Area</button>
 		</div>
 		<div class="scroll-map">

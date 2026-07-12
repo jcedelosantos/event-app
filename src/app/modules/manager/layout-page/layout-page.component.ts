@@ -10,7 +10,7 @@ import { RouterOutlet } from '@angular/router';
 			<div class="col-lg-auto col-md-1 col-sm-1">
 				<shared-nav-bar-menu />
 			</div>
-			<div class="col pt-5">
+			<div class="col pt-3">
 				<router-outlet />
 			</div>
 		</div>

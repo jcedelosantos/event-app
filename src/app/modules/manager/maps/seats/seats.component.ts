@@ -33,7 +33,7 @@ declare const bootstrap: any;
 	template: `
 		<nav-bar-map [areas]="map()?.areas" [idMap]="map()?.id" />
 		<div class="col-xxl-9 col-md-12 d-flex justify-content-between align-items-center">
-			<h3>Manager Seat</h3>
+			<h3 class="section-title mb-0">Manager Seat</h3>
 			<div>
 				<button type="button" class="btn btn-outline-danger btn-sm me-2" data-bs-toggle="modal" data-bs-target="#bulkCreateSeatsModal"><i class="bi bi-grid-3x3-gap"></i> Generar varios</button>
 				<button type="button" class="btn btn-danger btn-sm" (click)="openCreateSeatModal()"><i class="bi bi-plus-lg"></i> Add Seat</button>

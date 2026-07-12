@@ -13,7 +13,7 @@ import { eventDateKey, todayKey } from '../../../utils/dates';
 	selector: 'app-events',
 	imports: [CreateEventModalComponent, ScheduleComponent, EventCardComponent, CreateMapModalComponent],
 	template: `
-			<h2 class="pb-1">Events Manager</h2>
+			<h2 class="section-title">Events Manager</h2>
 			<nav class="navbar border-bottom border-body">
 				<div class="container-fluid">
 					<form class="d-flex" role="search">

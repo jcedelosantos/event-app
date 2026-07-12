@@ -19,7 +19,7 @@ const LIVE_REFRESH_MS = 20_000;
 	selector: 'app-dash-board',
 	imports: [RouterLink, MiniBarChartComponent],
 	template: `
-		<h2 class="pb-3">Dashboard</h2>
+		<h2 class="section-title">Dashboard</h2>
 
 		<div class="card mb-4">
 			<div class="card-header d-flex justify-content-between align-items-center">

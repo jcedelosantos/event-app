@@ -7,3 +7,13 @@ html, body {
 	height: 400px;
 	width: 100%;
 }
+
+/* Título de cada página del manager (Users, Events, Maps, etc.) — antes cada una usaba <h1>/<h2>
+   por default (2-2.5rem) con varios <br/> sueltos arriba para "separar", dejando un salto enorme
+   antes de que arranque el contenido real. Una clase compartida en vez de repetir el mismo tamaño
+   reducido en el CSS de cada componente. */
+.section-title {
+	font-size: 1.5rem;
+	font-weight: 600;
+	margin: 0 0 0.75rem 0;
+}

@@ -18,10 +18,7 @@ type SortKey = 'carnet' | 'name' | 'lastname' | 'username' | 'email' | 'phone' |
 	selector: 'app-users',
 	imports: [UpdateUserModalComponent, ImportUsersModalComponent, ExportUsersModalComponent],
 	template: `
-		<br />
-		<br />
-		<h2>Users Manager</h2>
-		<br />
+		<h2 class="section-title">Users Manager</h2>
 		<nav class="navbar border-bottom border-body">
 			<div class="container-fluid">
 				<form class="d-flex" role="search">

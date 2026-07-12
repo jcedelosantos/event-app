@@ -14,7 +14,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 	selector: 'app-products',
 	imports: [ProductCardComponent, UpdateProductModalComponent, ImportProductsModalComponent],
 	template: `
-		<h2>Products Manager</h2>
+		<h2 class="section-title">Products Manager</h2>
 
 		<nav class="navbar border-bottom border-body">
 			<div class="container-fluid">

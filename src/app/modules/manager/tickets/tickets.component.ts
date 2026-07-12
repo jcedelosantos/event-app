@@ -16,7 +16,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 	selector: 'app-tickets',
 	imports: [TicketCardComponent, UpdateTicketModalComponent, ExportTicketsModalComponent, ImportTicketsModalComponent],
 	template: `
-		<h2>Tickets Manager</h2>
+		<h2 class="section-title">Tickets Manager</h2>
 
 		<nav class="navbar border-bottom border-body">
 			<div class="container-fluid">
