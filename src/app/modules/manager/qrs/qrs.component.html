@@ -23,7 +23,18 @@
 </div>
 
 <div class="row my-3">
-    <div class="col-sm-4">
+    <div class="col-sm-2">
+        <label class="form-label small text-body-secondary mb-1">Fecha de venta</label>
+        <div class="input-group input-group-sm">
+            <input type="date" class="form-control form-control-sm" [ngModel]="dateFilter()" (ngModelChange)="dateFilter.set($event)" />
+            @if (dateFilter()) {
+                <button class="btn btn-outline-secondary" type="button" title="Ver todas las fechas" (click)="dateFilter.set('')">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            }
+        </div>
+    </div>
+    <div class="col-sm-3">
         <label class="form-label small text-body-secondary mb-1">Evento</label>
         <select class="form-select form-select-sm" [ngModel]="selectedEventId()" (ngModelChange)="selectedEventId.set($event); onEventFilterChange()">
             <option [ngValue]="null">Todos los eventos</option>
@@ -76,11 +87,8 @@
             @if (visibleQrColumns()['client']) {
                 <th role="button" (click)="toggleQrSort('client')">Client <i class="bi" [class]="qrSortIcon('client')"></i></th>
             }
-            @if (visibleQrColumns()['date']) {
-                <th role="button" (click)="toggleQrSort('date')">Date <i class="bi" [class]="qrSortIcon('date')"></i></th>
-            }
             @if (visibleQrColumns()['time']) {
-                <th>Hora de registro</th>
+                <th title="Hora en la que el socio se registró/ingresó al evento">Hora de registro</th>
             }
             @if (visibleQrColumns()['event']) {
                 <th role="button" (click)="toggleQrSort('event')">Event <i class="bi" [class]="qrSortIcon('event')"></i></th>
@@ -106,11 +114,8 @@
             @if (visibleQrColumns()['client']) {
                 <td scope="row">{{qr.client.name}} {{qr.client.lastname}}</td>
             }
-            @if (visibleQrColumns()['date']) {
-                <td scope="row">{{qr.dateSold | date: 'shortDate'}}</td>
-            }
             @if (visibleQrColumns()['time']) {
-                <td scope="row">{{qr.dateSold | date: 'shortTime'}}</td>
+                <td scope="row">{{ qr.checkedInAt ? (qr.checkedInAt | date: 'shortTime') : '—' }}</td>
             }
             @if (visibleQrColumns()['event']) {
                 <td scope="row">{{qr.event.name}}</td>

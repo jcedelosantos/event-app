@@ -17,7 +17,7 @@ import { eventDateKey, todayKey } from '../../../utils/dates';
 import { HttpErrorResponse } from '@angular/common/http';
 import * as bootstrap from "bootstrap";
 
-type QrSortKey = 'carnet' | 'client' | 'date' | 'event' | 'seat' | 'price';
+type QrSortKey = 'carnet' | 'client' | 'event' | 'seat' | 'price';
 type ProductSortKey = 'carnet' | 'client' | 'date' | 'event' | 'product' | 'qty';
 type QrColumnKey = QrSortKey | 'time' | 'status';
 type QrStatusFilter = 'all' | 'checked' | 'pending';
@@ -25,13 +25,22 @@ type QrStatusFilter = 'all' | 'checked' | 'pending';
 const QR_COLUMN_LABELS: Record<QrColumnKey, string> = {
   carnet: 'Carnet',
   client: 'Client',
-  date: 'Date',
   time: 'Hora de registro',
   event: 'Event',
   seat: 'Mesa/Asiento',
   price: 'Price',
   status: 'Estado',
 };
+
+// dateSold viene como string ISO — comparar por el día calendario en hora LOCAL (no UTC), que es
+// lo que el usuario realmente elige en el <input type="date">.
+function toDateInputValue(iso: string): string {
+  const d = new Date(iso);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
 
 @Component({
   selector: 'app-qrs',
@@ -58,10 +67,15 @@ export class QrsComponent implements OnInit, AfterViewInit {
   selectedProductSaleDetail = signal<SaleProduct | null>(null);
 
   statusFilter = signal<QrStatusFilter>('all');
+  // Fecha de venta, arriba de la tabla (no una columna más) — así se puede cambiar de un click
+  // en vez de tener que leerla repetida en cada fila, ya que casi siempre coincide entre ventas
+  // del mismo lote/evento. Vacío = todas las fechas.
+  dateFilter = signal<string>('');
 
   filteredQrList = computed(() => {
     const q = this.searchText().trim().toLowerCase();
     const status = this.statusFilter();
+    const date = this.dateFilter();
     return this.qrList().filter((qr) => {
       const matchesSearch =
         !q ||
@@ -70,26 +84,29 @@ export class QrsComponent implements OnInit, AfterViewInit {
         qr.seat.name.toLowerCase().includes(q) ||
         (qr.client.carnet ?? '').toLowerCase().includes(q);
       const matchesStatus = status === 'all' || (status === 'checked' ? !!qr.checkedInAt : !qr.checkedInAt);
-      return matchesSearch && matchesStatus;
+      const matchesDate = !date || toDateInputValue(qr.dateSold) === date;
+      return matchesSearch && matchesStatus && matchesDate;
     });
   });
 
   filteredProductSaleList = computed(() => {
     const q = this.searchText().trim().toLowerCase();
-    if (!q) return this.productSaleList();
-    return this.productSaleList().filter(
-      (sale) =>
+    const date = this.dateFilter();
+    return this.productSaleList().filter((sale) => {
+      const matchesSearch =
+        !q ||
         `${sale.client.name} ${sale.client.lastname}`.toLowerCase().includes(q) ||
         sale.codeQR.toLowerCase().includes(q) ||
-        (sale.client.carnet ?? '').toLowerCase().includes(q),
-    );
+        (sale.client.carnet ?? '').toLowerCase().includes(q);
+      const matchesDate = !date || toDateInputValue(sale.dateSold) === date;
+      return matchesSearch && matchesDate;
+    });
   });
 
   qrColumns = (Object.keys(QR_COLUMN_LABELS) as QrColumnKey[]).map((key) => ({ key, label: QR_COLUMN_LABELS[key] }));
   visibleQrColumns = signal<Record<QrColumnKey, boolean>>({
     carnet: true,
     client: true,
-    date: true,
     time: false,
     event: true,
     seat: true,
@@ -128,7 +145,6 @@ export class QrsComponent implements OnInit, AfterViewInit {
     switch (key) {
       case 'carnet': return qr.client.carnet ?? '';
       case 'client': return `${qr.client.name} ${qr.client.lastname}`;
-      case 'date': return qr.dateSold;
       case 'event': return qr.event.name;
       case 'seat': return `${qr.seat.area.name} / ${qr.seat.name}`;
       case 'price': return qr.ticket.price;
