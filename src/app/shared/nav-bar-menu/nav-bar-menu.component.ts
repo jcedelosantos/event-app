@@ -19,10 +19,7 @@ const DESKTOP_BREAKPOINT_PX = 768;
 			     Bootstrap, así que "mostrarlo" en desktop lo dejaba flotando ENCIMA del contenido en
 			     vez de compartir el ancho con él — el contenido de abajo quedaba tapado). -->
 			<div class="d-flex flex-column permanent-sidebar">
-				<div class="p-2 d-flex align-items-center justify-content-between">
-					<span class="small text-body-secondary">Seat App v1.0.0</span>
-				</div>
-				<div class="d-flex flex-column flex-grow-1 px-2">
+				<div class="d-flex flex-column flex-grow-1 px-2 pt-2">
 					@for (item of menuList; track item.title) {
 						<button [class]="path().includes(item.url) ? 'btn btn-danger mb-1 nav-item-btn' : 'btn btn-dark mb-1 nav-item-btn'" [routerLink]="item.url">
 							@if (item.icon) {
@@ -78,10 +75,7 @@ const DESKTOP_BREAKPOINT_PX = 768;
 
 			<div class="offcanvas offcanvas-start nav-offcanvas" tabindex="-1" id="offcanvas" aria-labelledby="offcanvasLabel">
 				<div class="p-1" style="height: 5%">
-					<div class="d-flex flex-row  mb-3">
-						<div class="p-2 flex-grow-1">
-							<span>Seat App version 1.0.0</span>
-						</div>
+					<div class="d-flex flex-row justify-content-end mb-3">
 						<div class="p-2">
 							<button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
 						</div>
