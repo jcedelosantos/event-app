@@ -37,6 +37,21 @@ model User {
   salesAsClient    SaleProduct[] @relation("SaleProductClient")
   ticketSalesAsSeller SaleTicket[] @relation("SaleTicketSeller")
   ticketSalesAsClient SaleTicket[] @relation("SaleTicketClient")
+  auditLogs        AuditLog[]    @relation("AuditLogUser")
+}
+
+// Registro de auditoría de acciones sensibles (alta/edición/borrado de Events, Products, Users,
+// y borrado de ventas). userId es nullable y con SetNull para que el rastro sobreviva aunque el
+// usuario que hizo la acción se borre después — perder el log sería peor que perder la referencia.
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  userId    Int?
+  user      User?    @relation("AuditLogUser", fields: [userId], references: [id], onDelete: SetNull)
+  action    String // CREATE | UPDATE | DELETE
+  entity    String // Event | Product | User | SaleTicket | SaleProduct
+  entityId  Int
+  summary   String
+  createdAt DateTime @default(now())
 }
 
 model Event {

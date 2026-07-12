@@ -7,6 +7,7 @@ import { requireAuth, AuthenticatedRequest } from '../middleware/auth';
 import { toPublicUser } from '../lib/serialize';
 import { sendTicketEmail } from '../lib/mail';
 import { asyncHandler } from '../lib/async-handler';
+import { logAudit } from '../lib/audit';
 
 export const saleTicketsRouter = Router();
 saleTicketsRouter.use(requireAuth);
@@ -225,10 +226,17 @@ saleTicketsRouter.post('/:id/resend', asyncHandler(async (req, res) => {
 // El check-in por QR se hace vía el endpoint unificado POST /scan (ver scan.ts), que también
 // cubre la entrega de productos con el mismo lector.
 
-saleTicketsRouter.delete('/:id', asyncHandler(async (req, res) => {
+saleTicketsRouter.delete('/:id', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const id = Number(req.params.id);
 	try {
-		await prisma.saleTicket.delete({ where: { id } });
+		const saleTicket = await prisma.saleTicket.delete({ where: { id } });
+		await logAudit({
+			userId: req.user!.userId,
+			action: 'DELETE',
+			entity: 'SaleTicket',
+			entityId: id,
+			summary: `Borró la venta de ticket #${id} (código ${saleTicket.codeQR})`,
+		});
 		res.status(204).send();
 	} catch (err: any) {
 		if (err.code === 'P2025') {

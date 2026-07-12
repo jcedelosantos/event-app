@@ -1,8 +1,9 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
-import { requireAuth } from '../middleware/auth';
+import { requireAuth, AuthenticatedRequest } from '../middleware/auth';
 import { asyncHandler } from '../lib/async-handler';
+import { logAudit } from '../lib/audit';
 
 export const productsRouter = Router();
 productsRouter.use(requireAuth);
@@ -35,7 +36,7 @@ productsRouter.get('/:id', asyncHandler(async (req, res) => {
 	res.json(product);
 }));
 
-productsRouter.post('/', asyncHandler(async (req, res) => {
+productsRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const parsed = productInputSchema.safeParse(req.body);
 	if (!parsed.success) {
 		res.status(400).json({ error: parsed.error.flatten() });
@@ -50,6 +51,7 @@ productsRouter.post('/', asyncHandler(async (req, res) => {
 			where: { id: created.id },
 			data: { code: `PRD-${String(created.id).padStart(4, '0')}` },
 		});
+		await logAudit({ userId: req.user!.userId, action: 'CREATE', entity: 'Product', entityId: product.id, summary: `Creó el producto "${product.name}"` });
 		res.status(201).json(product);
 	} catch (err: any) {
 		if (err.code === 'P2003') {
@@ -125,7 +127,7 @@ productsRouter.post('/bulk-import', asyncHandler(async (req, res) => {
 	res.json({ created, skipped });
 }));
 
-productsRouter.put('/:id', asyncHandler(async (req, res) => {
+productsRouter.put('/:id', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const id = Number(req.params.id);
 	const parsed = productInputSchema.partial().safeParse(req.body);
 	if (!parsed.success) {
@@ -135,6 +137,7 @@ productsRouter.put('/:id', asyncHandler(async (req, res) => {
 
 	try {
 		const product = await prisma.product.update({ where: { id }, data: parsed.data });
+		await logAudit({ userId: req.user!.userId, action: 'UPDATE', entity: 'Product', entityId: product.id, summary: `Editó el producto "${product.name}"` });
 		res.json(product);
 	} catch (err: any) {
 		if (err.code === 'P2025') {
@@ -145,7 +148,7 @@ productsRouter.put('/:id', asyncHandler(async (req, res) => {
 	}
 }));
 
-productsRouter.delete('/:id', asyncHandler(async (req, res) => {
+productsRouter.delete('/:id', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const id = Number(req.params.id);
 
 	const soldCount = await prisma.saleProduct.count({ where: { productId: id } });
@@ -155,7 +158,8 @@ productsRouter.delete('/:id', asyncHandler(async (req, res) => {
 	}
 
 	try {
-		await prisma.product.delete({ where: { id } });
+		const product = await prisma.product.delete({ where: { id } });
+		await logAudit({ userId: req.user!.userId, action: 'DELETE', entity: 'Product', entityId: id, summary: `Borró el producto "${product.name}"` });
 		res.status(204).send();
 	} catch (err: any) {
 		if (err.code === 'P2025') {

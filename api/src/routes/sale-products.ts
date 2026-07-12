@@ -6,6 +6,7 @@ import { requireAuth, AuthenticatedRequest } from '../middleware/auth';
 import { toPublicUser } from '../lib/serialize';
 import { sendProductEmail } from '../lib/mail';
 import { asyncHandler } from '../lib/async-handler';
+import { logAudit } from '../lib/audit';
 
 export const saleProductsRouter = Router();
 saleProductsRouter.use(requireAuth);
@@ -114,14 +115,22 @@ saleProductsRouter.post('/:id/resend', asyncHandler(async (req, res) => {
 	}
 }));
 
-saleProductsRouter.delete('/:id', asyncHandler(async (req, res) => {
+saleProductsRouter.delete('/:id', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const id = Number(req.params.id);
 	try {
 		// Borrar una venta (ej. se cargó mal) devuelve la cantidad al stock del producto — si no se
 		// restaura, cada corrección de un error de captura termina "perdiendo" unidades reales.
-		await prisma.$transaction(async (tx) => {
-			const saleProduct = await tx.saleProduct.delete({ where: { id } });
-			await tx.product.update({ where: { id: saleProduct.productId }, data: { count: { increment: saleProduct.quantity } } });
+		const saleProduct = await prisma.$transaction(async (tx) => {
+			const sale = await tx.saleProduct.delete({ where: { id }, include: { product: true } });
+			await tx.product.update({ where: { id: sale.productId }, data: { count: { increment: sale.quantity } } });
+			return sale;
+		});
+		await logAudit({
+			userId: req.user!.userId,
+			action: 'DELETE',
+			entity: 'SaleProduct',
+			entityId: id,
+			summary: `Borró la venta de producto "${saleProduct.product.name}" x${saleProduct.quantity} (stock restaurado)`,
 		});
 		res.status(204).send();
 	} catch (err: any) {

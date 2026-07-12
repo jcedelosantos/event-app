@@ -84,8 +84,8 @@ export class NavBarMenuComponent implements AfterViewInit {
 	private readonly authService = inject(AuthService);
 	path = signal<string>('');
 	// Orden alineado al flujo real de trabajo: crear evento → asignar mapa → armar áreas/asientos →
-	// crear tickets → vender/generar QR → ver quién compró. Los módulos aún no implementados
-	// (Sale, Products, Reports, History) quedan al final.
+	// crear tickets → vender/generar QR → ver quién compró. "Sale" quedó como página muerta,
+	// superada por QRs (que ya cubre venta de tickets y productos).
 	menuList: Array<MenuItem> = [
 		{ title: 'Dash Board', icon: 'bi bi-speedometer', url: '/manager/dash-board' },
 		{ title: 'Events', icon: 'bi bi-calendar-event', url: '/manager/events' },

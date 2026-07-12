@@ -1,3 +1,11 @@
 :host {
-  display: block;
+	display: block;
+}
+.history-table {
+	font-size: 0.9rem;
+}
+.history-table th,
+.history-table td {
+	padding: 0.45rem 0.6rem;
+	vertical-align: middle;
 }

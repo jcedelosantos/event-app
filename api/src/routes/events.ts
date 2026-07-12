@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prisma } from '../lib/prisma';
 import { requireAuth, AuthenticatedRequest } from '../middleware/auth';
 import { asyncHandler } from '../lib/async-handler';
+import { logAudit } from '../lib/audit';
 
 export const eventsRouter = Router();
 eventsRouter.use(requireAuth);
@@ -65,10 +66,11 @@ eventsRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
 		data: { code: code || `EVT-${String(created.id).padStart(4, '0')}` },
 		include,
 	});
+	await logAudit({ userId: req.user!.userId, action: 'CREATE', entity: 'Event', entityId: event.id, summary: `Creó el evento "${event.name}"` });
 	res.status(201).json(event);
 }));
 
-eventsRouter.put('/:id', asyncHandler(async (req, res) => {
+eventsRouter.put('/:id', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const id = Number(req.params.id);
 	const parsed = eventInputSchema.partial().safeParse(req.body);
 	if (!parsed.success) {
@@ -78,6 +80,7 @@ eventsRouter.put('/:id', asyncHandler(async (req, res) => {
 
 	try {
 		const event = await prisma.event.update({ where: { id }, data: parsed.data, include });
+		await logAudit({ userId: req.user!.userId, action: 'UPDATE', entity: 'Event', entityId: event.id, summary: `Editó el evento "${event.name}"` });
 		res.json(event);
 	} catch (err: any) {
 		if (err.code === 'P2025') {
@@ -88,7 +91,7 @@ eventsRouter.put('/:id', asyncHandler(async (req, res) => {
 	}
 }));
 
-eventsRouter.delete('/:id', asyncHandler(async (req, res) => {
+eventsRouter.delete('/:id', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const id = Number(req.params.id);
 
 	const event = await prisma.event.findUnique({ where: { id } });
@@ -116,5 +119,6 @@ eventsRouter.delete('/:id', asyncHandler(async (req, res) => {
 		prisma.product.deleteMany({ where: { eventId: id } }),
 		prisma.event.delete({ where: { id } }),
 	]);
+	await logAudit({ userId: req.user!.userId, action: 'DELETE', entity: 'Event', entityId: id, summary: `Borró el evento "${event.name}"` });
 	res.status(204).send();
 }));

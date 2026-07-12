@@ -2,9 +2,10 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
-import { requireAuth } from '../middleware/auth';
+import { requireAuth, AuthenticatedRequest } from '../middleware/auth';
 import { toPublicUser } from '../lib/serialize';
 import { asyncHandler } from '../lib/async-handler';
+import { logAudit } from '../lib/audit';
 
 export const usersRouter = Router();
 usersRouter.use(requireAuth);
@@ -39,7 +40,7 @@ usersRouter.get('/:id', asyncHandler(async (req, res) => {
 	res.json(toPublicUser(user));
 }));
 
-usersRouter.post('/', asyncHandler(async (req, res) => {
+usersRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const parsed = userInputSchema.required({ password: true }).safeParse(req.body);
 	if (!parsed.success) {
 		res.status(400).json({ error: parsed.error.flatten() });
@@ -59,6 +60,7 @@ usersRouter.post('/', asyncHandler(async (req, res) => {
 			data: { ...data, password: hashed, typeId: type.id },
 			include: { type: true },
 		});
+		await logAudit({ userId: req.user!.userId, action: 'CREATE', entity: 'User', entityId: user.id, summary: `Creó el usuario "${user.username}"` });
 		res.status(201).json(toPublicUser(user));
 	} catch (err: any) {
 		if (err.code === 'P2002') {
@@ -69,7 +71,7 @@ usersRouter.post('/', asyncHandler(async (req, res) => {
 	}
 }));
 
-usersRouter.put('/:id', asyncHandler(async (req, res) => {
+usersRouter.put('/:id', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const id = Number(req.params.id);
 	const parsed = userInputSchema.partial().safeParse(req.body);
 	if (!parsed.success) {
@@ -90,6 +92,7 @@ usersRouter.put('/:id', asyncHandler(async (req, res) => {
 			},
 			include: { type: true },
 		});
+		await logAudit({ userId: req.user!.userId, action: 'UPDATE', entity: 'User', entityId: user.id, summary: `Editó el usuario "${user.username}"` });
 		res.json(toPublicUser(user));
 	} catch (err: any) {
 		if (err.code === 'P2025') {
@@ -104,7 +107,7 @@ usersRouter.put('/:id', asyncHandler(async (req, res) => {
 	}
 }));
 
-usersRouter.delete('/:id', asyncHandler(async (req, res) => {
+usersRouter.delete('/:id', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const id = Number(req.params.id);
 
 	const [eventCount, sellerCount, clientCount] = await Promise.all([
@@ -118,7 +121,8 @@ usersRouter.delete('/:id', asyncHandler(async (req, res) => {
 	}
 
 	try {
-		await prisma.user.delete({ where: { id } });
+		const user = await prisma.user.delete({ where: { id } });
+		await logAudit({ userId: req.user!.userId, action: 'DELETE', entity: 'User', entityId: id, summary: `Borró el usuario "${user.username}"` });
 		res.status(204).send();
 	} catch (err: any) {
 		if (err.code === 'P2025') {
