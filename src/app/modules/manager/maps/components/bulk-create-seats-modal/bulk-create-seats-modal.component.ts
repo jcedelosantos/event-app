@@ -171,13 +171,14 @@ export class BulkCreateSeatsModalComponent {
 
 	private generateFlatSeats(count: number, prefix: string, cols: number) {
 		const spacing = 60;
+		const margin = 40;
 		const requests = Array.from({ length: count }, (_, i) => {
 			const col = i % cols;
 			const row = Math.floor(i / cols);
 			return this.seatsService.createSeat({
 				name: `${prefix}${i + 1}`,
-				x: col * spacing,
-				y: row * spacing,
+				x: col * spacing + margin,
+				y: row * spacing + margin,
 				size: 12,
 				color: '#000000',
 				icon: '',
@@ -202,14 +203,18 @@ export class BulkCreateSeatsModalComponent {
 		// mesas vecinas.
 		const tableSpacing = 140;
 		const ringRadius = 45;
+		// El margen inicial tiene que ser mayor al radio del anillo — si no, la primera fila/columna
+		// de mesas nace con sillas recortadas contra el borde superior/izquierdo del lienzo (se veían
+		// pegadas arriba, casi saliéndose del plano).
+		const margin = ringRadius + 55;
 		const tableRequests = Array.from({ length: tableCount }, (_, i) => {
 			const col = i % cols;
 			const row = Math.floor(i / cols);
 			return this.tablesService.createTable({
 				name: `${prefix} ${i + 1}`,
 				icon: tableIcon,
-				x: col * tableSpacing + 40,
-				y: row * tableSpacing + 40,
+				x: col * tableSpacing + margin,
+				y: row * tableSpacing + margin,
 				size: 30,
 				color: '#dc3545',
 				areaId: this.areaId!,

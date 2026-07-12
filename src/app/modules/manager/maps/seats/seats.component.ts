@@ -348,14 +348,16 @@ export class SeatsComponent implements OnInit, AfterViewInit {
 		if (!this.isDragging || this.activeIndex === null) return;
 
 		const rect = this.imageContainer.nativeElement.getBoundingClientRect();
-		const btnWidth = 80;
-		const btnHeight = 40;
 
+		// x/y representan el CENTRO del elemento (.draggable-btn tiene transform:translate(-50%,-50%)
+		// para centrarse en su punto, ver fix de centrado de mesas) — clampear contra el ancho/alto
+		// completo del contenedor, no restando un tamaño de botón fijo (eso asumía que x/y era la
+		// esquina superior izquierda, semántica vieja que ya no aplica).
 		let newX = event.clientX - rect.left - this.offsetX;
 		let newY = event.clientY - rect.top - this.offsetY;
 
-		newX = Math.max(0, Math.min(rect.width - btnWidth, newX));
-		newY = Math.max(0, Math.min(rect.height - btnHeight, newY));
+		newX = Math.max(0, Math.min(rect.width, newX));
+		newY = Math.max(0, Math.min(rect.height, newY));
 
 		const idx = this.activeIndex;
 		if (this.activeKind === 'seat') {
@@ -376,9 +378,15 @@ export class SeatsComponent implements OnInit, AfterViewInit {
 		this.activeKind = kind;
 		this.activeIndex = index;
 
-		const rect = (event.target as HTMLElement).getBoundingClientRect();
-		this.offsetX = event.clientX - rect.left;
-		this.offsetY = event.clientY - rect.top;
+		// currentTarget (el <button>, siempre) en vez de target (puede ser el <i>/<span> de adentro
+		// si el click cayó ahí) — y el offset se toma desde el CENTRO del botón, no su esquina, para
+		// que coincida con cómo moveActive() interpreta x/y ahora.
+		const button = event.currentTarget as HTMLElement;
+		const rect = button.getBoundingClientRect();
+		const centerX = rect.left + rect.width / 2;
+		const centerY = rect.top + rect.height / 2;
+		this.offsetX = event.clientX - centerX;
+		this.offsetY = event.clientY - centerY;
 	}
 
 	stopDragging() {

@@ -10,5 +10,4 @@
 	<!-- hueco de entrada en la pared inferior -->
 	<rect x="410" y="565" width="80" height="10" fill="#f4f4f4"/>
 	<text x="450" y="595" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" fill="#666">ENTRADA</text>
-	<text x="450" y="55" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="#999">SALÓN (plano genérico — reemplazá con la foto real cuando la tengas)</text>
 </svg>
