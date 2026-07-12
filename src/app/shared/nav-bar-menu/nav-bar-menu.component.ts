@@ -9,6 +9,7 @@ type MenuItem = { title: string; icon: string; url: string};
 // Por debajo de este ancho, un sidebar con nombres siempre visible le come la mitad de la
 // pantalla al contenido real — coincide con el breakpoint "md" de Bootstrap.
 const DESKTOP_BREAKPOINT_PX = 768;
+const SIDEBAR_COLLAPSED_KEY = 'seat-app-sidebar-collapsed';
 
 @Component({
 	selector: 'shared-nav-bar-menu',
@@ -18,24 +19,42 @@ const DESKTOP_BREAKPOINT_PX = 768;
 			<!-- Sidebar permanente EN FLUJO normal (no offcanvas: ese siempre es position:fixed en
 			     Bootstrap, así que "mostrarlo" en desktop lo dejaba flotando ENCIMA del contenido en
 			     vez de compartir el ancho con él — el contenido de abajo quedaba tapado). -->
-			<div class="d-flex flex-column permanent-sidebar">
-				<div class="d-flex flex-column flex-grow-1 px-2 pt-2">
+			<div class="d-flex flex-column permanent-sidebar" [class.collapsed]="sidebarCollapsed()">
+				<div class="p-2 d-flex" [class.justify-content-end]="!sidebarCollapsed()" [class.justify-content-center]="sidebarCollapsed()">
+					<button
+						type="button"
+						class="btn btn-dark btn-sm"
+						(click)="toggleSidebar()"
+						[title]="sidebarCollapsed() ? 'Expandir menú' : 'Reducir menú'"
+					>
+						<i class="bi" [class.bi-chevron-double-right]="sidebarCollapsed()" [class.bi-chevron-double-left]="!sidebarCollapsed()"></i>
+					</button>
+				</div>
+				<div class="d-flex flex-column flex-grow-1 px-2">
 					@for (item of menuList; track item.title) {
-						<button [class]="path().includes(item.url) ? 'btn btn-danger mb-1 nav-item-btn' : 'btn btn-dark mb-1 nav-item-btn'" [routerLink]="item.url">
+						<button
+							[class]="path().includes(item.url) ? 'btn btn-danger mb-1 nav-item-btn' : 'btn btn-dark mb-1 nav-item-btn'"
+							[routerLink]="item.url"
+							[title]="item.title"
+						>
 							@if (item.icon) {
 								<i [class]="item.icon"></i>
 							}
-							{{ item.title }}
+							@if (!sidebarCollapsed()) {
+								{{ item.title }}
+							}
 						</button>
 					}
 				</div>
 				<div class="p-2">
 					@for (item of menuExit; track item.title) {
-						<button class="btn btn-dark mb-1 nav-item-btn" (click)="logout()">
+						<button class="btn btn-dark mb-1 nav-item-btn" (click)="logout()" [title]="item.title">
 							@if (item.icon) {
 								<i [class]="item.icon"></i>
 							}
-							{{ item.title }}
+							@if (!sidebarCollapsed()) {
+								{{ item.title }}
+							}
 						</button>
 					}
 				</div>
@@ -114,6 +133,7 @@ export class NavBarMenuComponent implements AfterViewInit, OnDestroy {
 	private readonly authService = inject(AuthService);
 	path = signal<string>('');
 	isDesktop = signal<boolean>(typeof window !== 'undefined' ? window.innerWidth >= DESKTOP_BREAKPOINT_PX : true);
+	sidebarCollapsed = signal<boolean>(typeof localStorage !== 'undefined' && localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === '1');
 	private bsOffCanvas: bootstrap.Offcanvas | null = null;
 
 	// Orden alineado al flujo real de trabajo: crear evento → asignar mapa → armar áreas/asientos →
@@ -138,6 +158,14 @@ export class NavBarMenuComponent implements AfterViewInit, OnDestroy {
 	@HostListener('window:resize')
 	onResize() {
 		this.isDesktop.set(window.innerWidth >= DESKTOP_BREAKPOINT_PX);
+	}
+
+	toggleSidebar() {
+		this.sidebarCollapsed.update((collapsed) => {
+			const next = !collapsed;
+			localStorage.setItem(SIDEBAR_COLLAPSED_KEY, next ? '1' : '0');
+			return next;
+		});
 	}
 
 	ngAfterViewInit(): void {

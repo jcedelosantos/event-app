@@ -19,12 +19,14 @@ import * as bootstrap from "bootstrap";
 
 type QrSortKey = 'carnet' | 'client' | 'date' | 'event' | 'seat' | 'price';
 type ProductSortKey = 'carnet' | 'client' | 'date' | 'event' | 'product' | 'qty';
-type QrColumnKey = QrSortKey | 'status';
+type QrColumnKey = QrSortKey | 'time' | 'status';
+type QrStatusFilter = 'all' | 'checked' | 'pending';
 
 const QR_COLUMN_LABELS: Record<QrColumnKey, string> = {
   carnet: 'Carnet',
   client: 'Client',
   date: 'Date',
+  time: 'Hora de registro',
   event: 'Event',
   seat: 'Mesa/Asiento',
   price: 'Price',
@@ -55,16 +57,21 @@ export class QrsComponent implements OnInit, AfterViewInit {
   selectedDetail = signal<SaleTicket | null>(null);
   selectedProductSaleDetail = signal<SaleProduct | null>(null);
 
+  statusFilter = signal<QrStatusFilter>('all');
+
   filteredQrList = computed(() => {
     const q = this.searchText().trim().toLowerCase();
-    if (!q) return this.qrList();
-    return this.qrList().filter(
-      (qr) =>
+    const status = this.statusFilter();
+    return this.qrList().filter((qr) => {
+      const matchesSearch =
+        !q ||
         `${qr.client.name} ${qr.client.lastname}`.toLowerCase().includes(q) ||
         qr.codeQR.toLowerCase().includes(q) ||
         qr.seat.name.toLowerCase().includes(q) ||
-        (qr.client.carnet ?? '').toLowerCase().includes(q),
-    );
+        (qr.client.carnet ?? '').toLowerCase().includes(q);
+      const matchesStatus = status === 'all' || (status === 'checked' ? !!qr.checkedInAt : !qr.checkedInAt);
+      return matchesSearch && matchesStatus;
+    });
   });
 
   filteredProductSaleList = computed(() => {
@@ -83,6 +90,7 @@ export class QrsComponent implements OnInit, AfterViewInit {
     carnet: true,
     client: true,
     date: true,
+    time: false,
     event: true,
     seat: true,
     price: true,

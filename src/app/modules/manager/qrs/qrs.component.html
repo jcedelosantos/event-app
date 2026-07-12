@@ -32,9 +32,17 @@
             }
         </select>
     </div>
-    <div class="col-sm-4">
+    <div class="col-sm-3">
         <label class="form-label small text-body-secondary mb-1">Buscar cliente / carnet / código QR</label>
         <input type="search" class="form-control form-control-sm" placeholder="Nombre, apellido, carnet o código..." [ngModel]="searchText()" (ngModelChange)="searchText.set($event)" />
+    </div>
+    <div class="col-sm-2">
+        <label class="form-label small text-body-secondary mb-1">Estado</label>
+        <select class="form-select form-select-sm" [ngModel]="statusFilter()" (ngModelChange)="statusFilter.set($event)">
+            <option value="all">Todos</option>
+            <option value="checked">Ingresó</option>
+            <option value="pending">Pendiente</option>
+        </select>
     </div>
     <div class="col-sm-2 d-flex align-items-end">
         <div class="dropdown">
@@ -71,6 +79,9 @@
             @if (visibleQrColumns()['date']) {
                 <th role="button" (click)="toggleQrSort('date')">Date <i class="bi" [class]="qrSortIcon('date')"></i></th>
             }
+            @if (visibleQrColumns()['time']) {
+                <th>Hora de registro</th>
+            }
             @if (visibleQrColumns()['event']) {
                 <th role="button" (click)="toggleQrSort('event')">Event <i class="bi" [class]="qrSortIcon('event')"></i></th>
             }
@@ -96,7 +107,10 @@
                 <td scope="row">{{qr.client.name}} {{qr.client.lastname}}</td>
             }
             @if (visibleQrColumns()['date']) {
-                <td scope="row">{{qr.dateSold | date: 'short'}}</td>
+                <td scope="row">{{qr.dateSold | date: 'shortDate'}}</td>
+            }
+            @if (visibleQrColumns()['time']) {
+                <td scope="row">{{qr.dateSold | date: 'shortTime'}}</td>
             }
             @if (visibleQrColumns()['event']) {
                 <td scope="row">{{qr.event.name}}</td>

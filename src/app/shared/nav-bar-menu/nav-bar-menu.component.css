@@ -13,6 +13,13 @@
 	height: 100vh;
 	background-color: rgb(8, 8, 8);
 	overflow-y: auto;
+	transition: width 0.15s ease;
+}
+.permanent-sidebar.collapsed {
+	width: 64px;
+}
+.permanent-sidebar.collapsed .nav-item-btn {
+	justify-content: center;
 }
 .nav-offcanvas {
 	/* Mismo problema que .nav-bar-h: un ancho puramente en vw quedaba angostísimo en celulares
