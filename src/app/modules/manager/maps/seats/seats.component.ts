@@ -59,11 +59,17 @@ declare const bootstrap: any;
 		<div class="scroll-map">
 			<div class="row">
 				<div class="col-xxl-9 col-md-12 bg-black">
-					@if (area()?.img) {
+					@if (area(); as a) {
+						@if (!a.img) {
+							<p class="small text-body-secondary mb-1">
+								Esta área todavía no tiene una foto real del salón — se muestra un plano genérico como referencia. Doble click en cualquier
+								punto para ubicar un asiento, o subí la foto real desde "Edit" en la lista de la derecha.
+							</p>
+						}
 						<div class="scrollimg">
 							<div class="container">
 								<div class="image-container " class="image-container " #imageContainer (mousemove)="moveActive($event)">
-									<img #image [src]="area()?.img" class="background-image" (dblclick)="openCreateSeatForm($event)" />
+									<img #image [src]="a.img || defaultAreaBg" class="background-image" (dblclick)="openCreateSeatForm($event)" />
 									@for (table of tables(); track table.id; let idx = $index) {
 										<button
 											class="draggable-btn"
@@ -165,6 +171,10 @@ export class SeatsComponent implements OnInit, AfterViewInit {
 
 	readonly availableColor = SEAT_AVAILABLE_COLOR;
 	readonly soldColor = SEAT_SOLD_COLOR;
+	// Plano genérico para poder ubicar asientos con referencia visual incluso antes de subir la foto
+	// real del salón — antes, sin imagen, esta sección ni se renderizaba (bug real encontrado en la
+	// Ronda de feedback #12) y la única forma de crear un asiento era tipeando X/Y a ciegas.
+	readonly defaultAreaBg = 'assets/images/default-area-bg.svg';
 
 	map = signal<Map | undefined>(undefined);
 	area = signal<Area | undefined>(undefined);

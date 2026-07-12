@@ -47,10 +47,26 @@ import { closeModal } from '../../../../../utils/modal';
 								</div>
 								<div class="col-md-6 mb-3">
 									<label>Ícono de mesa</label>
-									<select class="form-select" formControlName="tableIcon">
-										<option value="bi-circle-fill">Mesa redonda</option>
-										<option value="bi-square-fill">Mesa rectangular</option>
-									</select>
+									<div class="d-flex gap-2">
+										<button
+											type="button"
+											class="icon-choice"
+											[class.active]="form.controls.tableIcon.value === 'bi-circle-fill'"
+											(click)="form.patchValue({ tableIcon: 'bi-circle-fill' })"
+										>
+											<i class="bi bi-circle-fill"></i>
+											<span class="icon-choice-label">Mesa redonda</span>
+										</button>
+										<button
+											type="button"
+											class="icon-choice"
+											[class.active]="form.controls.tableIcon.value === 'bi-square-fill'"
+											(click)="form.patchValue({ tableIcon: 'bi-square-fill' })"
+										>
+											<i class="bi bi-square-fill"></i>
+											<span class="icon-choice-label">Mesa rectangular</span>
+										</button>
+									</div>
 								</div>
 							</div>
 							@if (form.controls.seatsPerTable.value) {
@@ -78,6 +94,39 @@ import { closeModal } from '../../../../../utils/modal';
 			</div>
 		</div>
 	`,
+	styles: [
+		`
+			.icon-choice {
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				gap: 4px;
+				width: 110px;
+				padding: 10px 6px;
+				border-radius: 8px;
+				border: 1px solid #444;
+				background: #1c1f24;
+				color: #ccc;
+				font-size: 11px;
+				cursor: pointer;
+			}
+			.icon-choice i {
+				font-size: 20px;
+			}
+			.icon-choice-label {
+				text-align: center;
+				line-height: 1.1;
+			}
+			.icon-choice.active {
+				border-color: #dc3545;
+				background: rgba(220, 53, 69, 0.15);
+				color: #fff;
+			}
+			.icon-choice.active i {
+				color: #dc3545;
+			}
+		`,
+	],
 	changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class BulkCreateSeatsModalComponent {

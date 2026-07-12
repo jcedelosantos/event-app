@@ -1,0 +1,14 @@
+<svg width="900" height="600" viewBox="0 0 900 600" xmlns="http://www.w3.org/2000/svg">
+	<defs>
+		<pattern id="grid" width="30" height="30" patternUnits="userSpaceOnUse">
+			<path d="M 30 0 L 0 0 0 30" fill="none" stroke="#dcdcdc" stroke-width="1"/>
+		</pattern>
+	</defs>
+	<rect x="0" y="0" width="900" height="600" fill="#f4f4f4"/>
+	<rect x="20" y="20" width="860" height="560" fill="url(#grid)"/>
+	<rect x="20" y="20" width="860" height="560" fill="none" stroke="#333" stroke-width="10"/>
+	<!-- hueco de entrada en la pared inferior -->
+	<rect x="410" y="565" width="80" height="10" fill="#f4f4f4"/>
+	<text x="450" y="595" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" fill="#666">ENTRADA</text>
+	<text x="450" y="55" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="#999">SALÓN (plano genérico — reemplazá con la foto real cuando la tengas)</text>
+</svg>

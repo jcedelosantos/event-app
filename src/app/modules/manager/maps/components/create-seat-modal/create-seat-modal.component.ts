@@ -43,17 +43,29 @@ import { closeModal } from '../../../../../utils/modal';
 								</div>
 							</div>
 							<div class="row">
-								<div class="col-md-6 mb-3">
+								<div class="col-md-4 mb-3">
 									<label>Color</label>
 									<input type="color" class="form-control form-control-color" formControlName="color" />
 								</div>
-								<div class="col-md-6 mb-3">
-									<label>Icon</label>
-									<select class="custom-select d-block w-100" formControlName="icon">
-										@for (icon of icons; track $index) {
-											<option [value]="icon.value">{{ icon.label }}</option>
+								<div class="col-md-8 mb-3">
+									<label>Ícono</label>
+									<div class="d-flex gap-2 flex-wrap">
+										@for (icon of icons; track icon.value) {
+											<button
+												type="button"
+												class="icon-choice"
+												[class.active]="seatForm.controls.icon.value === icon.value"
+												(click)="seatForm.patchValue({ icon: icon.value })"
+											>
+												@if (icon.value) {
+													<i class="bi {{ icon.value }}"></i>
+												} @else {
+													<span class="icon-choice-none">123</span>
+												}
+												<span class="icon-choice-label">{{ icon.label }}</span>
+											</button>
 										}
-									</select>
+									</div>
 								</div>
 							</div>
 							@if (errorMessage) {
@@ -69,6 +81,45 @@ import { closeModal } from '../../../../../utils/modal';
 			</div>
 		</div>
 	`,
+	styles: [
+		`
+			.icon-choice {
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				gap: 4px;
+				width: 84px;
+				padding: 10px 6px;
+				border-radius: 8px;
+				border: 1px solid #444;
+				background: #1c1f24;
+				color: #ccc;
+				font-size: 11px;
+				cursor: pointer;
+			}
+			.icon-choice i {
+				font-size: 20px;
+			}
+			.icon-choice-none {
+				font-size: 12px;
+				font-weight: 700;
+				color: #999;
+			}
+			.icon-choice-label {
+				text-align: center;
+				line-height: 1.1;
+			}
+			.icon-choice.active {
+				border-color: #dc3545;
+				background: rgba(220, 53, 69, 0.15);
+				color: #fff;
+			}
+			.icon-choice.active i,
+			.icon-choice.active .icon-choice-none {
+				color: #dc3545;
+			}
+		`,
+	],
 	changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class CreateSeatModalComponent implements OnChanges {
@@ -83,13 +134,13 @@ export class CreateSeatModalComponent implements OnChanges {
 	seatUpdated = output<Seat>();
 	errorMessage = '';
 
+	// Solo lo que realmente se usa para armar un mapa: mesas (redonda/rectangular) y asientos sueltos.
+	// Antes había opciones genéricas (Chair/Star/Check) sin relación con lo que se está diseñando acá.
 	icons = [
-		{ label: '', value: '' },
-		{ label: 'Chair', value: 'bi-person-fill' },
-		{ label: 'Star', value: 'bi-star-fill' },
-		{ label: 'Check', value: 'bi-check-circle-fill' },
+		{ label: 'Solo número', value: '' },
 		{ label: 'Mesa redonda', value: 'bi-circle-fill' },
 		{ label: 'Mesa rectangular', value: 'bi-square-fill' },
+		{ label: 'Asiento', value: 'bi-person-fill' },
 	];
 
 	seatForm = this.fb.group({
