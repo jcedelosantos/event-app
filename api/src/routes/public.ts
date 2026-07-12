@@ -49,6 +49,7 @@ publicRouter.get('/events/:code', asyncHandler(async (req, res) => {
 		img: event.img,
 		dateOn: event.dateOn,
 		dateOff: event.dateOff,
+		startTime: event.startTime,
 		tickets: event.tickets,
 		map,
 	});

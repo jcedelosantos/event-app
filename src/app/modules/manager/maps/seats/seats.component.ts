@@ -174,7 +174,10 @@ export class SeatsComponent implements OnInit, AfterViewInit {
 	// Plano genérico para poder ubicar asientos con referencia visual incluso antes de subir la foto
 	// real del salón — antes, sin imagen, esta sección ni se renderizaba (bug real encontrado en la
 	// Ronda de feedback #12) y la única forma de crear un asiento era tipeando X/Y a ciegas.
-	readonly defaultAreaBg = 'assets/images/default-area-bg.svg';
+	// Ruta ABSOLUTA: una relativa se resuelve contra la URL actual, y en esta ruta anidada
+	// (/manager/maps/:id/areas/:id) una recarga directa (F5) la rompía — ver mismo fix en
+	// public-event.component.ts.
+	readonly defaultAreaBg = '/assets/images/default-area-bg.svg';
 
 	map = signal<Map | undefined>(undefined);
 	area = signal<Area | undefined>(undefined);

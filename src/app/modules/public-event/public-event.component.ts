@@ -47,7 +47,12 @@ const MAX_SEATS = 5;
 					@if (event(); as ev) {
 						<div class="container py-4" style="max-width: 900px;">
 							<h3>{{ ev.name }}</h3>
-							<p class="text-body-secondary">{{ formatDate(ev.dateOn) }}</p>
+							<p class="text-body-secondary">
+								{{ formatDate(ev.dateOn) }}
+								@if (ev.startTime) {
+									— {{ ev.startTime }}
+								}
+							</p>
 							@if (ev.description) {
 								<p>{{ ev.description }}</p>
 							}
@@ -93,7 +98,7 @@ const MAX_SEATS = 5;
 												</p>
 											}
 											<div class="seat-picker-image">
-												<img [src]="area.img || defaultAreaBg" class="seat-picker-bg" (load)="onImageLoad(area.id, $event)" />
+												<img [src]="areaImgSrc(area)" class="seat-picker-bg" (load)="onImageLoad(area.id, $event)" (error)="onImageError(area.id)" />
 												@if (imgSizes()[area.id]; as size) {
 													@for (seat of ungroupedSeats(area); track seat.id) {
 														<button
@@ -350,8 +355,27 @@ export class PublicEventComponent implements OnInit {
 	readonly maxSeats = MAX_SEATS;
 	// Mismo plano genérico que usa el editor del manager (seats.component.ts) cuando el área
 	// todavía no tiene una foto real — así el picker público siempre tiene una referencia visual
-	// del salón, en vez de caer a una lista plana sin ningún plano.
-	readonly defaultAreaBg = 'assets/images/default-area-bg.svg';
+	// del salón, en vez de caer a una lista plana sin ningún plano. Ruta ABSOLUTA (con "/" inicial):
+	// esta página se abre casi siempre como carga directa de /e/:code (link/QR compartido, no
+	// navegación interna), y una ruta relativa se resolvía contra ESA url en vez de la raíz del
+	// sitio — el plano (y con él, todo el selector de asientos) rompía en cualquier evento sin foto.
+	readonly defaultAreaBg = '/assets/images/default-area-bg.svg';
+
+	// Si la foto real que cargó el manager ya no existe/está rota, cae al plano genérico en vez de
+	// dejar el selector de asientos completamente vacío — la carga (load) nunca dispara con una
+	// imagen rota, así que sin este fallback ni siquiera aparecían las mesas.
+	brokenAreaImg = signal<Set<number>>(new Set());
+
+	areaImgSrc(area: PublicArea): string {
+		if (!area.img || this.brokenAreaImg().has(area.id)) return this.defaultAreaBg;
+		return area.img;
+	}
+
+	onImageError(areaId: number) {
+		if (!this.brokenAreaImg().has(areaId)) {
+			this.brokenAreaImg.update((set) => new Set(set).add(areaId));
+		}
+	}
 
 	step = signal<'loading' | 'not-found' | 'ready' | 'confirmed'>('loading');
 	event = signal<PublicEvent | null>(null);

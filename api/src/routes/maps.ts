@@ -20,7 +20,10 @@ const mapInputSchema = z.object({
 	backGround: z.string().optional().default('#ffffff'),
 });
 
-const include = { areas: { include: { seats: true, tables: true } } };
+// tables SIN anidar sus seats devolvía table.seats undefined en el frontend (Table.seats se
+// declara requerido ahí) — collapse-tables.component.ts hacía table.seats.length sobre undefined,
+// tirando el nombre/badge de cada mesa hasta que algún otro cambio forzaba un nuevo render.
+const include = { areas: { include: { seats: true, tables: { include: { seats: true } } } } };
 
 mapsRouter.get('/', asyncHandler(async (_req, res) => {
 	const maps = await prisma.map.findMany({ include, orderBy: { id: 'asc' } });

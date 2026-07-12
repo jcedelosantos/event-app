@@ -22,7 +22,9 @@ const areaInputSchema = z.object({
 	mapId: z.number().int(),
 });
 
-const include = { seats: true, tables: true };
+// Igual fix que en maps.ts: tables sin anidar seats deja table.seats undefined en el frontend,
+// donde Table.seats se asume siempre presente (ej. collapse-tables.component.ts).
+const include = { seats: true, tables: { include: { seats: true } } };
 
 areasRouter.get('/', asyncHandler(async (req, res) => {
 	const mapId = req.query.mapId ? Number(req.query.mapId) : undefined;

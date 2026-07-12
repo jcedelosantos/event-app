@@ -56,6 +56,7 @@ export type PublicEvent = {
 	img: string;
 	dateOn: string;
 	dateOff: string;
+	startTime: string | null;
 	tickets: PublicTicket[];
 	map: PublicMap;
 };
