@@ -296,18 +296,19 @@ const MAX_SEATS = 5;
 				inset: 0;
 				background: rgba(0, 0, 0, 0.7);
 				display: flex;
-				align-items: flex-end;
+				align-items: center;
 				justify-content: center;
+				padding: 16px;
 				z-index: 1050;
 			}
 			.table-overlay-panel {
 				background: #16181c;
 				border: 1px solid #2a2a2a;
-				border-radius: 0.75rem 0.75rem 0 0;
+				border-radius: 0.75rem;
 				padding: 20px;
 				width: 100%;
 				max-width: 480px;
-				max-height: 70vh;
+				max-height: 80vh;
 				overflow-y: auto;
 			}
 			.table-seat-btn {
