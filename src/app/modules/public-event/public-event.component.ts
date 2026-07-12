@@ -429,7 +429,14 @@ export class PublicEventComponent implements OnInit {
 	}
 
 	seatsForTable(area: PublicArea, tableId: number): PublicSeat[] {
-		return area.seats.filter((s) => s.tableId === tableId);
+		return area.seats
+			.filter((s) => s.tableId === tableId)
+			.sort((a, b) => this.seatNumber(a.name) - this.seatNumber(b.name));
+	}
+
+	private seatNumber(name: string): number {
+		const match = name.match(/(\d+)$/);
+		return match ? Number(match[1]) : 0;
 	}
 
 	tableAvailableCount(area: PublicArea, tableId: number): number {
