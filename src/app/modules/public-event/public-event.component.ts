@@ -125,7 +125,7 @@ const MAX_SEATS = 5;
 												</div>
 											} @else {
 												<div class="d-flex flex-wrap gap-2">
-													@for (seat of area.seats; track seat.id) {
+													@for (seat of ungroupedSeats(area); track seat.id) {
 														<button
 															type="button"
 															class="btn btn-sm"
@@ -137,6 +137,23 @@ const MAX_SEATS = 5;
 														>
 															{{ seat.name }}
 														</button>
+													}
+													@for (table of area.tables; track table.id) {
+														@if (seatsForTable(area, table.id).length) {
+															<button
+																type="button"
+																class="btn btn-sm table-flat-btn"
+																[class.btn-secondary]="tableAvailableCount(area, table.id) === 0"
+																[class.btn-danger]="tableAvailableCount(area, table.id) > 0 && tableSelectedCount(area, table.id) > 0"
+																[class.btn-outline-danger]="tableAvailableCount(area, table.id) > 0 && tableSelectedCount(area, table.id) === 0"
+																(click)="toggleTable(table.id)"
+															>
+																{{ table.name }}
+																@if (tableSelectedCount(area, table.id) > 0) {
+																	<span class="table-badge-flat">{{ tableSelectedCount(area, table.id) }}</span>
+																}
+															</button>
+														}
 													}
 												</div>
 											}
@@ -337,6 +354,27 @@ const MAX_SEATS = 5;
 				background: #6c757d;
 				color: #ccc;
 				cursor: not-allowed;
+			}
+			.table-flat-btn {
+				position: relative;
+				padding-right: 1.75rem;
+			}
+			.table-badge-flat {
+				position: absolute;
+				top: -6px;
+				right: -6px;
+				background: #fff;
+				color: #dc3545;
+				font-size: 10px;
+				font-weight: 700;
+				line-height: 1;
+				border-radius: 50%;
+				min-width: 16px;
+				height: 16px;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				padding: 0 2px;
 			}
 			.legend-dot {
 				display: inline-block;
