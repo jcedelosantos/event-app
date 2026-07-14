@@ -19,15 +19,19 @@ const ticketInputSchema = z.object({
 	areaId: z.number().int().nullable().optional(),
 });
 
+// El grid de tarjetas de tickets necesita mostrar a qué evento/área pertenece cada uno (varios
+// eventos pueden listarse juntos) — select mínimo, no toda la fila de Event/Area.
+const include = { event: { select: { id: true, name: true } }, area: { select: { id: true, name: true } } };
+
 ticketsRouter.get('/', asyncHandler(async (req, res) => {
 	const eventId = req.query.eventId ? Number(req.query.eventId) : undefined;
-	const tickets = await prisma.ticket.findMany({ where: eventId ? { eventId } : undefined, orderBy: { id: 'asc' } });
+	const tickets = await prisma.ticket.findMany({ where: eventId ? { eventId } : undefined, include, orderBy: { id: 'asc' } });
 	res.json(tickets);
 }));
 
 ticketsRouter.get('/:id', asyncHandler(async (req, res) => {
 	const id = Number(req.params.id);
-	const ticket = await prisma.ticket.findUnique({ where: { id } });
+	const ticket = await prisma.ticket.findUnique({ where: { id }, include });
 	if (!ticket) {
 		res.status(404).json({ error: 'Ticket no encontrado' });
 		return;
@@ -49,6 +53,7 @@ ticketsRouter.post('/', asyncHandler(async (req, res) => {
 		const ticket = await prisma.ticket.update({
 			where: { id: created.id },
 			data: { code: `TCK-${String(created.id).padStart(4, '0')}` },
+			include,
 		});
 		res.status(201).json(ticket);
 	} catch (err: any) {
@@ -69,7 +74,7 @@ ticketsRouter.put('/:id', asyncHandler(async (req, res) => {
 	}
 
 	try {
-		const ticket = await prisma.ticket.update({ where: { id }, data: parsed.data });
+		const ticket = await prisma.ticket.update({ where: { id }, data: parsed.data, include });
 		res.json(ticket);
 	} catch (err: any) {
 		if (err.code === 'P2025') {

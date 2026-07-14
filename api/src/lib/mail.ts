@@ -31,6 +31,23 @@ function formatEventDate(date: Date): string {
 	return new Date(date).toLocaleDateString('es-DO', { year: 'numeric', month: 'long', day: 'numeric' });
 }
 
+// startTime se guarda como "HH:mm" en 24h (ver create-event-modal en el frontend) — mismo formato
+// 12h con AM/PM que ya usa el picker público, para que la hora se lea igual en todos lados.
+function formatEventTime(startTime: string): string {
+	const [hoursStr, minutesStr] = startTime.split(':');
+	const hours24 = Number(hoursStr);
+	const minutes = Number(minutesStr);
+	if (Number.isNaN(hours24) || Number.isNaN(minutes)) return startTime;
+	const period = hours24 >= 12 ? 'PM' : 'AM';
+	const hours12 = hours24 % 12 === 0 ? 12 : hours24 % 12;
+	return `${hours12}:${String(minutes).padStart(2, '0')} ${period}`;
+}
+
+function formatEventDateTime(event: EventModel): string {
+	const date = formatEventDate(event.dateOn);
+	return event.startTime ? `${date} — ${formatEventTime(event.startTime)}` : date;
+}
+
 // Genera el PDF descargable/imprimible de un ticket: mismo dato que la tarjeta del correo, pero
 // como archivo aparte que el cliente puede guardar o imprimir para presentarlo en la entrada, en vez
 // de depender de que su cliente de correo siga mostrando la imagen inline (algunos la bloquean o
@@ -49,7 +66,7 @@ function buildTicketPdf(event: EventModel, sale: SaleTicketForEmail, qrBuffer: B
 		doc.moveDown(0.4);
 		doc.fontSize(18).fillColor('#000').text(event.name, { width: contentWidth });
 		doc.moveDown(0.2);
-		doc.fontSize(11).fillColor('#555').text(formatEventDate(event.dateOn));
+		doc.fontSize(11).fillColor('#555').text(formatEventDateTime(event));
 		doc.moveDown(1);
 
 		doc.fontSize(10).fillColor('#888').text('Área');
@@ -75,7 +92,7 @@ function buildTicketPdf(event: EventModel, sale: SaleTicketForEmail, qrBuffer: B
 
 function buildProductPdf(event: EventModel, sale: SaleProductForEmail, qrBuffer: Buffer): Promise<Buffer> {
 	return new Promise((resolve, reject) => {
-		const doc = new PDFDocument({ size: [320, 460], margin: 24 });
+		const doc = new PDFDocument({ size: [320, 490], margin: 24 });
 		const chunks: Buffer[] = [];
 		doc.on('data', (chunk) => chunks.push(chunk));
 		doc.on('end', () => resolve(Buffer.concat(chunks)));
@@ -86,6 +103,8 @@ function buildProductPdf(event: EventModel, sale: SaleProductForEmail, qrBuffer:
 		doc.fontSize(10).fillColor('#dc3545').text(sale.product.type.toUpperCase(), { characterSpacing: 1 });
 		doc.moveDown(0.4);
 		doc.fontSize(18).fillColor('#000').text(event.name, { width: contentWidth });
+		doc.moveDown(0.2);
+		doc.fontSize(11).fillColor('#555').text(formatEventDateTime(event));
 		doc.moveDown(1);
 
 		doc.fontSize(10).fillColor('#888').text('Producto');
@@ -124,7 +143,7 @@ async function ticketCardHtml(event: EventModel, sale: SaleTicketForEmail): Prom
 					<div style="color:#fff;font-family:Arial,Helvetica,sans-serif;">
 						<div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#dc3545;font-weight:bold;">${sale.ticket.type}</div>
 						<div style="font-size:20px;font-weight:bold;margin:4px 0;">${event.name}</div>
-						<div style="font-size:13px;color:#aaa;margin-bottom:12px;">${formatEventDate(event.dateOn)}</div>
+						<div style="font-size:13px;color:#aaa;margin-bottom:12px;">${formatEventDateTime(event)}</div>
 						<table role="presentation" width="100%" cellpadding="0" cellspacing="0">
 							<tr>
 								<td style="vertical-align:top;">
@@ -160,6 +179,7 @@ async function productCardHtml(event: EventModel, sale: SaleProductForEmail): Pr
 					<div style="color:#fff;font-family:Arial,Helvetica,sans-serif;">
 						<div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#dc3545;font-weight:bold;">${sale.product.type}</div>
 						<div style="font-size:20px;font-weight:bold;margin:4px 0;">${event.name}</div>
+						<div style="font-size:13px;color:#aaa;margin-bottom:12px;">${formatEventDateTime(event)}</div>
 						<table role="presentation" width="100%" cellpadding="0" cellspacing="0">
 							<tr>
 								<td style="vertical-align:top;">

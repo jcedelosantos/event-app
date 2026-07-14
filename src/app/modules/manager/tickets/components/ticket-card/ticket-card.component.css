@@ -32,12 +32,25 @@
 	height: auto;
 }
 
+.ticket-card-sm .card-header,
+.ticket-card-sm .card-body {
+	padding: 0.5rem 0.6rem;
+}
+
+.ticket-card-sm .card-title {
+	font-size: 0.85rem;
+}
+
+.ticket-scope {
+	line-height: 1.3;
+}
+
 .ticket-description {
 	display: -webkit-box;
 	-webkit-line-clamp: 2;
 	-webkit-box-orient: vertical;
 	overflow: hidden;
-	min-height: 2.6em;
+	min-height: 2.2em;
 }
 
 /* .ticketRip{

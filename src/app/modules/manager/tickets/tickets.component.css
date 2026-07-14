@@ -1,3 +1,35 @@
 :host {
   display: block;
 }
+
+/* Bootstrap solo trae row-cols hasta 6 — grid propio para llegar a 8 por fila en pantallas anchas
+   (antes col-xxl-3 dejaba solo 4 por fila). */
+.tickets-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+}
+
+@media (min-width: 576px) {
+  .tickets-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 768px) {
+  .tickets-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (min-width: 1200px) {
+  .tickets-grid {
+    grid-template-columns: repeat(6, 1fr);
+  }
+}
+
+@media (min-width: 1400px) {
+  .tickets-grid {
+    grid-template-columns: repeat(8, 1fr);
+  }
+}

@@ -39,11 +39,9 @@ import { HttpErrorResponse } from '@angular/common/http';
 		</nav>
 		<br />
 		@if (tickets()) {
-			<div class="row">
+			<div class="tickets-grid">
 				@for (ticket of tickets(); track ticket.id) {
-					<div class="col-xxl-3 col-xl-4 col-lg-12 col-md-12 col-sm-12 col-12 ">
-						<ticket-card [ticket]="ticket" (selectedTicket)="selectedTicket.set($event)" (deleteTicket)="onDeleteTicket($event)" />
-					</div>
+					<ticket-card [ticket]="ticket" (selectedTicket)="selectedTicket.set($event)" (deleteTicket)="onDeleteTicket($event)" />
 				}
 			</div>
 		}
