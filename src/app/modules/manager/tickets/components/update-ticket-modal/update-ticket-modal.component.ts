@@ -55,11 +55,12 @@ import { closeModal } from '../../../../../utils/modal';
 						</div>
 						<div class="row">
 							<div class="col-md-6 mb-3">
-								<label for="count">Count *</label>
+								<label for="count">Stock *</label>
 								<input type="number" class="form-control" [class.is-invalid]="isInvalid('count')" formControlName="count" />
 								@if (isInvalid('count')) {
 									<div class="invalid-feedback">Ingresá el cupo disponible.</div>
 								}
+								<div class="form-text">Se descuenta automáticamente con cada venta.</div>
 							</div>
 							<div class="col-md-6 mb-3">
 								<label for="price">Price *</label>

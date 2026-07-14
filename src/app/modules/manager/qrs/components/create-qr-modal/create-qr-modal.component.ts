@@ -44,8 +44,8 @@ import { closeModal } from '../../../../../utils/modal';
 									<label>Ticket type *</label>
 									<select class="custom-select d-block w-100" [class.is-invalid]="isInvalid('ticketId')" formControlName="ticketId">
 										<option [ngValue]="null">Choose...</option>
-										@for (ticket of tickets(); track ticket.id) {
-											<option [ngValue]="ticket.id">{{ ticket.name }} — {{ ticket.type }} ({{ ticket.price }} USD)</option>
+										@for (ticket of availableTickets(); track ticket.id) {
+											<option [ngValue]="ticket.id">{{ ticket.name }} — {{ ticket.type }} ({{ ticket.price }} USD, {{ ticket.count }} en stock)</option>
 										}
 									</select>
 									@if (isInvalid('ticketId')) {
@@ -53,6 +53,8 @@ import { closeModal } from '../../../../../utils/modal';
 									}
 									@if (form.controls.eventId.value && !tickets().length) {
 										<div class="form-text">Este evento todavía no tiene tickets creados.</div>
+									} @else if (form.controls.eventId.value && !availableTickets().length) {
+										<div class="form-text">Todos los tickets de este evento están agotados.</div>
 									}
 								</div>
 								<div class="col-md-6 mb-3">
@@ -147,6 +149,7 @@ export class CreateQrModalComponent implements OnInit {
 	soldSeatIds = signal<Set<number>>(new Set());
 
 	availableSeats = computed(() => this.seats().filter((seat) => !this.soldSeatIds().has(seat.id)));
+	availableTickets = computed(() => this.tickets().filter((t) => t.count > 0));
 
 	areaControl = this.fb.control<number | null>(null);
 

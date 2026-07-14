@@ -13,6 +13,8 @@ import { logAudit } from '../lib/audit';
 export const saleTicketsRouter = Router();
 saleTicketsRouter.use(requireAuth);
 
+class InsufficientStockError extends Error {}
+
 const saleTicketInputSchema = z.object({
 	eventId: z.number().int(),
 	seatId: z.number().int(),
@@ -60,16 +62,32 @@ saleTicketsRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res) 
 	}
 
 	try {
-		const saleTicket = await prisma.saleTicket.create({
-			data: {
-				...parsed.data,
-				codeQR: randomUUID(),
-				userId: req.user!.userId,
-			},
-			include,
+		const saleTicket = await prisma.$transaction(async (tx) => {
+			// Mismo patrón atómico que sale-products.ts: el updateMany con `count: { gte: 1 }` en el
+			// where hace el chequeo-y-descuento en una sola operación, así dos ventas simultáneas no
+			// pueden llevarse el mismo cupo aunque ambas lean "hay stock" al mismo tiempo.
+			const stockUpdate = await tx.ticket.updateMany({
+				where: { id: parsed.data.ticketId, count: { gte: 1 } },
+				data: { count: { decrement: 1 } },
+			});
+			if (stockUpdate.count === 0) {
+				throw new InsufficientStockError();
+			}
+			return tx.saleTicket.create({
+				data: {
+					...parsed.data,
+					codeQR: randomUUID(),
+					userId: req.user!.userId,
+				},
+				include,
+			});
 		});
 		res.status(201).json(toPublicSaleTicket(saleTicket));
 	} catch (err: any) {
+		if (err instanceof InsufficientStockError) {
+			res.status(409).json({ error: 'No hay stock disponible para este tipo de ticket.' });
+			return;
+		}
 		if (err.code === 'P2003') {
 			res.status(400).json({ error: 'Evento, asiento, ticket o cliente inválido' });
 			return;
@@ -181,20 +199,35 @@ saleTicketsRouter.post('/bulk-import', asyncHandler(async (req: AuthenticatedReq
 				});
 			}
 
-			await prisma.saleTicket.create({
-				data: {
-					eventId,
-					seatId,
-					ticketId,
-					userId: req.user!.userId,
-					clientId: client.id,
-					paidType: row.paidType,
-					description: 'Importación masiva',
-					codeQR: randomUUID(),
-				},
+			// Mismo chequeo-y-descuento atómico que la venta individual — una fila del CSV que se
+			// quede sin stock se reporta como omitida en vez de crear una venta sin cupo real detrás.
+			await prisma.$transaction(async (tx) => {
+				const stockUpdate = await tx.ticket.updateMany({
+					where: { id: ticketId, count: { gte: 1 } },
+					data: { count: { decrement: 1 } },
+				});
+				if (stockUpdate.count === 0) {
+					throw new InsufficientStockError();
+				}
+				return tx.saleTicket.create({
+					data: {
+						eventId,
+						seatId,
+						ticketId,
+						userId: req.user!.userId,
+						clientId: client.id,
+						paidType: row.paidType,
+						description: 'Importación masiva',
+						codeQR: randomUUID(),
+					},
+				});
 			});
 			created++;
-		} catch {
+		} catch (err) {
+			if (err instanceof InsufficientStockError) {
+				skipped.push({ row: rowNum, reason: 'Sin stock disponible para este tipo de ticket' });
+				continue;
+			}
 			skipped.push({ row: rowNum, reason: `No se pudo procesar a "${row.name}" (${row.seatName})` });
 		}
 	}
@@ -233,13 +266,19 @@ saleTicketsRouter.post('/:id/resend', asyncHandler(async (req, res) => {
 saleTicketsRouter.delete('/:id', requireLicense('RELEASE_SEAT'), asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const id = Number(req.params.id);
 	try {
-		const saleTicket = await prisma.saleTicket.delete({ where: { id } });
+		// Igual que sale-products.ts: liberar un asiento también devuelve el cupo al stock del
+		// ticket, si no cada corrección/liberación termina "perdiendo" cupo real.
+		const saleTicket = await prisma.$transaction(async (tx) => {
+			const sale = await tx.saleTicket.delete({ where: { id } });
+			await tx.ticket.update({ where: { id: sale.ticketId }, data: { count: { increment: 1 } } });
+			return sale;
+		});
 		await logAudit({
 			userId: req.user!.userId,
 			action: 'DELETE',
 			entity: 'SaleTicket',
 			entityId: id,
-			summary: `Liberó el asiento de la venta #${id} (código ${saleTicket.codeQR})`,
+			summary: `Liberó el asiento de la venta #${id} (código ${saleTicket.codeQR}, stock restaurado)`,
 		});
 		res.status(204).send();
 	} catch (err: any) {

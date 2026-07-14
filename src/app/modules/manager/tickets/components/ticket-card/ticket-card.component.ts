@@ -38,10 +38,20 @@ import { Ticket } from '../../../../../models/tickets/ticket';
 						<i class="bi bi-geo-alt"></i> {{ ticket().area?.name ?? 'Todas las áreas' }}
 					</p>
 					<hr class="my-1" />
-					<div class="d-flex justify-content-around">
-						<span class="text-body-secondary small"><i class="bi bi-ticket"></i> {{ ticket().count }}</span>
-						<span class="text-body-secondary small"><i class="bi bi-currency-dollar"></i>{{ ticket().price }}</span>
+					<div class="d-flex justify-content-between align-items-center small mb-1">
+						<span [class.text-danger]="ticket().count <= 0" [class.text-warning]="ticket().count > 0 && ticket().count <= lowStockThreshold" [class.text-body-secondary]="ticket().count > lowStockThreshold">
+							<i class="bi bi-ticket"></i> {{ ticket().count <= 0 ? 'Agotado' : ticket().count + ' en stock' }}
+						</span>
+						<span class="text-body-secondary"><i class="bi bi-currency-dollar"></i>{{ ticket().price }}</span>
 					</div>
+					@if (ticket().seatsTotal) {
+						<div class="progress stock-progress mb-1" role="progressbar" [attr.aria-valuenow]="ticket().seatsAvailable" aria-valuemin="0" [attr.aria-valuemax]="ticket().seatsTotal">
+							<div class="progress-bar" [ngClass]="stockBarClass()" [style.width.%]="seatsAvailablePercent()"></div>
+						</div>
+						<div class="text-body-secondary mb-1" style="font-size: 0.7rem;">
+							<i class="bi bi-geo"></i> {{ ticket().seatsAvailable }} / {{ ticket().seatsTotal }} asientos libres
+						</div>
+					}
 					<hr class="mt-auto my-1" />
 					<div class="barcode">
 						<svg id="barcode_{{ ticket().id }}"></svg>
@@ -58,6 +68,21 @@ export class TicketCardComponent implements AfterViewInit {
 	ticket = input.required<Ticket>();
 	selectedTicket = output<Ticket | null>();
 	deleteTicket = output<Ticket>();
+
+	readonly lowStockThreshold = 5;
+
+	seatsAvailablePercent(): number {
+		const total = this.ticket().seatsTotal ?? 0;
+		if (total <= 0) return 0;
+		return Math.max(0, Math.min(100, ((this.ticket().seatsAvailable ?? 0) / total) * 100));
+	}
+
+	stockBarClass(): string {
+		const percent = this.seatsAvailablePercent();
+		if (percent <= 0) return 'bg-danger';
+		if (percent <= 25) return 'bg-warning';
+		return 'bg-success';
+	}
 
 	ngAfterViewInit(): void {
 		

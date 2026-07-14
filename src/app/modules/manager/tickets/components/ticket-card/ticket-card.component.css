@@ -61,3 +61,8 @@
 	background-color: #6f42c1;
 	color: white;
 }
+
+.stock-progress {
+	height: 5px;
+	background-color: #2a2a2a;
+}

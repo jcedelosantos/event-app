@@ -69,10 +69,15 @@ const MAX_SEATS = 5;
 											type="button"
 											class="btn btn-sm"
 											[class.btn-danger]="selectedTicketId() === ticket.id"
-											[class.btn-outline-danger]="selectedTicketId() !== ticket.id"
+											[class.btn-outline-danger]="selectedTicketId() !== ticket.id && ticket.count > 0"
+											[class.btn-outline-secondary]="ticket.count <= 0"
+											[disabled]="ticket.count <= 0"
 											(click)="selectedTicketId.set(ticket.id)"
 										>
 											{{ ticket.name }} ({{ ticket.type }}) — {{ ticket.price }} USD
+											@if (ticket.count <= 0) {
+												<span class="badge text-bg-secondary ms-1">Agotado</span>
+											}
 										</button>
 									}
 								</div>

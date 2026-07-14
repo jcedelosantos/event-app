@@ -9,6 +9,8 @@ import { asyncHandler } from '../lib/async-handler';
 
 export const publicRouter = Router();
 
+class InsufficientStockError extends Error {}
+
 const MAX_SEATS_PER_ORDER = 5;
 
 // Rutas sin auth: las usa el cliente final desde el link/QR del evento, no tiene cuenta de manager.
@@ -195,23 +197,35 @@ publicRouter.post('/purchase', asyncHandler(async (req, res) => {
 	};
 
 	try {
-		const saleTickets = await prisma.$transaction(
-			seatIds.map((seatId) =>
-				prisma.saleTicket.create({
-					data: {
-						eventId: event.id,
-						seatId,
-						ticketId: ticket.id,
-						userId: rootUser.id,
-						clientId: client!.id,
-						paidType: 'Online',
-						description: 'Compra autoservicio',
-						codeQR: randomUUID(),
-					},
-					include,
-				}),
-			),
-		);
+		const saleTickets = await prisma.$transaction(async (tx) => {
+			// Mismo chequeo-y-descuento atómico que la venta manual (sale-tickets.ts) — acá se
+			// descuenta de una sola vez la cantidad de asientos elegidos, así una compra de autoservicio
+			// nunca deja vender más tickets de un tipo que el cupo configurado.
+			const stockUpdate = await tx.ticket.updateMany({
+				where: { id: ticket.id, count: { gte: seatIds.length } },
+				data: { count: { decrement: seatIds.length } },
+			});
+			if (stockUpdate.count === 0) {
+				throw new InsufficientStockError();
+			}
+			return Promise.all(
+				seatIds.map((seatId) =>
+					tx.saleTicket.create({
+						data: {
+							eventId: event.id,
+							seatId,
+							ticketId: ticket.id,
+							userId: rootUser.id,
+							clientId: client!.id,
+							paidType: 'Online',
+							description: 'Compra autoservicio',
+							codeQR: randomUUID(),
+						},
+						include,
+					}),
+				),
+			);
+		});
 
 		const publicSaleTickets = saleTickets.map(({ client: c, seller: s, ...rest }) => ({ ...rest, client: toPublicUser(c), seller: toPublicUser(s) }));
 
@@ -221,6 +235,10 @@ publicRouter.post('/purchase', asyncHandler(async (req, res) => {
 
 		res.status(201).json(publicSaleTickets);
 	} catch (err: any) {
+		if (err instanceof InsufficientStockError) {
+			res.status(409).json({ error: 'No hay suficiente stock disponible para este tipo de ticket.' });
+			return;
+		}
 		if (err.code === 'P2002') {
 			res.status(409).json({ error: 'Uno o más asientos elegidos ya no están disponibles. Volvé a intentarlo.' });
 			return;

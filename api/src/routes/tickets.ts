@@ -20,13 +20,48 @@ const ticketInputSchema = z.object({
 });
 
 // El grid de tarjetas de tickets necesita mostrar a qué evento/área pertenece cada uno (varios
-// eventos pueden listarse juntos) — select mínimo, no toda la fila de Event/Area.
-const include = { event: { select: { id: true, name: true } }, area: { select: { id: true, name: true } } };
+// eventos pueden listarse juntos) — select mínimo, no toda la fila de Event/Area. mapId del evento
+// se usa para calcular disponibilidad de asientos cuando el ticket no tiene área asignada (ver
+// attachSeatAvailability).
+const include = {
+	event: { select: { id: true, name: true, mapId: true } },
+	area: { select: { id: true, name: true } },
+};
+
+// El "stock" (Ticket.count) es un cupo de venta que el admin fija a mano y que se descuenta con
+// cada venta (ver sale-tickets.ts) — un techo independiente de cuántos asientos físicos existen.
+// Pero el techo REAL para vender es el menor entre ese cupo y los asientos libres en el alcance del
+// ticket (su área, o todo el mapa del evento si no tiene una asignada), así que el manager necesita
+// ver ambos números para entender qué está limitando la venta.
+async function attachSeatAvailability<T extends { id: number; areaId: number | null; event: { id: number; mapId: number | null } }>(tickets: T[]) {
+	const mapIds = [...new Set(tickets.map((t) => t.event.mapId).filter((id): id is number => id !== null))];
+	const areasByMap = new Map<number, number[]>();
+	if (mapIds.length) {
+		const areas = await prisma.area.findMany({ where: { mapId: { in: mapIds } }, select: { id: true, mapId: true } });
+		for (const area of areas) {
+			areasByMap.set(area.mapId, [...(areasByMap.get(area.mapId) ?? []), area.id]);
+		}
+	}
+
+	return Promise.all(
+		tickets.map(async (ticket) => {
+			const areaIds = ticket.areaId ? [ticket.areaId] : (ticket.event.mapId ? (areasByMap.get(ticket.event.mapId) ?? []) : []);
+			if (!areaIds.length) {
+				return { ...ticket, seatsTotal: 0, seatsAvailable: 0 };
+			}
+			const [seatsTotal, seatsSold] = await Promise.all([
+				prisma.seat.count({ where: { areaId: { in: areaIds } } }),
+				prisma.saleTicket.count({ where: { eventId: ticket.event.id, seat: { areaId: { in: areaIds } } } }),
+			]);
+			return { ...ticket, seatsTotal, seatsAvailable: seatsTotal - seatsSold };
+		}),
+	);
+}
 
 ticketsRouter.get('/', asyncHandler(async (req, res) => {
 	const eventId = req.query.eventId ? Number(req.query.eventId) : undefined;
 	const tickets = await prisma.ticket.findMany({ where: eventId ? { eventId } : undefined, include, orderBy: { id: 'asc' } });
-	res.json(tickets);
+	res.json(await attachSeatAvailability(tickets));
 }));
 
 ticketsRouter.get('/:id', asyncHandler(async (req, res) => {
@@ -36,7 +71,8 @@ ticketsRouter.get('/:id', asyncHandler(async (req, res) => {
 		res.status(404).json({ error: 'Ticket no encontrado' });
 		return;
 	}
-	res.json(ticket);
+	const [withAvailability] = await attachSeatAvailability([ticket]);
+	res.json(withAvailability);
 }));
 
 ticketsRouter.post('/', asyncHandler(async (req, res) => {
