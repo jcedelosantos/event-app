@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, ViewChild, OnInit, AfterViewInit, ElementRef, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ViewChild, OnInit, AfterViewInit, ElementRef, inject, signal, computed } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 
@@ -11,6 +11,7 @@ import { NavBarMapComponent } from '../components/nav-bar-map/nav-bar-map.compon
 import { CollapseTablesComponent } from '../components/accordion-tables/collapse-tables.component';
 import { CreateSeatModalComponent } from '../components/create-seat-modal/create-seat-modal.component';
 import { BulkCreateSeatsModalComponent } from '../components/bulk-create-seats-modal/bulk-create-seats-modal.component';
+import { BulkEditTablesModalComponent } from '../components/bulk-edit-tables-modal/bulk-edit-tables-modal.component';
 import { MapsService } from '../services/maps.service';
 import { AreasService } from '../services/areas.service';
 import { SeatsService } from '../services/seats.service';
@@ -29,12 +30,17 @@ declare const bootstrap: any;
 
 @Component({
 	selector: 'app-seats',
-	imports: [FormsModule, NavBarMapComponent, CollapseTablesComponent, CreateSeatModalComponent, BulkCreateSeatsModalComponent],
+	imports: [FormsModule, NavBarMapComponent, CollapseTablesComponent, CreateSeatModalComponent, BulkCreateSeatsModalComponent, BulkEditTablesModalComponent],
 	template: `
 		<nav-bar-map [areas]="map()?.areas" [idMap]="map()?.id" />
 		<div class="col-xxl-9 col-md-12 d-flex justify-content-between align-items-center">
 			<h3 class="section-title mb-0">Manager Seat</h3>
 			<div>
+				@if (tables().length) {
+					<button type="button" class="btn btn-outline-danger btn-sm me-2" data-bs-toggle="modal" data-bs-target="#bulkEditTablesModal">
+						<i class="bi bi-arrows-angle-expand"></i> Tamaño de mesas
+					</button>
+				}
 				<button type="button" class="btn btn-outline-danger btn-sm me-2" data-bs-toggle="modal" data-bs-target="#bulkCreateSeatsModal"><i class="bi bi-grid-3x3-gap"></i> Generar varios</button>
 				<button type="button" class="btn btn-danger btn-sm" (click)="openCreateSeatModal()"><i class="bi bi-plus-lg"></i> Add Seat</button>
 			</div>
@@ -92,7 +98,7 @@ declare const bootstrap: any;
 										<button
 											class="draggable-btn"
 											(dblclick)="openUpdateSeatForm(seat)"
-											(mousedown)="startDragging('seat', idx, $event)"
+											(mousedown)="onSeatMouseDown(seat, idx, $event)"
 											(mouseup)="stopDragging()"
 											(mouseleave)="stopDragging()"
 											[style.top.px]="seat.y"
@@ -156,7 +162,14 @@ declare const bootstrap: any;
 		</div>
 
 		<create-seat-modal [(seat)]="seatToEdit" [areaId]="area()?.id" [coordinates]="coordinates" (seatCreated)="onSeatCreated($event)" (seatUpdated)="onSeatUpdated($event)" />
-		<bulk-create-seats-modal [areaId]="area()?.id" (seatsCreated)="onSeatsBulkCreated($event)" (tablesCreated)="onTablesBulkCreated($event)" />
+		<bulk-create-seats-modal
+				[areaId]="area()?.id"
+				[existingTableNames]="tableNames()"
+				[existingFlatSeatNames]="ungroupedSeatNames()"
+				(seatsCreated)="onSeatsBulkCreated($event)"
+				(tablesCreated)="onTablesBulkCreated($event)"
+			/>
+		<bulk-edit-tables-modal [tables]="tablesWithSeats()" (tablesUpdated)="onTablesBulkSizeUpdated($event)" (seatsUpdated)="onSeatsBulkSizeUpdated($event)" />
 	`,
 	styleUrl: './seats.component.css',
 	changeDetection: ChangeDetectionStrategy.OnPush,
@@ -277,6 +290,11 @@ export class SeatsComponent implements OnInit, AfterViewInit {
 		return this.tables().map((table) => ({ ...table, seats: seats.filter((s) => s.tableId === table.id) }));
 	}
 
+	// Nombres ya usados en el área — se los paso al generador masivo para que la numeración
+	// continúe donde quedó en vez de arrancar siempre en 1 (ver bulk-create-seats-modal).
+	tableNames = computed(() => this.tables().map((t) => t.name));
+	ungroupedSeatNames = computed(() => this.ungroupedSeats().map((s) => s.name));
+
 	openCreateSeatForm(event: MouseEvent) {
 		const rect = this.imageContainer.nativeElement.getBoundingClientRect();
 		const x = Math.max(0, Math.min(rect.width, event.clientX - rect.left));
@@ -314,6 +332,14 @@ export class SeatsComponent implements OnInit, AfterViewInit {
 
 	onTablesBulkCreated(newTables: Table[]) {
 		this.tables.update((list) => [...list, ...newTables]);
+	}
+
+	onTablesBulkSizeUpdated(updated: Table[]) {
+		this.tables.update((list) => list.map((t) => updated.find((u) => u.id === t.id) ?? t));
+	}
+
+	onSeatsBulkSizeUpdated(updated: Seat[]) {
+		this.seats.update((list) => list.map((s) => updated.find((u) => u.id === s.id) ?? s));
 	}
 
 	onSeatUpdated(seat: Seat) {
@@ -376,20 +402,33 @@ export class SeatsComponent implements OnInit, AfterViewInit {
 		}
 	}
 
+	// Un asiento que pertenece a una mesa se arrastra siempre como parte del grupo — agarrar
+	// cualquiera de sus números y moverlo ya no lo desprende de la mesa (eso rompía la formación en
+	// anillo y desalineaba los números respecto al ícono de la mesa).
+	onSeatMouseDown(seat: Seat, idx: number, event: MouseEvent) {
+		if (seat.tableId) {
+			const tableIdx = this.tables().findIndex((t) => t.id === seat.tableId);
+			if (tableIdx !== -1) {
+				this.startDragging('table', tableIdx, event);
+				return;
+			}
+		}
+		this.startDragging('seat', idx, event);
+	}
+
 	startDragging(kind: 'seat' | 'table', index: number, event: MouseEvent) {
 		this.isDragging = true;
 		this.activeKind = kind;
 		this.activeIndex = index;
 
-		// currentTarget (el <button>, siempre) en vez de target (puede ser el <i>/<span> de adentro
-		// si el click cayó ahí) — y el offset se toma desde el CENTRO del botón, no su esquina, para
-		// que coincida con cómo moveActive() interpreta x/y ahora.
-		const button = event.currentTarget as HTMLElement;
-		const rect = button.getBoundingClientRect();
-		const centerX = rect.left + rect.width / 2;
-		const centerY = rect.top + rect.height / 2;
-		this.offsetX = event.clientX - centerX;
-		this.offsetY = event.clientY - centerY;
+		// El offset se calcula contra las coordenadas propias del elemento (table.x/y o seat.x/y),
+		// no contra el DOM del botón que disparó el mousedown — así arrastrar cualquier asiento de
+		// una mesa mueve la mesa (su ancla real), sin importar qué tan lejos del centro del ícono
+		// esté ese asiento en el anillo.
+		const anchor = kind === 'table' ? this.tables()[index] : this.seats()[index];
+		const rect = this.imageContainer.nativeElement.getBoundingClientRect();
+		this.offsetX = event.clientX - (rect.left + anchor.x);
+		this.offsetY = event.clientY - (rect.top + anchor.y);
 	}
 
 	stopDragging() {

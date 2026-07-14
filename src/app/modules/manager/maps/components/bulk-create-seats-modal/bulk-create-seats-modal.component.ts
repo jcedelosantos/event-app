@@ -71,14 +71,14 @@ import { closeModal } from '../../../../../utils/modal';
 							</div>
 							@if (form.controls.seatsPerTable.value) {
 								<div class="form-text">
-									Se crean {{ form.controls.count.value || 0 }} mesas ("{{ form.controls.prefix.value || 'Mesa' }} 1", "{{ form.controls.prefix.value || 'Mesa' }} 2"...) con
+									Se crean {{ form.controls.count.value || 0 }} mesas ("{{ nextTablePreview() }}", "{{ nextTablePreview(1) }}"...) con
 									{{ form.controls.seatsPerTable.value }} asientos cada una, acomodados en anillo alrededor del ícono de la mesa — cada asiento se vende por separado. Después
 									podés arrastrar cada mesa (y cada asiento) para ajustar la posición exacta.
 								</div>
 							} @else {
 								<div class="form-text">
-									Se crean como "{{ form.controls.prefix.value || 'A' }}1", "{{ form.controls.prefix.value || 'A' }}2", etc., acomodados en una cuadrícula — después podés
-									arrastrar cada uno para ajustar su posición exacta.
+									Se crean como "{{ nextSeatPreview() }}", "{{ nextSeatPreview(1) }}", etc., acomodados en una cuadrícula — después podés arrastrar cada uno para ajustar su
+									posición exacta.
 								</div>
 							}
 							@if (errorMessage) {
@@ -135,6 +135,11 @@ export class BulkCreateSeatsModalComponent {
 	private readonly tablesService = inject(TablesService);
 
 	@Input() areaId: number | undefined;
+	// Nombres ya existentes en el área — se usan para que el numerador continúe donde quedó en vez
+	// de siempre arrancar en 1 (bug real: generar "2 mesas más" pisaba los nombres "Mesa 1"/"Mesa 2"
+	// que ya existían).
+	@Input() existingTableNames: string[] = [];
+	@Input() existingFlatSeatNames: string[] = [];
 	seatsCreated = output<Seat[]>();
 	tablesCreated = output<Table[]>();
 	errorMessage = '';
@@ -151,6 +156,32 @@ export class BulkCreateSeatsModalComponent {
 	isInvalid(name: keyof typeof this.form.controls): boolean {
 		const control = this.form.controls[name];
 		return control.invalid && control.touched;
+	}
+
+	// Busca, entre los nombres existentes, el mayor número que sigue al prefijo dado (p.ej. "Mesa 7"
+	// con prefijo "Mesa" → 7) y devuelve el siguiente. Sin coincidencias, arranca en 1 — igual que
+	// antes para un área vacía.
+	private nextNumber(names: string[], prefix: string, separator: string): number {
+		const escaped = prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+		const re = new RegExp(`^${escaped}${separator}(\\d+)$`, 'i');
+		let max = 0;
+		for (const name of names) {
+			const match = name.trim().match(re);
+			if (match) max = Math.max(max, Number(match[1]));
+		}
+		return max + 1;
+	}
+
+	nextTablePreview(offset = 0): string {
+		const prefix = this.form.controls.prefix.value || 'Mesa';
+		const start = this.nextNumber(this.existingTableNames, prefix, ' ');
+		return `${prefix} ${start + offset}`;
+	}
+
+	nextSeatPreview(offset = 0): string {
+		const prefix = this.form.controls.prefix.value || 'A';
+		const start = this.nextNumber(this.existingFlatSeatNames, prefix, '');
+		return `${prefix}${start + offset}`;
 	}
 
 	submit() {
@@ -172,11 +203,12 @@ export class BulkCreateSeatsModalComponent {
 	private generateFlatSeats(count: number, prefix: string, cols: number) {
 		const spacing = 60;
 		const margin = 40;
+		const startNumber = this.nextNumber(this.existingFlatSeatNames, prefix, '');
 		const requests = Array.from({ length: count }, (_, i) => {
 			const col = i % cols;
 			const row = Math.floor(i / cols);
 			return this.seatsService.createSeat({
-				name: `${prefix}${i + 1}`,
+				name: `${prefix}${startNumber + i}`,
 				x: col * spacing + margin,
 				y: row * spacing + margin,
 				size: 12,
@@ -207,11 +239,12 @@ export class BulkCreateSeatsModalComponent {
 		// de mesas nace con sillas recortadas contra el borde superior/izquierdo del lienzo (se veían
 		// pegadas arriba, casi saliéndose del plano).
 		const margin = ringRadius + 55;
+		const startNumber = this.nextNumber(this.existingTableNames, prefix, ' ');
 		const tableRequests = Array.from({ length: tableCount }, (_, i) => {
 			const col = i % cols;
 			const row = Math.floor(i / cols);
 			return this.tablesService.createTable({
-				name: `${prefix} ${i + 1}`,
+				name: `${prefix} ${startNumber + i}`,
 				icon: tableIcon,
 				x: col * tableSpacing + margin,
 				y: row * tableSpacing + margin,
