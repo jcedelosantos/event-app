@@ -31,11 +31,11 @@ const COLUMN_LABELS: Record<ColumnKey, string> = {
 		<h2 class="section-title">Users Manager</h2>
 		<nav class="navbar border-bottom border-body">
 			<div class="container-fluid">
-				<form class="d-flex" role="search">
+				<form class="d-flex" role="search" (submit)="$event.preventDefault(); searchText.set(searchInput.value)">
 					<button type="button" class="btn btn-primary me-4" (click)="openUpdateUserModal(null)">Create</button>
-					<input class="form-control me-2" type="search" placeholder="Search" aria-label="Name" />
+					<input #searchInput class="form-control me-2" type="search" placeholder="Search" aria-label="Name" (input)="searchText.set(searchInput.value)" />
 					<button class="btn btn-dark me-4" type="submit"> Search</button>
-					<button class="btn btn-danger" type="button" ><i class="bi bi-eraser-fill"></i></button>
+					<button class="btn btn-danger" type="button" (click)="searchInput.value = ''; searchText.set('')"><i class="bi bi-eraser-fill"></i></button>
 				</form>
 				<div class="navbar-brand d-flex align-items-center gap-3">
 					<div class="dropdown" (click)="$event.stopPropagation()">
@@ -172,6 +172,7 @@ export class UsersComponent implements AfterViewInit {
 
 	sortKey = signal<SortKey | null>(null);
 	sortDir = signal<'asc' | 'desc'>('asc');
+	searchText = signal('');
 
 	columns = (Object.keys(COLUMN_LABELS) as ColumnKey[]).map((key) => ({ key, label: COLUMN_LABELS[key] }));
 
@@ -199,9 +200,17 @@ export class UsersComponent implements AfterViewInit {
 		this.columnsMenuOpen.set(false);
 	}
 
+	filteredUsers = computed(() => {
+		const term = this.searchText().trim().toLowerCase();
+		if (!term) return this.users();
+		return this.users().filter((u) =>
+			[u.carnet, u.name, u.lastname, u.username, u.email, u.type?.name].some((field) => field?.toLowerCase().includes(term)),
+		);
+	});
+
 	sortedUsers = computed(() => {
 		const key = this.sortKey();
-		const list = [...this.users()];
+		const list = [...this.filteredUsers()];
 		if (!key) return list;
 		const dir = this.sortDir() === 'asc' ? 1 : -1;
 		return list.sort((a, b) => {

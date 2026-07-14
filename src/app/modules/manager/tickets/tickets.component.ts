@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
 
 import { Ticket } from '../../../models/tickets/ticket';
 
@@ -20,9 +20,9 @@ import { HttpErrorResponse } from '@angular/common/http';
 
 		<nav class="navbar border-bottom border-body">
 			<div class="container-fluid">
-				<form class="d-flex" role="search">
+				<form class="d-flex" role="search" (submit)="$event.preventDefault(); searchText.set(searchInput.value)">
 					<button type="button" class="btn btn-danger me-4" (click)="selectedTicket.set(null)" data-bs-toggle="modal" data-bs-target="#updateTicketModal">Create</button>
-					<input class="form-control me-2" type="search" placeholder="Search" aria-label="Name" />
+					<input #searchInput class="form-control me-2" type="search" placeholder="Search" aria-label="Name" (input)="searchText.set(searchInput.value)" />
 					<button class="btn btn-dark me-4" type="submit">Search</button>
 				</form>
 				<div class="navbar-brand">
@@ -40,7 +40,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 		<br />
 		@if (tickets()) {
 			<div class="tickets-grid">
-				@for (ticket of tickets(); track ticket.id) {
+				@for (ticket of filteredTickets(); track ticket.id) {
 					<ticket-card [ticket]="ticket" (selectedTicket)="selectedTicket.set($event)" (deleteTicket)="onDeleteTicket($event)" />
 				}
 			</div>
@@ -57,6 +57,13 @@ export class TicketsComponent implements OnInit {
 
 	tickets = signal<Ticket[]>([]);
 	selectedTicket = signal<Ticket | null>(null);
+	searchText = signal('');
+
+	filteredTickets = computed(() => {
+		const term = this.searchText().trim().toLowerCase();
+		if (!term) return this.tickets();
+		return this.tickets().filter((t) => [t.name, t.description, t.type, t.code, t.event?.name].some((field) => field?.toLowerCase().includes(term)));
+	});
 
 	ngOnInit(): void {
 		this.loadTickets();
