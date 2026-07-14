@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, effect, inject, Input, model, OnInit, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, Input, model, OnInit, output, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Ticket } from '../../../../../models/tickets/ticket';
@@ -38,10 +38,20 @@ import { closeModal } from '../../../../../utils/modal';
 								@for (event of events(); track event.id) {
 									<option [ngValue]="event.id">{{ event.name }}</option>
 								}
-							</select>
+						</select>
 							@if (isInvalid('eventId')) {
 								<div class="invalid-feedback">Elegí el evento al que pertenece este ticket.</div>
 							}
+						</div>
+						<div class="mb-3">
+							<label for="areaId">Área que habilita este ticket</label>
+							<select class="custom-select d-block w-100" formControlName="areaId">
+								<option [ngValue]="null">Todas las áreas del mapa</option>
+								@for (area of availableAreas(); track area.id) {
+									<option [ngValue]="area.id">{{ area.name }}</option>
+								}
+							</select>
+							<div class="form-text">Si elegís un área, el comprador con este ticket solo va a poder elegir asientos de esa área.</div>
 						</div>
 						<div class="row">
 							<div class="col-md-6 mb-3">
@@ -119,20 +129,44 @@ export class UpdateTicketModalComponent implements OnInit {
 		name: new FormControl<string | null>(null, Validators.required),
 		description: new FormControl<string | null>(null),
 		eventId: new FormControl<number | null>(null, Validators.required),
+		areaId: new FormControl<number | null>(null),
 		type: new FormControl<string | null>(null, Validators.required),
 		count: new FormControl<number | null>(null, Validators.required),
 		active: new FormControl<boolean>(true, [Validators.required]),
 		price: new FormControl<number | null>(null, Validators.required),
 	});
 
+	// Las áreas disponibles para el selector dependen del mapa del evento elegido — se recalculan
+	// cada vez que cambia eventId, en vez de traer todas las áreas de todos los eventos.
+	selectedEventId = signal<number | null>(null);
+	availableAreas = computed(() => this.events().find((e) => e.id === this.selectedEventId())?.map?.areas ?? []);
+
+	// patchValue() al abrir el modal para editar dispara valueChanges de eventId igual que si lo
+	// tocara el usuario — sin esta bandera, el listener de abajo pisaría con null el areaId que el
+	// propio patchValue acaba de cargar desde el ticket existente.
+	private patchingFromTicket = false;
+
 	constructor() {
 		effect(() => {
 			this.errorMessage = '';
 			const current = this.ticket();
+			this.patchingFromTicket = true;
 			if (current) {
 				this.form.patchValue({ ...current });
+				this.selectedEventId.set(current.eventId);
 			} else {
 				this.form.reset({ active: true, eventId: this.defaultEventId });
+				this.selectedEventId.set(this.defaultEventId);
+			}
+			this.patchingFromTicket = false;
+		});
+
+		this.form.controls.eventId.valueChanges.subscribe((eventId) => {
+			this.selectedEventId.set(eventId);
+			// Cambiar de evento a mano invalida cualquier área elegida del mapa anterior; al cargar
+			// un ticket existente (patchValue) el areaId correcto ya viene en el mismo patch.
+			if (!this.patchingFromTicket) {
+				this.form.controls.areaId.setValue(null);
 			}
 		});
 	}
@@ -157,6 +191,7 @@ export class UpdateTicketModalComponent implements OnInit {
 			name: value.name!,
 			description: value.description ?? '',
 			eventId: value.eventId!,
+			areaId: value.areaId ?? null,
 			type: value.type!,
 			count: value.count!,
 			active: value.active!,

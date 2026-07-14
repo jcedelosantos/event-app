@@ -4,6 +4,7 @@ import { z } from 'zod';
 import bcrypt from 'bcryptjs';
 import { prisma } from '../lib/prisma';
 import { requireAuth, AuthenticatedRequest } from '../middleware/auth';
+import { requireLicense } from '../middleware/license';
 import { toPublicUser } from '../lib/serialize';
 import { sendTicketEmail } from '../lib/mail';
 import { asyncHandler } from '../lib/async-handler';
@@ -226,7 +227,10 @@ saleTicketsRouter.post('/:id/resend', asyncHandler(async (req, res) => {
 // El check-in por QR se hace vía el endpoint unificado POST /scan (ver scan.ts), que también
 // cubre la entrega de productos con el mismo lector.
 
-saleTicketsRouter.delete('/:id', asyncHandler(async (req: AuthenticatedRequest, res) => {
+// Borrar la venta libera el asiento (la disponibilidad se calcula por ausencia de SaleTicket) — por
+// eso esta acción requiere el permiso RELEASE_SEAT en vez de quedar abierta a cualquier manager
+// autenticado.
+saleTicketsRouter.delete('/:id', requireLicense('RELEASE_SEAT'), asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const id = Number(req.params.id);
 	try {
 		const saleTicket = await prisma.saleTicket.delete({ where: { id } });
@@ -235,7 +239,7 @@ saleTicketsRouter.delete('/:id', asyncHandler(async (req: AuthenticatedRequest, 
 			action: 'DELETE',
 			entity: 'SaleTicket',
 			entityId: id,
-			summary: `Borró la venta de ticket #${id} (código ${saleTicket.codeQR})`,
+			summary: `Liberó el asiento de la venta #${id} (código ${saleTicket.codeQR})`,
 		});
 		res.status(204).send();
 	} catch (err: any) {

@@ -2,6 +2,7 @@ import { AfterViewInit, ChangeDetectionStrategy, Component, computed, HostListen
 import { QRService, SaleTicket } from './services/qr.service';
 import { ProductSalesService, SaleProduct } from './services/product-sales.service';
 import { EventsService } from '../events/services/events.service';
+import { AuthService } from '../../../core/services/auth.service';
 import { Events } from '../../../models/events/events';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -53,6 +54,16 @@ export class QrsComponent implements OnInit, AfterViewInit {
   qrService = inject(QRService);
   productSalesService = inject(ProductSalesService);
   private readonly eventsService = inject(EventsService);
+  private readonly authService = inject(AuthService);
+
+  // Borrar una venta libera el asiento — solo lo puede hacer un usuario cuyo UserType.license
+  // incluya '*' (admin) o el permiso explícito RELEASE_SEAT (ver requireLicense en el backend,
+  // que es quien realmente hace cumplir esto; acá solo se oculta el botón para no ofrecer una
+  // acción que el servidor va a rechazar con 403).
+  canReleaseSeat = computed(() => {
+    const license = this.authService.currentUser()?.type?.license ?? [];
+    return license.includes('*') || license.includes('RELEASE_SEAT');
+  });
 
   qrList = signal<SaleTicket[]>([]);
   productSaleList = signal<SaleProduct[]>([]);
@@ -268,7 +279,7 @@ export class QrsComponent implements OnInit, AfterViewInit {
   }
 
   deleteQR(qr: SaleTicket) {
-    confirm(`¿Eliminar esta venta / QR?`, {
+    confirm(`¿Liberar este asiento? Se elimina la venta / QR y el asiento vuelve a estar disponible.`, {
       onConfirm: () => {
         this.qrService.deleteQR(qr.id).subscribe({
           next: () => this.loadQRs(),

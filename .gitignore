@@ -43,3 +43,6 @@ Thumbs.db
 
 # Notas personales, fuera del código fuente
 /notes
+
+# Grafo de conocimiento generado por graphify (local, no versionado)
+/graphify-out

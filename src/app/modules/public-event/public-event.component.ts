@@ -6,6 +6,7 @@ import { QRCodeComponent } from 'angularx-qrcode';
 import { PublicArea, PublicEvent, PublicEventService, PublicSeat, PurchasedSaleTicket } from './services/public-event.service';
 import { extractErrorMessage } from '../../utils/api-error';
 import { shortSeatLabel } from '../../utils/seat-label';
+import { warning } from '../../utils/messages';
 
 const MAX_SEATS = 5;
 
@@ -50,7 +51,7 @@ const MAX_SEATS = 5;
 							<p class="text-body-secondary">
 								{{ formatDate(ev.dateOn) }}
 								@if (ev.startTime) {
-									— {{ ev.startTime }}
+									— {{ formatStartTime(ev.startTime) }}
 								}
 							</p>
 							@if (ev.description) {
@@ -88,7 +89,10 @@ const MAX_SEATS = 5;
 								@if (!ev.map || !ev.map.areas.length) {
 									<p class="text-body-secondary">Este evento todavía no tiene asientos configurados.</p>
 								}
-								@for (area of ev.map?.areas ?? []; track area.id) {
+								@if (ev.map && visibleAreas(ev).length !== ev.map.areas.length) {
+									<p class="small text-body-secondary mb-2">Tu ticket solo da acceso al área que se muestra abajo.</p>
+								}
+								@for (area of visibleAreas(ev); track area.id) {
 									<div class="card mb-3">
 										<div class="card-header">{{ area.name }}</div>
 										<div class="card-body">
@@ -124,7 +128,7 @@ const MAX_SEATS = 5;
 																[style.top.%]="(table.y / size.h) * 100"
 																[style.left.%]="(table.x / size.w) * 100"
 																[title]="table.name"
-																(click)="toggleTable(table.id)"
+																(click)="onTableClick(area, table.id)"
 															>
 																{{ seatLabel(table) }}
 																@if (tableSelectedCount(area, table.id) > 0) {
@@ -142,12 +146,9 @@ const MAX_SEATS = 5;
 							</div>
 
 							@if (expandedTableSeats(); as info) {
-								<div class="table-overlay-backdrop" (click)="expandedTableId.set(null)">
-									<div class="table-overlay-panel" (click)="$event.stopPropagation()">
-										<div class="d-flex justify-content-between align-items-center mb-3">
-											<h6 class="mb-0">{{ info.table.name }}</h6>
-											<button type="button" class="btn-close btn-close-white" aria-label="Cerrar" (click)="expandedTableId.set(null)"></button>
-										</div>
+								<div class="table-overlay-backdrop">
+									<div class="table-overlay-panel">
+										<h6 class="mb-3">{{ info.table.name }}</h6>
 										<div class="d-flex flex-wrap gap-2 mb-3">
 											@for (seat of info.seats; track seat.id) {
 												<button
@@ -162,11 +163,12 @@ const MAX_SEATS = 5;
 												</button>
 											}
 										</div>
-										<div class="d-flex gap-3 small text-body-secondary">
+										<div class="d-flex gap-3 small text-body-secondary mb-3">
 											<span><span class="legend-dot" style="background:#28a745"></span> Disponible</span>
 											<span><span class="legend-dot" style="background:#6c757d"></span> Ocupado</span>
 											<span><span class="legend-dot" style="background:var(--app-accent)"></span> Elegido</span>
 										</div>
+										<button type="button" class="btn btn-danger w-100" (click)="expandedTableId.set(null)">Confirmar selección</button>
 									</div>
 								</div>
 							}
@@ -439,6 +441,25 @@ export class PublicEventComponent implements OnInit {
 		this.expandedTableId.update((current) => (current === tableId ? null : tableId));
 	}
 
+	// Antes esto abría el panel igual aunque la mesa ya estuviera completa (el usuario solo veía
+	// botones deshabilitados adentro) — ahora se avisa de una vez y ni se abre.
+	onTableClick(area: PublicArea, tableId: number) {
+		if (this.tableAvailableCount(area, tableId) === 0) {
+			warning('Esta mesa no tiene asientos disponibles.', 'Mesa completa');
+			return;
+		}
+		this.toggleTable(tableId);
+	}
+
+	// El ticket solo desbloquea la(s) área(s) que su vendedor le asignó (areaId en el ticket) —
+	// si no tiene área asignada, mantiene el comportamiento anterior de mostrar todas.
+	visibleAreas(ev: PublicEvent): PublicArea[] {
+		const areas = ev.map?.areas ?? [];
+		const ticket = ev.tickets.find((t) => t.id === this.selectedTicketId());
+		if (!ticket?.areaId) return areas;
+		return areas.filter((a) => a.id === ticket.areaId);
+	}
+
 	expandedTableSeats = computed(() => {
 		const tableId = this.expandedTableId();
 		const ev = this.event();
@@ -502,6 +523,18 @@ export class PublicEventComponent implements OnInit {
 		// dateOn es un instante UTC medianoche que representa un día calendario — usar getters UTC
 		// para no perder un día en timezones detrás de UTC (ver utils/dates.ts).
 		return new Date(iso).toLocaleDateString('es-DO', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
+	}
+
+	// startTime se guarda como "HH:mm" en 24h (ver create-event-modal) — acá se muestra en 12h con
+	// AM/PM porque es lo que espera leer el invitado del picker público.
+	formatStartTime(startTime: string): string {
+		const [hoursStr, minutesStr] = startTime.split(':');
+		const hours24 = Number(hoursStr);
+		const minutes = Number(minutesStr);
+		if (Number.isNaN(hours24) || Number.isNaN(minutes)) return startTime;
+		const period = hours24 >= 12 ? 'PM' : 'AM';
+		const hours12 = hours24 % 12 === 0 ? 12 : hours24 % 12;
+		return `${hours12}:${String(minutes).padStart(2, '0')} ${period}`;
 	}
 
 	submit(event: PublicEvent) {

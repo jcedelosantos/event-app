@@ -17,6 +17,19 @@ export class AuthService {
 
 	currentUser = signal<User | null>(null);
 
+	constructor() {
+		// currentUser solo vivía en memoria — cualquier recarga de página lo perdía aunque el token
+		// siguiera siendo válido, y con eso desaparecían silenciosamente los chequeos de permiso
+		// (ej. el botón de liberar asiento en QRs) hasta el próximo login manual. Al arrancar el
+		// servicio, si hay token válido, se resuelve el usuario contra /auth/me una sola vez.
+		if (this.isAuthenticated()) {
+			this.httpClient.get<User>(`${environment.apiUrl}/auth/me`).subscribe({
+				next: (user) => this.currentUser.set(user),
+				error: () => this.logout(),
+			});
+		}
+	}
+
 	login(username: string, password: string): Observable<LoginResponse> {
 		return this.httpClient.post<LoginResponse>(`${environment.apiUrl}/auth/login`, { username, password }).pipe(
 			tap(({ token, user }) => {

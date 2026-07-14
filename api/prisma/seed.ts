@@ -11,8 +11,8 @@ async function main() {
 	});
 	const user = await prisma.userType.upsert({
 		where: { id: 2 },
-		update: {},
-		create: { name: 'User', description: 'User', type: 'USER', license: JSON.stringify(['SALE', 'MAP']) },
+		update: { license: JSON.stringify(['SALE', 'MAP', 'RELEASE_SEAT']) },
+		create: { name: 'User', description: 'User', type: 'USER', license: JSON.stringify(['SALE', 'MAP', 'RELEASE_SEAT']) },
 	});
 	await prisma.userType.upsert({
 		where: { id: 3 },

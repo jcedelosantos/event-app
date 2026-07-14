@@ -5,6 +5,7 @@ import { prisma } from '../lib/prisma';
 import { signToken } from '../lib/jwt';
 import { toPublicUser } from '../lib/serialize';
 import { asyncHandler } from '../lib/async-handler';
+import { requireAuth, AuthenticatedRequest } from '../middleware/auth';
 
 export const authRouter = Router();
 
@@ -35,4 +36,16 @@ authRouter.post('/login', asyncHandler(async (req, res) => {
 	const token = signToken({ userId: user.id, username: user.username, userType: user.type.type });
 
 	res.json({ token, user: toPublicUser(user) });
+}));
+
+// El frontend guarda el token en localStorage pero no persiste el usuario/licencia entre recargas
+// de página — sin esto, cualquier chequeo de permiso basado en currentUser (ej. liberar un asiento)
+// se "olvidaba" del usuario apenas se refrescaba la pantalla, aunque el token siguiera siendo válido.
+authRouter.get('/me', requireAuth, asyncHandler(async (req: AuthenticatedRequest, res) => {
+	const user = await prisma.user.findUnique({ where: { id: req.user!.userId }, include: { type: true } });
+	if (!user) {
+		res.status(401).json({ error: 'No autenticado' });
+		return;
+	}
+	res.json(toPublicUser(user));
 }));

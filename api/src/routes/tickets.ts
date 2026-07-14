@@ -16,6 +16,7 @@ const ticketInputSchema = z.object({
 	active: z.boolean().optional().default(true),
 	price: z.coerce.number(),
 	eventId: z.number().int(),
+	areaId: z.number().int().nullable().optional(),
 });
 
 ticketsRouter.get('/', asyncHandler(async (req, res) => {

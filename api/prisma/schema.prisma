@@ -123,8 +123,9 @@ model Area {
   mapId Int
   map   Map @relation(fields: [mapId], references: [id])
 
-  seats  Seat[]
-  tables Table[]
+  seats   Seat[]
+  tables  Table[]
+  tickets Ticket[]
 }
 
 model Table {
@@ -177,6 +178,13 @@ model Ticket {
 
   eventId Int
   event   Event @relation(fields: [eventId], references: [id])
+
+  // Si se define, este tipo de ticket solo da acceso a asientos de esta área — el picker público
+  // usa esto para no mostrarle al comprador áreas que su ticket no cubre (ej. tickets "General" vs
+  // "VIP" ligados cada uno a su propia área). Sin asignar, el ticket sigue viendo todas las áreas
+  // del mapa (comportamiento previo, retrocompatible).
+  areaId Int?
+  area   Area? @relation(fields: [areaId], references: [id])
 
   saleTickets SaleTicket[]
 }

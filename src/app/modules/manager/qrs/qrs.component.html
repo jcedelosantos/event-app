@@ -139,9 +139,11 @@
                     <button class="btn btn-primary btn-sm me-2" (click)="openDetailModal(qr)">
                         <i class="bi bi-eye" aria-hidden="true"></i> View
                     </button>
-                    <button class="btn btn-dark btn-sm" (click)="deleteQR(qr)">
-                        <i class="bi bi-x-lg" aria-hidden="true"></i>
-                    </button>
+                    @if (canReleaseSeat()) {
+                        <button class="btn btn-dark btn-sm" title="Liberar asiento" (click)="deleteQR(qr)">
+                            <i class="bi bi-unlock" aria-hidden="true"></i>
+                        </button>
+                    }
             </td>
         </tr>
         } @empty {

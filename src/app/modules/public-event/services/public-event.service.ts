@@ -46,6 +46,7 @@ export type PublicTicket = {
 	type: string;
 	price: number;
 	description: string;
+	areaId: number | null;
 };
 
 export type PublicEvent = {

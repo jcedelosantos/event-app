@@ -13,6 +13,7 @@ export type TicketInput = {
 	active?: boolean;
 	price: number;
 	eventId: number;
+	areaId?: number | null;
 };
 
 @Injectable({
