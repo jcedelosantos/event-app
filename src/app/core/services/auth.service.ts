@@ -5,10 +5,19 @@ import { environment } from '../../../environments/environment';
 import { User } from '../../models/users/user';
 
 const TOKEN_KEY = 'seat-app-token';
+// Guarda el token del Super Admin mientras "entra como" una organización, para poder volver a su
+// sesión sin pedirle credenciales de nuevo — ver beginImpersonation/endImpersonation.
+const IMPERSONATION_TOKEN_KEY = 'seat-app-impersonation-origin-token';
 
 type LoginResponse = {
 	token: string;
 	user: User;
+};
+
+export type UpdateMeInput = {
+	username?: string;
+	currentPassword?: string;
+	newPassword?: string;
 };
 
 @Injectable({ providedIn: 'root' })
@@ -16,6 +25,7 @@ export class AuthService {
 	private readonly httpClient = inject(HttpClient);
 
 	currentUser = signal<User | null>(null);
+	isImpersonating = signal<boolean>(typeof localStorage !== 'undefined' && localStorage.getItem(IMPERSONATION_TOKEN_KEY) !== null);
 
 	constructor() {
 		// currentUser solo vivía en memoria — cualquier recarga de página lo perdía aunque el token
@@ -32,16 +42,19 @@ export class AuthService {
 
 	login(username: string, password: string): Observable<LoginResponse> {
 		return this.httpClient.post<LoginResponse>(`${environment.apiUrl}/auth/login`, { username, password }).pipe(
-			tap(({ token, user }) => {
-				localStorage.setItem(TOKEN_KEY, token);
-				this.currentUser.set(user);
-			}),
+			tap(({ token, user }) => this.adoptSession(token, user)),
 		);
+	}
+
+	updateMe(input: UpdateMeInput): Observable<User> {
+		return this.httpClient.put<User>(`${environment.apiUrl}/auth/me`, input).pipe(tap((user) => this.currentUser.set(user)));
 	}
 
 	logout() {
 		localStorage.removeItem(TOKEN_KEY);
+		localStorage.removeItem(IMPERSONATION_TOKEN_KEY);
 		this.currentUser.set(null);
+		this.isImpersonating.set(false);
 	}
 
 	getToken(): string | null {
@@ -58,6 +71,33 @@ export class AuthService {
 			return false;
 		}
 		return true;
+	}
+
+	// El Super Admin "entra como" el admin de una organización sin volver a loguearse — se guarda
+	// su propio token para poder restaurarlo después con endImpersonation().
+	beginImpersonation(token: string, user: User) {
+		const currentToken = this.getToken();
+		if (currentToken) {
+			localStorage.setItem(IMPERSONATION_TOKEN_KEY, currentToken);
+			this.isImpersonating.set(true);
+		}
+		this.adoptSession(token, user);
+	}
+
+	// Devuelve un Observable en vez de resolverlo acá adentro para que quien llame pueda esperar a
+	// que currentUser ya esté actualizado antes de navegar (ej. de vuelta a /super-admin).
+	endImpersonation(): Observable<User> | null {
+		const originalToken = localStorage.getItem(IMPERSONATION_TOKEN_KEY);
+		if (!originalToken) return null;
+		localStorage.removeItem(IMPERSONATION_TOKEN_KEY);
+		localStorage.setItem(TOKEN_KEY, originalToken);
+		this.isImpersonating.set(false);
+		return this.httpClient.get<User>(`${environment.apiUrl}/auth/me`).pipe(tap((user) => this.currentUser.set(user)));
+	}
+
+	private adoptSession(token: string, user: User) {
+		localStorage.setItem(TOKEN_KEY, token);
+		this.currentUser.set(user);
 	}
 }
 

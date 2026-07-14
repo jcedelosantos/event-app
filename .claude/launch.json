@@ -1,0 +1,17 @@
+{
+	"version": "0.0.1",
+	"configurations": [
+		{
+			"name": "seat-app-api",
+			"runtimeExecutable": "npm",
+			"runtimeArgs": ["--prefix", "api", "run", "dev"],
+			"port": 3001
+		},
+		{
+			"name": "seat-app-frontend",
+			"runtimeExecutable": "npx",
+			"runtimeArgs": ["ng", "serve", "--port", "4200"],
+			"port": 4200
+		}
+	]
+}

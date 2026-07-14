@@ -3,7 +3,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import bcrypt from 'bcryptjs';
 import { prisma } from '../lib/prisma';
-import { requireAuth, AuthenticatedRequest } from '../middleware/auth';
+import { requireAuth, requireTenant, AuthenticatedRequest } from '../middleware/auth';
 import { requireLicense } from '../middleware/license';
 import { toPublicUser } from '../lib/serialize';
 import { sendTicketEmail } from '../lib/mail';
@@ -11,7 +11,7 @@ import { asyncHandler } from '../lib/async-handler';
 import { logAudit } from '../lib/audit';
 
 export const saleTicketsRouter = Router();
-saleTicketsRouter.use(requireAuth);
+saleTicketsRouter.use(requireAuth, requireTenant);
 
 class InsufficientStockError extends Error {}
 
@@ -38,15 +38,17 @@ export function toPublicSaleTicket(saleTicket: any) {
 	return { ...rest, client: toPublicUser(client), seller: toPublicUser(seller) };
 }
 
-saleTicketsRouter.get('/', asyncHandler(async (req, res) => {
+saleTicketsRouter.get('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
+	const tenantId = req.user!.tenantId!;
 	const eventId = req.query.eventId ? Number(req.query.eventId) : undefined;
-	const saleTickets = await prisma.saleTicket.findMany({ where: eventId ? { eventId } : undefined, include, orderBy: { id: 'desc' } });
+	const saleTickets = await prisma.saleTicket.findMany({ where: eventId ? { eventId, tenantId } : { tenantId }, include, orderBy: { id: 'desc' } });
 	res.json(saleTickets.map(toPublicSaleTicket));
 }));
 
-saleTicketsRouter.get('/:id', asyncHandler(async (req, res) => {
+saleTicketsRouter.get('/:id', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const id = Number(req.params.id);
-	const saleTicket = await prisma.saleTicket.findUnique({ where: { id }, include });
+	const tenantId = req.user!.tenantId!;
+	const saleTicket = await prisma.saleTicket.findUnique({ where: { id, tenantId }, include });
 	if (!saleTicket) {
 		res.status(404).json({ error: 'Venta no encontrada' });
 		return;
@@ -61,13 +63,14 @@ saleTicketsRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res) 
 		return;
 	}
 
+	const tenantId = req.user!.tenantId!;
 	try {
 		const saleTicket = await prisma.$transaction(async (tx) => {
 			// Mismo patrón atómico que sale-products.ts: el updateMany con `count: { gte: 1 }` en el
 			// where hace el chequeo-y-descuento en una sola operación, así dos ventas simultáneas no
 			// pueden llevarse el mismo cupo aunque ambas lean "hay stock" al mismo tiempo.
 			const stockUpdate = await tx.ticket.updateMany({
-				where: { id: parsed.data.ticketId, count: { gte: 1 } },
+				where: { id: parsed.data.ticketId, count: { gte: 1 }, tenantId },
 				data: { count: { decrement: 1 } },
 			});
 			if (stockUpdate.count === 0) {
@@ -78,6 +81,7 @@ saleTicketsRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res) 
 					...parsed.data,
 					codeQR: randomUUID(),
 					userId: req.user!.userId,
+					tenantId,
 				},
 				include,
 			});
@@ -128,6 +132,7 @@ function hasRealCarnet(carnet: string): boolean {
 // para todo el lote, porque un CSV real de gente tiene errores humanos (carnet repetido, asiento que
 // no existe, etc.) y hace falta un reporte de qué entró y qué no, no un 400 que descarta todo.
 saleTicketsRouter.post('/bulk-import', asyncHandler(async (req: AuthenticatedRequest, res) => {
+	const tenantId = req.user!.tenantId!;
 	const parsed = bulkImportSchema.safeParse(req.body);
 	if (!parsed.success) {
 		res.status(400).json({ error: parsed.error.flatten() });
@@ -135,12 +140,12 @@ saleTicketsRouter.post('/bulk-import', asyncHandler(async (req: AuthenticatedReq
 	}
 	const { eventId, ticketId, rows } = parsed.data;
 
-	const event = await prisma.event.findUnique({ where: { id: eventId }, include: { map: { include: { areas: { include: { seats: true } } } } } });
+	const event = await prisma.event.findUnique({ where: { id: eventId, tenantId }, include: { map: { include: { areas: { include: { seats: true } } } } } });
 	if (!event) {
 		res.status(404).json({ error: 'Evento no encontrado' });
 		return;
 	}
-	const ticket = await prisma.ticket.findFirst({ where: { id: ticketId, eventId } });
+	const ticket = await prisma.ticket.findFirst({ where: { id: ticketId, eventId, tenantId } });
 	if (!ticket) {
 		res.status(400).json({ error: 'El ticket elegido no pertenece a este evento' });
 		return;
@@ -166,16 +171,16 @@ saleTicketsRouter.post('/bulk-import', asyncHandler(async (req: AuthenticatedReq
 			skipped.push({ row: rowNum, reason: `El asiento "${row.seatName}" no existe en el mapa de este evento` });
 			continue;
 		}
-		const alreadySold = await prisma.saleTicket.findFirst({ where: { eventId, seatId } });
+		const alreadySold = await prisma.saleTicket.findFirst({ where: { eventId, seatId, tenantId } });
 		if (alreadySold) {
 			skipped.push({ row: rowNum, reason: `El asiento "${row.seatName}" ya estaba vendido` });
 			continue;
 		}
 
 		try {
-			let client = hasRealCarnet(row.carnet) ? await prisma.user.findFirst({ where: { carnet: row.carnet } }) : null;
+			let client = hasRealCarnet(row.carnet) ? await prisma.user.findFirst({ where: { carnet: row.carnet, tenantId } }) : null;
 			if (!client && row.email) {
-				client = await prisma.user.findUnique({ where: { email: row.email } });
+				client = await prisma.user.findFirst({ where: { email: row.email, tenantId } });
 			}
 			if (!client) {
 				// Sin carnet ni correo (invitados) no hay forma de deduplicar — se genera un email
@@ -195,6 +200,7 @@ saleTicketsRouter.post('/bulk-import', asyncHandler(async (req: AuthenticatedReq
 						adress: '',
 						carnet: hasRealCarnet(row.carnet) ? row.carnet : '',
 						typeId: clientType.id,
+						tenantId,
 					},
 				});
 			}
@@ -203,7 +209,7 @@ saleTicketsRouter.post('/bulk-import', asyncHandler(async (req: AuthenticatedReq
 			// quede sin stock se reporta como omitida en vez de crear una venta sin cupo real detrás.
 			await prisma.$transaction(async (tx) => {
 				const stockUpdate = await tx.ticket.updateMany({
-					where: { id: ticketId, count: { gte: 1 } },
+					where: { id: ticketId, count: { gte: 1 }, tenantId },
 					data: { count: { decrement: 1 } },
 				});
 				if (stockUpdate.count === 0) {
@@ -215,10 +221,11 @@ saleTicketsRouter.post('/bulk-import', asyncHandler(async (req: AuthenticatedReq
 						seatId,
 						ticketId,
 						userId: req.user!.userId,
-						clientId: client.id,
+						clientId: client!.id,
 						paidType: row.paidType,
 						description: 'Importación masiva',
 						codeQR: randomUUID(),
+						tenantId,
 					},
 				});
 			});
@@ -235,9 +242,10 @@ saleTicketsRouter.post('/bulk-import', asyncHandler(async (req: AuthenticatedReq
 	res.json({ created, skipped });
 }));
 
-saleTicketsRouter.post('/:id/resend', asyncHandler(async (req, res) => {
+saleTicketsRouter.post('/:id/resend', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const id = Number(req.params.id);
-	const saleTicket = await prisma.saleTicket.findUnique({ where: { id }, include });
+	const tenantId = req.user!.tenantId!;
+	const saleTicket = await prisma.saleTicket.findUnique({ where: { id, tenantId }, include });
 	if (!saleTicket) {
 		res.status(404).json({ error: 'Venta no encontrada' });
 		return;
@@ -265,15 +273,17 @@ saleTicketsRouter.post('/:id/resend', asyncHandler(async (req, res) => {
 // autenticado.
 saleTicketsRouter.delete('/:id', requireLicense('RELEASE_SEAT'), asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const id = Number(req.params.id);
+	const tenantId = req.user!.tenantId!;
 	try {
 		// Igual que sale-products.ts: liberar un asiento también devuelve el cupo al stock del
 		// ticket, si no cada corrección/liberación termina "perdiendo" cupo real.
 		const saleTicket = await prisma.$transaction(async (tx) => {
-			const sale = await tx.saleTicket.delete({ where: { id } });
-			await tx.ticket.update({ where: { id: sale.ticketId }, data: { count: { increment: 1 } } });
+			const sale = await tx.saleTicket.delete({ where: { id, tenantId } });
+			await tx.ticket.update({ where: { id: sale.ticketId, tenantId }, data: { count: { increment: 1 } } });
 			return sale;
 		});
 		await logAudit({
+			tenantId,
 			userId: req.user!.userId,
 			action: 'DELETE',
 			entity: 'SaleTicket',

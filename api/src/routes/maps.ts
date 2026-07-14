@@ -1,11 +1,11 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
-import { requireAuth } from '../middleware/auth';
+import { requireAuth, requireTenant, AuthenticatedRequest } from '../middleware/auth';
 import { asyncHandler } from '../lib/async-handler';
 
 export const mapsRouter = Router();
-mapsRouter.use(requireAuth);
+mapsRouter.use(requireAuth, requireTenant);
 
 const mapInputSchema = z.object({
 	name: z.string().min(1),
@@ -25,14 +25,16 @@ const mapInputSchema = z.object({
 // tirando el nombre/badge de cada mesa hasta que algún otro cambio forzaba un nuevo render.
 const include = { areas: { include: { seats: true, tables: { include: { seats: true } } } } };
 
-mapsRouter.get('/', asyncHandler(async (_req, res) => {
-	const maps = await prisma.map.findMany({ include, orderBy: { id: 'asc' } });
+mapsRouter.get('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
+	const tenantId = req.user!.tenantId!;
+	const maps = await prisma.map.findMany({ where: { tenantId }, include, orderBy: { id: 'asc' } });
 	res.json(maps);
 }));
 
-mapsRouter.get('/:id', asyncHandler(async (req, res) => {
+mapsRouter.get('/:id', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const id = Number(req.params.id);
-	const map = await prisma.map.findUnique({ where: { id }, include });
+	const tenantId = req.user!.tenantId!;
+	const map = await prisma.map.findUnique({ where: { id, tenantId }, include });
 	if (!map) {
 		res.status(404).json({ error: 'Mapa no encontrado' });
 		return;
@@ -40,25 +42,27 @@ mapsRouter.get('/:id', asyncHandler(async (req, res) => {
 	res.json(map);
 }));
 
-mapsRouter.post('/', asyncHandler(async (req, res) => {
+mapsRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const parsed = mapInputSchema.safeParse(req.body);
 	if (!parsed.success) {
 		res.status(400).json({ error: parsed.error.flatten() });
 		return;
 	}
-	const map = await prisma.map.create({ data: parsed.data, include });
+	const tenantId = req.user!.tenantId!;
+	const map = await prisma.map.create({ data: { ...parsed.data, tenantId }, include });
 	res.status(201).json(map);
 }));
 
-mapsRouter.put('/:id', asyncHandler(async (req, res) => {
+mapsRouter.put('/:id', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const id = Number(req.params.id);
+	const tenantId = req.user!.tenantId!;
 	const parsed = mapInputSchema.partial().safeParse(req.body);
 	if (!parsed.success) {
 		res.status(400).json({ error: parsed.error.flatten() });
 		return;
 	}
 	try {
-		const map = await prisma.map.update({ where: { id }, data: parsed.data, include });
+		const map = await prisma.map.update({ where: { id, tenantId }, data: parsed.data, include });
 		res.json(map);
 	} catch (err: any) {
 		if (err.code === 'P2025') {
@@ -69,23 +73,24 @@ mapsRouter.put('/:id', asyncHandler(async (req, res) => {
 	}
 }));
 
-mapsRouter.delete('/:id', asyncHandler(async (req, res) => {
+mapsRouter.delete('/:id', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const id = Number(req.params.id);
+	const tenantId = req.user!.tenantId!;
 
-	const map = await prisma.map.findUnique({ where: { id }, include: { areas: { include: { seats: true } } } });
+	const map = await prisma.map.findUnique({ where: { id, tenantId }, include: { areas: { include: { seats: true } } } });
 	if (!map) {
 		res.status(404).json({ error: 'Mapa no encontrado' });
 		return;
 	}
 
-	const eventCount = await prisma.event.count({ where: { mapId: id } });
+	const eventCount = await prisma.event.count({ where: { mapId: id, tenantId } });
 	if (eventCount > 0) {
 		res.status(409).json({ error: `No se puede borrar: hay ${eventCount} evento(s) usando este mapa.` });
 		return;
 	}
 
 	const seatIds = map.areas.flatMap((area) => area.seats.map((seat) => seat.id));
-	const soldCount = seatIds.length ? await prisma.saleTicket.count({ where: { seatId: { in: seatIds } } }) : 0;
+	const soldCount = seatIds.length ? await prisma.saleTicket.count({ where: { seatId: { in: seatIds }, tenantId } }) : 0;
 	if (soldCount > 0) {
 		res.status(409).json({ error: `No se puede borrar: hay ${soldCount} ticket(s) vendido(s) para asientos de este mapa.` });
 		return;
@@ -93,10 +98,10 @@ mapsRouter.delete('/:id', asyncHandler(async (req, res) => {
 
 	const areaIds = map.areas.map((area) => area.id);
 	await prisma.$transaction([
-		prisma.seat.deleteMany({ where: { areaId: { in: areaIds } } }),
-		prisma.table.deleteMany({ where: { areaId: { in: areaIds } } }),
-		prisma.area.deleteMany({ where: { mapId: id } }),
-		prisma.map.delete({ where: { id } }),
+		prisma.seat.deleteMany({ where: { areaId: { in: areaIds }, tenantId } }),
+		prisma.table.deleteMany({ where: { areaId: { in: areaIds }, tenantId } }),
+		prisma.area.deleteMany({ where: { mapId: id, tenantId } }),
+		prisma.map.delete({ where: { id, tenantId } }),
 	]);
 	res.status(204).send();
 }));

@@ -1,11 +1,11 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
-import { requireAuth } from '../middleware/auth';
+import { requireAuth, requireTenant, AuthenticatedRequest } from '../middleware/auth';
 import { asyncHandler } from '../lib/async-handler';
 
 export const ticketsRouter = Router();
-ticketsRouter.use(requireAuth);
+ticketsRouter.use(requireAuth, requireTenant);
 
 const ticketInputSchema = z.object({
 	name: z.string().min(1),
@@ -33,11 +33,11 @@ const include = {
 // Pero el techo REAL para vender es el menor entre ese cupo y los asientos libres en el alcance del
 // ticket (su área, o todo el mapa del evento si no tiene una asignada), así que el manager necesita
 // ver ambos números para entender qué está limitando la venta.
-async function attachSeatAvailability<T extends { id: number; areaId: number | null; event: { id: number; mapId: number | null } }>(tickets: T[]) {
+async function attachSeatAvailability<T extends { id: number; areaId: number | null; event: { id: number; mapId: number | null } }>(tickets: T[], tenantId: number) {
 	const mapIds = [...new Set(tickets.map((t) => t.event.mapId).filter((id): id is number => id !== null))];
 	const areasByMap = new Map<number, number[]>();
 	if (mapIds.length) {
-		const areas = await prisma.area.findMany({ where: { mapId: { in: mapIds } }, select: { id: true, mapId: true } });
+		const areas = await prisma.area.findMany({ where: { mapId: { in: mapIds }, tenantId }, select: { id: true, mapId: true } });
 		for (const area of areas) {
 			areasByMap.set(area.mapId, [...(areasByMap.get(area.mapId) ?? []), area.id]);
 		}
@@ -50,44 +50,47 @@ async function attachSeatAvailability<T extends { id: number; areaId: number | n
 				return { ...ticket, seatsTotal: 0, seatsAvailable: 0 };
 			}
 			const [seatsTotal, seatsSold] = await Promise.all([
-				prisma.seat.count({ where: { areaId: { in: areaIds } } }),
-				prisma.saleTicket.count({ where: { eventId: ticket.event.id, seat: { areaId: { in: areaIds } } } }),
+				prisma.seat.count({ where: { areaId: { in: areaIds }, tenantId } }),
+				prisma.saleTicket.count({ where: { eventId: ticket.event.id, seat: { areaId: { in: areaIds } }, tenantId } }),
 			]);
 			return { ...ticket, seatsTotal, seatsAvailable: seatsTotal - seatsSold };
 		}),
 	);
 }
 
-ticketsRouter.get('/', asyncHandler(async (req, res) => {
+ticketsRouter.get('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
+	const tenantId = req.user!.tenantId!;
 	const eventId = req.query.eventId ? Number(req.query.eventId) : undefined;
-	const tickets = await prisma.ticket.findMany({ where: eventId ? { eventId } : undefined, include, orderBy: { id: 'asc' } });
-	res.json(await attachSeatAvailability(tickets));
+	const tickets = await prisma.ticket.findMany({ where: eventId ? { eventId, tenantId } : { tenantId }, include, orderBy: { id: 'asc' } });
+	res.json(await attachSeatAvailability(tickets, tenantId));
 }));
 
-ticketsRouter.get('/:id', asyncHandler(async (req, res) => {
+ticketsRouter.get('/:id', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const id = Number(req.params.id);
-	const ticket = await prisma.ticket.findUnique({ where: { id }, include });
+	const tenantId = req.user!.tenantId!;
+	const ticket = await prisma.ticket.findUnique({ where: { id, tenantId }, include });
 	if (!ticket) {
 		res.status(404).json({ error: 'Ticket no encontrado' });
 		return;
 	}
-	const [withAvailability] = await attachSeatAvailability([ticket]);
+	const [withAvailability] = await attachSeatAvailability([ticket], tenantId);
 	res.json(withAvailability);
 }));
 
-ticketsRouter.post('/', asyncHandler(async (req, res) => {
+ticketsRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const parsed = ticketInputSchema.safeParse(req.body);
 	if (!parsed.success) {
 		res.status(400).json({ error: parsed.error.flatten() });
 		return;
 	}
 
+	const tenantId = req.user!.tenantId!;
 	try {
 		// El código identifica el ticket en el barcode/escaneo — se genera siempre server-side a
 		// partir del id (único por diseño) para que no puedan colisionar dos tickets distintos.
-		const created = await prisma.ticket.create({ data: { ...parsed.data, code: '' } });
+		const created = await prisma.ticket.create({ data: { ...parsed.data, code: '', tenantId } });
 		const ticket = await prisma.ticket.update({
-			where: { id: created.id },
+			where: { id: created.id, tenantId },
 			data: { code: `TCK-${String(created.id).padStart(4, '0')}` },
 			include,
 		});
@@ -101,8 +104,9 @@ ticketsRouter.post('/', asyncHandler(async (req, res) => {
 	}
 }));
 
-ticketsRouter.put('/:id', asyncHandler(async (req, res) => {
+ticketsRouter.put('/:id', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const id = Number(req.params.id);
+	const tenantId = req.user!.tenantId!;
 	const parsed = ticketInputSchema.partial().safeParse(req.body);
 	if (!parsed.success) {
 		res.status(400).json({ error: parsed.error.flatten() });
@@ -110,7 +114,7 @@ ticketsRouter.put('/:id', asyncHandler(async (req, res) => {
 	}
 
 	try {
-		const ticket = await prisma.ticket.update({ where: { id }, data: parsed.data, include });
+		const ticket = await prisma.ticket.update({ where: { id, tenantId }, data: parsed.data, include });
 		res.json(ticket);
 	} catch (err: any) {
 		if (err.code === 'P2025') {
@@ -121,17 +125,18 @@ ticketsRouter.put('/:id', asyncHandler(async (req, res) => {
 	}
 }));
 
-ticketsRouter.delete('/:id', asyncHandler(async (req, res) => {
+ticketsRouter.delete('/:id', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const id = Number(req.params.id);
+	const tenantId = req.user!.tenantId!;
 
-	const soldCount = await prisma.saleTicket.count({ where: { ticketId: id } });
+	const soldCount = await prisma.saleTicket.count({ where: { ticketId: id, tenantId } });
 	if (soldCount > 0) {
 		res.status(409).json({ error: `No se puede borrar: hay ${soldCount} venta(s) hechas con este ticket.` });
 		return;
 	}
 
 	try {
-		await prisma.ticket.delete({ where: { id } });
+		await prisma.ticket.delete({ where: { id, tenantId } });
 		res.status(204).send();
 	} catch (err: any) {
 		if (err.code === 'P2025') {

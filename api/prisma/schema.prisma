@@ -7,8 +7,33 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Un Tenant = un cliente (club/iglesia) instalado en esta misma app. Todo lo que un tenant crea
+// (eventos, mapas, tickets, ventas, compradores...) queda acotado a su propio tenantId, así dos
+// clientes comparten la misma base sin poder ver ni interferir con los datos del otro. La única
+// cuenta sin tenant es el Super Admin (ver User.tenantId), que da de alta nuevos tenants.
+model Tenant {
+  id        Int      @id @default(autoincrement())
+  name      String
+  slug      String   @unique
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  users        User[]
+  events       Event[]
+  maps         Map[]
+  areas        Area[]
+  tables       Table[]
+  seats        Seat[]
+  tickets      Ticket[]
+  products     Product[]
+  saleTickets  SaleTicket[]
+  saleProducts SaleProduct[]
+  auditLogs    AuditLog[]
+  appSettings  AppSetting[]
+}
+
 model UserType {
-  id          Int      @id @default(autoincrement())
+  id          Int    @id @default(autoincrement())
   name        String
   description String
   type        String
@@ -17,27 +42,32 @@ model UserType {
 }
 
 model User {
-  id         Int      @id @default(autoincrement())
-  username   String   @unique
-  password   String // bcrypt hash
-  name       String
-  lastname   String
-  gender     String
-  email      String   @unique
-  carnet     String
-  adress     String
-  phone      String
-  typeId     Int
-  type       UserType @relation(fields: [typeId], references: [id])
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id        Int      @id @default(autoincrement())
+  username  String   @unique
+  password  String // bcrypt hash
+  name      String
+  lastname  String
+  gender    String
+  email     String   @unique
+  carnet    String
+  adress    String
+  phone     String
+  typeId    Int
+  type      UserType @relation(fields: [typeId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  eventsCreated    Event[]       @relation("EventCreatedBy")
-  salesAsSeller    SaleProduct[] @relation("SaleProductSeller")
-  salesAsClient    SaleProduct[] @relation("SaleProductClient")
-  ticketSalesAsSeller SaleTicket[] @relation("SaleTicketSeller")
-  ticketSalesAsClient SaleTicket[] @relation("SaleTicketClient")
-  auditLogs        AuditLog[]    @relation("AuditLogUser")
+  // Nullable SOLO para la cuenta de Super Admin, que opera fuera de todos los tenants (gestiona el
+  // panel /tenants). Cualquier otro usuario (staff o comprador) siempre pertenece a un tenant.
+  tenantId Int?
+  tenant   Tenant? @relation(fields: [tenantId], references: [id])
+
+  eventsCreated       Event[]       @relation("EventCreatedBy")
+  salesAsSeller       SaleProduct[] @relation("SaleProductSeller")
+  salesAsClient       SaleProduct[] @relation("SaleProductClient")
+  ticketSalesAsSeller SaleTicket[]  @relation("SaleTicketSeller")
+  ticketSalesAsClient SaleTicket[]  @relation("SaleTicketClient")
+  auditLogs           AuditLog[]    @relation("AuditLogUser")
 }
 
 // Registro de auditoría de acciones sensibles (alta/edición/borrado de Events, Products, Users,
@@ -52,6 +82,9 @@ model AuditLog {
   entityId  Int
   summary   String
   createdAt DateTime @default(now())
+
+  tenantId Int
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
 }
 
 model Event {
@@ -75,6 +108,9 @@ model Event {
   mapId Int?
   map   Map? @relation(fields: [mapId], references: [id])
 
+  tenantId Int
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+
   tickets      Ticket[]
   products     Product[]
   saleProducts SaleProduct[]
@@ -82,29 +118,32 @@ model Event {
 }
 
 model Map {
-  id             Int      @id @default(autoincrement())
-  name           String
-  description    String
-  img            String
-  type           String
-  x              Float
-  y              Float
-  radio          Float
-  color          String
-  size           Float
-  backGround     String
-  totalTables    Int      @default(0)
-  totalTablesSeat Int     @default(0)
-  totalSeats     Int      @default(0)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id              Int      @id @default(autoincrement())
+  name            String
+  description     String
+  img             String
+  type            String
+  x               Float
+  y               Float
+  radio           Float
+  color           String
+  size            Float
+  backGround      String
+  totalTables     Int      @default(0)
+  totalTablesSeat Int      @default(0)
+  totalSeats      Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  tenantId Int
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
 
   areas  Area[]
   events Event[]
 }
 
 model Area {
-  id          Int      @id @default(autoincrement())
+  id          Int    @id @default(autoincrement())
   name        String
   description String
   img         String
@@ -116,12 +155,15 @@ model Area {
   color       String
   size        Float
   backGround  String
-  totalTables Int      @default(0)
-  totalSeats  Int      @default(0)
-  totalCount  Int      @default(0)
+  totalTables Int    @default(0)
+  totalSeats  Int    @default(0)
+  totalCount  Int    @default(0)
 
   mapId Int
   map   Map @relation(fields: [mapId], references: [id])
+
+  tenantId Int
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
 
   seats   Seat[]
   tables  Table[]
@@ -129,32 +171,35 @@ model Area {
 }
 
 model Table {
-  id     Int    @id @default(autoincrement())
-  name   String
-  icon   String
-  type   String
-  x      Float
-  y      Float
-  radio  Float
-  color  String
-  size   Float
+  id    Int    @id @default(autoincrement())
+  name  String
+  icon  String
+  type  String
+  x     Float
+  y     Float
+  radio Float
+  color String
+  size  Float
 
   areaId Int
   area   Area @relation(fields: [areaId], references: [id])
+
+  tenantId Int
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
 
   seats Seat[]
 }
 
 model Seat {
-  id     Int    @id @default(autoincrement())
-  name   String
-  icon   String
-  type   String
-  x      Float
-  y      Float
-  radio  Float
-  color  String
-  size   Float
+  id    Int    @id @default(autoincrement())
+  name  String
+  icon  String
+  type  String
+  x     Float
+  y     Float
+  radio Float
+  color String
+  size  Float
 
   areaId Int
   area   Area @relation(fields: [areaId], references: [id])
@@ -162,18 +207,21 @@ model Seat {
   tableId Int?
   table   Table? @relation(fields: [tableId], references: [id])
 
+  tenantId Int
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+
   saleTickets SaleTicket[]
 }
 
 model Ticket {
-  id          Int      @id @default(autoincrement())
+  id          Int     @id @default(autoincrement())
   img         String
-  code        String   @unique
+  code        String  @unique
   name        String
   description String
   type        String
   count       Int
-  active      Boolean  @default(true)
+  active      Boolean @default(true)
   price       Float
 
   eventId Int
@@ -186,23 +234,29 @@ model Ticket {
   areaId Int?
   area   Area? @relation(fields: [areaId], references: [id])
 
+  tenantId Int
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+
   saleTickets SaleTicket[]
 }
 
 model Product {
-  id          Int      @id @default(autoincrement())
-  code        String   @unique
+  id          Int     @id @default(autoincrement())
+  code        String  @unique
   img         String
   name        String
   description String
   type        String
-  variant     String   @default("")
+  variant     String  @default("")
   count       Int
-  active      Boolean  @default(true)
+  active      Boolean @default(true)
   price       Float
 
   eventId Int
   event   Event @relation(fields: [eventId], references: [id])
+
+  tenantId Int
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
 
   saleProducts SaleProduct[]
 }
@@ -227,6 +281,9 @@ model SaleProduct {
 
   clientId Int
   client   User @relation("SaleProductClient", fields: [clientId], references: [id])
+
+  tenantId Int
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
 }
 
 model SaleTicket {
@@ -254,13 +311,22 @@ model SaleTicket {
   clientId Int
   client   User @relation("SaleTicketClient", fields: [clientId], references: [id])
 
+  tenantId Int
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+
   // Un mismo asiento no se puede vender dos veces para el mismo evento.
   @@unique([eventId, seatId])
 }
 
 // Configuración general de la app (ej. color de acento) — key-value genérico en vez de una
 // columna por setting, para no necesitar una migración cada vez que se agrega una opción nueva.
+// PK compuesta (tenantId, key): cada cliente configura la suya propia sin pisar la de otro.
 model AppSetting {
-  key   String @id
+  key   String
   value String
+
+  tenantId Int
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+
+  @@id([tenantId, key])
 }

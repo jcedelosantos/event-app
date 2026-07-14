@@ -2,13 +2,13 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
-import { requireAuth, AuthenticatedRequest } from '../middleware/auth';
+import { requireAuth, requireTenant, AuthenticatedRequest } from '../middleware/auth';
 import { toPublicUser } from '../lib/serialize';
 import { asyncHandler } from '../lib/async-handler';
 import { logAudit } from '../lib/audit';
 
 export const usersRouter = Router();
-usersRouter.use(requireAuth);
+usersRouter.use(requireAuth, requireTenant);
 
 const USER_TYPE_CODES = ['ROOT', 'USER', 'CLIENT'] as const;
 
@@ -25,14 +25,16 @@ const userInputSchema = z.object({
 	userType: z.enum(USER_TYPE_CODES),
 });
 
-usersRouter.get('/', asyncHandler(async (_req, res) => {
-	const users = await prisma.user.findMany({ include: { type: true }, orderBy: { id: 'asc' } });
+usersRouter.get('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
+	const tenantId = req.user!.tenantId!;
+	const users = await prisma.user.findMany({ where: { tenantId }, include: { type: true }, orderBy: { id: 'asc' } });
 	res.json(users.map(toPublicUser));
 }));
 
-usersRouter.get('/:id', asyncHandler(async (req, res) => {
+usersRouter.get('/:id', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const id = Number(req.params.id);
-	const user = await prisma.user.findUnique({ where: { id }, include: { type: true } });
+	const tenantId = req.user!.tenantId!;
+	const user = await prisma.user.findFirst({ where: { id, tenantId }, include: { type: true } });
 	if (!user) {
 		res.status(404).json({ error: 'Usuario no encontrado' });
 		return;
@@ -47,6 +49,7 @@ usersRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
 		return;
 	}
 
+	const tenantId = req.user!.tenantId!;
 	const { userType, password, ...data } = parsed.data;
 	const type = await prisma.userType.findFirst({ where: { type: userType } });
 	if (!type) {
@@ -57,10 +60,10 @@ usersRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	try {
 		const hashed = await bcrypt.hash(password, 10);
 		const user = await prisma.user.create({
-			data: { ...data, password: hashed, typeId: type.id },
+			data: { ...data, password: hashed, typeId: type.id, tenantId },
 			include: { type: true },
 		});
-		await logAudit({ userId: req.user!.userId, action: 'CREATE', entity: 'User', entityId: user.id, summary: `Creó el usuario "${user.username}"` });
+		await logAudit({ tenantId, userId: req.user!.userId, action: 'CREATE', entity: 'User', entityId: user.id, summary: `Creó el usuario "${user.username}"` });
 		res.status(201).json(toPublicUser(user));
 	} catch (err: any) {
 		if (err.code === 'P2002') {
@@ -73,9 +76,16 @@ usersRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
 
 usersRouter.put('/:id', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const id = Number(req.params.id);
+	const tenantId = req.user!.tenantId!;
 	const parsed = userInputSchema.partial().safeParse(req.body);
 	if (!parsed.success) {
 		res.status(400).json({ error: parsed.error.flatten() });
+		return;
+	}
+
+	const existing = await prisma.user.findFirst({ where: { id, tenantId } });
+	if (!existing) {
+		res.status(404).json({ error: 'Usuario no encontrado' });
 		return;
 	}
 
@@ -92,7 +102,7 @@ usersRouter.put('/:id', asyncHandler(async (req: AuthenticatedRequest, res) => {
 			},
 			include: { type: true },
 		});
-		await logAudit({ userId: req.user!.userId, action: 'UPDATE', entity: 'User', entityId: user.id, summary: `Editó el usuario "${user.username}"` });
+		await logAudit({ tenantId, userId: req.user!.userId, action: 'UPDATE', entity: 'User', entityId: user.id, summary: `Editó el usuario "${user.username}"` });
 		res.json(toPublicUser(user));
 	} catch (err: any) {
 		if (err.code === 'P2025') {
@@ -109,11 +119,18 @@ usersRouter.put('/:id', asyncHandler(async (req: AuthenticatedRequest, res) => {
 
 usersRouter.delete('/:id', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const id = Number(req.params.id);
+	const tenantId = req.user!.tenantId!;
+
+	const existing = await prisma.user.findFirst({ where: { id, tenantId } });
+	if (!existing) {
+		res.status(404).json({ error: 'Usuario no encontrado' });
+		return;
+	}
 
 	const [eventCount, sellerCount, clientCount] = await Promise.all([
-		prisma.event.count({ where: { userId: id } }),
-		prisma.saleTicket.count({ where: { userId: id } }),
-		prisma.saleTicket.count({ where: { clientId: id } }),
+		prisma.event.count({ where: { userId: id, tenantId } }),
+		prisma.saleTicket.count({ where: { userId: id, tenantId } }),
+		prisma.saleTicket.count({ where: { clientId: id, tenantId } }),
 	]);
 	if (eventCount > 0 || sellerCount > 0 || clientCount > 0) {
 		res.status(409).json({ error: 'No se puede borrar: este usuario tiene eventos o ventas asociadas.' });
@@ -122,7 +139,7 @@ usersRouter.delete('/:id', asyncHandler(async (req: AuthenticatedRequest, res) =
 
 	try {
 		const user = await prisma.user.delete({ where: { id } });
-		await logAudit({ userId: req.user!.userId, action: 'DELETE', entity: 'User', entityId: id, summary: `Borró el usuario "${user.username}"` });
+		await logAudit({ tenantId, userId: req.user!.userId, action: 'DELETE', entity: 'User', entityId: id, summary: `Borró el usuario "${user.username}"` });
 		res.status(204).send();
 	} catch (err: any) {
 		if (err.code === 'P2025') {

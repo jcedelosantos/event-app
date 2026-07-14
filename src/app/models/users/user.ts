@@ -13,4 +13,6 @@ export interface User {
 	carnet: string;
 	adress: string;
 	phone: string | number;
+	// null solo para la cuenta de Super Admin — no pertenece a ninguna organización.
+	tenant?: { id: number; name: string } | null;
 }

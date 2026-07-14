@@ -1,11 +1,11 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
-import { requireAuth } from '../middleware/auth';
+import { requireAuth, requireTenant, AuthenticatedRequest } from '../middleware/auth';
 import { asyncHandler } from '../lib/async-handler';
 
 export const areasRouter = Router();
-areasRouter.use(requireAuth);
+areasRouter.use(requireAuth, requireTenant);
 
 const areaInputSchema = z.object({
 	name: z.string().min(1),
@@ -26,15 +26,17 @@ const areaInputSchema = z.object({
 // donde Table.seats se asume siempre presente (ej. collapse-tables.component.ts).
 const include = { seats: true, tables: { include: { seats: true } } };
 
-areasRouter.get('/', asyncHandler(async (req, res) => {
+areasRouter.get('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
+	const tenantId = req.user!.tenantId!;
 	const mapId = req.query.mapId ? Number(req.query.mapId) : undefined;
-	const areas = await prisma.area.findMany({ where: mapId ? { mapId } : undefined, include, orderBy: { id: 'asc' } });
+	const areas = await prisma.area.findMany({ where: mapId ? { mapId, tenantId } : { tenantId }, include, orderBy: { id: 'asc' } });
 	res.json(areas);
 }));
 
-areasRouter.get('/:id', asyncHandler(async (req, res) => {
+areasRouter.get('/:id', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const id = Number(req.params.id);
-	const area = await prisma.area.findUnique({ where: { id }, include });
+	const tenantId = req.user!.tenantId!;
+	const area = await prisma.area.findUnique({ where: { id, tenantId }, include });
 	if (!area) {
 		res.status(404).json({ error: 'Área no encontrada' });
 		return;
@@ -42,25 +44,27 @@ areasRouter.get('/:id', asyncHandler(async (req, res) => {
 	res.json(area);
 }));
 
-areasRouter.post('/', asyncHandler(async (req, res) => {
+areasRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const parsed = areaInputSchema.safeParse(req.body);
 	if (!parsed.success) {
 		res.status(400).json({ error: parsed.error.flatten() });
 		return;
 	}
-	const area = await prisma.area.create({ data: parsed.data, include });
+	const tenantId = req.user!.tenantId!;
+	const area = await prisma.area.create({ data: { ...parsed.data, tenantId }, include });
 	res.status(201).json(area);
 }));
 
-areasRouter.put('/:id', asyncHandler(async (req, res) => {
+areasRouter.put('/:id', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const id = Number(req.params.id);
+	const tenantId = req.user!.tenantId!;
 	const parsed = areaInputSchema.partial().safeParse(req.body);
 	if (!parsed.success) {
 		res.status(400).json({ error: parsed.error.flatten() });
 		return;
 	}
 	try {
-		const area = await prisma.area.update({ where: { id }, data: parsed.data, include });
+		const area = await prisma.area.update({ where: { id, tenantId }, data: parsed.data, include });
 		res.json(area);
 	} catch (err: any) {
 		if (err.code === 'P2025') {
@@ -73,8 +77,9 @@ areasRouter.put('/:id', asyncHandler(async (req, res) => {
 
 const duplicateSchema = z.object({ name: z.string().min(1) });
 
-areasRouter.post('/:id/duplicate', asyncHandler(async (req, res) => {
+areasRouter.post('/:id/duplicate', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const id = Number(req.params.id);
+	const tenantId = req.user!.tenantId!;
 	const parsed = duplicateSchema.safeParse(req.body);
 	if (!parsed.success) {
 		res.status(400).json({ error: parsed.error.flatten() });
@@ -82,7 +87,7 @@ areasRouter.post('/:id/duplicate', asyncHandler(async (req, res) => {
 	}
 
 	const original = await prisma.area.findUnique({
-		where: { id },
+		where: { id, tenantId },
 		include: { seats: true, tables: { include: { seats: true } } },
 	});
 	if (!original) {
@@ -107,12 +112,13 @@ areasRouter.post('/:id/duplicate', asyncHandler(async (req, res) => {
 				size: original.size,
 				backGround: original.backGround,
 				mapId: original.mapId,
+				tenantId,
 			},
 		});
 
 		for (const table of original.tables) {
 			const newTable = await tx.table.create({
-				data: { name: table.name, icon: table.icon, type: table.type, x: table.x, y: table.y, radio: table.radio, color: table.color, size: table.size, areaId: newArea.id },
+				data: { name: table.name, icon: table.icon, type: table.type, x: table.x, y: table.y, radio: table.radio, color: table.color, size: table.size, areaId: newArea.id, tenantId },
 			});
 			if (table.seats.length) {
 				await tx.seat.createMany({
@@ -127,6 +133,7 @@ areasRouter.post('/:id/duplicate', asyncHandler(async (req, res) => {
 						size: seat.size,
 						areaId: newArea.id,
 						tableId: newTable.id,
+						tenantId,
 					})),
 				});
 			}
@@ -145,27 +152,29 @@ areasRouter.post('/:id/duplicate', asyncHandler(async (req, res) => {
 					color: seat.color,
 					size: seat.size,
 					areaId: newArea.id,
+					tenantId,
 				})),
 			});
 		}
 
-		return tx.area.findUnique({ where: { id: newArea.id }, include });
+		return tx.area.findUnique({ where: { id: newArea.id, tenantId }, include });
 	});
 
 	res.status(201).json(duplicate);
 }));
 
-areasRouter.delete('/:id', asyncHandler(async (req, res) => {
+areasRouter.delete('/:id', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const id = Number(req.params.id);
+	const tenantId = req.user!.tenantId!;
 
-	const area = await prisma.area.findUnique({ where: { id }, include: { seats: true, tables: true } });
+	const area = await prisma.area.findUnique({ where: { id, tenantId }, include: { seats: true, tables: true } });
 	if (!area) {
 		res.status(404).json({ error: 'Área no encontrada' });
 		return;
 	}
 
 	const seatIds = area.seats.map((s) => s.id);
-	const soldCount = seatIds.length ? await prisma.saleTicket.count({ where: { seatId: { in: seatIds } } }) : 0;
+	const soldCount = seatIds.length ? await prisma.saleTicket.count({ where: { seatId: { in: seatIds }, tenantId } }) : 0;
 	if (soldCount > 0) {
 		res.status(409).json({ error: `No se puede borrar: hay ${soldCount} ticket(s) vendido(s) para asientos de esta área.` });
 		return;
@@ -174,9 +183,9 @@ areasRouter.delete('/:id', asyncHandler(async (req, res) => {
 	// Sin ventas asociadas: borrar el área implica borrar sus asientos y mesas también, si no
 	// quedaría "atascada" detrás de la foreign key sin ninguna forma de limpiarla desde la UI.
 	await prisma.$transaction([
-		prisma.seat.deleteMany({ where: { areaId: id } }),
-		prisma.table.deleteMany({ where: { areaId: id } }),
-		prisma.area.delete({ where: { id } }),
+		prisma.seat.deleteMany({ where: { areaId: id, tenantId } }),
+		prisma.table.deleteMany({ where: { areaId: id, tenantId } }),
+		prisma.area.delete({ where: { id, tenantId } }),
 	]);
 	res.status(204).send();
 }));

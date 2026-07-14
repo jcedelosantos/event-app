@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { authGuard } from './core/guards/auth.guard';
+import { superAdminGuard } from './core/guards/super-admin.guard';
 
 export const routes: Routes = [
 	{
@@ -14,6 +15,11 @@ export const routes: Routes = [
 		path: 'manager',
 		canActivate: [authGuard],
 		loadChildren: () => import('./modules/manager/manager.module').then((m) => m.ManagerModule),
+	},
+	{
+		path: 'super-admin',
+		canActivate: [superAdminGuard],
+		loadComponent: () => import('./modules/super-admin/super-admin.component').then((m) => m.SuperAdminComponent),
 	},
 	{
 		path: 'e/:code',

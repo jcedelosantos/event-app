@@ -6,6 +6,9 @@ export type AuthTokenPayload = {
 	userId: number;
 	username: string;
 	userType: string;
+	// null solo para la cuenta de Super Admin (gestiona /tenants, no pertenece a ningún cliente).
+	// Cualquier otra ruta de negocio filtra TODO por este valor.
+	tenantId: number | null;
 };
 
 export function signToken(payload: AuthTokenPayload): string {

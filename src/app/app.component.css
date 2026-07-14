@@ -1,0 +1,9 @@
+.impersonation-banner {
+	background-color: #664d03;
+	color: #fff3cd;
+	padding: 0.5rem 1rem;
+	font-size: 0.875rem;
+	position: sticky;
+	top: 0;
+	z-index: 1050;
+}

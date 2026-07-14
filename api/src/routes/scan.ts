@@ -1,12 +1,12 @@
 import { Router } from 'express';
 import { prisma } from '../lib/prisma';
-import { requireAuth } from '../middleware/auth';
+import { requireAuth, requireTenant, AuthenticatedRequest } from '../middleware/auth';
 import { asyncHandler } from '../lib/async-handler';
 import { saleTicketInclude, toPublicSaleTicket } from './sale-tickets';
 import { saleProductInclude, toPublicSaleProduct } from './sale-products';
 
 export const scanRouter = Router();
-scanRouter.use(requireAuth);
+scanRouter.use(requireAuth, requireTenant);
 
 const ENTRY_WINDOW_MS = 60 * 60 * 1000; // el check-in/entrega abre 1 hora antes del inicio del evento
 const CLUB_UTC_OFFSET_HOURS = 4; // República Dominicana, AST fijo todo el año (sin horario de verano)
@@ -36,15 +36,18 @@ function entryWindowError(eventDateOn: Date, startTime: string | null): string |
 
 // Un mismo lector de QR en la puerta/stand sirve tanto para hacer check-in de entradas como para
 // entregar productos (goodies) — el código no indica de antemano a cuál tabla pertenece, así que
-// se prueba primero contra SaleTicket y si no aparece, contra SaleProduct.
-scanRouter.post('/', asyncHandler(async (req, res) => {
+// se prueba primero contra SaleTicket y si no aparece, contra SaleProduct. Se acota por tenantId del
+// staff que escanea — un QR real es imposible de adivinar entre tenants, pero así ningún lookup
+// queda sin el filtro que exige el tenant-guard.
+scanRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
+	const tenantId = req.user!.tenantId!;
 	const codeQR = String(req.body?.codeQR ?? '');
 	if (!codeQR) {
 		res.status(400).json({ error: 'Falta el código QR' });
 		return;
 	}
 
-	const saleTicket = await prisma.saleTicket.findUnique({ where: { codeQR }, include: saleTicketInclude });
+	const saleTicket = await prisma.saleTicket.findFirst({ where: { codeQR, tenantId }, include: saleTicketInclude });
 	if (saleTicket) {
 		if (saleTicket.checkedInAt) {
 			res.status(409).json({ type: 'ticket', error: 'Este QR ya fue escaneado', saleTicket: toPublicSaleTicket(saleTicket) });
@@ -55,12 +58,12 @@ scanRouter.post('/', asyncHandler(async (req, res) => {
 			res.status(403).json({ type: 'ticket', error: windowError, saleTicket: toPublicSaleTicket(saleTicket) });
 			return;
 		}
-		const updated = await prisma.saleTicket.update({ where: { id: saleTicket.id }, data: { checkedInAt: new Date() }, include: saleTicketInclude });
+		const updated = await prisma.saleTicket.update({ where: { id: saleTicket.id, tenantId }, data: { checkedInAt: new Date() }, include: saleTicketInclude });
 		res.json({ type: 'ticket', ok: true, saleTicket: toPublicSaleTicket(updated) });
 		return;
 	}
 
-	const saleProduct = await prisma.saleProduct.findUnique({ where: { codeQR }, include: saleProductInclude });
+	const saleProduct = await prisma.saleProduct.findFirst({ where: { codeQR, tenantId }, include: saleProductInclude });
 	if (saleProduct) {
 		if (saleProduct.deliveredAt) {
 			res.status(409).json({ type: 'product', error: 'Este QR ya fue entregado', saleProduct: toPublicSaleProduct(saleProduct) });
@@ -71,7 +74,7 @@ scanRouter.post('/', asyncHandler(async (req, res) => {
 			res.status(403).json({ type: 'product', error: windowError, saleProduct: toPublicSaleProduct(saleProduct) });
 			return;
 		}
-		const updated = await prisma.saleProduct.update({ where: { id: saleProduct.id }, data: { deliveredAt: new Date() }, include: saleProductInclude });
+		const updated = await prisma.saleProduct.update({ where: { id: saleProduct.id, tenantId }, data: { deliveredAt: new Date() }, include: saleProductInclude });
 		res.json({ type: 'product', ok: true, saleProduct: toPublicSaleProduct(updated) });
 		return;
 	}

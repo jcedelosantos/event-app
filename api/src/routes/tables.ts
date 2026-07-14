@@ -1,11 +1,11 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
-import { requireAuth } from '../middleware/auth';
+import { requireAuth, requireTenant, AuthenticatedRequest } from '../middleware/auth';
 import { asyncHandler } from '../lib/async-handler';
 
 export const tablesRouter = Router();
-tablesRouter.use(requireAuth);
+tablesRouter.use(requireAuth, requireTenant);
 
 const tableInputSchema = z.object({
 	name: z.string().min(1),
@@ -19,21 +19,23 @@ const tableInputSchema = z.object({
 	areaId: z.number().int(),
 });
 
-tablesRouter.get('/', asyncHandler(async (req, res) => {
+tablesRouter.get('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
+	const tenantId = req.user!.tenantId!;
 	const areaId = req.query.areaId ? Number(req.query.areaId) : undefined;
-	const tables = await prisma.table.findMany({ where: areaId ? { areaId } : undefined, include: { seats: true }, orderBy: { id: 'asc' } });
+	const tables = await prisma.table.findMany({ where: areaId ? { areaId, tenantId } : { tenantId }, include: { seats: true }, orderBy: { id: 'asc' } });
 	res.json(tables);
 }));
 
-tablesRouter.post('/', asyncHandler(async (req, res) => {
+tablesRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const parsed = tableInputSchema.safeParse(req.body);
 	if (!parsed.success) {
 		res.status(400).json({ error: parsed.error.flatten() });
 		return;
 	}
 
+	const tenantId = req.user!.tenantId!;
 	try {
-		const table = await prisma.table.create({ data: parsed.data, include: { seats: true } });
+		const table = await prisma.table.create({ data: { ...parsed.data, tenantId }, include: { seats: true } });
 		res.status(201).json(table);
 	} catch (err: any) {
 		if (err.code === 'P2003') {
@@ -44,8 +46,9 @@ tablesRouter.post('/', asyncHandler(async (req, res) => {
 	}
 }));
 
-tablesRouter.put('/:id', asyncHandler(async (req, res) => {
+tablesRouter.put('/:id', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const id = Number(req.params.id);
+	const tenantId = req.user!.tenantId!;
 	const parsed = tableInputSchema.partial().safeParse(req.body);
 	if (!parsed.success) {
 		res.status(400).json({ error: parsed.error.flatten() });
@@ -53,7 +56,7 @@ tablesRouter.put('/:id', asyncHandler(async (req, res) => {
 	}
 
 	try {
-		const table = await prisma.table.update({ where: { id }, data: parsed.data, include: { seats: true } });
+		const table = await prisma.table.update({ where: { id, tenantId }, data: parsed.data, include: { seats: true } });
 		res.json(table);
 	} catch (err: any) {
 		if (err.code === 'P2025') {
@@ -64,17 +67,18 @@ tablesRouter.put('/:id', asyncHandler(async (req, res) => {
 	}
 }));
 
-tablesRouter.delete('/:id', asyncHandler(async (req, res) => {
+tablesRouter.delete('/:id', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const id = Number(req.params.id);
+	const tenantId = req.user!.tenantId!;
 
-	const table = await prisma.table.findUnique({ where: { id }, include: { seats: true } });
+	const table = await prisma.table.findUnique({ where: { id, tenantId }, include: { seats: true } });
 	if (!table) {
 		res.status(404).json({ error: 'Mesa no encontrada' });
 		return;
 	}
 
 	const seatIds = table.seats.map((s) => s.id);
-	const soldCount = seatIds.length ? await prisma.saleTicket.count({ where: { seatId: { in: seatIds } } }) : 0;
+	const soldCount = seatIds.length ? await prisma.saleTicket.count({ where: { seatId: { in: seatIds }, tenantId } }) : 0;
 	if (soldCount > 0) {
 		res.status(409).json({ error: `No se puede borrar: hay ${soldCount} ticket(s) vendido(s) para asientos de esta mesa.` });
 		return;
@@ -82,6 +86,6 @@ tablesRouter.delete('/:id', asyncHandler(async (req, res) => {
 
 	// Sin ventas asociadas: los asientos de esta mesa no le sirven a nadie más, se borran junto
 	// con la mesa en vez de dejar al usuario borrarlos uno por uno primero.
-	await prisma.$transaction([prisma.seat.deleteMany({ where: { tableId: id } }), prisma.table.delete({ where: { id } })]);
+	await prisma.$transaction([prisma.seat.deleteMany({ where: { tableId: id, tenantId } }), prisma.table.delete({ where: { id, tenantId } })]);
 	res.status(204).send();
 }));

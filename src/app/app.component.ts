@@ -1,7 +1,8 @@
 import { Component, inject, OnInit } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
+import { Router, RouterOutlet } from '@angular/router';
 import { cleanupOrphanedModalBackdrop } from './utils/modal';
 import { ThemeService } from './core/services/theme.service';
+import { AuthService } from './core/services/auth.service';
 
 @Component({
 	selector: 'app-root',
@@ -12,6 +13,15 @@ import { ThemeService } from './core/services/theme.service';
 export class AppComponent implements OnInit {
 	title = 'seat-app';
 	private readonly themeService = inject(ThemeService);
+	protected readonly authService = inject(AuthService);
+	private readonly router = inject(Router);
+
+	// El Super Admin no pertenece a ningún tenant y "entra como" el admin de una organización para
+	// operar su gestor de eventos (ver super-admin.component.ts) — este banner, visible en toda la
+	// app, es la única forma de volver a su propia sesión sin loguearse de nuevo.
+	returnToSuperAdmin(): void {
+		this.authService.endImpersonation()?.subscribe(() => this.router.navigate(['/super-admin']));
+	}
 
 	ngOnInit(): void {
 		// Aplica el color de acento configurado (o el default) apenas arranca la app, para toda

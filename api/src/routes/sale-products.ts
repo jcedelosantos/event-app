@@ -2,14 +2,14 @@ import { randomUUID } from 'node:crypto';
 import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
-import { requireAuth, AuthenticatedRequest } from '../middleware/auth';
+import { requireAuth, requireTenant, AuthenticatedRequest } from '../middleware/auth';
 import { toPublicUser } from '../lib/serialize';
 import { sendProductEmail } from '../lib/mail';
 import { asyncHandler } from '../lib/async-handler';
 import { logAudit } from '../lib/audit';
 
 export const saleProductsRouter = Router();
-saleProductsRouter.use(requireAuth);
+saleProductsRouter.use(requireAuth, requireTenant);
 
 class InsufficientStockError extends Error {}
 
@@ -35,15 +35,17 @@ export function toPublicSaleProduct(saleProduct: any) {
 	return { ...rest, client: toPublicUser(client), seller: toPublicUser(seller) };
 }
 
-saleProductsRouter.get('/', asyncHandler(async (req, res) => {
+saleProductsRouter.get('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
+	const tenantId = req.user!.tenantId!;
 	const eventId = req.query.eventId ? Number(req.query.eventId) : undefined;
-	const saleProducts = await prisma.saleProduct.findMany({ where: eventId ? { eventId } : undefined, include, orderBy: { id: 'desc' } });
+	const saleProducts = await prisma.saleProduct.findMany({ where: eventId ? { eventId, tenantId } : { tenantId }, include, orderBy: { id: 'desc' } });
 	res.json(saleProducts.map(toPublicSaleProduct));
 }));
 
-saleProductsRouter.get('/:id', asyncHandler(async (req, res) => {
+saleProductsRouter.get('/:id', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const id = Number(req.params.id);
-	const saleProduct = await prisma.saleProduct.findUnique({ where: { id }, include });
+	const tenantId = req.user!.tenantId!;
+	const saleProduct = await prisma.saleProduct.findUnique({ where: { id, tenantId }, include });
 	if (!saleProduct) {
 		res.status(404).json({ error: 'Venta no encontrada' });
 		return;
@@ -58,13 +60,14 @@ saleProductsRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res)
 		return;
 	}
 
+	const tenantId = req.user!.tenantId!;
 	try {
 		const saleProduct = await prisma.$transaction(async (tx) => {
 			// updateMany con `count: { gte: quantity }` en el where hace el chequeo-y-descuento en una
 			// sola operación atómica — si otra venta ya se llevó el stock entremedio, `count` da 0 y no
 			// se descontó nada, así que se puede confiar en el resultado sin necesidad de locks manuales.
 			const stockUpdate = await tx.product.updateMany({
-				where: { id: parsed.data.productId, count: { gte: parsed.data.quantity } },
+				where: { id: parsed.data.productId, count: { gte: parsed.data.quantity }, tenantId },
 				data: { count: { decrement: parsed.data.quantity } },
 			});
 			if (stockUpdate.count === 0) {
@@ -75,6 +78,7 @@ saleProductsRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res)
 					...parsed.data,
 					codeQR: randomUUID(),
 					userId: req.user!.userId,
+					tenantId,
 				},
 				include,
 			});
@@ -93,9 +97,10 @@ saleProductsRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res)
 	}
 }));
 
-saleProductsRouter.post('/:id/resend', asyncHandler(async (req, res) => {
+saleProductsRouter.post('/:id/resend', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const id = Number(req.params.id);
-	const saleProduct = await prisma.saleProduct.findUnique({ where: { id }, include });
+	const tenantId = req.user!.tenantId!;
+	const saleProduct = await prisma.saleProduct.findUnique({ where: { id, tenantId }, include });
 	if (!saleProduct) {
 		res.status(404).json({ error: 'Venta no encontrada' });
 		return;
@@ -117,15 +122,17 @@ saleProductsRouter.post('/:id/resend', asyncHandler(async (req, res) => {
 
 saleProductsRouter.delete('/:id', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const id = Number(req.params.id);
+	const tenantId = req.user!.tenantId!;
 	try {
 		// Borrar una venta (ej. se cargó mal) devuelve la cantidad al stock del producto — si no se
 		// restaura, cada corrección de un error de captura termina "perdiendo" unidades reales.
 		const saleProduct = await prisma.$transaction(async (tx) => {
-			const sale = await tx.saleProduct.delete({ where: { id }, include: { product: true } });
-			await tx.product.update({ where: { id: sale.productId }, data: { count: { increment: sale.quantity } } });
+			const sale = await tx.saleProduct.delete({ where: { id, tenantId }, include: { product: true } });
+			await tx.product.update({ where: { id: sale.productId, tenantId }, data: { count: { increment: sale.quantity } } });
 			return sale;
 		});
 		await logAudit({
+			tenantId,
 			userId: req.user!.userId,
 			action: 'DELETE',
 			entity: 'SaleProduct',

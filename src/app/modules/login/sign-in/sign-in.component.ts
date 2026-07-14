@@ -36,7 +36,7 @@ export class SignInComponent {
 
 		const { username, password } = this.formGroupInput.value;
 		this.authService.login(username, password).subscribe({
-			next: () => this.router.navigate(['/manager/dash-board']),
+			next: ({ user }) => this.router.navigate([user.tenant === null ? '/super-admin' : '/manager/dash-board']),
 			error: (err: HttpErrorResponse) => {
 				this.status = err.status === 401 ? 'username or password incorrect' : 'No se pudo conectar con el servidor';
 			},

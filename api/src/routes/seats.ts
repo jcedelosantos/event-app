@@ -1,11 +1,11 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
-import { requireAuth } from '../middleware/auth';
+import { requireAuth, requireTenant, AuthenticatedRequest } from '../middleware/auth';
 import { asyncHandler } from '../lib/async-handler';
 
 export const seatsRouter = Router();
-seatsRouter.use(requireAuth);
+seatsRouter.use(requireAuth, requireTenant);
 
 const seatInputSchema = z.object({
 	name: z.string().min(1),
@@ -20,15 +20,17 @@ const seatInputSchema = z.object({
 	tableId: z.number().int().nullable().optional(),
 });
 
-seatsRouter.get('/', asyncHandler(async (req, res) => {
+seatsRouter.get('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
+	const tenantId = req.user!.tenantId!;
 	const areaId = req.query.areaId ? Number(req.query.areaId) : undefined;
-	const seats = await prisma.seat.findMany({ where: areaId ? { areaId } : undefined, orderBy: { id: 'asc' } });
+	const seats = await prisma.seat.findMany({ where: areaId ? { areaId, tenantId } : { tenantId }, orderBy: { id: 'asc' } });
 	res.json(seats);
 }));
 
-seatsRouter.get('/:id', asyncHandler(async (req, res) => {
+seatsRouter.get('/:id', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const id = Number(req.params.id);
-	const seat = await prisma.seat.findUnique({ where: { id } });
+	const tenantId = req.user!.tenantId!;
+	const seat = await prisma.seat.findUnique({ where: { id, tenantId } });
 	if (!seat) {
 		res.status(404).json({ error: 'Asiento no encontrado' });
 		return;
@@ -36,15 +38,16 @@ seatsRouter.get('/:id', asyncHandler(async (req, res) => {
 	res.json(seat);
 }));
 
-seatsRouter.post('/', asyncHandler(async (req, res) => {
+seatsRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const parsed = seatInputSchema.safeParse(req.body);
 	if (!parsed.success) {
 		res.status(400).json({ error: parsed.error.flatten() });
 		return;
 	}
 
+	const tenantId = req.user!.tenantId!;
 	try {
-		const seat = await prisma.seat.create({ data: parsed.data });
+		const seat = await prisma.seat.create({ data: { ...parsed.data, tenantId } });
 		res.status(201).json(seat);
 	} catch (err: any) {
 		if (err.code === 'P2003') {
@@ -55,8 +58,9 @@ seatsRouter.post('/', asyncHandler(async (req, res) => {
 	}
 }));
 
-seatsRouter.put('/:id', asyncHandler(async (req, res) => {
+seatsRouter.put('/:id', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const id = Number(req.params.id);
+	const tenantId = req.user!.tenantId!;
 	const parsed = seatInputSchema.partial().safeParse(req.body);
 	if (!parsed.success) {
 		res.status(400).json({ error: parsed.error.flatten() });
@@ -64,7 +68,7 @@ seatsRouter.put('/:id', asyncHandler(async (req, res) => {
 	}
 
 	try {
-		const seat = await prisma.seat.update({ where: { id }, data: parsed.data });
+		const seat = await prisma.seat.update({ where: { id, tenantId }, data: parsed.data });
 		res.json(seat);
 	} catch (err: any) {
 		if (err.code === 'P2025') {
@@ -75,17 +79,18 @@ seatsRouter.put('/:id', asyncHandler(async (req, res) => {
 	}
 }));
 
-seatsRouter.delete('/:id', asyncHandler(async (req, res) => {
+seatsRouter.delete('/:id', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const id = Number(req.params.id);
+	const tenantId = req.user!.tenantId!;
 
-	const soldCount = await prisma.saleTicket.count({ where: { seatId: id } });
+	const soldCount = await prisma.saleTicket.count({ where: { seatId: id, tenantId } });
 	if (soldCount > 0) {
 		res.status(409).json({ error: `No se puede borrar: hay ${soldCount} ticket(s) vendido(s) para este asiento.` });
 		return;
 	}
 
 	try {
-		await prisma.seat.delete({ where: { id } });
+		await prisma.seat.delete({ where: { id, tenantId } });
 		res.status(204).send();
 	} catch (err: any) {
 		if (err.code === 'P2025') {

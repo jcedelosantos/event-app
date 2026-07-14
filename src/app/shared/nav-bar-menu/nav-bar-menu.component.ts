@@ -1,4 +1,4 @@
-import { Component, AfterViewInit, HostListener, inject, OnDestroy, signal } from '@angular/core';
+import { Component, AfterViewInit, computed, HostListener, inject, OnDestroy, signal } from '@angular/core';
 import { NavigationEnd, Router, RouterLink } from '@angular/router';
 import * as bootstrap from "bootstrap";
 import { filter } from 'rxjs';
@@ -30,6 +30,14 @@ const SIDEBAR_COLLAPSED_KEY = 'seat-app-sidebar-collapsed';
 						<i class="bi" [class.bi-chevron-double-right]="sidebarCollapsed()" [class.bi-chevron-double-left]="!sidebarCollapsed()"></i>
 					</button>
 				</div>
+				@if (tenantName(); as name) {
+					<div class="px-2 pb-2 tenant-badge" [title]="name">
+						<i class="bi bi-building"></i>
+						@if (!sidebarCollapsed()) {
+							<span class="ms-1">{{ name }}</span>
+						}
+					</div>
+				}
 				<div class="d-flex flex-column flex-grow-1 px-2">
 					@for (item of menuList; track item.title) {
 						<button
@@ -99,6 +107,9 @@ const SIDEBAR_COLLAPSED_KEY = 'seat-app-sidebar-collapsed';
 							<button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
 						</div>
 					</div>
+					@if (tenantName(); as name) {
+						<div class="px-3 pb-2 tenant-badge"><i class="bi bi-building"></i> <span class="ms-1">{{ name }}</span></div>
+					}
 				</div>
 				<div class="d-flex flex-column" style="height: 90%">
 					@for (item of menuList; track item.title) {
@@ -135,6 +146,11 @@ export class NavBarMenuComponent implements AfterViewInit, OnDestroy {
 	isDesktop = signal<boolean>(typeof window !== 'undefined' ? window.innerWidth >= DESKTOP_BREAKPOINT_PX : true);
 	sidebarCollapsed = signal<boolean>(typeof localStorage !== 'undefined' && localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === '1');
 	private bsOffCanvas: bootstrap.Offcanvas | null = null;
+
+	// Un mismo navegador puede pasar de una sesión de un cliente a otra (ej. soporte atendiendo a
+	// varios clubes) — mostrar la organización activa evita confundir a qué cuenta pertenecen los
+	// cambios que se están haciendo.
+	tenantName = computed(() => this.authService.currentUser()?.tenant?.name ?? null);
 
 	// Orden alineado al flujo real de trabajo: crear evento → asignar mapa → armar áreas/asientos →
 	// crear tickets → vender/generar QR → ver quién compró. "Sale" quedó como página muerta,
