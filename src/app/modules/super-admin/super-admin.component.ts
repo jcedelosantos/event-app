@@ -1,7 +1,6 @@
 import { AfterViewInit, ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { Router } from '@angular/router';
-import * as bootstrap from 'bootstrap';
 import { TenantService } from './services/tenant.service';
 import { CreateTenantModalComponent } from './components/create-tenant-modal/create-tenant-modal.component';
 import { EditTenantModalComponent } from './components/edit-tenant-modal/edit-tenant-modal.component';
@@ -62,7 +61,13 @@ import { HttpErrorResponse } from '@angular/common/http';
 								<button type="button" class="btn btn-sm btn-outline-primary me-1" (click)="enterTenant(tenant)">
 									<i class="bi bi-box-arrow-in-right"></i> Entrar
 								</button>
-								<button type="button" class="btn btn-sm btn-outline-light me-1" (click)="openEditModal(tenant)">
+								<button
+									type="button"
+									class="btn btn-sm btn-outline-light me-1"
+									data-bs-toggle="modal"
+									data-bs-target="#editTenantModal"
+									(click)="selectedTenant.set(tenant)"
+								>
 									<i class="bi bi-pencil"></i>
 								</button>
 								<button type="button" class="btn btn-sm" [class.btn-outline-danger]="tenant.active" [class.btn-outline-success]="!tenant.active" (click)="toggleActive(tenant)">
@@ -91,24 +96,22 @@ export class SuperAdminComponent implements AfterViewInit {
 
 	tenants = signal<Tenant[]>([]);
 	selectedTenant = signal<Tenant | null>(null);
-	private editTenantModal?: bootstrap.Modal;
 
 	ngAfterViewInit(): void {
-		// Los modales se registran acá (mismo patrón que el resto de la app) para que Bootstrap los
-		// detecte por su id apenas el DOM está listo.
-		new bootstrap.Modal('#createTenantModal', { backdrop: true });
-		this.editTenantModal = new bootstrap.Modal('#editTenantModal', { backdrop: true });
-		new bootstrap.Modal('#accountModal', { backdrop: true });
+		// Los modales se abren con el data-API de Bootstrap (data-bs-toggle/data-bs-target), NO con
+		// .show() programático — así el botón "Guardar" de cada modal puede cerrarlo con la misma
+		// utilidad closeModal() (utils/modal.ts) que usa el resto de la app. closeModal() busca la
+		// instancia vía el bootstrap GLOBAL (cargado como <script> en angular.json), que es un
+		// registro completamente aparte del `import * as bootstrap from 'bootstrap'` de este archivo
+		// — un modal abierto con `new bootstrap.Modal(...)` de ESTE import nunca aparece en el
+		// registro global, así que closeModal() no lo encuentra y el modal se queda abierto (el
+		// guardado sí funciona, solo que la ventana no se cierra). El data-API sí crea su instancia
+		// en el registro global, por eso funciona.
 		this.loadTenants();
 	}
 
 	loadTenants() {
 		this.tenantService.getTenants().subscribe((tenants) => this.tenants.set(tenants));
-	}
-
-	openEditModal(tenant: Tenant) {
-		this.selectedTenant.set(tenant);
-		this.editTenantModal?.show();
 	}
 
 	toggleActive(tenant: Tenant) {
