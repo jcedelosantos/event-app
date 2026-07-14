@@ -1,0 +1,8 @@
+/* data-bs-theme="dark" en el HTML redefine las variables --bs-* para el fondo/inputs, pero no
+   alcanza para el texto plano (h2, label, span sin clase) porque esos heredan su `color` desde
+   <body> — que está FUERA de este wrapper y nunca se enteró de que acá adentro es tema oscuro. Sin
+   este color explícito, los labels quedan casi negros sobre el fondo oscuro global (ilegibles). */
+:host {
+	display: block;
+	color: var(--bs-body-color);
+}
