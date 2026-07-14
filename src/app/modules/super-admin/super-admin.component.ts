@@ -36,6 +36,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 				<thead>
 					<tr>
 						<th scope="col">Organización</th>
+						<th scope="col">Tipo</th>
 						<th scope="col">Slug</th>
 						<th scope="col">Usuarios</th>
 						<th scope="col">Eventos</th>
@@ -48,6 +49,9 @@ import { HttpErrorResponse } from '@angular/common/http';
 					@for (tenant of tenants(); track tenant.id) {
 						<tr>
 							<td>{{ tenant.name }}</td>
+							<td>
+								<span class="badge text-bg-secondary">{{ tenant.type === 'CLUB' ? 'Club' : tenant.type === 'CHURCH' ? 'Iglesia' : 'General' }}</span>
+							</td>
 							<td class="text-muted">{{ tenant.slug }}</td>
 							<td>{{ tenant._count?.users ?? 0 }}</td>
 							<td>{{ tenant._count?.events ?? 0 }}</td>
@@ -77,7 +81,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 						</tr>
 					} @empty {
 						<tr>
-							<td colspan="7" class="text-center text-muted py-4">Todavía no hay organizaciones creadas.</td>
+							<td colspan="8" class="text-center text-muted py-4">Todavía no hay organizaciones creadas.</td>
 						</tr>
 					}
 				</tbody>

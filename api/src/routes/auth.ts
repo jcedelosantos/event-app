@@ -25,7 +25,7 @@ authRouter.post('/login', asyncHandler(async (req, res) => {
 
 	const user = await prisma.user.findUnique({
 		where: { username },
-		include: { type: true, tenant: { select: { id: true, name: true } } },
+		include: { type: true, tenant: { select: { id: true, name: true, type: true } } },
 	});
 
 	if (!user || !(await bcrypt.compare(password, user.password))) {
@@ -44,7 +44,7 @@ authRouter.post('/login', asyncHandler(async (req, res) => {
 authRouter.get('/me', requireAuth, asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const user = await prisma.user.findUnique({
 		where: { id: req.user!.userId },
-		include: { type: true, tenant: { select: { id: true, name: true } } },
+		include: { type: true, tenant: { select: { id: true, name: true, type: true } } },
 	});
 	if (!user) {
 		res.status(401).json({ error: 'No autenticado' });
@@ -92,7 +92,7 @@ authRouter.put('/me', requireAuth, asyncHandler(async (req: AuthenticatedRequest
 		const updated = await prisma.user.update({
 			where: { id: user.id },
 			data,
-			include: { type: true, tenant: { select: { id: true, name: true } } },
+			include: { type: true, tenant: { select: { id: true, name: true, type: true } } },
 		});
 		res.json(toPublicUser(updated));
 	} catch (err: any) {

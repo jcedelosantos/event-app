@@ -1,12 +1,13 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
-import { Tenant } from '../../../models/tenants/tenant';
+import { Tenant, TenantType } from '../../../models/tenants/tenant';
 import { User } from '../../../models/users/user';
 import { environment } from '../../../../environments/environment';
 
 export type CreateTenantInput = {
 	name: string;
+	type?: TenantType;
 	admin: {
 		username: string;
 		password: string;
@@ -35,7 +36,7 @@ export class TenantService {
 		return this.httpClient.put<Tenant>(`${this.baseUrl}/${id}`, { active });
 	}
 
-	updateTenant(id: number, data: { name: string }): Observable<Tenant> {
+	updateTenant(id: number, data: { name: string; type: TenantType }): Observable<Tenant> {
 		return this.httpClient.put<Tenant>(`${this.baseUrl}/${id}`, data);
 	}
 

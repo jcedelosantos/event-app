@@ -16,6 +16,10 @@ model Tenant {
   name      String
   slug      String   @unique
   active    Boolean  @default(true)
+  // GENERAL | CLUB | CHURCH — condiciona reglas de negocio propias de cada tipo de organización.
+  // Por ahora solo CLUB tiene una: exigir carnet de socio o del socio que invita al reservar un
+  // asiento (ver SaleTicket.attendeeType/sponsorCarnet y la validación en sale-tickets.ts/public.ts).
+  type      String   @default("GENERAL")
   createdAt DateTime @default(now())
 
   users        User[]
@@ -313,6 +317,12 @@ model SaleTicket {
 
   tenantId Int
   tenant   Tenant @relation(fields: [tenantId], references: [id])
+
+  // Solo tienen sentido en tenants tipo CLUB (ver Tenant.type) — SOCIO | INVITADO. Un invitado no
+  // es socio del club: en vez de su propio carnet, se guarda el carnet del socio que lo invitó
+  // (sponsorCarnet), y se limita a 2 invitados por socio por evento (validado en la ruta, no acá).
+  attendeeType  String  @default("SOCIO")
+  sponsorCarnet String?
 
   // Un mismo asiento no se puede vender dos veces para el mismo evento.
   @@unique([eventId, seatId])

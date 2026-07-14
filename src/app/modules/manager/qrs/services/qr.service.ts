@@ -8,6 +8,8 @@ import { Ticket } from '../../../../models/tickets/ticket';
 import { User } from '../../../../models/users/user';
 import { environment } from '../../../../../environments/environment';
 
+export type AttendeeType = 'SOCIO' | 'INVITADO';
+
 export type SaleTicket = {
 	id: number;
 	status: number;
@@ -26,6 +28,9 @@ export type SaleTicket = {
 	ticket: Ticket;
 	client: User;
 	seller: User;
+	// Solo relevantes en tenants tipo CLUB — ver models/tenants/tenant.ts.
+	attendeeType: AttendeeType;
+	sponsorCarnet: string | null;
 };
 
 export type SaleTicketInput = {
@@ -35,6 +40,8 @@ export type SaleTicketInput = {
 	clientId: number;
 	paidType: string;
 	description?: string;
+	attendeeType?: AttendeeType;
+	sponsorCarnet?: string;
 };
 
 export type BulkImportSaleTicketRow = {

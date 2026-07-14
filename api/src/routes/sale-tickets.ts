@@ -9,6 +9,7 @@ import { toPublicUser } from '../lib/serialize';
 import { sendTicketEmail } from '../lib/mail';
 import { asyncHandler } from '../lib/async-handler';
 import { logAudit } from '../lib/audit';
+import { isClubTenant, validateAttendeeRule } from '../lib/attendee';
 
 export const saleTicketsRouter = Router();
 saleTicketsRouter.use(requireAuth, requireTenant);
@@ -22,6 +23,8 @@ const saleTicketInputSchema = z.object({
 	clientId: z.number().int(),
 	paidType: z.string().min(1),
 	description: z.string().optional().default(''),
+	attendeeType: z.enum(['SOCIO', 'INVITADO']).optional(),
+	sponsorCarnet: z.string().optional(),
 });
 
 export const saleTicketInclude = {
@@ -64,6 +67,22 @@ saleTicketsRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res) 
 	}
 
 	const tenantId = req.user!.tenantId!;
+
+	if (await isClubTenant(tenantId)) {
+		const client = await prisma.user.findUnique({ where: { id: parsed.data.clientId } });
+		const attendeeError = await validateAttendeeRule({
+			tenantId,
+			eventId: parsed.data.eventId,
+			attendeeType: parsed.data.attendeeType,
+			sponsorCarnet: parsed.data.sponsorCarnet,
+			clientCarnet: client?.carnet,
+		});
+		if (attendeeError) {
+			res.status(400).json({ error: attendeeError });
+			return;
+		}
+	}
+
 	try {
 		const saleTicket = await prisma.$transaction(async (tx) => {
 			// Mismo patrón atómico que sale-products.ts: el updateMany con `count: { gte: 1 }` en el

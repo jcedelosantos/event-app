@@ -3,7 +3,7 @@ import { ActivatedRoute } from '@angular/router';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { QRCodeComponent } from 'angularx-qrcode';
-import { PublicArea, PublicEvent, PublicEventService, PublicSeat, PurchasedSaleTicket } from './services/public-event.service';
+import { AttendeeType, PublicArea, PublicEvent, PublicEventService, PublicSeat, PurchasedSaleTicket } from './services/public-event.service';
 import { extractErrorMessage } from '../../utils/api-error';
 import { shortSeatLabel } from '../../utils/seat-label';
 import { warning } from '../../utils/messages';
@@ -193,10 +193,44 @@ const MAX_SEATS = 5;
 									<div class="col-md-6">
 										<input type="text" class="form-control" placeholder="Teléfono" [class.is-invalid]="isInvalid('phone')" formControlName="phone" />
 									</div>
-									<div class="col-md-6">
-										<input type="text" class="form-control" placeholder="Carnet / Cédula" [class.is-invalid]="isInvalid('carnet')" formControlName="carnet" />
-									</div>
+									@if (ev.tenantType === 'CLUB') {
+										<div class="col-md-6">
+											<select
+												class="form-select"
+												[class.is-invalid]="attendeeError() && !registerForm.controls.attendeeType.value"
+												formControlName="attendeeType"
+											>
+												<option value="">¿Sos socio o invitado?</option>
+												<option value="SOCIO">Soy socio</option>
+												<option value="INVITADO">Soy invitado de un socio</option>
+											</select>
+										</div>
+										@if (registerForm.controls.attendeeType.value === 'SOCIO') {
+											<div class="col-md-6">
+												<input
+													type="text"
+													class="form-control"
+													placeholder="Tu carnet de socio"
+													[class.is-invalid]="isInvalid('carnet')"
+													formControlName="carnet"
+												/>
+											</div>
+										} @else if (registerForm.controls.attendeeType.value === 'INVITADO') {
+											<div class="col-md-6">
+												<input
+													type="text"
+													class="form-control"
+													placeholder="Carnet del socio que te invita"
+													[class.is-invalid]="attendeeError() && !registerForm.controls.sponsorCarnet.value"
+													formControlName="sponsorCarnet"
+												/>
+											</div>
+										}
+									}
 								</form>
+								@if (ev.tenantType === 'CLUB' && attendeeError()) {
+									<div class="small text-danger mt-2">{{ attendeeError() }}</div>
+								}
 							</div>
 
 							@if (errorMessage()) {
@@ -481,8 +515,16 @@ export class PublicEventComponent implements OnInit {
 		lastname: this.fb.control(''),
 		email: this.fb.control('', [Validators.required, Validators.email]),
 		phone: this.fb.control('', Validators.required),
-		carnet: this.fb.control('', Validators.required),
+		// Solo obligatorio para un socio de un tenant CLUB — se valida en submit() porque depende del
+		// tipo de organización (viene con el evento) y de qué elige el comprador arriba.
+		carnet: this.fb.control(''),
+		attendeeType: this.fb.control<AttendeeType | ''>(''),
+		sponsorCarnet: this.fb.control(''),
 	});
+
+	// Igual que attendeeError en create-qr-modal: validación rápida en el cliente antes de mandar al
+	// backend, que es la fuente de verdad real (ver api/src/lib/attendee.ts).
+	attendeeError = signal('');
 
 	ngOnInit(): void {
 		const code = this.route.snapshot.paramMap.get('code');
@@ -544,6 +586,7 @@ export class PublicEventComponent implements OnInit {
 
 	submit(event: PublicEvent) {
 		this.errorMessage.set('');
+		this.attendeeError.set('');
 
 		if (!this.selectedTicketId()) {
 			this.errorMessage.set('Elegí un ticket.');
@@ -559,14 +602,31 @@ export class PublicEventComponent implements OnInit {
 			return;
 		}
 
-		const { name, lastname, email, phone, carnet } = this.registerForm.getRawValue();
+		const { name, lastname, email, phone, carnet, attendeeType, sponsorCarnet } = this.registerForm.getRawValue();
+
+		if (event.tenantType === 'CLUB') {
+			if (!attendeeType) {
+				this.attendeeError.set('Elegí si sos socio o invitado.');
+				return;
+			}
+			if (attendeeType === 'SOCIO' && !carnet?.trim()) {
+				this.attendeeError.set('Ingresá tu carnet de socio.');
+				return;
+			}
+			if (attendeeType === 'INVITADO' && !sponsorCarnet?.trim()) {
+				this.attendeeError.set('Ingresá el carnet del socio que te invita.');
+				return;
+			}
+		}
+
 		this.submitting.set(true);
 		this.publicEventService
 			.purchase({
 				eventCode: event.code,
 				ticketId: this.selectedTicketId()!,
-				client: { name: name!, lastname: lastname!, email: email!, phone: phone!, carnet: carnet! },
+				client: { name: name!, lastname: lastname!, email: email!, phone: phone!, carnet: carnet ?? '' },
 				seatIds: Array.from(this.selectedSeatIds()),
+				...(event.tenantType === 'CLUB' ? { attendeeType: attendeeType as AttendeeType, sponsorCarnet: sponsorCarnet ?? undefined } : {}),
 			})
 			.subscribe({
 				next: (saleTickets) => {

@@ -6,6 +6,7 @@ import { prisma, prismaUnscoped } from '../lib/prisma';
 import { toPublicUser } from '../lib/serialize';
 import { sendTicketEmail } from '../lib/mail';
 import { asyncHandler } from '../lib/async-handler';
+import { isClubTenant, validateAttendeeRule } from '../lib/attendee';
 
 export const publicRouter = Router();
 
@@ -28,6 +29,7 @@ publicRouter.get('/events/:code', asyncHandler(async (req, res) => {
 		include: {
 			map: { include: { areas: { include: { seats: true, tables: true } } } },
 			tickets: { where: { active: true } },
+			tenant: { select: { type: true } },
 		},
 	});
 	if (!event || !event.active) {
@@ -59,6 +61,9 @@ publicRouter.get('/events/:code', asyncHandler(async (req, res) => {
 		startTime: event.startTime,
 		tickets: event.tickets,
 		map,
+		// El picker público lo usa para saber si tiene que pedir socio/invitado + carnet — ver
+		// lib/attendee.ts. Solo importa el tipo, no se expone nada más del tenant acá.
+		tenantType: event.tenant?.type ?? 'GENERAL',
 	});
 }));
 
@@ -69,7 +74,10 @@ const registerSchema = z.object({
 	lastname: z.string().optional().default(''),
 	email: z.string().email(),
 	phone: z.string().min(1),
-	carnet: z.string().min(1),
+	// Ya no es obligatorio a nivel de schema: en un tenant CLUB, un invitado no tiene carnet propio
+	// (usa el del socio que lo invita, ver sponsorCarnet más abajo) — la obligatoriedad para socios
+	// se valida aparte con validateAttendeeRule, que sí conoce el tipo de tenant y el attendeeType.
+	carnet: z.string().optional().default(''),
 });
 
 const purchaseSchema = z.object({
@@ -77,6 +85,8 @@ const purchaseSchema = z.object({
 	ticketId: z.number().int(),
 	client: registerSchema,
 	seatIds: z.array(z.number().int()).min(1).max(MAX_SEATS_PER_ORDER),
+	attendeeType: z.enum(['SOCIO', 'INVITADO']).optional(),
+	sponsorCarnet: z.string().optional(),
 });
 
 publicRouter.post('/purchase', asyncHandler(async (req, res) => {
@@ -85,7 +95,7 @@ publicRouter.post('/purchase', asyncHandler(async (req, res) => {
 		res.status(400).json({ error: parsed.error.flatten() });
 		return;
 	}
-	const { eventCode, ticketId, client: clientData, seatIds } = parsed.data;
+	const { eventCode, ticketId, client: clientData, seatIds, attendeeType, sponsorCarnet } = parsed.data;
 
 	const event = await prismaUnscoped.event.findUnique({ where: { code: eventCode } });
 	if (!event || !event.active) {
@@ -104,6 +114,21 @@ publicRouter.post('/purchase', asyncHandler(async (req, res) => {
 	if (alreadySold.length) {
 		res.status(409).json({ error: 'Uno o más asientos elegidos ya no están disponibles. Volvé a intentarlo.' });
 		return;
+	}
+
+	if (await isClubTenant(tenantId)) {
+		const attendeeError = await validateAttendeeRule({
+			tenantId,
+			eventId: event.id,
+			attendeeType,
+			sponsorCarnet,
+			clientCarnet: clientData.carnet,
+			newInviteCount: seatIds.length,
+		});
+		if (attendeeError) {
+			res.status(400).json({ error: attendeeError });
+			return;
+		}
 	}
 
 	const clientType = await prisma.userType.findFirst({ where: { type: 'CLIENT' } });
@@ -176,6 +201,7 @@ publicRouter.post('/purchase', asyncHandler(async (req, res) => {
 							description: 'Compra autoservicio',
 							codeQR: randomUUID(),
 							tenantId,
+							...(attendeeType ? { attendeeType, sponsorCarnet: attendeeType === 'INVITADO' ? sponsorCarnet?.trim() : null } : {}),
 						},
 						include,
 					}),

@@ -20,7 +20,7 @@ import * as bootstrap from "bootstrap";
 
 type QrSortKey = 'carnet' | 'client' | 'event' | 'seat' | 'price';
 type ProductSortKey = 'carnet' | 'client' | 'date' | 'event' | 'product' | 'qty';
-type QrColumnKey = QrSortKey | 'time' | 'status';
+type QrColumnKey = QrSortKey | 'time' | 'status' | 'attendeeType';
 type QrStatusFilter = 'all' | 'checked' | 'pending';
 
 const QR_COLUMN_LABELS: Record<QrColumnKey, string> = {
@@ -31,6 +31,7 @@ const QR_COLUMN_LABELS: Record<QrColumnKey, string> = {
   seat: 'Mesa/Asiento',
   price: 'Price',
   status: 'Estado',
+  attendeeType: 'Socio/Invitado',
 };
 
 // dateSold viene como string ISO — comparar por el día calendario en hora LOCAL (no UTC), que es
@@ -115,6 +116,9 @@ export class QrsComponent implements OnInit, AfterViewInit {
   });
 
   qrColumns = (Object.keys(QR_COLUMN_LABELS) as QrColumnKey[]).map((key) => ({ key, label: QR_COLUMN_LABELS[key] }));
+  // Socio/Invitado solo importa para tenants tipo CLUB — arranca visible solo para esos (el staff
+  // igual la puede prender/apagar a mano con el toggle de columnas).
+  isClubTenant = computed(() => this.authService.currentUser()?.tenant?.type === 'CLUB');
   visibleQrColumns = signal<Record<QrColumnKey, boolean>>({
     carnet: true,
     client: true,
@@ -123,6 +127,7 @@ export class QrsComponent implements OnInit, AfterViewInit {
     seat: true,
     price: true,
     status: true,
+    attendeeType: this.authService.currentUser()?.tenant?.type === 'CLUB',
   });
 
   toggleQrColumn(key: QrColumnKey) {

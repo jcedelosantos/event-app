@@ -31,8 +31,11 @@ const slugify = (name: string) =>
 		.replace(/[^a-z0-9]+/g, '-')
 		.replace(/(^-|-$)/g, '');
 
+const tenantTypeSchema = z.enum(['GENERAL', 'CLUB', 'CHURCH']);
+
 const createTenantSchema = z.object({
 	name: z.string().min(1),
+	type: tenantTypeSchema.optional().default('GENERAL'),
 	admin: z.object({
 		username: z.string().min(1),
 		password: z.string().min(4),
@@ -48,7 +51,7 @@ tenantsRouter.post('/', asyncHandler(async (req, res) => {
 		res.status(400).json({ error: parsed.error.flatten() });
 		return;
 	}
-	const { name, admin } = parsed.data;
+	const { name, type, admin } = parsed.data;
 
 	const adminType = await prismaUnscoped.userType.findFirst({ where: { type: 'ROOT' } });
 	if (!adminType) {
@@ -67,7 +70,7 @@ tenantsRouter.post('/', asyncHandler(async (req, res) => {
 	try {
 		const hashed = await bcrypt.hash(admin.password, 10);
 		const tenant = await prismaUnscoped.$transaction(async (tx) => {
-			const newTenant = await tx.tenant.create({ data: { name, slug } });
+			const newTenant = await tx.tenant.create({ data: { name, slug, type } });
 			await tx.user.create({
 				data: {
 					username: admin.username,
@@ -98,6 +101,7 @@ tenantsRouter.post('/', asyncHandler(async (req, res) => {
 const updateTenantSchema = z.object({
 	name: z.string().min(1).optional(),
 	active: z.boolean().optional(),
+	type: tenantTypeSchema.optional(),
 });
 
 tenantsRouter.put('/:id', asyncHandler(async (req, res) => {
@@ -133,7 +137,7 @@ tenantsRouter.post('/:id/impersonate', asyncHandler(async (req: AuthenticatedReq
 
 	const adminUser = await prismaUnscoped.user.findFirst({
 		where: { tenantId: id, type: { type: 'ROOT' } },
-		include: { type: true, tenant: { select: { id: true, name: true } } },
+		include: { type: true, tenant: { select: { id: true, name: true, type: true } } },
 		orderBy: { id: 'asc' },
 	});
 	if (!adminUser) {

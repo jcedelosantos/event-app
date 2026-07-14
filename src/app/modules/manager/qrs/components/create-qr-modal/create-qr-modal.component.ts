@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, OnInit, output, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
-import { QRService, SaleTicket } from '../../services/qr.service';
+import { AttendeeType, QRService, SaleTicket } from '../../services/qr.service';
 import { Events } from '../../../../../models/events/events';
 import { Area } from '../../../../../models/maps/area';
 import { Seat } from '../../../../../models/maps/seat';
@@ -11,6 +11,7 @@ import { EventsService } from '../../../events/services/events.service';
 import { TicketsService } from '../../../tickets/services/tickets.service';
 import { SeatsService } from '../../../maps/services/seats.service';
 import { UserService } from '../../../users/services/user.service';
+import { AuthService } from '../../../../../core/services/auth.service';
 import { extractErrorMessage } from '../../../../../utils/api-error';
 import { closeModal } from '../../../../../utils/modal';
 
@@ -97,6 +98,31 @@ import { closeModal } from '../../../../../utils/modal';
 									<div class="invalid-feedback">Elegí el comprador — tiene que ser un usuario de tipo Client.</div>
 								}
 							</div>
+							@if (isClubTenant()) {
+								<div class="row">
+									<div class="col-md-6 mb-3">
+										<label>Socio o invitado *</label>
+										<select class="custom-select d-block w-100" [class.is-invalid]="attendeeError() && !form.controls.attendeeType.value" formControlName="attendeeType">
+											<option value="">Elegí...</option>
+											<option value="SOCIO">Socio</option>
+											<option value="INVITADO">Invitado</option>
+										</select>
+										@if (form.controls.attendeeType.value === 'SOCIO') {
+											<div class="form-text">El comprador elegido arriba debe tener carnet de socio registrado.</div>
+										}
+									</div>
+									@if (form.controls.attendeeType.value === 'INVITADO') {
+										<div class="col-md-6 mb-3">
+											<label>Carnet del socio que invita *</label>
+											<input type="text" class="form-control" [class.is-invalid]="attendeeError() && !form.controls.sponsorCarnet.value" formControlName="sponsorCarnet" />
+											<div class="form-text">Máximo 2 invitados por socio, por evento.</div>
+										</div>
+									}
+								</div>
+								@if (attendeeError()) {
+									<div class="text-danger small mb-3">{{ attendeeError() }}</div>
+								}
+							}
 							<div class="row">
 								<div class="col-md-6 mb-3">
 									<label>Paid type *</label>
@@ -115,8 +141,8 @@ import { closeModal } from '../../../../../utils/modal';
 									<input type="text" class="form-control" formControlName="description" />
 								</div>
 							</div>
-							@if (errorMessage) {
-								<div class="text-danger">{{ errorMessage }}</div>
+							@if (errorMessage()) {
+								<div class="text-danger">{{ errorMessage() }}</div>
 							}
 						</form>
 					</div>
@@ -137,9 +163,16 @@ export class CreateQrModalComponent implements OnInit {
 	private readonly ticketsService = inject(TicketsService);
 	private readonly seatsService = inject(SeatsService);
 	private readonly userService = inject(UserService);
+	private readonly authService = inject(AuthService);
 
 	qrCreated = output<SaleTicket>();
-	errorMessage = '';
+	// Signals (no campos planos): el componente es OnPush y estos se asignan desde el callback
+	// async del subscribe de HTTP, fuera de un evento de template — sin signal, Angular nunca se
+	// entera de que hay que repintar y el mensaje de error queda invisible aunque el backend lo mande.
+	errorMessage = signal('');
+	// Validación rápida en el cliente antes de mandar al backend (que es la fuente de verdad real,
+	// ver lib/attendee.ts) — evita un viaje redondo por errores obvios como no elegir socio/invitado.
+	attendeeError = signal('');
 
 	events = signal<Events[]>([]);
 	areas = signal<Area[]>([]);
@@ -150,6 +183,8 @@ export class CreateQrModalComponent implements OnInit {
 
 	availableSeats = computed(() => this.seats().filter((seat) => !this.soldSeatIds().has(seat.id)));
 	availableTickets = computed(() => this.tickets().filter((t) => t.count > 0));
+	// Solo los tenants tipo CLUB piden socio/invitado + carnet al reservar un asiento.
+	isClubTenant = computed(() => this.authService.currentUser()?.tenant?.type === 'CLUB');
 
 	areaControl = this.fb.control<number | null>(null);
 
@@ -160,6 +195,8 @@ export class CreateQrModalComponent implements OnInit {
 		clientId: this.fb.control<number | null>(null, Validators.required),
 		paidType: this.fb.control<string>('', Validators.required),
 		description: this.fb.control<string>(''),
+		attendeeType: this.fb.control<AttendeeType | ''>(''),
+		sponsorCarnet: this.fb.control<string>(''),
 	});
 
 	ngOnInit(): void {
@@ -207,12 +244,25 @@ export class CreateQrModalComponent implements OnInit {
 	}
 
 	submit() {
+		this.attendeeError.set('');
 		if (this.form.invalid) {
 			this.form.markAllAsTouched();
 			return;
 		}
 
 		const value = this.form.getRawValue();
+
+		if (this.isClubTenant()) {
+			if (!value.attendeeType) {
+				this.attendeeError.set('Elegí si la reserva es de un socio o de un invitado.');
+				return;
+			}
+			if (value.attendeeType === 'INVITADO' && !value.sponsorCarnet?.trim()) {
+				this.attendeeError.set('Ingresá el carnet del socio que invita.');
+				return;
+			}
+		}
+
 		this.qrService
 			.createQR({
 				eventId: value.eventId!,
@@ -221,16 +271,17 @@ export class CreateQrModalComponent implements OnInit {
 				clientId: value.clientId!,
 				paidType: value.paidType!,
 				description: value.description ?? '',
+				...(value.attendeeType ? { attendeeType: value.attendeeType, sponsorCarnet: value.sponsorCarnet ?? undefined } : {}),
 			})
 			.subscribe({
 				next: (saleTicket) => {
 					this.qrCreated.emit(saleTicket);
 					this.reset();
-					this.errorMessage = '';
+					this.errorMessage.set('');
 					closeModal('createQrModal');
 				},
 				error: (err: HttpErrorResponse) => {
-					this.errorMessage = extractErrorMessage(err);
+					this.errorMessage.set(extractErrorMessage(err));
 					if (err.status === 409) {
 						// El asiento se vendió entre que se cargó la lista y este submit — refrescar
 						// para que el dropdown ya no lo muestre como disponible, y soltar la selección
@@ -246,7 +297,7 @@ export class CreateQrModalComponent implements OnInit {
 	}
 
 	private reset() {
-		this.form.reset({ eventId: null, ticketId: null, seatId: null, clientId: null, paidType: '', description: '' });
+		this.form.reset({ eventId: null, ticketId: null, seatId: null, clientId: null, paidType: '', description: '', attendeeType: '', sponsorCarnet: '' });
 		this.areaControl.setValue(null);
 		this.areas.set([]);
 		this.seats.set([]);

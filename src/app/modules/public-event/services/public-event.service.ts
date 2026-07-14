@@ -50,6 +50,8 @@ export type PublicTicket = {
 	count: number;
 };
 
+export type TenantType = 'GENERAL' | 'CLUB' | 'CHURCH';
+
 export type PublicEvent = {
 	id: number;
 	name: string;
@@ -61,15 +63,21 @@ export type PublicEvent = {
 	startTime: string | null;
 	tickets: PublicTicket[];
 	map: PublicMap;
+	// Si es CLUB, hay que pedir socio/invitado + carnet al reservar (ver AttendeeType más abajo).
+	tenantType: TenantType;
 };
 
 export type RegisterInput = { name: string; lastname: string; email: string; phone: string; carnet: string };
+
+export type AttendeeType = 'SOCIO' | 'INVITADO';
 
 export type PurchaseInput = {
 	eventCode: string;
 	ticketId: number;
 	client: RegisterInput;
 	seatIds: number[];
+	attendeeType?: AttendeeType;
+	sponsorCarnet?: string;
 };
 
 export type PurchasedSaleTicket = {

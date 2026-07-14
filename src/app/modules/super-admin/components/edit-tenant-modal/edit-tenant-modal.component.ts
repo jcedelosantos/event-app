@@ -3,7 +3,7 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { TenantService } from '../../services/tenant.service';
-import { Tenant } from '../../../../models/tenants/tenant';
+import { Tenant, TenantType } from '../../../../models/tenants/tenant';
 import { extractErrorMessage } from '../../../../utils/api-error';
 import { confirm } from '../../../../utils/messages';
 import { closeModal } from '../../../../utils/modal';
@@ -27,6 +27,17 @@ import { closeModal } from '../../../../utils/modal';
 								@if (isInvalid('name')) {
 									<div class="invalid-feedback">El nombre es obligatorio.</div>
 								}
+							</div>
+							<div class="mb-3">
+								<label for="editOrgType">Tipo de organización *</label>
+								<select class="form-select" id="editOrgType" formControlName="type">
+									<option value="GENERAL">General</option>
+									<option value="CLUB">Club</option>
+									<option value="CHURCH">Iglesia</option>
+								</select>
+								<div class="form-text">
+									Un club pide carnet de socio (o del socio que invita) al reservar un asiento, con máximo 2 invitados por socio por evento.
+								</div>
 							</div>
 							@if (errorMessage) {
 								<div class="text-danger">{{ errorMessage }}</div>
@@ -68,12 +79,13 @@ export class EditTenantModalComponent {
 
 	form = new FormGroup({
 		name: new FormControl<string>('', Validators.required),
+		type: new FormControl<TenantType>('GENERAL', { nonNullable: true }),
 	});
 
 	constructor() {
 		effect(() => {
 			this.errorMessage = '';
-			this.form.reset({ name: this.tenant()?.name ?? '' });
+			this.form.reset({ name: this.tenant()?.name ?? '', type: this.tenant()?.type ?? 'GENERAL' });
 		});
 	}
 
@@ -92,10 +104,10 @@ export class EditTenantModalComponent {
 		const current = this.tenant();
 		if (!current) return;
 
-		const name = this.form.getRawValue().name!;
+		const value = this.form.getRawValue();
 		confirm('¿Guardar los cambios de esta organización?', {
 			onConfirm: () =>
-				this.tenantService.updateTenant(current.id, { name }).subscribe({
+				this.tenantService.updateTenant(current.id, { name: value.name!, type: value.type }).subscribe({
 					next: () => {
 						this.tenantUpdated.emit();
 						closeModal('editTenantModal');

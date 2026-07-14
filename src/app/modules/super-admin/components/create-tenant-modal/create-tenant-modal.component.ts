@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, inject, output } from '@angular/cor
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { TenantService } from '../../services/tenant.service';
+import { TenantType } from '../../../../models/tenants/tenant';
 import { extractErrorMessage } from '../../../../utils/api-error';
 import { confirm } from '../../../../utils/messages';
 import { closeModal } from '../../../../utils/modal';
@@ -25,6 +26,17 @@ import { closeModal } from '../../../../utils/modal';
 								@if (isInvalid('name')) {
 									<div class="invalid-feedback">El nombre es obligatorio.</div>
 								}
+							</div>
+							<div class="mb-3">
+								<label for="orgType">Tipo de organización *</label>
+								<select class="form-select" id="orgType" formControlName="type">
+									<option value="GENERAL">General</option>
+									<option value="CLUB">Club</option>
+									<option value="CHURCH">Iglesia</option>
+								</select>
+								<div class="form-text">
+									Un club pide carnet de socio (o del socio que invita) al reservar un asiento, con máximo 2 invitados por socio por evento.
+								</div>
 							</div>
 							<hr />
 							<p class="text-muted small mb-2">Primer usuario admin de esta organización</p>
@@ -90,6 +102,7 @@ export class CreateTenantModalComponent {
 
 	form = new FormGroup({
 		name: new FormControl<string>('', Validators.required),
+		type: new FormControl<TenantType>('GENERAL', { nonNullable: true }),
 		adminName: new FormControl<string>('', Validators.required),
 		adminLastname: new FormControl<string>('', Validators.required),
 		adminEmail: new FormControl<string>('', [Validators.required, Validators.email]),
@@ -115,6 +128,7 @@ export class CreateTenantModalComponent {
 				this.tenantService
 					.createTenant({
 						name: value.name!,
+						type: value.type,
 						admin: {
 							username: value.adminUsername!,
 							password: value.adminPassword!,
@@ -126,7 +140,7 @@ export class CreateTenantModalComponent {
 					.subscribe({
 						next: () => {
 							this.tenantCreated.emit();
-							this.form.reset({ name: '', adminName: '', adminLastname: '', adminEmail: '', adminUsername: '', adminPassword: '' });
+							this.form.reset({ name: '', type: 'GENERAL', adminName: '', adminLastname: '', adminEmail: '', adminUsername: '', adminPassword: '' });
 							closeModal('createTenantModal');
 						},
 						error: (err: HttpErrorResponse) => (this.errorMessage = extractErrorMessage(err)),

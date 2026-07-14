@@ -1,4 +1,5 @@
 import { UserType } from './user-type';
+import { TenantType } from '../tenants/tenant';
 
 export interface User {
 	id: number;
@@ -14,5 +15,5 @@ export interface User {
 	adress: string;
 	phone: string | number;
 	// null solo para la cuenta de Super Admin — no pertenece a ninguna organización.
-	tenant?: { id: number; name: string } | null;
+	tenant?: { id: number; name: string; type: TenantType } | null;
 }
