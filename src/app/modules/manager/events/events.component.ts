@@ -8,6 +8,9 @@ import { CreateMapModalComponent } from '../maps/components/create-map-modal/cre
 import { Map } from '../../../models/maps/map';
 import { MapsService } from '../maps/services/maps.service';
 import { eventDateKey, todayKey } from '../../../utils/dates';
+import { confirm, error } from '../../../utils/messages';
+import { extractErrorMessage } from '../../../utils/api-error';
+import { HttpErrorResponse } from '@angular/common/http';
 
 declare const bootstrap: any;
 
@@ -52,7 +55,7 @@ declare const bootstrap: any;
 												<div class="d-flex flex-row">
 													@for (event of chunk; track event.id) {
 														<div class="p-2">
-															<event-card [event]="event" (editEvent)="onEditEvent($event)" />
+															<event-card [event]="event" (editEvent)="onEditEvent($event)" (deleteEvent)="onDeleteEvent($event)" />
 														</div>
 													}
 												</div>
@@ -85,7 +88,7 @@ declare const bootstrap: any;
 												<div class="d-flex flex-row">
 													@for (event of chunk; track event.id) {
 														<div class="p-2">
-															<event-card [event]="event" (editEvent)="onEditEvent($event)" />
+															<event-card [event]="event" (editEvent)="onEditEvent($event)" (deleteEvent)="onDeleteEvent($event)" />
 														</div>
 													}
 												</div>
@@ -174,6 +177,17 @@ export class EventsComponent implements OnInit, AfterViewInit {
 		if (modalEl) {
 			bootstrap.Modal.getOrCreateInstance(modalEl).show();
 		}
+	}
+
+	onDeleteEvent(event: Events) {
+		confirm(`¿Eliminar el evento "${event.name}"? Esta acción no se puede deshacer.`, {
+			onConfirm: () => {
+				this.eventSrv.deleteEvent(event.id).subscribe({
+					next: () => this.events.update((list) => list.filter((e) => e.id !== event.id)),
+					error: (err: HttpErrorResponse) => error(extractErrorMessage(err)),
+				});
+			},
+		});
 	}
 
 	onMapCreated(map: Map) {

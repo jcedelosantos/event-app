@@ -12,7 +12,10 @@ import { RouterLink } from '@angular/router';
 			<div class="card text-center" style="height: 220px; min-width: 240px;">
 				<div class="card-header py-2 d-flex justify-content-between align-items-center">
 					<span>{{ event.name }}</span>
-					<button type="button" class="btn btn-dark btn-sm rounded-circle" (click)="editEvent.emit(event)" title="Editar evento"><i class="bi bi-pencil"></i></button>
+					<div class="d-flex gap-1">
+						<button type="button" class="btn btn-dark btn-sm rounded-circle" (click)="editEvent.emit(event)" title="Editar evento"><i class="bi bi-pencil"></i></button>
+						<button type="button" class="btn btn-danger btn-sm rounded-circle" (click)="deleteEvent.emit(event)" title="Eliminar evento"><i class="bi bi-trash"></i></button>
+					</div>
 				</div>
 				<div class="card-body py-2">
 					<div class="d-flex justify-content-between flex-row small">
@@ -50,6 +53,7 @@ export class EventCardComponent {
 	event!: Events;
 
 	editEvent = output<Events>();
+	deleteEvent = output<Events>();
 
 	eventDateRelative(date?: string | Date): string {
 		if (!date) return 'Date unknown';
