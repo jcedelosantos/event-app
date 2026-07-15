@@ -9,6 +9,11 @@ import { shortSeatLabel } from '../../utils/seat-label';
 import { warning } from '../../utils/messages';
 
 const MAX_SEATS = 5;
+// Un invitado (tenant CLUB) puede reservar como máximo 2 asientos en una sola compra — coincide con
+// el tope de 2 invitados por socio por evento que ya valida el backend (ver api/src/lib/attendee.ts),
+// esto solo evita que alguien arme una selección de 3+ asientos y recién se entere del rechazo al
+// confirmar.
+const MAX_INVITADO_SEATS = 2;
 
 @Component({
 	selector: 'app-public-event',
@@ -58,38 +63,104 @@ const MAX_SEATS = 5;
 								<p>{{ ev.description }}</p>
 							}
 
-							<div class="mb-4">
-								<h5>1. Elegí tu ticket</h5>
-								@if (!ev.tickets.length) {
-									<p class="text-body-secondary">Este evento todavía no tiene tickets a la venta.</p>
-								}
-								<div class="d-flex flex-wrap gap-2">
-									@for (ticket of ev.tickets; track ticket.id) {
-										<button
-											type="button"
-											class="btn btn-sm"
-											[class.btn-danger]="selectedTicketId() === ticket.id"
-											[class.btn-outline-danger]="selectedTicketId() !== ticket.id && ticket.count > 0"
-											[class.btn-outline-secondary]="ticket.count <= 0"
-											[disabled]="ticket.count <= 0"
-											(click)="selectedTicketId.set(ticket.id)"
-										>
-											{{ ticket.name }} ({{ ticket.type }}) — {{ ticket.price }} USD
-											@if (ticket.count <= 0) {
-												<span class="badge text-bg-secondary ms-1">Agotado</span>
-											}
-										</button>
+							@if (ev.tenantType === 'CLUB') {
+								<div class="mb-4">
+									<h5>1. Tus datos</h5>
+									<form [formGroup]="registerForm" class="row g-2">
+										<div class="col-md-6">
+											<input type="text" class="form-control" placeholder="Nombre" [class.is-invalid]="isInvalid('name')" formControlName="name" />
+										</div>
+										<div class="col-md-6">
+											<input type="text" class="form-control" placeholder="Apellido (opcional)" formControlName="lastname" />
+										</div>
+										<div class="col-md-6">
+											<input type="email" class="form-control" placeholder="Email" [class.is-invalid]="isInvalid('email')" formControlName="email" />
+										</div>
+										<div class="col-md-6">
+											<input type="text" class="form-control" placeholder="Teléfono" [class.is-invalid]="isInvalid('phone')" formControlName="phone" />
+										</div>
+										<div class="col-md-6">
+											<select
+												class="form-select"
+												[class.is-invalid]="attendeeError() && !registerForm.controls.attendeeType.value"
+												formControlName="attendeeType"
+											>
+												<option value="">¿Sos socio o invitado?</option>
+												<option value="SOCIO">Soy socio</option>
+												<option value="INVITADO">Soy invitado de un socio</option>
+											</select>
+										</div>
+										@if (attendeeTypeValue() === 'SOCIO') {
+											<div class="col-md-6">
+												<input
+													type="text"
+													class="form-control"
+													placeholder="Tu carnet de socio"
+													[class.is-invalid]="isInvalid('carnet')"
+													formControlName="carnet"
+												/>
+											</div>
+										} @else if (attendeeTypeValue() === 'INVITADO') {
+											<div class="col-md-6">
+												<input
+													type="text"
+													class="form-control"
+													placeholder="Carnet del socio que te invita"
+													[class.is-invalid]="attendeeError() && !registerForm.controls.sponsorCarnet.value"
+													formControlName="sponsorCarnet"
+												/>
+												<div class="form-text">Como invitado podés elegir hasta 2 asientos.</div>
+											</div>
+										}
+									</form>
+									@if (attendeeError()) {
+										<div class="small text-danger mt-2">{{ attendeeError() }}</div>
 									}
 								</div>
-							</div>
+							} @else {
+								<div class="mb-4">
+									<h5>1. Elegí tu ticket</h5>
+									@if (!ev.tickets.length) {
+										<p class="text-body-secondary">Este evento todavía no tiene tickets a la venta.</p>
+									}
+									<div class="d-flex flex-wrap gap-2">
+										@for (ticket of ev.tickets; track ticket.id) {
+											<button
+												type="button"
+												class="btn btn-sm"
+												[class.btn-danger]="selectedTicketId() === ticket.id"
+												[class.btn-outline-danger]="selectedTicketId() !== ticket.id && ticket.count > 0"
+												[class.btn-outline-secondary]="ticket.count <= 0"
+												[disabled]="ticket.count <= 0"
+												(click)="selectedTicketId.set(ticket.id)"
+											>
+												{{ ticket.name }} ({{ ticket.type }}) — {{ ticket.price }} USD
+												@if (ticket.count <= 0) {
+													<span class="badge text-bg-secondary ms-1">Agotado</span>
+												}
+											</button>
+										}
+									</div>
+								</div>
+							}
 
 							<div class="mb-4">
 								<div class="d-flex justify-content-between align-items-center mb-2">
 									<h5 class="mb-0">2. Elegí tu(s) asiento(s)</h5>
-									<span class="badge text-bg-danger">{{ selectedSeatIds().size }} / {{ maxSeats }}</span>
+									<span class="badge text-bg-danger">{{ selectedSeatIds().size }} / {{ effectiveMaxSeats() }}</span>
 								</div>
-								@if (!selectedTicketId()) {
-									<p class="text-body-secondary">Elegí primero un tipo de ticket arriba para poder elegir tu(s) asiento(s).</p>
+								@if (!activeTicketId()) {
+									<p class="text-body-secondary">
+										@if (ev.tenantType === 'CLUB') {
+											@if (!attendeeTypeValue()) {
+												Completá tus datos arriba (decinos si sos socio o invitado) para poder elegir tu(s) asiento(s).
+											} @else {
+												Este evento no tiene un ticket de {{ attendeeTypeValue() === 'SOCIO' ? 'socio' : 'invitado' }} disponible — contactá a la organización.
+											}
+										} @else {
+											Elegí primero un tipo de ticket arriba para poder elegir tu(s) asiento(s).
+										}
+									</p>
 								} @else {
 								@if (!ev.map || !ev.map.areas.length) {
 									<p class="text-body-secondary">Este evento todavía no tiene asientos configurados.</p>
@@ -178,60 +249,25 @@ const MAX_SEATS = 5;
 								</div>
 							}
 
-							<div class="mb-4">
-								<h5>3. Tus datos</h5>
-								<form [formGroup]="registerForm" class="row g-2">
-									<div class="col-md-6">
-										<input type="text" class="form-control" placeholder="Nombre" [class.is-invalid]="isInvalid('name')" formControlName="name" />
-									</div>
-									<div class="col-md-6">
-										<input type="text" class="form-control" placeholder="Apellido (opcional)" formControlName="lastname" />
-									</div>
-									<div class="col-md-6">
-										<input type="email" class="form-control" placeholder="Email" [class.is-invalid]="isInvalid('email')" formControlName="email" />
-									</div>
-									<div class="col-md-6">
-										<input type="text" class="form-control" placeholder="Teléfono" [class.is-invalid]="isInvalid('phone')" formControlName="phone" />
-									</div>
-									@if (ev.tenantType === 'CLUB') {
+							@if (ev.tenantType !== 'CLUB') {
+								<div class="mb-4">
+									<h5>3. Tus datos</h5>
+									<form [formGroup]="registerForm" class="row g-2">
 										<div class="col-md-6">
-											<select
-												class="form-select"
-												[class.is-invalid]="attendeeError() && !registerForm.controls.attendeeType.value"
-												formControlName="attendeeType"
-											>
-												<option value="">¿Sos socio o invitado?</option>
-												<option value="SOCIO">Soy socio</option>
-												<option value="INVITADO">Soy invitado de un socio</option>
-											</select>
+											<input type="text" class="form-control" placeholder="Nombre" [class.is-invalid]="isInvalid('name')" formControlName="name" />
 										</div>
-										@if (registerForm.controls.attendeeType.value === 'SOCIO') {
-											<div class="col-md-6">
-												<input
-													type="text"
-													class="form-control"
-													placeholder="Tu carnet de socio"
-													[class.is-invalid]="isInvalid('carnet')"
-													formControlName="carnet"
-												/>
-											</div>
-										} @else if (registerForm.controls.attendeeType.value === 'INVITADO') {
-											<div class="col-md-6">
-												<input
-													type="text"
-													class="form-control"
-													placeholder="Carnet del socio que te invita"
-													[class.is-invalid]="attendeeError() && !registerForm.controls.sponsorCarnet.value"
-													formControlName="sponsorCarnet"
-												/>
-											</div>
-										}
-									}
-								</form>
-								@if (ev.tenantType === 'CLUB' && attendeeError()) {
-									<div class="small text-danger mt-2">{{ attendeeError() }}</div>
-								}
-							</div>
+										<div class="col-md-6">
+											<input type="text" class="form-control" placeholder="Apellido (opcional)" formControlName="lastname" />
+										</div>
+										<div class="col-md-6">
+											<input type="email" class="form-control" placeholder="Email" [class.is-invalid]="isInvalid('email')" formControlName="email" />
+										</div>
+										<div class="col-md-6">
+											<input type="text" class="form-control" placeholder="Teléfono" [class.is-invalid]="isInvalid('phone')" formControlName="phone" />
+										</div>
+									</form>
+								</div>
+							}
 
 							@if (errorMessage()) {
 								<div class="alert alert-danger">{{ errorMessage() }}</div>
@@ -420,11 +456,44 @@ export class PublicEventComponent implements OnInit {
 
 	step = signal<'loading' | 'not-found' | 'ready' | 'confirmed'>('loading');
 	event = signal<PublicEvent | null>(null);
+	// Elegido a mano por el comprador en tenants no-CLUB (botones de ticket, paso 1) — en tenants
+	// CLUB el ticket activo sale solo de attendeeTypeValue (ver activeTicket más abajo), este signal
+	// queda sin usar en ese camino.
 	selectedTicketId = signal<number | null>(null);
 	selectedSeatIds = signal<Set<number>>(new Set());
 	submitting = signal(false);
 	errorMessage = signal('');
 	purchasedTickets = signal<PurchasedSaleTicket[]>([]);
+
+	// Espejo de registerForm.controls.attendeeType como signal — un FormControl no se puede leer
+	// dentro de un computed() (no es reactivo para Angular), así que se mantiene sincronizado a mano
+	// vía valueChanges (ver constructor).
+	attendeeTypeValue = signal<AttendeeType | ''>('');
+
+	// En tenants CLUB, el ticket lo define automáticamente la respuesta a "¿Sos socio o invitado?"
+	// (ver 1. Tus datos) — el comprador nunca elige un ticket a mano ahí. En el resto, sigue siendo
+	// el que se clickeó en el paso 1.
+	activeTicket = computed(() => {
+		const ev = this.event();
+		if (!ev) return null;
+		if (ev.tenantType === 'CLUB') {
+			const type = this.attendeeTypeValue();
+			if (!type) return null;
+			return ev.tickets.find((t) => t.attendeeType === type) ?? null;
+		}
+		return ev.tickets.find((t) => t.id === this.selectedTicketId()) ?? null;
+	});
+	activeTicketId = computed(() => this.activeTicket()?.id ?? null);
+
+	// Un invitado no puede reservar más de MAX_INVITADO_SEATS asientos en una sola compra (ver
+	// constante arriba) — cualquier otro caso usa el tope general.
+	effectiveMaxSeats = computed(() => {
+		const ev = this.event();
+		if (ev?.tenantType === 'CLUB' && this.attendeeTypeValue() === 'INVITADO') {
+			return MAX_INVITADO_SEATS;
+		}
+		return MAX_SEATS;
+	});
 
 	// seat.x/seat.y se guardaron en píxeles del tamaño NATURAL de la imagen (así los posiciona el
 	// editor del manager, que renderiza la imagen sin escalar). Acá la imagen sí se achica para caber
@@ -494,7 +563,7 @@ export class PublicEventComponent implements OnInit {
 	// si no tiene área asignada, mantiene el comportamiento anterior de mostrar todas.
 	visibleAreas(ev: PublicEvent): PublicArea[] {
 		const areas = ev.map?.areas ?? [];
-		const ticket = ev.tickets.find((t) => t.id === this.selectedTicketId());
+		const ticket = this.activeTicket();
 		if (!ticket?.areaId) return areas;
 		return areas.filter((a) => a.id === ticket.areaId);
 	}
@@ -525,6 +594,16 @@ export class PublicEventComponent implements OnInit {
 	// Igual que attendeeError en create-qr-modal: validación rápida en el cliente antes de mandar al
 	// backend, que es la fuente de verdad real (ver api/src/lib/attendee.ts).
 	attendeeError = signal('');
+
+	constructor() {
+		this.registerForm.controls.attendeeType.valueChanges.subscribe((value) => {
+			this.attendeeTypeValue.set(value ?? '');
+			// Cambiar de socio a invitado (o viceversa) cambia el ticket activo y, con él, qué áreas y
+			// qué tope de asientos aplican — una selección hecha bajo el tipo anterior puede ya no ser
+			// válida, así que arranca de cero en vez de arrastrar asientos que no correspondan.
+			this.selectedSeatIds.set(new Set());
+		});
+	}
 
 	ngOnInit(): void {
 		const code = this.route.snapshot.paramMap.get('code');
@@ -559,7 +638,7 @@ export class PublicEventComponent implements OnInit {
 			const next = new Set(current);
 			if (next.has(seat.id)) {
 				next.delete(seat.id);
-			} else if (next.size < MAX_SEATS) {
+			} else if (next.size < this.effectiveMaxSeats()) {
 				next.add(seat.id);
 			}
 			return next;
@@ -588,7 +667,18 @@ export class PublicEventComponent implements OnInit {
 		this.errorMessage.set('');
 		this.attendeeError.set('');
 
-		if (!this.selectedTicketId()) {
+		const { name, lastname, email, phone, carnet, attendeeType, sponsorCarnet } = this.registerForm.getRawValue();
+
+		if (event.tenantType === 'CLUB') {
+			if (!attendeeType) {
+				this.attendeeError.set('Elegí si sos socio o invitado.');
+				return;
+			}
+			if (!this.activeTicketId()) {
+				this.attendeeError.set(`Este evento no tiene un ticket de ${attendeeType === 'SOCIO' ? 'socio' : 'invitado'} disponible — contactá a la organización.`);
+				return;
+			}
+		} else if (!this.activeTicketId()) {
 			this.errorMessage.set('Elegí un ticket.');
 			return;
 		}
@@ -602,13 +692,7 @@ export class PublicEventComponent implements OnInit {
 			return;
 		}
 
-		const { name, lastname, email, phone, carnet, attendeeType, sponsorCarnet } = this.registerForm.getRawValue();
-
 		if (event.tenantType === 'CLUB') {
-			if (!attendeeType) {
-				this.attendeeError.set('Elegí si sos socio o invitado.');
-				return;
-			}
 			if (attendeeType === 'SOCIO' && !carnet?.trim()) {
 				this.attendeeError.set('Ingresá tu carnet de socio.');
 				return;
@@ -623,7 +707,7 @@ export class PublicEventComponent implements OnInit {
 		this.publicEventService
 			.purchase({
 				eventCode: event.code,
-				ticketId: this.selectedTicketId()!,
+				ticketId: this.activeTicketId()!,
 				client: { name: name!, lastname: lastname!, email: email!, phone: phone!, carnet: carnet ?? '' },
 				seatIds: Array.from(this.selectedSeatIds()),
 				...(event.tenantType === 'CLUB' ? { attendeeType: attendeeType as AttendeeType, sponsorCarnet: sponsorCarnet ?? undefined } : {}),

@@ -12,6 +12,9 @@ export interface Ticket {
 	// Si está seteado, este ticket solo da acceso a asientos de esa área — el picker público filtra
 	// las áreas visibles según el ticket elegido (ver public-event.component.ts).
 	areaId: number | null;
+	// Solo tiene sentido en tenants CLUB — a qué tipo de comprador corresponde este ticket, para que
+	// el picker público lo auto-seleccione según socio/invitado (ver public-event.component.ts).
+	attendeeType: 'SOCIO' | 'INVITADO' | null;
 	// Nombres resueltos por el backend (select mínimo) para mostrar a qué evento/área pertenece el
 	// ticket en su tarjeta, sin tener que cruzar listas de eventos/áreas aparte en el frontend.
 	event?: { id: number; name: string };

@@ -14,6 +14,7 @@ export type TicketInput = {
 	price: number;
 	eventId: number;
 	areaId?: number | null;
+	attendeeType?: 'SOCIO' | 'INVITADO' | null;
 };
 
 @Injectable({

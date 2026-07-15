@@ -238,6 +238,12 @@ model Ticket {
   areaId Int?
   area   Area? @relation(fields: [areaId], references: [id])
 
+  // Solo tiene sentido en tenants tipo CLUB (ver Tenant.type) — SOCIO | INVITADO | null. Marca a
+  // qué tipo de comprador corresponde este ticket, para que el picker público lo auto-seleccione
+  // según lo que la persona responda en "¿Sos socio o invitado?" (ver public-event.component.ts),
+  // en vez de obligarla a elegir el ticket a mano.
+  attendeeType String?
+
   tenantId Int
   tenant   Tenant @relation(fields: [tenantId], references: [id])
 

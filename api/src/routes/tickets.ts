@@ -17,6 +17,7 @@ const ticketInputSchema = z.object({
 	price: z.coerce.number(),
 	eventId: z.number().int(),
 	areaId: z.number().int().nullable().optional(),
+	attendeeType: z.enum(['SOCIO', 'INVITADO']).nullable().optional(),
 });
 
 // El grid de tarjetas de tickets necesita mostrar a qué evento/área pertenece cada uno (varios

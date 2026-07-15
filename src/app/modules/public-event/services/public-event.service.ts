@@ -48,6 +48,9 @@ export type PublicTicket = {
 	description: string;
 	areaId: number | null;
 	count: number;
+	// Solo viene seteado en tenants CLUB — el picker público lo usa para auto-elegir el ticket según
+	// la respuesta a "¿Sos socio o invitado?" (ver public-event.component.ts).
+	attendeeType: 'SOCIO' | 'INVITADO' | null;
 };
 
 export type TenantType = 'GENERAL' | 'CLUB' | 'CHURCH';

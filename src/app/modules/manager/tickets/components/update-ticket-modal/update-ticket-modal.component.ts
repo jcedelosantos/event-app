@@ -7,6 +7,7 @@ import { TicketsService } from '../../services/tickets.service';
 import { EventsService } from '../../../events/services/events.service';
 import { extractErrorMessage } from '../../../../../utils/api-error';
 import { closeModal } from '../../../../../utils/modal';
+import { AuthService } from '../../../../../core/services/auth.service';
 
 @Component({
 	selector: 'app-update-ticket-modal',
@@ -53,6 +54,20 @@ import { closeModal } from '../../../../../utils/modal';
 							</select>
 							<div class="form-text">Si elegís un área, el comprador con este ticket solo va a poder elegir asientos de esa área.</div>
 						</div>
+						@if (isClubTenant()) {
+							<div class="mb-3">
+								<label for="attendeeType">Tipo de comprador</label>
+								<select class="custom-select d-block w-100" formControlName="attendeeType">
+									<option [ngValue]="null">Ninguno en particular</option>
+									<option value="SOCIO">Socio</option>
+									<option value="INVITADO">Invitado</option>
+								</select>
+								<div class="form-text">
+									El picker público arma la reserva en 2 pasos: primero pregunta si el comprador es socio o invitado, y con esa respuesta activa automáticamente este ticket — sin
+									esto, el ticket no se ofrece por ese camino.
+								</div>
+							</div>
+						}
 						<div class="row">
 							<div class="col-md-6 mb-3">
 								<label for="count">Stock *</label>
@@ -112,6 +127,10 @@ import { closeModal } from '../../../../../utils/modal';
 export class UpdateTicketModalComponent implements OnInit {
 	private readonly ticketsService = inject(TicketsService);
 	private readonly eventsService = inject(EventsService);
+	private readonly authService = inject(AuthService);
+
+	// Solo los tenants tipo CLUB usan la distinción socio/invitado en tickets.
+	isClubTenant = computed(() => this.authService.currentUser()?.tenant?.type === 'CLUB');
 
 	ticket = model<Ticket | null>(null);
 	@Input() defaultEventId: number | null = null;
@@ -135,6 +154,7 @@ export class UpdateTicketModalComponent implements OnInit {
 		count: new FormControl<number | null>(null, Validators.required),
 		active: new FormControl<boolean>(true, [Validators.required]),
 		price: new FormControl<number | null>(null, Validators.required),
+		attendeeType: new FormControl<'SOCIO' | 'INVITADO' | null>(null),
 	});
 
 	// Las áreas disponibles para el selector dependen del mapa del evento elegido — se recalculan
@@ -197,6 +217,7 @@ export class UpdateTicketModalComponent implements OnInit {
 			count: value.count!,
 			active: value.active!,
 			price: value.price!,
+			attendeeType: value.attendeeType ?? null,
 		};
 
 		const current = this.ticket();
