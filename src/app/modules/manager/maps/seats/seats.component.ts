@@ -285,10 +285,16 @@ export class SeatsComponent implements OnInit, AfterViewInit {
 		return this.seats().filter((s) => !s.tableId);
 	}
 
-	tablesWithSeats(): Table[] {
+	// computed(), no un método plano: llamado directo en el template, un método recalcula en CADA
+	// ciclo de change-detection (con áreas grandes, un O(mesas × asientos) por ciclo) — con computed()
+	// solo recalcula cuando tables()/seats() cambian de verdad. Esto importaba especialmente durante
+	// "Tamaño de mesas": cada una de las respuestas HTTP dispara su propio ciclo de CD, y sin
+	// memoizar, cada ciclo repetía el filtro completo y recreaba todos los objetos — se sentía como
+	// que la página se congelaba.
+	tablesWithSeats = computed(() => {
 		const seats = this.seats();
 		return this.tables().map((table) => ({ ...table, seats: seats.filter((s) => s.tableId === table.id) }));
-	}
+	});
 
 	// Nombres ya usados en el área — se los paso al generador masivo para que la numeración
 	// continúe donde quedó en vez de arrancar siempre en 1 (ver bulk-create-seats-modal).

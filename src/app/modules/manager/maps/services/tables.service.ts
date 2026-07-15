@@ -33,6 +33,11 @@ export class TablesService {
 		return this.httpClient.put<Table>(`${this.baseUrl}/${id}`, table);
 	}
 
+	// Una sola request para N mesas en vez de un PUT por mesa — ver bulk-edit-tables-modal.
+	bulkResizeTables(ids: number[], size: number): Observable<Table[]> {
+		return this.httpClient.put<Table[]>(`${this.baseUrl}/bulk-resize`, { ids, size });
+	}
+
 	deleteTable(id: number): Observable<void> {
 		return this.httpClient.delete<void>(`${this.baseUrl}/${id}`);
 	}

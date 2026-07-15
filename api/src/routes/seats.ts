@@ -58,6 +58,27 @@ seatsRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	}
 }));
 
+const bulkResizeSchema = z.object({
+	ids: z.array(z.number().int()).min(1),
+	size: z.coerce.number(),
+});
+
+// Registrada ANTES de PUT /:id — mismo motivo y misma optimización que tables.ts: una sola
+// updateMany en vez de un PUT por asiento (con mesas de 10 sillas x 50 mesas, esto evita disparar
+// 500 requests individuales de golpe).
+seatsRouter.put('/bulk-resize', asyncHandler(async (req: AuthenticatedRequest, res) => {
+	const parsed = bulkResizeSchema.safeParse(req.body);
+	if (!parsed.success) {
+		res.status(400).json({ error: parsed.error.flatten() });
+		return;
+	}
+
+	const tenantId = req.user!.tenantId!;
+	await prisma.seat.updateMany({ where: { id: { in: parsed.data.ids }, tenantId }, data: { size: parsed.data.size } });
+	const seats = await prisma.seat.findMany({ where: { id: { in: parsed.data.ids }, tenantId } });
+	res.json(seats);
+}));
+
 seatsRouter.put('/:id', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const id = Number(req.params.id);
 	const tenantId = req.user!.tenantId!;

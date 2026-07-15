@@ -1,7 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject, Input, OnChanges, SimpleChanges, output, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
-import { forkJoin } from 'rxjs';
 import { Table } from '../../../../../models/maps/table';
 import { Seat } from '../../../../../models/maps/seat';
 import { TablesService } from '../../services/tables.service';
@@ -31,11 +30,12 @@ import { closeModal } from '../../../../../utils/modal';
 									}
 								</div>
 								<div class="col-md-6 mb-3">
-									<label>Tamaño de sus asientos (px) <span class="text-muted">(opcional)</span></label>
+									<label>Tamaño de sus asientos (px)</label>
 									<input type="number" class="form-control" [class.is-invalid]="isInvalid('seatSize')" formControlName="seatSize" placeholder="Dejar vacío para no tocarlos" />
 									@if (isInvalid('seatSize')) {
 										<div class="invalid-feedback">Entre 4 y 100.</div>
 									}
+									<div class="form-text">Se ajusta solo con el tamaño de mesa (misma proporción que usa "Generar varios") — cambialo a mano si querés otra relación.</div>
 								</div>
 							</div>
 							<div class="d-flex justify-content-between align-items-center mb-2">
@@ -62,7 +62,9 @@ import { closeModal } from '../../../../../utils/modal';
 					</div>
 					<div class="modal-footer">
 						<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-						<button type="button" class="btn btn-danger" [disabled]="applying || !selected().size" (click)="submit()">Aplicar</button>
+						<button type="button" class="btn btn-danger" [disabled]="applying || !selected().size" (click)="submit()">
+							{{ applying ? 'Aplicando...' : 'Aplicar' }}
+						</button>
 					</div>
 				</div>
 			</div>
@@ -95,6 +97,27 @@ export class BulkEditTablesModalComponent implements OnChanges {
 		tableSize: this.fb.control<number | null>(null, [Validators.required, Validators.min(8), Validators.max(200)]),
 		seatSize: this.fb.control<number | null>(null, [Validators.min(4), Validators.max(100)]),
 	});
+
+	// Mientras el usuario no toque el campo de asientos a mano, seatSize sigue a tableSize (misma
+	// proporción 3:1 que "Generar varios" usa al crear mesas nuevas — tableSize 30, seatSize 10) para
+	// que los números no se queden con el mismo diámetro cuando la mesa cambia de tamaño. En cuanto
+	// el usuario edita seatSize directamente, se respeta su valor y se deja de auto-ajustar.
+	private seatSizeManuallySet = false;
+
+	constructor() {
+		this.form.controls.tableSize.valueChanges.subscribe((tableSize) => {
+			if (this.seatSizeManuallySet || tableSize == null) return;
+			this.form.controls.seatSize.setValue(this.suggestedSeatSize(tableSize), { emitEvent: false });
+		});
+
+		this.form.controls.seatSize.valueChanges.subscribe(() => {
+			this.seatSizeManuallySet = true;
+		});
+	}
+
+	private suggestedSeatSize(tableSize: number): number {
+		return Math.max(4, Math.min(100, Math.round(tableSize / 3)));
+	}
 
 	// Cada vez que cambia la lista de mesas del área (se abre el modal sobre una nueva área, o se
 	// generan/borran mesas), arranca con todas seleccionadas — es el caso de uso más común ("cambiar
@@ -135,24 +158,25 @@ export class BulkEditTablesModalComponent implements OnChanges {
 
 		const { tableSize, seatSize } = this.form.getRawValue();
 		const targetTables = this.tables.filter((t) => this.selected().has(t.id));
+		const tableIds = targetTables.map((t) => t.id);
+		const seatIds = targetTables.flatMap((t) => t.seats.map((s) => s.id));
 
+		// Una request por lote (mesas, después asientos) en vez de un PUT por fila — con áreas de 50+
+		// mesas eso eran cientos de requests simultáneas, que saturaban el navegador y disparaban una
+		// tanda de change-detection por cada respuesta: exactamente lo que se sentía como "se congela".
 		this.applying = true;
-		const tableRequests = targetTables.map((t) => this.tablesService.updateTable(t.id, { size: tableSize! }));
-		forkJoin(tableRequests).subscribe({
+		this.tablesService.bulkResizeTables(tableIds, tableSize!).subscribe({
 			next: (updatedTables) => {
 				this.tablesUpdated.emit(updatedTables);
-				if (seatSize) {
-					const seatRequests = targetTables.flatMap((t) => t.seats.map((s) => this.seatsService.updateSeat(s.id, { size: seatSize })));
-					if (seatRequests.length) {
-						forkJoin(seatRequests).subscribe({
-							next: (updatedSeats) => {
-								this.seatsUpdated.emit(updatedSeats);
-								this.finish();
-							},
-							error: (err: HttpErrorResponse) => this.fail(err),
-						});
-						return;
-					}
+				if (seatSize && seatIds.length) {
+					this.seatsService.bulkResizeSeats(seatIds, seatSize).subscribe({
+						next: (updatedSeats) => {
+							this.seatsUpdated.emit(updatedSeats);
+							this.finish();
+						},
+						error: (err: HttpErrorResponse) => this.fail(err),
+					});
+					return;
 				}
 				this.finish();
 			},
@@ -163,6 +187,7 @@ export class BulkEditTablesModalComponent implements OnChanges {
 	private finish() {
 		this.applying = false;
 		this.errorMessage = '';
+		this.seatSizeManuallySet = false;
 		closeModal('bulkEditTablesModal');
 	}
 

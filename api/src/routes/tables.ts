@@ -46,6 +46,29 @@ tablesRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	}
 }));
 
+const bulkResizeSchema = z.object({
+	ids: z.array(z.number().int()).min(1),
+	size: z.coerce.number(),
+});
+
+// Registrada ANTES de PUT /:id — Express probaría "bulk-resize" como si fuera un :id si el orden
+// fuera al revés. Una sola query updateMany en vez de que el cliente dispare un PUT por mesa: con
+// áreas de 50+ mesas, cientos de PUT individuales en simultáneo saturaban la conexión del browser y
+// disparaban una tanda de change-detection por cada respuesta — se sentía como que la app se
+// congelaba (ver misma optimización necesaria en seats.ts).
+tablesRouter.put('/bulk-resize', asyncHandler(async (req: AuthenticatedRequest, res) => {
+	const parsed = bulkResizeSchema.safeParse(req.body);
+	if (!parsed.success) {
+		res.status(400).json({ error: parsed.error.flatten() });
+		return;
+	}
+
+	const tenantId = req.user!.tenantId!;
+	await prisma.table.updateMany({ where: { id: { in: parsed.data.ids }, tenantId }, data: { size: parsed.data.size } });
+	const tables = await prisma.table.findMany({ where: { id: { in: parsed.data.ids }, tenantId }, include: { seats: true } });
+	res.json(tables);
+}));
+
 tablesRouter.put('/:id', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const id = Number(req.params.id);
 	const tenantId = req.user!.tenantId!;

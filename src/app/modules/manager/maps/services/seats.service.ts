@@ -34,6 +34,11 @@ export class SeatsService {
 		return this.httpClient.put<Seat>(`${this.baseUrl}/${id}`, seat);
 	}
 
+	// Una sola request para N asientos en vez de un PUT por asiento — ver bulk-edit-tables-modal.
+	bulkResizeSeats(ids: number[], size: number): Observable<Seat[]> {
+		return this.httpClient.put<Seat[]>(`${this.baseUrl}/bulk-resize`, { ids, size });
+	}
+
 	deleteSeat(id: number): Observable<void> {
 		return this.httpClient.delete<void>(`${this.baseUrl}/${id}`);
 	}
