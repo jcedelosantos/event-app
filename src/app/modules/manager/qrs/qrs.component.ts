@@ -283,6 +283,17 @@ export class QrsComponent implements OnInit, AfterViewInit {
     this.loadQRs();
   }
 
+  // Corrección manual del check-in desde el checkbox de la columna Estado — sin confirmación, para
+  // no trabar a quien está parado en la puerta corrigiendo entradas una tras otra. No reemplaza el
+  // check-in real por QR (POST /scan), es para cuando alguien entró sin escanear o hay que revertir.
+  toggleCheckedIn(qr: SaleTicket) {
+    const checkedIn = !qr.checkedInAt;
+    this.qrService.setCheckedIn(qr.id, checkedIn).subscribe({
+      next: (updated) => this.qrList.update((list) => list.map((q) => (q.id === updated.id ? updated : q))),
+      error: (err: HttpErrorResponse) => error(extractErrorMessage(err)),
+    });
+  }
+
   deleteQR(qr: SaleTicket) {
     confirm(`¿Liberar este asiento? Se elimina la venta / QR y el asiento vuelve a estar disponible.`, {
       onConfirm: () => {

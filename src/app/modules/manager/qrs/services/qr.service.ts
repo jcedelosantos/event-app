@@ -92,6 +92,12 @@ export class QRService {
 		return this.httpClient.post<{ ok: boolean }>(`${this.baseUrl}/${id}/resend`, {});
 	}
 
+	// Corrección manual del estado (checkbox en la columna Estado) — no reemplaza el check-in real
+	// por QR (POST /scan), es para cuando alguien ya entró sin escanear o hay que revertir un error.
+	setCheckedIn(id: number, checkedIn: boolean): Observable<SaleTicket> {
+		return this.httpClient.put<SaleTicket>(`${this.baseUrl}/${id}/check-in`, { checkedIn });
+	}
+
 	bulkImport(input: BulkImportSaleTicketsInput): Observable<BulkImportResult> {
 		return this.httpClient.post<BulkImportResult>(`${this.baseUrl}/bulk-import`, input);
 	}

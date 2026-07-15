@@ -131,11 +131,23 @@
             }
             @if (visibleQrColumns()['status']) {
                 <td scope="row">
-                    @if (qr.checkedInAt) {
-                        <span class="badge text-bg-success">Ingresó</span>
-                    } @else {
-                        <span class="badge text-bg-secondary">Pendiente</span>
-                    }
+                    <div class="form-check form-switch mb-0" [title]="qr.checkedInAt ? 'Marcar como pendiente' : 'Marcar como ingresó'">
+                        <input
+                            class="form-check-input"
+                            type="checkbox"
+                            role="switch"
+                            [id]="'checkedin-' + qr.id"
+                            [checked]="!!qr.checkedInAt"
+                            (change)="toggleCheckedIn(qr)"
+                        />
+                        <label class="form-check-label small" [for]="'checkedin-' + qr.id">
+                            @if (qr.checkedInAt) {
+                                <span class="badge text-bg-success">Ingresó</span>
+                            } @else {
+                                <span class="badge text-bg-secondary">Pendiente</span>
+                            }
+                        </label>
+                    </div>
                 </td>
             }
             @if (visibleQrColumns()['attendeeType']) {

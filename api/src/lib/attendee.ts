@@ -11,6 +11,14 @@ export async function isClubTenant(tenantId: number): Promise<boolean> {
 	return tenant?.type === 'CLUB';
 }
 
+// Los carnets se tipean a mano (el socio en un lado, el invitado del otro) — sin normalizar,
+// "C6735" y "c6735" cuentan como socios distintos y un socio real termina apareciendo como "no
+// registrado". SQLite compara TEXT de forma case-sensitive por default, así que esto se resuelve
+// en JS, no con `equals` de Prisma.
+export function normalizeCarnet(carnet: string): string {
+	return carnet.trim().toLowerCase();
+}
+
 // Devuelve un mensaje de error si la reserva no cumple la regla de socio/invitado, o null si está
 // OK. Un socio necesita su propio carnet; un invitado necesita el carnet del socio que lo invita, y
 // ese socio no puede acumular más de MAX_INVITADOS_PER_SOCIO invitados en el mismo evento.
@@ -40,20 +48,25 @@ export async function validateAttendeeRule(params: {
 	if (!sponsorCarnet) {
 		return 'Ingresá el carnet del socio que invita.';
 	}
+	const normalizedSponsor = normalizeCarnet(sponsorCarnet);
 
 	// Un invitado no puede "entrar solo" al evento — el socio que lo invita tiene que tener su
 	// propia entrada ya comprada para este mismo evento (identificado por carnet, no por sesión, ya
 	// que el invitado hace su propia compra por separado).
-	const sponsorRegistered = await prisma.saleTicket.findFirst({
-		where: { eventId: params.eventId, tenantId: params.tenantId, attendeeType: 'SOCIO', client: { carnet: sponsorCarnet } },
+	const socioSales = await prisma.saleTicket.findMany({
+		where: { eventId: params.eventId, tenantId: params.tenantId, attendeeType: 'SOCIO' },
+		select: { client: { select: { carnet: true } } },
 	});
+	const sponsorRegistered = socioSales.some((s) => normalizeCarnet(s.client.carnet ?? '') === normalizedSponsor);
 	if (!sponsorRegistered) {
 		return `Socio ${sponsorCarnet} aún no está registrado en este evento.`;
 	}
 
-	const existingInvites = await prisma.saleTicket.count({
-		where: { eventId: params.eventId, tenantId: params.tenantId, attendeeType: 'INVITADO', sponsorCarnet },
+	const invitadoSales = await prisma.saleTicket.findMany({
+		where: { eventId: params.eventId, tenantId: params.tenantId, attendeeType: 'INVITADO' },
+		select: { sponsorCarnet: true },
 	});
+	const existingInvites = invitadoSales.filter((s) => normalizeCarnet(s.sponsorCarnet ?? '') === normalizedSponsor).length;
 	const newInviteCount = params.newInviteCount ?? 1;
 	if (existingInvites + newInviteCount > MAX_INVITADOS_PER_SOCIO) {
 		return `Este socio ya alcanzó el máximo de ${MAX_INVITADOS_PER_SOCIO} invitados para este evento.`;

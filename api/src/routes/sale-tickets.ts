@@ -284,8 +284,34 @@ saleTicketsRouter.post('/:id/resend', asyncHandler(async (req: AuthenticatedRequ
 	}
 }));
 
-// El check-in por QR se hace vía el endpoint unificado POST /scan (ver scan.ts), que también
-// cubre la entrega de productos con el mismo lector.
+// El check-in normal es por QR vía el endpoint unificado POST /scan (ver scan.ts), que también
+// cubre la entrega de productos con el mismo lector — esta ruta es la corrección manual desde el
+// panel (marcar/desmarcar "Ingresó" sin escanear, ej. si el asistente ya entró sin QR o el scanner
+// no anda) y solo toca checkedInAt, nada más del registro.
+saleTicketsRouter.put('/:id/check-in', asyncHandler(async (req: AuthenticatedRequest, res) => {
+	const id = Number(req.params.id);
+	const tenantId = req.user!.tenantId!;
+	const checkedIn = req.body?.checkedIn;
+	if (typeof checkedIn !== 'boolean') {
+		res.status(400).json({ error: 'checkedIn debe ser true o false' });
+		return;
+	}
+
+	try {
+		const saleTicket = await prisma.saleTicket.update({
+			where: { id, tenantId },
+			data: { checkedInAt: checkedIn ? new Date() : null },
+			include,
+		});
+		res.json(toPublicSaleTicket(saleTicket));
+	} catch (err: any) {
+		if (err.code === 'P2025') {
+			res.status(404).json({ error: 'Venta no encontrada' });
+			return;
+		}
+		throw err;
+	}
+}));
 
 // Borrar la venta libera el asiento (la disponibilidad se calcula por ausencia de SaleTicket) — por
 // eso esta acción requiere el permiso RELEASE_SEAT en vez de quedar abierta a cualquier manager

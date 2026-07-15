@@ -6,7 +6,7 @@ import { prisma, prismaUnscoped } from '../lib/prisma';
 import { toPublicUser } from '../lib/serialize';
 import { sendTicketEmail } from '../lib/mail';
 import { asyncHandler } from '../lib/async-handler';
-import { isClubTenant, validateAttendeeRule, MAX_INVITADOS_PER_SOCIO } from '../lib/attendee';
+import { isClubTenant, validateAttendeeRule, normalizeCarnet, MAX_INVITADOS_PER_SOCIO } from '../lib/attendee';
 
 export const publicRouter = Router();
 
@@ -90,12 +90,19 @@ publicRouter.get('/events/:code/sponsor-status', asyncHandler(async (req, res) =
 		return;
 	}
 
-	const sponsorRegistered = await prisma.saleTicket.findFirst({
-		where: { eventId: event.id, tenantId: event.tenantId, attendeeType: 'SOCIO', client: { carnet } },
+	// Mismo criterio que validateAttendeeRule: el carnet se compara normalizado (case/espacios), no
+	// con `equals` de Prisma, para que "C6735" y "c6735" cuenten como el mismo socio.
+	const normalizedCarnet = normalizeCarnet(carnet);
+	const socioSales = await prisma.saleTicket.findMany({
+		where: { eventId: event.id, tenantId: event.tenantId, attendeeType: 'SOCIO' },
+		select: { client: { select: { carnet: true } } },
 	});
-	const used = await prisma.saleTicket.count({
-		where: { eventId: event.id, tenantId: event.tenantId, attendeeType: 'INVITADO', sponsorCarnet: carnet },
+	const sponsorRegistered = socioSales.some((s) => normalizeCarnet(s.client.carnet ?? '') === normalizedCarnet);
+	const invitadoSales = await prisma.saleTicket.findMany({
+		where: { eventId: event.id, tenantId: event.tenantId, attendeeType: 'INVITADO' },
+		select: { sponsorCarnet: true },
 	});
+	const used = invitadoSales.filter((s) => normalizeCarnet(s.sponsorCarnet ?? '') === normalizedCarnet).length;
 	res.json({
 		registered: !!sponsorRegistered,
 		used,
