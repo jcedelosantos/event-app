@@ -90,6 +90,8 @@ export type PurchasedSaleTicket = {
 	ticket: { name: string; type: string; price: number };
 };
 
+export type SponsorStatus = { used: number; max: number; blocked: boolean };
+
 @Injectable({ providedIn: 'root' })
 export class PublicEventService {
 	private readonly httpClient = inject(HttpClient);
@@ -101,5 +103,11 @@ export class PublicEventService {
 
 	purchase(input: PurchaseInput): Observable<PurchasedSaleTicket[]> {
 		return this.httpClient.post<PurchasedSaleTicket[]>(`${this.baseUrl}/purchase`, input);
+	}
+
+	// Chequea el tope de invitados de un socio ANTES de dejar elegir asiento — evita que un invitado
+	// arme toda su selección para recién enterarse del rechazo al confirmar (ver public.ts).
+	getSponsorStatus(code: string, carnet: string): Observable<SponsorStatus> {
+		return this.httpClient.get<SponsorStatus>(`${this.baseUrl}/events/${code}/sponsor-status`, { params: { carnet } });
 	}
 }

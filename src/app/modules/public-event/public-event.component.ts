@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } 
 import { ActivatedRoute } from '@angular/router';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
+import { debounceTime, distinctUntilChanged } from 'rxjs';
 import { QRCodeComponent } from 'angularx-qrcode';
 import { AttendeeType, PublicArea, PublicEvent, PublicEventService, PublicSeat, PurchasedSaleTicket } from './services/public-event.service';
 import { extractErrorMessage } from '../../utils/api-error';
@@ -149,7 +150,9 @@ const MAX_INVITADO_SEATS = 2;
 									<h5 class="mb-0">2. Elegí tu(s) asiento(s)</h5>
 									<span class="badge text-bg-danger">{{ selectedSeatIds().size }} / {{ effectiveMaxSeats() }}</span>
 								</div>
-								@if (!activeTicketId()) {
+								@if (sponsorBlocked()) {
+									<p class="text-danger">El socio ingresado ya alcanzó su máximo de invitados para este evento — no podés elegir asiento con ese carnet.</p>
+								} @else if (!activeTicketId()) {
 									<p class="text-body-secondary">
 										@if (ev.tenantType === 'CLUB') {
 											@if (!attendeeTypeValue()) {
@@ -595,6 +598,11 @@ export class PublicEventComponent implements OnInit {
 	// backend, que es la fuente de verdad real (ver api/src/lib/attendee.ts).
 	attendeeError = signal('');
 
+	// True si el socio ingresado como sponsorCarnet ya alcanzó su tope de invitados para este evento
+	// — se chequea apenas se completa el carnet (ver constructor), ANTES de dejar elegir asiento, para
+	// no hacerle armar toda la selección a alguien que igual va a ser rechazado al confirmar.
+	sponsorBlocked = signal(false);
+
 	constructor() {
 		this.registerForm.controls.attendeeType.valueChanges.subscribe((value) => {
 			this.attendeeTypeValue.set(value ?? '');
@@ -602,6 +610,33 @@ export class PublicEventComponent implements OnInit {
 			// qué tope de asientos aplican — una selección hecha bajo el tipo anterior puede ya no ser
 			// válida, así que arranca de cero en vez de arrastrar asientos que no correspondan.
 			this.selectedSeatIds.set(new Set());
+			this.sponsorBlocked.set(false);
+			this.attendeeError.set('');
+		});
+
+		this.registerForm.controls.sponsorCarnet.valueChanges.pipe(debounceTime(400), distinctUntilChanged()).subscribe((carnet) => {
+			this.checkSponsorStatus(carnet);
+		});
+	}
+
+	private checkSponsorStatus(carnet: string | null) {
+		this.sponsorBlocked.set(false);
+		this.attendeeError.set('');
+		const ev = this.event();
+		const trimmed = carnet?.trim();
+		if (!ev || this.attendeeTypeValue() !== 'INVITADO' || !trimmed) return;
+
+		this.publicEventService.getSponsorStatus(ev.code, trimmed).subscribe({
+			next: (status) => {
+				if (status.blocked) {
+					this.sponsorBlocked.set(true);
+					this.attendeeError.set(`El socio ${trimmed} ya alcanzó su máximo de invitados para este evento.`);
+					this.selectedSeatIds.set(new Set());
+				}
+			},
+			// Silencioso: si el chequeo preventivo falla (red, etc.) no bloqueamos por las dudas — el
+			// submit real vuelve a validar esto igual, así que nunca se cuela una reserva de más.
+			error: () => {},
 		});
 	}
 
@@ -672,6 +707,10 @@ export class PublicEventComponent implements OnInit {
 		if (event.tenantType === 'CLUB') {
 			if (!attendeeType) {
 				this.attendeeError.set('Elegí si sos socio o invitado.');
+				return;
+			}
+			if (this.sponsorBlocked()) {
+				this.attendeeError.set(`El socio ${sponsorCarnet?.trim()} ya alcanzó su máximo de invitados para este evento.`);
 				return;
 			}
 			if (!this.activeTicketId()) {

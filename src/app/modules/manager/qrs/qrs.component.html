@@ -141,7 +141,7 @@
             @if (visibleQrColumns()['attendeeType']) {
                 <td scope="row">
                     @if (qr.attendeeType === 'INVITADO') {
-                        <span class="badge text-bg-secondary" [title]="'Invitado por socio con carnet ' + (qr.sponsorCarnet ?? '—')">Invitado</span>
+                        <span class="badge text-bg-secondary" [title]="'Invitado por socio con carnet ' + (qr.sponsorCarnet ?? '—')">INV-{{ qr.sponsorCarnet ?? '—' }}</span>
                     } @else {
                         <span class="badge text-bg-secondary">Socio</span>
                     }

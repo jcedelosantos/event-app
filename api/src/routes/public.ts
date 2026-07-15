@@ -6,7 +6,7 @@ import { prisma, prismaUnscoped } from '../lib/prisma';
 import { toPublicUser } from '../lib/serialize';
 import { sendTicketEmail } from '../lib/mail';
 import { asyncHandler } from '../lib/async-handler';
-import { isClubTenant, validateAttendeeRule } from '../lib/attendee';
+import { isClubTenant, validateAttendeeRule, MAX_INVITADOS_PER_SOCIO } from '../lib/attendee';
 
 export const publicRouter = Router();
 
@@ -65,6 +65,34 @@ publicRouter.get('/events/:code', asyncHandler(async (req, res) => {
 		// lib/attendee.ts. Solo importa el tipo, no se expone nada más del tenant acá.
 		tenantType: event.tenant?.type ?? 'GENERAL',
 	});
+}));
+
+// Chequeo previo del tope de invitados por socio — el picker público lo usa apenas se completa el
+// carnet del socio que invita, ANTES de dejar elegir asiento, para no hacer perder tiempo armando
+// una selección que después el submit va a rechazar igual (ver validateAttendeeRule, misma regla,
+// única fuente de verdad real).
+publicRouter.get('/events/:code/sponsor-status', asyncHandler(async (req, res) => {
+	const carnet = String(req.query.carnet ?? '').trim();
+	if (!carnet) {
+		res.status(400).json({ error: 'Falta el carnet del socio' });
+		return;
+	}
+
+	const event = await prismaUnscoped.event.findUnique({ where: { code: req.params.code }, select: { id: true, tenantId: true } });
+	if (!event) {
+		res.status(404).json({ error: 'Evento no encontrado' });
+		return;
+	}
+
+	if (!(await isClubTenant(event.tenantId))) {
+		res.json({ used: 0, max: MAX_INVITADOS_PER_SOCIO, blocked: false });
+		return;
+	}
+
+	const used = await prisma.saleTicket.count({
+		where: { eventId: event.id, tenantId: event.tenantId, attendeeType: 'INVITADO', sponsorCarnet: carnet },
+	});
+	res.json({ used, max: MAX_INVITADOS_PER_SOCIO, blocked: used >= MAX_INVITADOS_PER_SOCIO });
 }));
 
 const registerSchema = z.object({
