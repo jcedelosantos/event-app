@@ -1,8 +1,9 @@
-import { ChangeDetectionStrategy, Component, AfterViewInit, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, AfterViewInit, computed, inject, input, output } from '@angular/core';
 import JsBarcode /* , { Options as jsBarcodeOptions } */ from 'jsbarcode';
 
 import { NgClass } from '@angular/common';
 import { Ticket } from '../../../../../models/tickets/ticket';
+import { AuthService } from '../../../../../core/services/auth.service';
 
 @Component({
 	selector: 'ticket-card',
@@ -21,7 +22,7 @@ import { Ticket } from '../../../../../models/tickets/ticket';
 							<span class="badge"
 							[ngClass]="{'text-bg-purple ': ticket().type === 'VIP',
 										'text-bg-secondary': ticket().type !== 'VIP'}">
-										{{ ticket().type }}
+										{{ typeBadgeLabel() }}
 									</span>
 						</div>
 						<div class="d-flex flex-row-reverse">
@@ -64,12 +65,27 @@ import { Ticket } from '../../../../../models/tickets/ticket';
 	changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TicketCardComponent implements AfterViewInit {
+	private readonly authService = inject(AuthService);
 
 	ticket = input.required<Ticket>();
 	selectedTicket = output<Ticket | null>();
 	deleteTicket = output<Ticket>();
 
 	readonly lowStockThreshold = 5;
+
+	// Igual que en event-card: en tenants CLUB, "Socio"/"Invitado" en vez de "VIP"/"Normal" — el
+	// color del badge se queda atado a type (VIP=morado) para no romper esa señal visual ya
+	// establecida, solo cambia el texto.
+	isClubTenant = computed(() => this.authService.currentUser()?.tenant?.type === 'CLUB');
+
+	typeBadgeLabel(): string {
+		const ticket = this.ticket();
+		if (this.isClubTenant()) {
+			if (ticket.attendeeType === 'SOCIO') return 'Socio';
+			if (ticket.attendeeType === 'INVITADO') return 'Invitado';
+		}
+		return ticket.type;
+	}
 
 	seatsAvailablePercent(): number {
 		const total = this.ticket().seatsTotal ?? 0;

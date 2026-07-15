@@ -8,8 +8,17 @@ type SaleTicketForEmail = {
 	codeQR: string;
 	description: string;
 	seat: { name: string; area: { name: string } };
-	ticket: { name: string; type: string; price: number };
+	// attendeeType solo viene seteado en tenants CLUB (ver Ticket.attendeeType) — cuando está,
+	// reemplaza a `type` (VIP/Normal) en el ticket impreso/enviado, igual que ya se hace en las
+	// tarjetas de ticket/evento del manager.
+	ticket: { name: string; type: string; price: number; attendeeType?: string | null };
 };
+
+function ticketTypeLabel(ticket: { type: string; attendeeType?: string | null }): string {
+	if (ticket.attendeeType === 'SOCIO') return 'Socio';
+	if (ticket.attendeeType === 'INVITADO') return 'Invitado';
+	return ticket.type;
+}
 
 type SaleProductForEmail = {
 	id: number;
@@ -62,7 +71,7 @@ function buildTicketPdf(event: EventModel, sale: SaleTicketForEmail, qrBuffer: B
 
 		const contentWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
 
-		doc.fontSize(10).fillColor('#dc3545').text(sale.ticket.type.toUpperCase(), { characterSpacing: 1 });
+		doc.fontSize(10).fillColor('#dc3545').text(ticketTypeLabel(sale.ticket).toUpperCase(), { characterSpacing: 1 });
 		doc.moveDown(0.4);
 		doc.fontSize(18).fillColor('#000').text(event.name, { width: contentWidth });
 		doc.moveDown(0.2);
@@ -141,7 +150,7 @@ async function ticketCardHtml(event: EventModel, sale: SaleTicketForEmail): Prom
 			<tr>
 				<td style="padding:20px;">
 					<div style="color:#fff;font-family:Arial,Helvetica,sans-serif;">
-						<div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#dc3545;font-weight:bold;">${sale.ticket.type}</div>
+						<div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#dc3545;font-weight:bold;">${ticketTypeLabel(sale.ticket)}</div>
 						<div style="font-size:20px;font-weight:bold;margin:4px 0;">${event.name}</div>
 						<div style="font-size:13px;color:#aaa;margin-bottom:12px;">${formatEventDateTime(event)}</div>
 						<table role="presentation" width="100%" cellpadding="0" cellspacing="0">
