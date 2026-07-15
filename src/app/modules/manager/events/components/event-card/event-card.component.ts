@@ -1,7 +1,9 @@
-import { ChangeDetectionStrategy, Component, Input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, Input, computed, inject, output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Events } from '../../../../../models/events/events';
+import { Ticket } from '../../../../../models/tickets/ticket';
 import { RouterLink } from '@angular/router';
+import { AuthService } from '../../../../../core/services/auth.service';
 
 @Component({
 	selector: 'event-card',
@@ -30,7 +32,7 @@ import { RouterLink } from '@angular/router';
 					<p class="card-text small text-body-secondary mb-1">{{ event.map?.description }}</p>
 					<div class="d-flex justify-content-start flex-row flex-wrap gap-1">
 						@for (ticket of event.tickets; track $index; let idx = $index) {
-							<span class="badge rounded-pill text-bg-warning">{{ ticket.type }}</span>
+							<span class="badge rounded-pill text-bg-warning">{{ ticketBadgeLabel(ticket) }}</span>
 						}
 					</div>
 				</div>
@@ -49,11 +51,25 @@ import { RouterLink } from '@angular/router';
 	changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class EventCardComponent {
+	private readonly authService = inject(AuthService);
+
+	// Solo los tenants tipo CLUB reemplazan VIP/Normal por Socio/Invitado en la tarjeta — el resto
+	// de las organizaciones sigue viendo el nombre real del tipo de ticket.
+	isClubTenant = computed(() => this.authService.currentUser()?.tenant?.type === 'CLUB');
+
 	@Input({ required: true })
 	event!: Events;
 
 	editEvent = output<Events>();
 	deleteEvent = output<Events>();
+
+	ticketBadgeLabel(ticket: Ticket): string {
+		if (this.isClubTenant()) {
+			if (ticket.attendeeType === 'SOCIO') return 'Socio';
+			if (ticket.attendeeType === 'INVITADO') return 'Invitado';
+		}
+		return ticket.type;
+	}
 
 	eventDateRelative(date?: string | Date): string {
 		if (!date) return 'Date unknown';
