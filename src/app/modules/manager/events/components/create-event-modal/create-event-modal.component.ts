@@ -7,6 +7,8 @@ import { Map } from '../../../../../models/maps/map';
 import { extractErrorMessage } from '../../../../../utils/api-error';
 import { closeModal } from '../../../../../utils/modal';
 
+declare const bootstrap: any;
+
 // dateOn representa un día calendario como medianoche UTC (ver utils/dates.ts) — leerlo con
 // getters UTC evita que el <input type="date"> muestre un día antes/después en timezones
 // detrás de UTC.
@@ -94,7 +96,7 @@ function toDateInputValue(date: Date): string {
 											<option [ngValue]="map.id">{{ map.name }}</option>
 										}
 									</select>
-									<button type="button" class="btn btn-outline-danger btn-sm text-nowrap" data-bs-toggle="modal" data-bs-target="#createMapModal">+ Map</button>
+									<button type="button" class="btn btn-outline-danger btn-sm text-nowrap" (click)="openMapModal()">+ Map</button>
 								</div>
 								<div class="form-text">¿No está el mapa que buscás? Creá uno con "+ Map" y elegilo acá al volver.</div>
 							</div>
@@ -159,6 +161,18 @@ export class CreateEventModalComponent {
 	isInvalid(controlName: keyof typeof this.eventForm.controls): boolean {
 		const control = this.eventForm.controls[controlName];
 		return control.invalid && control.touched;
+	}
+
+	// Cierra este modal antes de abrir #createMapModal en vez de apilarlo encima — Bootstrap no
+	// soporta bien modales anidados y eso dejaba un backdrop huérfano bloqueando toda la página
+	// hasta refrescar (ver utils/modal.ts). El form no pierde lo tipeado: el componente sigue vivo,
+	// solo oculto — events.component.ts reabre este modal cuando #createMapModal se cierra.
+	openMapModal() {
+		closeModal('createEventModal');
+		const modalEl = document.getElementById('createMapModal');
+		if (modalEl) {
+			bootstrap.Modal.getOrCreateInstance(modalEl).show();
+		}
 	}
 
 	submit() {

@@ -151,8 +151,18 @@ export class EventsComponent implements OnInit, AfterViewInit {
 	}
 
 	ngAfterViewInit(): void {
-		const modalEl = document.getElementById('createEventModal');
-		modalEl?.addEventListener('hidden.bs.modal', () => this.eventToEdit.set(null));
+		const eventModalEl = document.getElementById('createEventModal');
+		eventModalEl?.addEventListener('hidden.bs.modal', () => this.eventToEdit.set(null));
+
+		// "+ Map" (en create-event-modal) cierra este modal para abrir #createMapModal en su lugar,
+		// en vez de apilarlo encima (ver el comentario en openMapModal() del componente hijo) — al
+		// cerrarse el mapa, se reabre el form de evento para que el usuario continúe donde estaba.
+		const mapModalEl = document.getElementById('createMapModal');
+		mapModalEl?.addEventListener('hidden.bs.modal', () => {
+			if (eventModalEl) {
+				bootstrap.Modal.getOrCreateInstance(eventModalEl).show();
+			}
+		});
 	}
 
 	loadEvents() {

@@ -21,7 +21,9 @@ export function cleanupOrphanedModalBackdrop() {
 		// Bootstrap apila un backdrop por cada modal abierto (para nested modals) — si un cierre
 		// previo dejó un backdrop fantasma sin sacar, un modal legítimamente abierto puede terminar
 		// con MÁS backdrops que modales realmente abiertos. Sobran, no faltan: de más bloquean
-		// clicks sobre el modal real; de menos nunca pasa por diseño de Bootstrap.
+		// clicks sobre el modal real; de menos nunca pasa por diseño de Bootstrap. El backdrop más
+		// nuevo es el del modal recién (re)abierto — el que hay que conservar — así que se
+		// descartan los más viejos.
 		if (backdrops.length > openCount) {
 			Array.from(backdrops)
 				.slice(0, backdrops.length - openCount)
