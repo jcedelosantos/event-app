@@ -40,6 +40,17 @@ export async function validateAttendeeRule(params: {
 	if (!sponsorCarnet) {
 		return 'Ingresá el carnet del socio que invita.';
 	}
+
+	// Un invitado no puede "entrar solo" al evento — el socio que lo invita tiene que tener su
+	// propia entrada ya comprada para este mismo evento (identificado por carnet, no por sesión, ya
+	// que el invitado hace su propia compra por separado).
+	const sponsorRegistered = await prisma.saleTicket.findFirst({
+		where: { eventId: params.eventId, tenantId: params.tenantId, attendeeType: 'SOCIO', client: { carnet: sponsorCarnet } },
+	});
+	if (!sponsorRegistered) {
+		return `Socio ${sponsorCarnet} aún no está registrado en este evento.`;
+	}
+
 	const existingInvites = await prisma.saleTicket.count({
 		where: { eventId: params.eventId, tenantId: params.tenantId, attendeeType: 'INVITADO', sponsorCarnet },
 	});

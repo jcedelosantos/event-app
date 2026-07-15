@@ -90,7 +90,7 @@ export type PurchasedSaleTicket = {
 	ticket: { name: string; type: string; price: number };
 };
 
-export type SponsorStatus = { used: number; max: number; blocked: boolean };
+export type SponsorStatus = { registered: boolean; used: number; max: number; blocked: boolean };
 
 @Injectable({ providedIn: 'root' })
 export class PublicEventService {

@@ -67,10 +67,11 @@ publicRouter.get('/events/:code', asyncHandler(async (req, res) => {
 	});
 }));
 
-// Chequeo previo del tope de invitados por socio — el picker público lo usa apenas se completa el
-// carnet del socio que invita, ANTES de dejar elegir asiento, para no hacer perder tiempo armando
-// una selección que después el submit va a rechazar igual (ver validateAttendeeRule, misma regla,
-// única fuente de verdad real).
+// Chequeo previo de socio/invitado — el picker público lo usa apenas se completa el carnet del
+// socio que invita, ANTES de dejar elegir asiento, para no hacer perder tiempo armando una
+// selección que después el submit va a rechazar igual (ver validateAttendeeRule, misma regla,
+// única fuente de verdad real). Dos motivos de bloqueo: el socio todavía no compró su propia
+// entrada para este evento (un invitado no puede "entrar solo"), o ya alcanzó su tope de invitados.
 publicRouter.get('/events/:code/sponsor-status', asyncHandler(async (req, res) => {
 	const carnet = String(req.query.carnet ?? '').trim();
 	if (!carnet) {
@@ -85,14 +86,22 @@ publicRouter.get('/events/:code/sponsor-status', asyncHandler(async (req, res) =
 	}
 
 	if (!(await isClubTenant(event.tenantId))) {
-		res.json({ used: 0, max: MAX_INVITADOS_PER_SOCIO, blocked: false });
+		res.json({ registered: true, used: 0, max: MAX_INVITADOS_PER_SOCIO, blocked: false });
 		return;
 	}
 
+	const sponsorRegistered = await prisma.saleTicket.findFirst({
+		where: { eventId: event.id, tenantId: event.tenantId, attendeeType: 'SOCIO', client: { carnet } },
+	});
 	const used = await prisma.saleTicket.count({
 		where: { eventId: event.id, tenantId: event.tenantId, attendeeType: 'INVITADO', sponsorCarnet: carnet },
 	});
-	res.json({ used, max: MAX_INVITADOS_PER_SOCIO, blocked: used >= MAX_INVITADOS_PER_SOCIO });
+	res.json({
+		registered: !!sponsorRegistered,
+		used,
+		max: MAX_INVITADOS_PER_SOCIO,
+		blocked: !sponsorRegistered || used >= MAX_INVITADOS_PER_SOCIO,
+	});
 }));
 
 const registerSchema = z.object({

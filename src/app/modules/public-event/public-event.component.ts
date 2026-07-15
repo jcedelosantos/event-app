@@ -151,7 +151,7 @@ const MAX_INVITADO_SEATS = 2;
 									<span class="badge text-bg-danger">{{ selectedSeatIds().size }} / {{ effectiveMaxSeats() }}</span>
 								</div>
 								@if (sponsorBlocked()) {
-									<p class="text-danger">El socio ingresado ya alcanzó su máximo de invitados para este evento — no podés elegir asiento con ese carnet.</p>
+									<p class="text-danger">{{ attendeeError() }}</p>
 								} @else if (!activeTicketId()) {
 									<p class="text-body-secondary">
 										@if (ev.tenantType === 'CLUB') {
@@ -598,10 +598,13 @@ export class PublicEventComponent implements OnInit {
 	// backend, que es la fuente de verdad real (ver api/src/lib/attendee.ts).
 	attendeeError = signal('');
 
-	// True si el socio ingresado como sponsorCarnet ya alcanzó su tope de invitados para este evento
-	// — se chequea apenas se completa el carnet (ver constructor), ANTES de dejar elegir asiento, para
-	// no hacerle armar toda la selección a alguien que igual va a ser rechazado al confirmar.
-	sponsorBlocked = signal(false);
+	// Motivo por el que el socio ingresado como sponsorCarnet no habilita elegir asiento, o null si
+	// está OK — se chequea apenas se completa el carnet (ver constructor), ANTES de dejar elegir
+	// asiento, para no hacerle armar toda la selección a alguien que igual va a ser rechazado al
+	// confirmar. Se guarda el motivo (no solo un booleano) para poder mostrar el mismo mensaje
+	// específico también si el submit llega a dispararse antes de que termine este chequeo.
+	sponsorBlockReason = signal<'not-registered' | 'max-reached' | null>(null);
+	sponsorBlocked = computed(() => this.sponsorBlockReason() !== null);
 
 	constructor() {
 		this.registerForm.controls.attendeeType.valueChanges.subscribe((value) => {
@@ -610,7 +613,7 @@ export class PublicEventComponent implements OnInit {
 			// qué tope de asientos aplican — una selección hecha bajo el tipo anterior puede ya no ser
 			// válida, así que arranca de cero en vez de arrastrar asientos que no correspondan.
 			this.selectedSeatIds.set(new Set());
-			this.sponsorBlocked.set(false);
+			this.sponsorBlockReason.set(null);
 			this.attendeeError.set('');
 		});
 
@@ -619,8 +622,14 @@ export class PublicEventComponent implements OnInit {
 		});
 	}
 
+	sponsorBlockMessage(carnet: string): string {
+		return this.sponsorBlockReason() === 'not-registered'
+			? `Socio ${carnet} aún no está registrado en este evento.`
+			: `El socio ${carnet} ya alcanzó su máximo de invitados para este evento.`;
+	}
+
 	private checkSponsorStatus(carnet: string | null) {
-		this.sponsorBlocked.set(false);
+		this.sponsorBlockReason.set(null);
 		this.attendeeError.set('');
 		const ev = this.event();
 		const trimmed = carnet?.trim();
@@ -628,10 +637,17 @@ export class PublicEventComponent implements OnInit {
 
 		this.publicEventService.getSponsorStatus(ev.code, trimmed).subscribe({
 			next: (status) => {
-				if (status.blocked) {
-					this.sponsorBlocked.set(true);
-					this.attendeeError.set(`El socio ${trimmed} ya alcanzó su máximo de invitados para este evento.`);
+				// Un invitado no puede "entrar solo" — el socio que lo invita tiene que tener su propia
+				// entrada ya comprada para este evento, chequeado antes que el tope de invitados.
+				if (!status.registered) {
+					this.sponsorBlockReason.set('not-registered');
 					this.selectedSeatIds.set(new Set());
+				} else if (status.blocked) {
+					this.sponsorBlockReason.set('max-reached');
+					this.selectedSeatIds.set(new Set());
+				}
+				if (this.sponsorBlockReason()) {
+					this.attendeeError.set(this.sponsorBlockMessage(trimmed));
 				}
 			},
 			// Silencioso: si el chequeo preventivo falla (red, etc.) no bloqueamos por las dudas — el
@@ -710,7 +726,7 @@ export class PublicEventComponent implements OnInit {
 				return;
 			}
 			if (this.sponsorBlocked()) {
-				this.attendeeError.set(`El socio ${sponsorCarnet?.trim()} ya alcanzó su máximo de invitados para este evento.`);
+				this.attendeeError.set(this.sponsorBlockMessage(sponsorCarnet?.trim() ?? ''));
 				return;
 			}
 			if (!this.activeTicketId()) {
