@@ -152,18 +152,8 @@ const MAX_INVITADO_SEATS = 2;
 								</div>
 								@if (sponsorBlocked()) {
 									<p class="text-danger">{{ attendeeError() }}</p>
-								} @else if (!activeTicketId()) {
-									<p class="text-body-secondary">
-										@if (ev.tenantType === 'CLUB') {
-											@if (!attendeeTypeValue()) {
-												Completá tus datos arriba (decinos si sos socio o invitado) para poder elegir tu(s) asiento(s).
-											} @else {
-												Este evento no tiene un ticket de {{ attendeeTypeValue() === 'SOCIO' ? 'socio' : 'invitado' }} disponible — contactá a la organización.
-											}
-										} @else {
-											Elegí primero un tipo de ticket arriba para poder elegir tu(s) asiento(s).
-										}
-									</p>
+								} @else if (!canPickSeats()) {
+									<p class="text-body-secondary">{{ seatsLockedMessage(ev) }}</p>
 								} @else {
 								@if (!ev.map || !ev.map.areas.length) {
 									<p class="text-body-secondary">Este evento todavía no tiene asientos configurados.</p>
@@ -606,6 +596,13 @@ export class PublicEventComponent implements OnInit {
 	sponsorBlockReason = signal<'not-registered' | 'max-reached' | null>(null);
 	sponsorBlocked = computed(() => this.sponsorBlockReason() !== null);
 
+	// True solo cuando el carnet del socio que invita ya fue chequeado contra el backend y quedó
+	// habilitado (registrado + no llegó al tope) — hasta entonces la selección de asientos queda
+	// bloqueada, aunque el ticket ya se haya auto-resuelto por attendeeType. Se resetea a false apenas
+	// el carnet cambia (antes de que el debounce dispare el chequeo de nuevo), para que nunca quede
+	// "confirmado" un carnet viejo mientras se escribe uno nuevo.
+	sponsorConfirmed = signal(false);
+
 	constructor() {
 		this.registerForm.controls.attendeeType.valueChanges.subscribe((value) => {
 			this.attendeeTypeValue.set(value ?? '');
@@ -614,7 +611,12 @@ export class PublicEventComponent implements OnInit {
 			// válida, así que arranca de cero en vez de arrastrar asientos que no correspondan.
 			this.selectedSeatIds.set(new Set());
 			this.sponsorBlockReason.set(null);
+			this.sponsorConfirmed.set(false);
 			this.attendeeError.set('');
+		});
+
+		this.registerForm.controls.sponsorCarnet.valueChanges.subscribe(() => {
+			this.sponsorConfirmed.set(false);
 		});
 
 		this.registerForm.controls.sponsorCarnet.valueChanges.pipe(debounceTime(400), distinctUntilChanged()).subscribe((carnet) => {
@@ -628,8 +630,54 @@ export class PublicEventComponent implements OnInit {
 			: `El socio ${carnet} ya alcanzó su máximo de invitados para este evento.`;
 	}
 
+	// Gatekeeper único de "2. Elegí tu(s) asiento(s)": para un tenant CLUB no alcanza con haber
+	// elegido socio/invitado (eso solo resuelve el ticket) — un invitado necesita el carnet del socio
+	// ya CONFIRMADO contra el backend, y un socio necesita sus datos de contacto + su propio carnet
+	// completos. Antes de este chequeo, elegir "Soy invitado" ya destrababa el mapa de asientos sin
+	// haber cargado carnet ni datos — bug real reportado en producción.
+	canPickSeats(): boolean {
+		const ev = this.event();
+		if (!ev || !this.activeTicketId()) return false;
+		if (ev.tenantType !== 'CLUB') return true;
+
+		const type = this.attendeeTypeValue();
+		if (!type) return false;
+
+		const contactFilled = !this.registerForm.controls.name.invalid && !this.registerForm.controls.email.invalid && !this.registerForm.controls.phone.invalid;
+		if (!contactFilled) return false;
+
+		if (type === 'SOCIO') {
+			return !!this.registerForm.controls.carnet.value?.trim();
+		}
+		return this.sponsorConfirmed();
+	}
+
+	// Mensaje que explica por qué "2. Elegí tu(s) asiento(s)" sigue bloqueado — un solo lugar para
+	// toda la lógica de qué falta, en el mismo orden que valida canPickSeats().
+	seatsLockedMessage(ev: PublicEvent): string {
+		if (ev.tenantType !== 'CLUB') {
+			return 'Elegí primero un tipo de ticket arriba para poder elegir tu(s) asiento(s).';
+		}
+		const type = this.attendeeTypeValue();
+		if (!type) {
+			return 'Completá tus datos arriba (decinos si sos socio o invitado) para poder elegir tu(s) asiento(s).';
+		}
+		if (!this.activeTicketId()) {
+			return `Este evento no tiene un ticket de ${type === 'SOCIO' ? 'socio' : 'invitado'} disponible — contactá a la organización.`;
+		}
+		const contactFilled = !this.registerForm.controls.name.invalid && !this.registerForm.controls.email.invalid && !this.registerForm.controls.phone.invalid;
+		if (!contactFilled) {
+			return 'Completá tu nombre, email y teléfono arriba para poder elegir tu(s) asiento(s).';
+		}
+		if (type === 'SOCIO') {
+			return 'Ingresá tu carnet de socio arriba para poder elegir tu(s) asiento(s).';
+		}
+		return 'Ingresá el carnet del socio que te invita para poder elegir tu(s) asiento(s).';
+	}
+
 	private checkSponsorStatus(carnet: string | null) {
 		this.sponsorBlockReason.set(null);
+		this.sponsorConfirmed.set(false);
 		this.attendeeError.set('');
 		const ev = this.event();
 		const trimmed = carnet?.trim();
@@ -645,6 +693,8 @@ export class PublicEventComponent implements OnInit {
 				} else if (status.blocked) {
 					this.sponsorBlockReason.set('max-reached');
 					this.selectedSeatIds.set(new Set());
+				} else {
+					this.sponsorConfirmed.set(true);
 				}
 				if (this.sponsorBlockReason()) {
 					this.attendeeError.set(this.sponsorBlockMessage(trimmed));
