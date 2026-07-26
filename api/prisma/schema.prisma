@@ -34,6 +34,7 @@ model Tenant {
   saleProducts SaleProduct[]
   auditLogs    AuditLog[]
   appSettings  AppSetting[]
+  children     Child[]
 }
 
 model UserType {
@@ -72,6 +73,7 @@ model User {
   ticketSalesAsSeller SaleTicket[]  @relation("SaleTicketSeller")
   ticketSalesAsClient SaleTicket[]  @relation("SaleTicketClient")
   auditLogs           AuditLog[]    @relation("AuditLogUser")
+  childrenRegistered  Child[]       @relation("ChildParent")
 }
 
 // Registro de auditoría de acciones sensibles (alta/edición/borrado de Events, Products, Users,
@@ -115,10 +117,18 @@ model Event {
   tenantId Int
   tenant   Tenant @relation(fields: [tenantId], references: [id])
 
+  // Solo tiene sentido en tenants tipo CHURCH (ver Tenant.type) — el anfitrión de un evento (una
+  // boda, quinceañero, etc. armado en el salón de la iglesia) puede invitar gente sin costo, hasta
+  // este máximo (ver SaleTicket.isHostGuest y la validación en sale-tickets.ts). maxHostGuests sin
+  // definir (null) significa que este evento no admite invitados de anfitrión.
+  hostName      String?
+  maxHostGuests Int?
+
   tickets      Ticket[]
   products     Product[]
   saleProducts SaleProduct[]
   saleTickets  SaleTicket[]
+  children     Child[]
 }
 
 model Map {
@@ -268,6 +278,11 @@ model Product {
   tenantId Int
   tenant   Tenant @relation(fields: [tenantId], references: [id])
 
+  // Solo tiene sentido en tenants tipo CHURCH — marca cuál producto de este evento es la comida del
+  // día a repartir, para que al registrar un hijo (ver Child) se pueda ofrecer pedirla sin que el
+  // manager tenga que acordarse cuál producto es cuál por nombre.
+  isMealOfTheDay Boolean @default(false)
+
   saleProducts SaleProduct[]
 }
 
@@ -294,6 +309,10 @@ model SaleProduct {
 
   tenantId Int
   tenant   Tenant @relation(fields: [tenantId], references: [id])
+
+  // Lado inverso de Child.saleProductId — presente solo si esta venta es la comida del día de un
+  // hijo registrado (ver Child).
+  child Child?
 }
 
 model SaleTicket {
@@ -330,8 +349,41 @@ model SaleTicket {
   attendeeType  String  @default("SOCIO")
   sponsorCarnet String?
 
+  // Solo tiene sentido en tenants tipo CHURCH — esta venta es cortesía del anfitrión del evento
+  // (ver Event.hostName/maxHostGuests), no se cobra y cuenta contra el tope de invitados del
+  // anfitrión (validado en la ruta, no acá).
+  isHostGuest Boolean @default(false)
+
   // Un mismo asiento no se puede vender dos veces para el mismo evento.
   @@unique([eventId, seatId])
+}
+
+// Hijo de un participante, registrado junto con su ticket — solo tiene sentido en tenants tipo
+// CHURCH (guardería/clase de niños durante el servicio). El mismo codeQR se imprime/envía DOS
+// veces (talón del padre + pulsera del niño): el staff compara visualmente que coincidan antes de
+// entregarlo, y al escanearlo (ver scan.ts) queda marcado el retiro con el mismo anti-doble-retiro
+// que ya usan los tickets.
+model Child {
+  id          Int       @id @default(autoincrement())
+  name        String
+  age         Int?
+  codeQR      String    @unique
+  checkedInAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  eventId Int
+  event   Event @relation(fields: [eventId], references: [id])
+
+  parentId Int
+  parent   User @relation("ChildParent", fields: [parentId], references: [id])
+
+  tenantId Int
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+
+  // Si el padre pidió comida del día para este hijo, queda vinculada acá la venta de ese producto
+  // (ver Product.isMealOfTheDay) — nullable porque no todos los hijos piden comida.
+  saleProductId Int?         @unique
+  saleProduct   SaleProduct? @relation(fields: [saleProductId], references: [id])
 }
 
 // Configuración general de la app (ej. color de acento) — key-value genérico en vez de una

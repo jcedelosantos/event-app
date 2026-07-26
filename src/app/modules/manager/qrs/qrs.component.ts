@@ -1,6 +1,7 @@
 import { AfterViewInit, ChangeDetectionStrategy, Component, computed, HostListener, inject, OnInit, signal } from '@angular/core';
 import { QRService, SaleTicket } from './services/qr.service';
 import { ProductSalesService, SaleProduct } from './services/product-sales.service';
+import { Child, ChildrenService } from './services/children.service';
 import { EventsService } from '../events/services/events.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { Events } from '../../../models/events/events';
@@ -54,8 +55,12 @@ function toDateInputValue(iso: string): string {
 export class QrsComponent implements OnInit, AfterViewInit {
   qrService = inject(QRService);
   productSalesService = inject(ProductSalesService);
+  childrenService = inject(ChildrenService);
   private readonly eventsService = inject(EventsService);
   private readonly authService = inject(AuthService);
+
+  isChurchTenant = computed(() => this.authService.currentUser()?.tenant?.type === 'CHURCH');
+  childrenList = signal<Child[]>([]);
 
   // Borrar una venta libera el asiento — solo lo puede hacer un usuario cuyo UserType.license
   // incluya '*' (admin) o el permiso explícito RELEASE_SEAT (ver requireLicense en el backend,
@@ -233,6 +238,9 @@ export class QrsComponent implements OnInit, AfterViewInit {
       this.selectedEventId.set(todayEvent?.id ?? null);
       this.loadQRs();
       this.loadProductSales();
+      if (this.isChurchTenant()) {
+        this.loadChildren();
+      }
     });
   }
 
@@ -244,6 +252,9 @@ export class QrsComponent implements OnInit, AfterViewInit {
   onEventFilterChange() {
     this.loadQRs();
     this.loadProductSales();
+    if (this.isChurchTenant()) {
+      this.loadChildren();
+    }
   }
 
   loadQRs() {
@@ -256,6 +267,34 @@ export class QrsComponent implements OnInit, AfterViewInit {
     const eventId = this.selectedEventId();
     const request = eventId ? this.productSalesService.getSaleProductsByEvent(eventId) : this.productSalesService.getSaleProducts();
     request.subscribe((sales) => this.productSaleList.set(sales));
+  }
+
+  loadChildren() {
+    const eventId = this.selectedEventId();
+    const request = eventId ? this.childrenService.getChildrenByEvent(eventId) : this.childrenService.getChildren();
+    request.subscribe((children) => this.childrenList.set(children));
+  }
+
+  // Mismo criterio que toggleCheckedIn para tickets: corrección manual sin confirmación, no
+  // reemplaza el retiro real por QR (POST /scan), es para cuando el staff ya lo entregó sin
+  // escanear o hay que revertir un error.
+  toggleChildCheckedIn(child: Child) {
+    const checkedIn = !child.checkedInAt;
+    this.childrenService.setCheckedIn(child.id, checkedIn).subscribe({
+      next: (updated) => this.childrenList.update((list) => list.map((c) => (c.id === updated.id ? updated : c))),
+      error: (err: HttpErrorResponse) => error(extractErrorMessage(err)),
+    });
+  }
+
+  deleteChild(child: Child) {
+    confirm(`¿Eliminar el registro de ${child.name}? Si tenía comida del día asociada, se libera el cupo.`, {
+      onConfirm: () => {
+        this.childrenService.deleteChild(child.id).subscribe({
+          next: () => this.loadChildren(),
+          error: (err: HttpErrorResponse) => error(extractErrorMessage(err)),
+        });
+      },
+    });
   }
 
   openDetailModal(qr: SaleTicket) {

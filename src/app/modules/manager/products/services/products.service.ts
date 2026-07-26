@@ -14,6 +14,7 @@ export type ProductInput = {
 	active?: boolean;
 	price: number;
 	eventId: number;
+	isMealOfTheDay?: boolean;
 };
 
 export type BulkImportProductRow = {

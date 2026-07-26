@@ -18,7 +18,20 @@ const productInputSchema = z.object({
 	active: z.boolean().optional().default(true),
 	price: z.coerce.number(),
 	eventId: z.number().int(),
+	// Solo tiene efecto en tenants CHURCH — ver children.ts/public.ts, que buscan el producto
+	// isMealOfTheDay del evento para descontar stock al registrar la comida de un hijo.
+	isMealOfTheDay: z.boolean().optional().default(false),
 });
+
+// Un evento tiene como mucho UNA comida del día — children.ts/public.ts hacen findFirst sobre este
+// flag, así que dos productos marcados a la vez dejarían el segundo invisible para esa lógica sin
+// ningún aviso. Se desmarca cualquier otro producto del mismo evento en la misma operación.
+async function unmarkOtherMealsOfTheDay(tenantId: number, eventId: number, exceptProductId?: number) {
+	await prisma.product.updateMany({
+		where: { eventId, tenantId, isMealOfTheDay: true, ...(exceptProductId ? { id: { not: exceptProductId } } : {}) },
+		data: { isMealOfTheDay: false },
+	});
+}
 
 productsRouter.get('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const tenantId = req.user!.tenantId!;
@@ -54,6 +67,9 @@ productsRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res) => 
 			where: { id: created.id, tenantId },
 			data: { code: `PRD-${String(created.id).padStart(4, '0')}` },
 		});
+		if (parsed.data.isMealOfTheDay) {
+			await unmarkOtherMealsOfTheDay(tenantId, parsed.data.eventId, product.id);
+		}
 		await logAudit({ tenantId, userId: req.user!.userId, action: 'CREATE', entity: 'Product', entityId: product.id, summary: `Creó el producto "${product.name}"` });
 		res.status(201).json(product);
 	} catch (err: any) {
@@ -143,6 +159,9 @@ productsRouter.put('/:id', asyncHandler(async (req: AuthenticatedRequest, res) =
 
 	try {
 		const product = await prisma.product.update({ where: { id, tenantId }, data: parsed.data });
+		if (parsed.data.isMealOfTheDay) {
+			await unmarkOtherMealsOfTheDay(tenantId, product.eventId, product.id);
+		}
 		await logAudit({ tenantId, userId: req.user!.userId, action: 'UPDATE', entity: 'Product', entityId: product.id, summary: `Editó el producto "${product.name}"` });
 		res.json(product);
 	} catch (err: any) {

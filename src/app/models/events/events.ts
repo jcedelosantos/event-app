@@ -15,6 +15,8 @@ export interface Events {
 	dateOff: Date;
 	startTime: string | null;
 	active: boolean;
+	hostName?: string | null;
+	maxHostGuests?: number | null;
 	map?: Map;
 	tickets: Array<Ticket>;
 	products: Array<Product>;

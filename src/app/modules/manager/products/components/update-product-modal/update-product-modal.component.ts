@@ -1,10 +1,11 @@
-import { ChangeDetectionStrategy, Component, effect, inject, Input, model, OnInit, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, Input, model, OnInit, output, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Product } from '../../../../../models/products/product';
 import { Events } from '../../../../../models/events/events';
 import { ProductsService } from '../../services/products.service';
 import { EventsService } from '../../../events/services/events.service';
+import { AuthService } from '../../../../../core/services/auth.service';
 import { extractErrorMessage } from '../../../../../utils/api-error';
 import { closeModal } from '../../../../../utils/modal';
 
@@ -93,6 +94,13 @@ import { closeModal } from '../../../../../utils/modal';
 								<label for="variant">Variante <span class="text-muted">(opcional — ej. talla, color)</span></label>
 								<input type="text" class="form-control" formControlName="variant" placeholder="Ej: Talla M / Rojo" />
 							</div>
+							@if (isChurchTenant()) {
+								<div class="col-md-12 mb-3 form-check">
+									<input type="checkbox" class="form-check-input" id="isMealOfTheDay" formControlName="isMealOfTheDay" />
+									<label class="form-check-label" for="isMealOfTheDay">Es la comida del día</label>
+									<div class="form-text">Solo puede haber una por evento — marcarla acá desmarca cualquier otra comida del día de este mismo evento.</div>
+								</div>
+							}
 						</div>
 						@if (errorMessage) {
 							<div class="text-danger">{{ errorMessage }}</div>
@@ -113,6 +121,7 @@ import { closeModal } from '../../../../../utils/modal';
 export class UpdateProductModalComponent implements OnInit {
 	private readonly productsService = inject(ProductsService);
 	private readonly eventsService = inject(EventsService);
+	private readonly authService = inject(AuthService);
 
 	product = model<Product | null>(null);
 	@Input() defaultEventId: number | null = null;
@@ -120,6 +129,7 @@ export class UpdateProductModalComponent implements OnInit {
 	errorMessage = '';
 
 	events = signal<Events[]>([]);
+	isChurchTenant = computed(() => this.authService.currentUser()?.tenant?.type === 'CHURCH');
 
 	typeSuggestions = signal<string[]>(['Merchandising', 'Bebida', 'Regalo', 'Souvenir']);
 	activeList = signal<{ label: string; value: boolean }[]>([
@@ -137,6 +147,7 @@ export class UpdateProductModalComponent implements OnInit {
 		count: new FormControl<number | null>(null, Validators.required),
 		active: new FormControl<boolean>(true, [Validators.required]),
 		price: new FormControl<number | null>(null, Validators.required),
+		isMealOfTheDay: new FormControl<boolean>(false),
 	});
 
 	constructor() {
@@ -146,7 +157,7 @@ export class UpdateProductModalComponent implements OnInit {
 			if (current) {
 				this.form.patchValue({ ...current });
 			} else {
-				this.form.reset({ active: true, eventId: this.defaultEventId });
+				this.form.reset({ active: true, eventId: this.defaultEventId, isMealOfTheDay: false });
 			}
 		});
 	}
@@ -177,6 +188,7 @@ export class UpdateProductModalComponent implements OnInit {
 			count: value.count!,
 			active: value.active!,
 			price: value.price!,
+			isMealOfTheDay: value.isMealOfTheDay ?? false,
 		};
 
 		const current = this.product();

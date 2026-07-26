@@ -4,7 +4,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { debounceTime, distinctUntilChanged } from 'rxjs';
 import { QRCodeComponent } from 'angularx-qrcode';
-import { AttendeeType, PublicArea, PublicEvent, PublicEventService, PublicSeat, PurchasedSaleTicket } from './services/public-event.service';
+import { AttendeeType, PublicArea, PublicEvent, PublicEventService, PublicSeat, PurchasedChild, PurchasedSaleTicket } from './services/public-event.service';
 import { extractErrorMessage } from '../../utils/api-error';
 import { shortSeatLabel } from '../../utils/seat-label';
 import { warning } from '../../utils/messages';
@@ -47,6 +47,20 @@ const MAX_INVITADO_SEATS = 2;
 									<qrcode [qrdata]="sale.codeQR" [width]="110" [errorCorrectionLevel]="'M'"></qrcode>
 								</div>
 							</div>
+						}
+						@if (purchasedChildren().length) {
+							<h5 class="mt-4">Códigos de retiro de hijos</h5>
+							<p class="text-body-secondary small">
+								Imprimí o guardá cada código dos veces: uno para vos y otro para la pulsera del niño/a — cualquiera de las dos copias sirve para retirarlo.
+							</p>
+							@for (child of purchasedChildren(); track child.id) {
+								<div class="card mb-3">
+									<div class="card-body d-flex justify-content-between align-items-center">
+										<div class="fw-bold">{{ child.name }}</div>
+										<qrcode [qrdata]="child.codeQR" [width]="110" [errorCorrectionLevel]="'M'"></qrcode>
+									</div>
+								</div>
+							}
 						}
 					</div>
 				}
@@ -262,6 +276,57 @@ const MAX_INVITADO_SEATS = 2;
 								</div>
 							}
 
+							@if (ev.tenantType === 'CHURCH') {
+								<div class="mb-4">
+									<div class="d-flex justify-content-between align-items-center mb-2">
+										<h5 class="mb-0">4. ¿Venís con hijos?</h5>
+										<button type="button" class="btn btn-sm btn-outline-danger" (click)="addChildDraft()">+ Agregar hijo/a</button>
+									</div>
+									@if (!childrenDraft().length) {
+										<p class="text-body-secondary small">Si venís con hijos, agregalos acá para darles su código de retiro.</p>
+									}
+									@for (child of childrenDraft(); track $index) {
+										<div class="row g-2 align-items-center mb-2">
+											<div class="col-md-5">
+												<input
+													type="text"
+													class="form-control"
+													placeholder="Nombre del hijo/a"
+													[value]="child.name"
+													(input)="updateChildDraft($index, { name: $any($event.target).value })"
+												/>
+											</div>
+											<div class="col-md-3">
+												<input
+													type="number"
+													min="0"
+													max="17"
+													class="form-control"
+													placeholder="Edad (opcional)"
+													[value]="child.age"
+													(input)="updateChildDraft($index, { age: $any($event.target).value })"
+												/>
+											</div>
+											@if (ev.hasMealOfTheDay) {
+												<div class="col-md-3 form-check">
+													<input
+														type="checkbox"
+														class="form-check-input"
+														[id]="'wantsMeal' + $index"
+														[checked]="child.wantsMeal"
+														(change)="updateChildDraft($index, { wantsMeal: $any($event.target).checked })"
+													/>
+													<label class="form-check-label small" [for]="'wantsMeal' + $index">Retira comida del día</label>
+												</div>
+											}
+											<div class="col-md-1">
+												<button type="button" class="btn btn-sm btn-outline-secondary" (click)="removeChildDraft($index)">✕</button>
+											</div>
+										</div>
+									}
+								</div>
+							}
+
 							@if (errorMessage()) {
 								<div class="alert alert-danger">{{ errorMessage() }}</div>
 							}
@@ -457,6 +522,24 @@ export class PublicEventComponent implements OnInit {
 	submitting = signal(false);
 	errorMessage = signal('');
 	purchasedTickets = signal<PurchasedSaleTicket[]>([]);
+	purchasedChildren = signal<PurchasedChild[]>([]);
+
+	// Borrador de hijos a registrar junto con la compra — solo se muestra/manda en tenants CHURCH (ver
+	// "4. ¿Venís con hijos?"). Plano con signal en vez de un FormArray reactivo: no hay otro precedente
+	// de FormArray en este codebase y una lista chica como esta no lo necesita.
+	childrenDraft = signal<{ name: string; age: string; wantsMeal: boolean }[]>([]);
+
+	addChildDraft() {
+		this.childrenDraft.update((list) => [...list, { name: '', age: '', wantsMeal: false }]);
+	}
+
+	removeChildDraft(index: number) {
+		this.childrenDraft.update((list) => list.filter((_, i) => i !== index));
+	}
+
+	updateChildDraft(index: number, patch: Partial<{ name: string; age: string; wantsMeal: boolean }>) {
+		this.childrenDraft.update((list) => list.map((c, i) => (i === index ? { ...c, ...patch } : c)));
+	}
 
 	// Espejo de registerForm.controls.attendeeType como signal — un FormControl no se puede leer
 	// dentro de un computed() (no es reactivo para Angular), así que se mantiene sincronizado a mano
@@ -808,6 +891,11 @@ export class PublicEventComponent implements OnInit {
 			}
 		}
 
+		if (event.tenantType === 'CHURCH' && this.childrenDraft().some((c) => !c.name.trim())) {
+			this.errorMessage.set('Completá el nombre de cada hijo/a agregado, o quitá la fila.');
+			return;
+		}
+
 		this.submitting.set(true);
 		this.publicEventService
 			.purchase({
@@ -816,10 +904,20 @@ export class PublicEventComponent implements OnInit {
 				client: { name: name!, lastname: lastname!, email: email!, phone: phone!, carnet: carnet ?? '' },
 				seatIds: Array.from(this.selectedSeatIds()),
 				...(event.tenantType === 'CLUB' ? { attendeeType: attendeeType as AttendeeType, sponsorCarnet: sponsorCarnet ?? undefined } : {}),
+				...(event.tenantType === 'CHURCH' && this.childrenDraft().length
+					? {
+							children: this.childrenDraft().map((c) => ({
+								name: c.name.trim(),
+								...(c.age.trim() ? { age: Number(c.age) } : {}),
+								wantsMeal: c.wantsMeal,
+							})),
+						}
+					: {}),
 			})
 			.subscribe({
-				next: (saleTickets) => {
-					this.purchasedTickets.set(saleTickets);
+				next: (result) => {
+					this.purchasedTickets.set(result.saleTickets);
+					this.purchasedChildren.set(result.children);
 					this.submitting.set(false);
 					this.step.set('confirmed');
 				},

@@ -10,6 +10,7 @@ import { sendTicketEmail } from '../lib/mail';
 import { asyncHandler } from '../lib/async-handler';
 import { logAudit } from '../lib/audit';
 import { isClubTenant, validateAttendeeRule } from '../lib/attendee';
+import { validateHostGuestRule } from '../lib/host-guest';
 
 export const saleTicketsRouter = Router();
 saleTicketsRouter.use(requireAuth, requireTenant);
@@ -25,6 +26,7 @@ const saleTicketInputSchema = z.object({
 	description: z.string().optional().default(''),
 	attendeeType: z.enum(['SOCIO', 'INVITADO']).optional(),
 	sponsorCarnet: z.string().optional(),
+	isHostGuest: z.boolean().optional().default(false),
 });
 
 export const saleTicketInclude = {
@@ -81,6 +83,12 @@ saleTicketsRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res) 
 			res.status(400).json({ error: attendeeError });
 			return;
 		}
+	}
+
+	const hostGuestError = await validateHostGuestRule({ tenantId, eventId: parsed.data.eventId, isHostGuest: parsed.data.isHostGuest });
+	if (hostGuestError) {
+		res.status(400).json({ error: hostGuestError });
+		return;
 	}
 
 	try {

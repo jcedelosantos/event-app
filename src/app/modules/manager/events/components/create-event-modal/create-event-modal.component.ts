@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, effect, inject, Input, model, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, Input, model, output } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Events } from '../../../../../models/events/events';
@@ -6,6 +6,7 @@ import { EventsService } from '../../services/events.service';
 import { Map } from '../../../../../models/maps/map';
 import { extractErrorMessage } from '../../../../../utils/api-error';
 import { closeModal } from '../../../../../utils/modal';
+import { AuthService } from '../../../../../core/services/auth.service';
 
 declare const bootstrap: any;
 
@@ -100,6 +101,16 @@ function toDateInputValue(date: Date): string {
 								</div>
 								<div class="form-text">¿No está el mapa que buscás? Creá uno con "+ Map" y elegilo acá al volver.</div>
 							</div>
+							@if (isChurchTenant()) {
+								<div class="col-md-8 mb-2">
+									<label for="hostName" class="small mb-1">Anfitrión <span class="text-muted">(opcional — habilita invitados sin cargo con tope)</span></label>
+									<input type="text" class="form-control form-control-sm" placeholder="Nombre del anfitrión" formControlName="hostName" />
+								</div>
+								<div class="col-md-4 mb-2">
+									<label for="maxHostGuests" class="small mb-1">Máx. invitados del anfitrión</label>
+									<input type="number" min="0" class="form-control form-control-sm" formControlName="maxHostGuests" />
+								</div>
+							}
 						</div>
 						@if (errorMessage) {
 							<div class="text-danger mt-2">{{ errorMessage }}</div>
@@ -118,6 +129,7 @@ function toDateInputValue(date: Date): string {
 export class CreateEventModalComponent {
 	private readonly fb = inject(FormBuilder);
 	private readonly eventsService = inject(EventsService);
+	private readonly authService = inject(AuthService);
 
 	@Input() maps: Map[] = [];
 
@@ -125,6 +137,8 @@ export class CreateEventModalComponent {
 	eventCreated = output<Events>();
 	eventUpdated = output<Events>();
 	errorMessage = '';
+
+	isChurchTenant = computed(() => this.authService.currentUser()?.tenant?.type === 'CHURCH');
 
 	eventForm = this.fb.group({
 		name: ['', Validators.required],
@@ -135,6 +149,8 @@ export class CreateEventModalComponent {
 		type: ['', Validators.required],
 		active: [true, Validators.required],
 		mapId: this.fb.control<number | null>(null),
+		hostName: [''],
+		maxHostGuests: this.fb.control<number | null>(null),
 	});
 
 	constructor() {
@@ -151,9 +167,11 @@ export class CreateEventModalComponent {
 					type: current.type,
 					active: current.active,
 					mapId: current.map?.id ?? null,
+					hostName: current.hostName ?? '',
+					maxHostGuests: current.maxHostGuests ?? null,
 				});
 			} else {
-				this.eventForm.reset({ active: true, mapId: null });
+				this.eventForm.reset({ active: true, mapId: null, hostName: '', maxHostGuests: null });
 			}
 		});
 	}
@@ -191,6 +209,8 @@ export class CreateEventModalComponent {
 			startTime: value.startTime!,
 			active: value.active!,
 			mapId: value.mapId,
+			hostName: value.hostName?.trim() ? value.hostName.trim() : null,
+			maxHostGuests: value.maxHostGuests,
 		};
 
 		const current = this.event();

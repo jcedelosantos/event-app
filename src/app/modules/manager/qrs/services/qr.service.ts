@@ -31,6 +31,8 @@ export type SaleTicket = {
 	// Solo relevantes en tenants tipo CLUB — ver models/tenants/tenant.ts.
 	attendeeType: AttendeeType;
 	sponsorCarnet: string | null;
+	// Solo relevante en tenants tipo CHURCH — ver models/events/events.ts (hostName/maxHostGuests).
+	isHostGuest: boolean;
 };
 
 export type SaleTicketInput = {
@@ -42,6 +44,7 @@ export type SaleTicketInput = {
 	description?: string;
 	attendeeType?: AttendeeType;
 	sponsorCarnet?: string;
+	isHostGuest?: boolean;
 };
 
 export type BulkImportSaleTicketRow = {

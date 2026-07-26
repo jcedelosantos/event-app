@@ -225,6 +225,72 @@
     </tbody>
 </table>
 
+@if (isChurchTenant()) {
+<h4 class="mt-4">Niños registrados</h4>
+<table class="table table-striped table-hover table-sm qrs-table">
+    <thead>
+        <tr>
+            <th>Nombre</th>
+            <th>Edad</th>
+            <th>Padre/Madre</th>
+            <th>Evento</th>
+            <th>Comida del día</th>
+            <th>Retiro</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @for (child of childrenList(); track child.id) {
+        <tr>
+            <td scope="row">{{ child.name }}</td>
+            <td scope="row">{{ child.age ?? '—' }}</td>
+            <td scope="row">{{ child.parent.name }} {{ child.parent.lastname }}</td>
+            <td scope="row">{{ child.event.name }}</td>
+            <td scope="row">
+                @if (!child.saleProduct) {
+                    <span class="text-muted">—</span>
+                } @else if (child.saleProduct?.product; as product) {
+                    @if (child.checkedInAt) {
+                        <span class="badge text-bg-success" [title]="product.name">Entregada</span>
+                    } @else {
+                        <span class="badge text-bg-secondary" [title]="product.name">Pendiente</span>
+                    }
+                }
+            </td>
+            <td scope="row">
+                <div class="form-check form-switch mb-0" [title]="child.checkedInAt ? 'Marcar como pendiente' : 'Marcar como retirado'">
+                    <input
+                        class="form-check-input"
+                        type="checkbox"
+                        role="switch"
+                        [id]="'child-checkedin-' + child.id"
+                        [checked]="!!child.checkedInAt"
+                        (change)="toggleChildCheckedIn(child)"
+                    />
+                    <label class="form-check-label small" [for]="'child-checkedin-' + child.id">
+                        @if (child.checkedInAt) {
+                            <span class="badge text-bg-success">Retirado</span>
+                        } @else {
+                            <span class="badge text-bg-secondary">Pendiente</span>
+                        }
+                    </label>
+                </div>
+            </td>
+            <td scope="row">
+                <button class="btn btn-dark btn-sm" (click)="deleteChild(child)">
+                    <i class="bi bi-x-lg" aria-hidden="true"></i>
+                </button>
+            </td>
+        </tr>
+        } @empty {
+        <tr>
+            <td colspan="7" class="text-muted">Todavía no hay hijos registrados.</td>
+        </tr>
+        }
+    </tbody>
+</table>
+}
+
 <app-event-detail-modal [eventDetail]="selectedDetail()" />
 <create-qr-modal (qrCreated)="onQrCreated($event)" />
 <app-product-sale-detail-modal [saleProduct]="selectedProductSaleDetail()" />

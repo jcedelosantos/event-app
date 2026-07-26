@@ -4,6 +4,7 @@ import { requireAuth, requireTenant, AuthenticatedRequest } from '../middleware/
 import { asyncHandler } from '../lib/async-handler';
 import { saleTicketInclude, toPublicSaleTicket } from './sale-tickets';
 import { saleProductInclude, toPublicSaleProduct } from './sale-products';
+import { childInclude, toPublicChild } from './children';
 
 export const scanRouter = Router();
 scanRouter.use(requireAuth, requireTenant);
@@ -76,6 +77,26 @@ scanRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
 		}
 		const updated = await prisma.saleProduct.update({ where: { id: saleProduct.id, tenantId }, data: { deliveredAt: new Date() }, include: saleProductInclude });
 		res.json({ type: 'product', ok: true, saleProduct: toPublicSaleProduct(updated) });
+		return;
+	}
+
+	// El talón de retiro de un hijo (tenants CHURCH) — el mismo codeQR se imprime dos veces (padre +
+	// pulsera del niño), así que no hay nada que "emparejar" acá: escanear cualquiera de las dos
+	// copias simplemente marca el retiro. Sin ventana de entrada (a diferencia de tickets/productos)
+	// porque el retiro pasa durante/después del servicio, no antes de que empiece.
+	const child = await prisma.child.findFirst({ where: { codeQR, tenantId }, include: childInclude });
+	if (child) {
+		if (child.checkedInAt) {
+			res.status(409).json({ type: 'child', error: 'Este niño ya fue retirado', child: toPublicChild(child) });
+			return;
+		}
+		// Si tenía comida del día asociada y todavía no se entregó, se entrega en el mismo escaneo —
+		// un solo gesto del staff cubre retiro + comida en vez de escanear dos códigos distintos.
+		if (child.saleProductId && !child.saleProduct?.deliveredAt) {
+			await prisma.saleProduct.update({ where: { id: child.saleProductId, tenantId }, data: { deliveredAt: new Date() } });
+		}
+		const updated = await prisma.child.update({ where: { id: child.id, tenantId }, data: { checkedInAt: new Date() }, include: childInclude });
+		res.json({ type: 'child', ok: true, child: toPublicChild(updated) });
 		return;
 	}
 

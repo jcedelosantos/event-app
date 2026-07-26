@@ -11,6 +11,7 @@ import { isClubTenant, validateAttendeeRule, normalizeCarnet, MAX_INVITADOS_PER_
 export const publicRouter = Router();
 
 class InsufficientStockError extends Error {}
+class NoMealConfiguredError extends Error {}
 
 const MAX_SEATS_PER_ORDER = 5;
 
@@ -40,6 +41,8 @@ publicRouter.get('/events/:code', asyncHandler(async (req, res) => {
 	const soldSeats = await prisma.saleTicket.findMany({ where: { eventId: event.id, tenantId: event.tenantId }, select: { seatId: true } });
 	const soldSeatIds = new Set(soldSeats.map((s) => s.seatId));
 
+	const mealProduct = await prisma.product.findFirst({ where: { eventId: event.id, tenantId: event.tenantId, isMealOfTheDay: true }, select: { id: true } });
+
 	const map = event.map
 		? {
 				...event.map,
@@ -64,6 +67,7 @@ publicRouter.get('/events/:code', asyncHandler(async (req, res) => {
 		// El picker público lo usa para saber si tiene que pedir socio/invitado + carnet — ver
 		// lib/attendee.ts. Solo importa el tipo, no se expone nada más del tenant acá.
 		tenantType: event.tenant?.type ?? 'GENERAL',
+		hasMealOfTheDay: !!mealProduct,
 	});
 }));
 
@@ -124,6 +128,16 @@ const registerSchema = z.object({
 	carnet: z.string().optional().default(''),
 });
 
+// Solo se usa en tenants CHURCH (ver public-event.component.ts) — un comprador sin cuenta previa no
+// puede pegarle a POST /children (requiere auth de staff), así que acá el registro de hijos se
+// resuelve en la misma transacción de compra en vez de un segundo call, a diferencia de la venta
+// manual (sale-tickets.ts + POST /children aparte).
+const childInputSchema = z.object({
+	name: z.string().min(1),
+	age: z.coerce.number().int().min(0).max(17).optional(),
+	wantsMeal: z.boolean().optional().default(false),
+});
+
 const purchaseSchema = z.object({
 	eventCode: z.string().min(1),
 	ticketId: z.number().int(),
@@ -131,6 +145,7 @@ const purchaseSchema = z.object({
 	seatIds: z.array(z.number().int()).min(1).max(MAX_SEATS_PER_ORDER),
 	attendeeType: z.enum(['SOCIO', 'INVITADO']).optional(),
 	sponsorCarnet: z.string().optional(),
+	children: z.array(childInputSchema).optional().default([]),
 });
 
 publicRouter.post('/purchase', asyncHandler(async (req, res) => {
@@ -139,7 +154,7 @@ publicRouter.post('/purchase', asyncHandler(async (req, res) => {
 		res.status(400).json({ error: parsed.error.flatten() });
 		return;
 	}
-	const { eventCode, ticketId, client: clientData, seatIds, attendeeType, sponsorCarnet } = parsed.data;
+	const { eventCode, ticketId, client: clientData, seatIds, attendeeType, sponsorCarnet, children } = parsed.data;
 
 	const event = await prismaUnscoped.event.findUnique({ where: { code: eventCode } });
 	if (!event || !event.active) {
@@ -221,7 +236,7 @@ publicRouter.post('/purchase', asyncHandler(async (req, res) => {
 	};
 
 	try {
-		const saleTickets = await prisma.$transaction(async (tx) => {
+		const { saleTickets, createdChildren } = await prisma.$transaction(async (tx) => {
 			// Mismo chequeo-y-descuento atómico que la venta manual (sale-tickets.ts) — acá se
 			// descuenta de una sola vez la cantidad de asientos elegidos, así una compra de autoservicio
 			// nunca deja vender más tickets de un tipo que el cupo configurado.
@@ -232,7 +247,7 @@ publicRouter.post('/purchase', asyncHandler(async (req, res) => {
 			if (stockUpdate.count === 0) {
 				throw new InsufficientStockError();
 			}
-			return Promise.all(
+			const saleTickets = await Promise.all(
 				seatIds.map((seatId) =>
 					tx.saleTicket.create({
 						data: {
@@ -251,6 +266,47 @@ publicRouter.post('/purchase', asyncHandler(async (req, res) => {
 					}),
 				),
 			);
+
+			// Registro de hijos (solo aplica en tenants CHURCH — ver children.ts para el mismo patrón
+			// usado en la venta manual). Mismo chequeo-y-descuento atómico de stock que la comida del día.
+			const createdChildren = [];
+			for (const childInput of children) {
+				let saleProductId: number | undefined;
+				if (childInput.wantsMeal) {
+					const mealProduct = await tx.product.findFirst({ where: { eventId: event.id, tenantId, isMealOfTheDay: true } });
+					if (!mealProduct) {
+						throw new NoMealConfiguredError();
+					}
+					const mealStockUpdate = await tx.product.updateMany({
+						where: { id: mealProduct.id, count: { gte: 1 }, tenantId },
+						data: { count: { decrement: 1 } },
+					});
+					if (mealStockUpdate.count === 0) {
+						throw new InsufficientStockError();
+					}
+					const saleProduct = await tx.saleProduct.create({
+						data: {
+							eventId: event.id,
+							productId: mealProduct.id,
+							quantity: 1,
+							paidType: 'Incluido',
+							description: `Comida del día para ${childInput.name}`,
+							codeQR: randomUUID(),
+							userId: rootUser.id,
+							clientId: client!.id,
+							tenantId,
+						},
+					});
+					saleProductId = saleProduct.id;
+				}
+				createdChildren.push(
+					await tx.child.create({
+						data: { name: childInput.name, age: childInput.age, eventId: event.id, parentId: client!.id, tenantId, codeQR: randomUUID(), saleProductId },
+					}),
+				);
+			}
+
+			return { saleTickets, createdChildren };
 		});
 
 		const publicSaleTickets = saleTickets.map(({ client: c, seller: s, ...rest }) => ({ ...rest, client: toPublicUser(c), seller: toPublicUser(s) }));
@@ -259,10 +315,17 @@ publicRouter.post('/purchase', asyncHandler(async (req, res) => {
 			console.error('No se pudo enviar el email del ticket:', err),
 		);
 
-		res.status(201).json(publicSaleTickets);
+		res.status(201).json({
+			saleTickets: publicSaleTickets,
+			children: createdChildren.map((c) => ({ id: c.id, name: c.name, codeQR: c.codeQR })),
+		});
 	} catch (err: any) {
 		if (err instanceof InsufficientStockError) {
 			res.status(409).json({ error: 'No hay suficiente stock disponible para este tipo de ticket.' });
+			return;
+		}
+		if (err instanceof NoMealConfiguredError) {
+			res.status(400).json({ error: 'Este evento no tiene una comida del día configurada.' });
 			return;
 		}
 		if (err.code === 'P2002') {

@@ -23,6 +23,11 @@ const eventInputSchema = z.object({
 		.optional(),
 	active: z.boolean().optional().default(true),
 	mapId: z.number().int().nullable().optional(),
+	// Solo tiene efecto en tenants CHURCH — habilita la venta manual "invitado del anfitrión" con
+	// tope (ver lib/host-guest.ts). Ambos deben venir juntos o ninguno; no hay gate por tipo de
+	// tenant acá, un club que los cargue simplemente no tendría dónde usarlos en la UI.
+	hostName: z.string().trim().min(1).nullable().optional(),
+	maxHostGuests: z.number().int().min(0).nullable().optional(),
 });
 
 const include = { map: { include: { areas: true } }, tickets: true, products: true };

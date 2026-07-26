@@ -68,11 +68,16 @@ export type PublicEvent = {
 	map: PublicMap;
 	// Si es CLUB, hay que pedir socio/invitado + carnet al reservar (ver AttendeeType más abajo).
 	tenantType: TenantType;
+	// Solo relevante en tenants CHURCH — habilita el checkbox "¿retira comida?" al registrar hijos.
+	hasMealOfTheDay: boolean;
 };
 
 export type RegisterInput = { name: string; lastname: string; email: string; phone: string; carnet: string };
 
 export type AttendeeType = 'SOCIO' | 'INVITADO';
+
+// Solo se manda en tenants CHURCH — ver public-event.component.ts, sección "¿Venís con hijos?".
+export type ChildDraftInput = { name: string; age?: number; wantsMeal?: boolean };
 
 export type PurchaseInput = {
 	eventCode: string;
@@ -81,6 +86,7 @@ export type PurchaseInput = {
 	seatIds: number[];
 	attendeeType?: AttendeeType;
 	sponsorCarnet?: string;
+	children?: ChildDraftInput[];
 };
 
 export type PurchasedSaleTicket = {
@@ -89,6 +95,10 @@ export type PurchasedSaleTicket = {
 	seat: { name: string; area: { name: string } };
 	ticket: { name: string; type: string; price: number };
 };
+
+export type PurchasedChild = { id: number; name: string; codeQR: string };
+
+export type PurchaseResult = { saleTickets: PurchasedSaleTicket[]; children: PurchasedChild[] };
 
 export type SponsorStatus = { registered: boolean; used: number; max: number; blocked: boolean };
 
@@ -101,8 +111,8 @@ export class PublicEventService {
 		return this.httpClient.get<PublicEvent>(`${this.baseUrl}/events/${code}`);
 	}
 
-	purchase(input: PurchaseInput): Observable<PurchasedSaleTicket[]> {
-		return this.httpClient.post<PurchasedSaleTicket[]>(`${this.baseUrl}/purchase`, input);
+	purchase(input: PurchaseInput): Observable<PurchaseResult> {
+		return this.httpClient.post<PurchaseResult>(`${this.baseUrl}/purchase`, input);
 	}
 
 	// Chequea el tope de invitados de un socio ANTES de dejar elegir asiento — evita que un invitado

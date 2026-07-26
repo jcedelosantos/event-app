@@ -10,4 +10,6 @@ export interface Product {
 	active: boolean;
 	price: number;
 	eventId: number;
+	// Solo relevante en tenants CHURCH — ver models/events/events.ts.
+	isMealOfTheDay: boolean;
 }

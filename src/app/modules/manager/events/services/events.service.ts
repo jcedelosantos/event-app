@@ -16,6 +16,8 @@ export type EventInput = {
 	startTime?: string;
 	active?: boolean;
 	mapId?: number | null;
+	hostName?: string | null;
+	maxHostGuests?: number | null;
 };
 
 @Injectable({
