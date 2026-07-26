@@ -126,7 +126,7 @@ import { closeModal } from '../../../../../utils/modal';
 											<input type="text" class="form-control form-control-sm" placeholder="Teléfono *" formControlName="phone" [class.is-invalid]="isQuickClientInvalid('phone')" />
 										</div>
 										<div class="col-md-6 mb-2">
-											<input type="text" class="form-control form-control-sm" placeholder="Carnet *" formControlName="carnet" [class.is-invalid]="isQuickClientInvalid('carnet')" />
+											<input type="text" class="form-control form-control-sm" [placeholder]="isChurchTenant() ? 'Carnet (opcional)' : 'Carnet *'" formControlName="carnet" [class.is-invalid]="isQuickClientInvalid('carnet')" />
 										</div>
 									</div>
 								</div>
@@ -222,6 +222,7 @@ import { closeModal } from '../../../../../utils/modal';
 										<option value="Cash">Cash</option>
 										<option value="Card">Card</option>
 										<option value="Transfer">Transfer</option>
+										<option value="Invitado">Invitado (sin cargo)</option>
 									</select>
 									@if (isInvalid('paidType')) {
 										<div class="invalid-feedback">Elegí la forma de pago.</div>
@@ -334,7 +335,8 @@ export class CreateQrModalComponent implements OnInit {
 		lastname: this.fb.control('', Validators.required),
 		email: this.fb.control('', [Validators.required, Validators.email]),
 		phone: this.fb.control('', Validators.required),
-		carnet: this.fb.control('', Validators.required),
+		// En tenants CHURCH el carnet no es un dato relevante para identificar al comprador.
+		carnet: this.fb.control('', this.isChurchTenant() ? [] : [Validators.required]),
 	});
 
 	constructor() {

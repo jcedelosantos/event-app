@@ -11,6 +11,7 @@ import { asyncHandler } from '../lib/async-handler';
 import { logAudit } from '../lib/audit';
 import { isClubTenant, validateAttendeeRule } from '../lib/attendee';
 import { validateHostGuestRule } from '../lib/host-guest';
+import { uniqueUsername } from '../lib/unique-username';
 
 export const saleTicketsRouter = Router();
 saleTicketsRouter.use(requireAuth, requireTenant);
@@ -212,12 +213,12 @@ saleTicketsRouter.post('/bulk-import', asyncHandler(async (req: AuthenticatedReq
 			if (!client) {
 				// Sin carnet ni correo (invitados) no hay forma de deduplicar — se genera un email
 				// placeholder único ligado al asiento para que el registro sea válido en el schema
-				// (email es @unique y obligatorio) sin bloquear la importación por eso.
+				// (email es obligatorio, aunque ya no @unique global) sin bloquear la importación.
 				const email = row.email || `invitado.asiento-${seatId}.evento-${eventId}@sin-correo.local`;
 				const hashed = await bcrypt.hash(randomUUID(), 10);
 				client = await prisma.user.create({
 					data: {
-						username: email,
+						username: await uniqueUsername(prisma, email),
 						password: hashed,
 						name: row.name,
 						lastname: row.lastname,

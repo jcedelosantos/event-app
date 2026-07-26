@@ -7,6 +7,7 @@ import { toPublicUser } from '../lib/serialize';
 import { sendTicketEmail } from '../lib/mail';
 import { asyncHandler } from '../lib/async-handler';
 import { isClubTenant, validateAttendeeRule, normalizeCarnet, MAX_INVITADOS_PER_SOCIO } from '../lib/attendee';
+import { uniqueUsername } from '../lib/unique-username';
 
 export const publicRouter = Router();
 
@@ -200,7 +201,7 @@ publicRouter.post('/purchase', asyncHandler(async (req, res) => {
 		const hashed = await bcrypt.hash(randomUUID(), 10);
 		client = await prisma.user.create({
 			data: {
-				username: clientData.email,
+				username: await uniqueUsername(prisma, clientData.email),
 				password: hashed,
 				name: clientData.name,
 				lastname: clientData.lastname,

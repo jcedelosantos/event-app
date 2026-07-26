@@ -19,7 +19,10 @@ const userInputSchema = z.object({
 	lastname: z.string().min(1),
 	gender: z.string().min(1),
 	email: z.string().email(),
-	carnet: z.string().min(1),
+	// No todos los tenants usan carnet como identificador (solo CLUB lo exige de verdad, al
+	// vender un ticket vía validateAttendeeRule) — acá se acepta vacío para no bloquear la
+	// creación de usuarios en tenants tipo CHURCH/GENERAL.
+	carnet: z.string().optional().default(''),
 	adress: z.string(),
 	phone: z.string(),
 	userType: z.enum(USER_TYPE_CODES),

@@ -48,12 +48,17 @@ model UserType {
 
 model User {
   id        Int      @id @default(autoincrement())
+  // username SÍ tiene que ser único en toda la app (no solo por tenant): el login resuelve a qué
+  // tenant pertenece la cuenta a partir del username (ver auth.ts), antes de saber el tenantId —
+  // dos organizaciones no pueden tener el mismo. El email, en cambio, es solo un dato de contacto
+  // del comprador — la misma persona compra en varios clubes/iglesias con el mismo email, así que
+  // va único por tenant (ver @@unique abajo), no global.
   username  String   @unique
   password  String // bcrypt hash
   name      String
   lastname  String
   gender    String
-  email     String   @unique
+  email     String
   carnet    String
   adress    String
   phone     String
@@ -74,6 +79,8 @@ model User {
   ticketSalesAsClient SaleTicket[]  @relation("SaleTicketClient")
   auditLogs           AuditLog[]    @relation("AuditLogUser")
   childrenRegistered  Child[]       @relation("ChildParent")
+
+  @@unique([tenantId, email])
 }
 
 // Registro de auditoría de acciones sensibles (alta/edición/borrado de Events, Products, Users,

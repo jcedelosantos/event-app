@@ -131,7 +131,7 @@ export class UpdateProductModalComponent implements OnInit {
 	events = signal<Events[]>([]);
 	isChurchTenant = computed(() => this.authService.currentUser()?.tenant?.type === 'CHURCH');
 
-	typeSuggestions = signal<string[]>(['Merchandising', 'Bebida', 'Regalo', 'Souvenir']);
+	typeSuggestions = signal<string[]>(['Merchandising', 'Bebida', 'Comida', 'Regalo', 'Souvenir']);
 	activeList = signal<{ label: string; value: boolean }[]>([
 		{ label: 'Active', value: true },
 		{ label: 'Inactive', value: false },

@@ -1,6 +1,6 @@
 import { Component, inject, OnInit } from '@angular/core';
 import { Router, RouterOutlet } from '@angular/router';
-import { cleanupOrphanedModalBackdrop } from './utils/modal';
+import { cleanupOrphanedModalBackdrop, installModalRaceGuard } from './utils/modal';
 import { ThemeService } from './core/services/theme.service';
 import { AuthService } from './core/services/auth.service';
 
@@ -27,6 +27,11 @@ export class AppComponent implements OnInit {
 		// Aplica el color de acento configurado (o el default) apenas arranca la app, para toda
 		// página — manager, login, y el picker público — no solo dentro del manager.
 		this.themeService.init();
+
+		// Ver utils/modal.ts — evita que reabrir un modal muy rápido después de cerrarlo (crear algo
+		// y al toque tocar "editar" en la fila recién creada) deje la app "congelada" con un backdrop
+		// bloqueando toda la página.
+		installModalRaceGuard();
 
 
 		// El fix de "backdrop fantasma" (utils/modal.ts) solo corría cuando el código llamaba a

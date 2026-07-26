@@ -80,6 +80,7 @@ import { closeModal } from '../../../../../utils/modal';
 										<option value="Cash">Cash</option>
 										<option value="Card">Card</option>
 										<option value="Transfer">Transfer</option>
+										<option value="Invitado">Invitado (sin cargo)</option>
 									</select>
 									@if (isInvalid('paidType')) {
 										<div class="invalid-feedback">Elegí la forma de pago.</div>

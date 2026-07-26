@@ -1,12 +1,12 @@
-import { ChangeDetectionStrategy, Component, effect, inject, model, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, model, output } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { User } from '../../../../../models/users/user';
 import { UserService, UserTypeCode } from '../../services/user.service';
 import { HttpErrorResponse } from '@angular/common/http';
 import { confirm } from '../../../../../utils/messages';
 import { extractErrorMessage } from '../../../../../utils/api-error';
-import * as bootstrap from 'bootstrap';
-import { cleanupOrphanedModalBackdrop } from '../../../../../utils/modal';
+import { closeModal } from '../../../../../utils/modal';
+import { AuthService } from '../../../../../core/services/auth.service';
 
 @Component({
 	selector: 'app-update-user-modal',
@@ -93,7 +93,7 @@ import { cleanupOrphanedModalBackdrop } from '../../../../../utils/modal';
 									}
 								</div>
 								<div class="col-md-6 mb-3">
-									<label for="zip">Carnet *</label>
+									<label for="zip">Carnet{{ isChurchTenant() ? ' (opcional)' : ' *' }}</label>
 									<input type="text" class="form-control" [class.is-invalid]="isInvalid('carnet')" formControlName="carnet" />
 									@if (isInvalid('carnet')) {
 										<div class="invalid-feedback">El carnet/cédula es obligatorio.</div>
@@ -126,10 +126,15 @@ import { cleanupOrphanedModalBackdrop } from '../../../../../utils/modal';
 })
 export class UpdateUserModalComponent {
 	userService = inject(UserService);
+	private readonly authService = inject(AuthService);
 
 	user = model.required<User | null>();
 	userSaved = output<void>();
 	errorMessage = '';
+
+	// Solo CLUB depende del carnet para identificar socios al vender un ticket (validateAttendeeRule)
+	// — en el resto de los tenants es un dato de referencia, no algo que deba bloquear el alta.
+	isChurchTenant = computed(() => this.authService.currentUser()?.tenant?.type === 'CHURCH');
 
 	form = new FormGroup({
 		userName: new FormControl<string>('', [Validators.required]),
@@ -139,7 +144,7 @@ export class UpdateUserModalComponent {
 		lastName: new FormControl<string>('', Validators.required),
 		gender: new FormControl<string>('', Validators.required),
 		email: new FormControl<string>('', [Validators.required, Validators.email]),
-		carnet: new FormControl<string>('', Validators.required),
+		carnet: new FormControl<string>('', this.isChurchTenant() ? [] : [Validators.required]),
 		address: new FormControl<string>('', Validators.required),
 		phone: new FormControl<string>('', [Validators.required, Validators.pattern('^[- +()0-9]+$')]),
 	});
@@ -220,10 +225,6 @@ export class UpdateUserModalComponent {
 
 	private onSaved() {
 		this.userSaved.emit();
-		const modalEl = document.getElementById('updateUserModal');
-		if (modalEl) {
-			bootstrap.Modal.getOrCreateInstance(modalEl).hide();
-		}
-		cleanupOrphanedModalBackdrop();
+		closeModal('updateUserModal');
 	}
 }
