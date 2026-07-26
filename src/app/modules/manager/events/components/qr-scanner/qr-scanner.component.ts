@@ -4,6 +4,7 @@ import { DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Html5Qrcode } from 'html5-qrcode';
 import { ScanService, ScanResult } from '../../../qrs/services/scan.service';
+import { Child } from '../../../qrs/services/children.service';
 
 type ScanAction = { message: string; ok: boolean; time: Date };
 
@@ -88,13 +89,15 @@ export class QrScannerComponent implements AfterViewInit, OnDestroy {
 				if (result.type === 'ticket') {
 					const { saleTicket } = result;
 					this.pushAction(`✔ ${saleTicket.client.name} ${saleTicket.client.lastname} — ${saleTicket.event.name} / ${saleTicket.seat.name}`, true);
-				} else {
+				} else if (result.type === 'product') {
 					const { saleProduct } = result;
 					this.pushAction(`✔ ${saleProduct.client.name} ${saleProduct.client.lastname} — ${saleProduct.product.name} x${saleProduct.quantity}`, true);
+				} else {
+					this.pushAction(`✔ Retiro: ${this.familyLabel(result.children)}`, true);
 				}
 			},
 			error: (err: HttpErrorResponse) => {
-				const body = err.error as { error?: string; type?: 'ticket' | 'product'; saleTicket?: any; saleProduct?: any };
+				const body = err.error as { error?: string; type?: 'ticket' | 'product' | 'child'; saleTicket?: any; saleProduct?: any; children?: any[] };
 				if (err.status === 403 && (body?.saleTicket || body?.saleProduct)) {
 					// Todavía no se abrió la ventana de entrada (1h antes del evento) — mismo shape que el 409
 					// pero el motivo es otro, usamos el mensaje del backend en vez de "Ya fue escaneado".
@@ -107,12 +110,25 @@ export class QrScannerComponent implements AfterViewInit, OnDestroy {
 				} else if (body?.type === 'product' && body.saleProduct) {
 					this.lastResult.set({ type: 'product', ok: true, saleProduct: body.saleProduct });
 					this.pushAction(`✘ Ya fue entregado — ${body.saleProduct.client.name} ${body.saleProduct.client.lastname} (${new Date(body.saleProduct.deliveredAt).toLocaleString()})`, false);
+				} else if (body?.type === 'child' && body.children) {
+					this.lastResult.set({ type: 'child', ok: true, children: body.children });
+					this.pushAction(`✘ Esta familia ya retiró — ${this.familyLabel(body.children)}`, false);
 				} else {
 					this.lastResult.set(null);
 					this.pushAction(`✘ ${body?.error ?? 'Código no válido'}`, false);
 				}
 			},
 		});
+	}
+
+	// "Padre/Madre — Hijo1 (edad), Hijo2 (edad)" — un solo talón familiar entrega la comida de todos
+	// los hermanos pendientes a la vez (ver scan.ts), así que acá se muestran todos juntos en vez de
+	// un resultado por niño.
+	familyLabel(children: Child[]): string {
+		if (!children.length) return '';
+		const parent = children[0].parent;
+		const kids = children.map((c) => `${c.name}${c.age != null ? ` (${c.age})` : ''}`).join(', ');
+		return `${parent.name} ${parent.lastname} — ${kids}`;
 	}
 
 	private pushAction(message: string, ok: boolean) {

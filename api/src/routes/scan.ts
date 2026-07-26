@@ -80,23 +80,30 @@ scanRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
 		return;
 	}
 
-	// El talón de retiro de un hijo (tenants CHURCH) — el mismo codeQR se imprime dos veces (padre +
-	// pulsera del niño), así que no hay nada que "emparejar" acá: escanear cualquiera de las dos
-	// copias simplemente marca el retiro. Sin ventana de entrada (a diferencia de tickets/productos)
-	// porque el retiro pasa durante/después del servicio, no antes de que empiece.
-	const child = await prisma.child.findFirst({ where: { codeQR, tenantId }, include: childInclude });
-	if (child) {
-		if (child.checkedInAt) {
-			res.status(409).json({ type: 'child', error: 'Este niño ya fue retirado', child: toPublicChild(child) });
+	// El talón de retiro de una familia (tenants CHURCH) — todos los hijos del mismo padre/madre
+	// para este evento comparten el mismo codeQR (ver family-code.ts), y el mismo código se imprime
+	// dos veces por niño (padre + pulsera), así que no hay nada que "emparejar" acá: un solo escaneo
+	// (de cualquier copia) entrega la comida de TODOS los hermanos pendientes a la vez. Sin ventana
+	// de entrada (a diferencia de tickets/productos) porque el retiro pasa durante/después del
+	// servicio, no antes de que empiece.
+	const familyChildren = await prisma.child.findMany({ where: { codeQR, tenantId }, include: childInclude });
+	if (familyChildren.length) {
+		const pending = familyChildren.filter((c) => !c.checkedInAt);
+		if (pending.length === 0) {
+			res.status(409).json({ type: 'child', error: 'Esta familia ya retiró', children: familyChildren.map(toPublicChild) });
 			return;
 		}
-		// Si tenía comida del día asociada y todavía no se entregó, se entrega en el mismo escaneo —
-		// un solo gesto del staff cubre retiro + comida en vez de escanear dos códigos distintos.
-		if (child.saleProductId && !child.saleProduct?.deliveredAt) {
-			await prisma.saleProduct.update({ where: { id: child.saleProductId, tenantId }, data: { deliveredAt: new Date() } });
+		const now = new Date();
+		for (const c of pending) {
+			// Si tenía comida del día asociada y todavía no se entregó, se entrega en el mismo
+			// escaneo — un solo gesto del staff cubre retiro + comida de cada hermano.
+			if (c.saleProductId && !c.saleProduct?.deliveredAt) {
+				await prisma.saleProduct.update({ where: { id: c.saleProductId, tenantId }, data: { deliveredAt: now } });
+			}
+			await prisma.child.update({ where: { id: c.id, tenantId }, data: { checkedInAt: now } });
 		}
-		const updated = await prisma.child.update({ where: { id: child.id, tenantId }, data: { checkedInAt: new Date() }, include: childInclude });
-		res.json({ type: 'child', ok: true, child: toPublicChild(updated) });
+		const updated = await prisma.child.findMany({ where: { codeQR, tenantId }, include: childInclude });
+		res.json({ type: 'child', ok: true, children: updated.map(toPublicChild) });
 		return;
 	}
 

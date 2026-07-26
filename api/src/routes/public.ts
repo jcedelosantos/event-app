@@ -8,6 +8,7 @@ import { sendTicketEmail } from '../lib/mail';
 import { asyncHandler } from '../lib/async-handler';
 import { isClubTenant, validateAttendeeRule, normalizeCarnet, MAX_INVITADOS_PER_SOCIO } from '../lib/attendee';
 import { uniqueUsername } from '../lib/unique-username';
+import { resolveFamilyCodeQR } from '../lib/family-code';
 
 export const publicRouter = Router();
 
@@ -270,7 +271,10 @@ publicRouter.post('/purchase', asyncHandler(async (req, res) => {
 
 			// Registro de hijos (solo aplica en tenants CHURCH — ver children.ts para el mismo patrón
 			// usado en la venta manual). Mismo chequeo-y-descuento atómico de stock que la comida del día.
+			// Todos los hijos de esta compra comparten el mismo codeQR familiar (ver family-code.ts) —
+			// se resuelve una sola vez afuera del loop para no repetir la búsqueda por cada hermano.
 			const createdChildren = [];
+			const familyCodeQR = children.length ? await resolveFamilyCodeQR(tx, { parentId: client!.id, eventId: event.id, tenantId }) : null;
 			for (const childInput of children) {
 				let saleProductId: number | undefined;
 				if (childInput.wantsMeal) {
@@ -302,7 +306,7 @@ publicRouter.post('/purchase', asyncHandler(async (req, res) => {
 				}
 				createdChildren.push(
 					await tx.child.create({
-						data: { name: childInput.name, age: childInput.age, eventId: event.id, parentId: client!.id, tenantId, codeQR: randomUUID(), saleProductId },
+						data: { name: childInput.name, age: childInput.age, eventId: event.id, parentId: client!.id, tenantId, codeQR: familyCodeQR!, saleProductId },
 					}),
 				);
 			}

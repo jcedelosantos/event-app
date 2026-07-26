@@ -5,6 +5,7 @@ import { prisma } from '../lib/prisma';
 import { requireAuth, requireTenant, AuthenticatedRequest } from '../middleware/auth';
 import { asyncHandler } from '../lib/async-handler';
 import { toPublicUser } from '../lib/serialize';
+import { resolveFamilyCodeQR } from '../lib/family-code';
 
 export const childrenRouter = Router();
 childrenRouter.use(requireAuth, requireTenant);
@@ -95,8 +96,9 @@ childrenRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res) => 
 				saleProductId = saleProduct.id;
 			}
 
+			const codeQR = await resolveFamilyCodeQR(tx, { parentId, eventId, tenantId });
 			return tx.child.create({
-				data: { name, age, eventId, parentId, tenantId, codeQR: randomUUID(), saleProductId },
+				data: { name, age, eventId, parentId, tenantId, codeQR, saleProductId },
 				include: childInclude,
 			});
 		});

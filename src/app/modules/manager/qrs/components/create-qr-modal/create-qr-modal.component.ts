@@ -179,7 +179,7 @@ import { closeModal } from '../../../../../utils/modal';
 														[checked]="child.wantsMeal"
 														(change)="updateChildDraft($index, { wantsMeal: $any($event.target).checked })"
 													/>
-													<label class="form-check-label small" [for]="'qrWantsMeal' + $index">Comida del día</label>
+													<label class="form-check-label small" [for]="'qrWantsMeal' + $index">¿Retira comida del día?</label>
 												</div>
 											}
 											<div class="col-md-1">

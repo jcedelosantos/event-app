@@ -38,7 +38,7 @@
 								<span class="badge text-bg-secondary">Sin ingresar</span>
 							}
 						</div>
-					} @else {
+					} @else if (result.type === 'product') {
 						<h6>{{ result.saleProduct.event.name }}</h6>
 						<div>Cliente: {{ result.saleProduct.client.name }} {{ result.saleProduct.client.lastname }}</div>
 						<div>Producto: {{ result.saleProduct.product.name }} x{{ result.saleProduct.quantity }}</div>
@@ -50,6 +50,22 @@
 								<span class="badge text-bg-secondary">Sin entregar</span>
 							}
 						</div>
+					} @else {
+						<h6>{{ result.children[0].event.name }}</h6>
+						<div>Padre/Madre: {{ result.children[0].parent.name }} {{ result.children[0].parent.lastname }}</div>
+						<div>Hijos:</div>
+						<ul class="mb-0">
+							@for (child of result.children; track child.id) {
+								<li>
+									{{ child.name }}{{ child.age != null ? ' (' + child.age + ')' : '' }}
+									@if (child.checkedInAt) {
+										<span class="badge text-bg-success">Retirado {{ child.checkedInAt | date: 'short' }}</span>
+									} @else {
+										<span class="badge text-bg-secondary">Pendiente</span>
+									}
+								</li>
+							}
+						</ul>
 					}
 				</div>
 			</div>

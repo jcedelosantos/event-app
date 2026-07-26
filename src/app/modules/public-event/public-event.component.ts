@@ -48,19 +48,18 @@ const MAX_INVITADO_SEATS = 2;
 								</div>
 							</div>
 						}
-						@if (purchasedChildren().length) {
-							<h5 class="mt-4">Códigos de retiro de hijos</h5>
+						@if (purchasedChildren().length; as childrenCount) {
+							<h5 class="mt-4">Código de retiro de comida</h5>
 							<p class="text-body-secondary small">
-								Imprimí o guardá cada código dos veces: uno para vos y otro para la pulsera del niño/a — cualquiera de las dos copias sirve para retirarlo.
+								Un solo código para toda la familia: al escanearlo se entrega la comida de {{ childrenCount === 1 ? 'tu hijo/a' : 'todos tus hijos' }} de una vez.
+								Imprimilo o guardalo tantas veces como pulseras necesites (una por niño/a) — cualquier copia sirve.
 							</p>
-							@for (child of purchasedChildren(); track child.id) {
-								<div class="card mb-3">
-									<div class="card-body d-flex justify-content-between align-items-center">
-										<div class="fw-bold">{{ child.name }}</div>
-										<qrcode [qrdata]="child.codeQR" [width]="110" [errorCorrectionLevel]="'M'"></qrcode>
-									</div>
+							<div class="card mb-3">
+								<div class="card-body d-flex justify-content-between align-items-center">
+									<div class="fw-bold">{{ childrenNamesLabel() }}</div>
+									<qrcode [qrdata]="purchasedChildren()[0].codeQR" [width]="110" [errorCorrectionLevel]="'M'"></qrcode>
 								</div>
-							}
+							</div>
 						}
 					</div>
 				}
@@ -316,7 +315,7 @@ const MAX_INVITADO_SEATS = 2;
 														[checked]="child.wantsMeal"
 														(change)="updateChildDraft($index, { wantsMeal: $any($event.target).checked })"
 													/>
-													<label class="form-check-label small" [for]="'wantsMeal' + $index">Retira comida del día</label>
+													<label class="form-check-label small" [for]="'wantsMeal' + $index">¿Va a retirar la comida del día?</label>
 												</div>
 											}
 											<div class="col-md-1">
@@ -346,6 +345,10 @@ const MAX_INVITADO_SEATS = 2;
 				min-height: 100vh;
 				background: #0a0a0a;
 				color: #fff;
+				/* Un asiento muy cerca del borde del mapa (transform: translate(-50%,-50%)) puede
+				   sobresalir un par de px fuera de su contenedor — sin esto, eso alcanza para que
+				   TODA la página gane un scroll horizontal fantasma en mobile. */
+				overflow-x: hidden;
 			}
 			.center-msg {
 				min-height: 100vh;
@@ -413,6 +416,21 @@ const MAX_INVITADO_SEATS = 2;
 			.table-btn.table-full {
 				border-color: #6c757d;
 				background: #6c757d;
+			}
+			/* El tamaño de los círculos es fijo en px (no escala con el ancho de la imagen, que sí es
+			   responsive) — en un mapa con muchos asientos juntos, achicarlos un poco en pantallas
+			   angostas da más margen antes de que se toquen entre sí o salgan del plano. */
+			@media (max-width: 480px) {
+				.seat-btn {
+					width: 18px;
+					height: 18px;
+					font-size: 8px;
+				}
+				.table-btn {
+					width: 26px;
+					height: 26px;
+					font-size: 11px;
+				}
 			}
 			.table-badge {
 				position: absolute;
@@ -523,6 +541,9 @@ export class PublicEventComponent implements OnInit {
 	errorMessage = signal('');
 	purchasedTickets = signal<PurchasedSaleTicket[]>([]);
 	purchasedChildren = signal<PurchasedChild[]>([]);
+	// Todos los hijos de esta compra comparten el mismo codeQR familiar (ver public.ts) — se
+	// muestran juntos en un solo card en vez de uno por hijo.
+	childrenNamesLabel = computed(() => this.purchasedChildren().map((c) => c.name).join(', '));
 
 	// Borrador de hijos a registrar junto con la compra — solo se muestra/manda en tenants CHURCH (ver
 	// "4. ¿Venís con hijos?"). Plano con signal en vez de un FormArray reactivo: no hay otro precedente

@@ -374,7 +374,10 @@ model Child {
   id          Int       @id @default(autoincrement())
   name        String
   age         Int?
-  codeQR      String    @unique
+  // Ya NO es único: todos los hijos del mismo padre/madre para el mismo evento comparten el
+  // mismo codeQR ("talón familiar") — un solo escaneo en la puerta de comida entrega la comida de
+  // todos los hermanos a la vez, en vez de tener que escanear uno por uno (ver scan.ts).
+  codeQR      String
   checkedInAt DateTime?
   createdAt   DateTime  @default(now())
 
@@ -391,6 +394,9 @@ model Child {
   // (ver Product.isMealOfTheDay) — nullable porque no todos los hijos piden comida.
   saleProductId Int?         @unique
   saleProduct   SaleProduct? @relation(fields: [saleProductId], references: [id])
+
+  @@index([codeQR])
+  @@index([parentId, eventId])
 }
 
 // Configuración general de la app (ej. color de acento) — key-value genérico en vez de una
