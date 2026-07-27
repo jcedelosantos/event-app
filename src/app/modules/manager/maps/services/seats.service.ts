@@ -30,6 +30,11 @@ export class SeatsService {
 		return this.httpClient.post<Seat>(this.baseUrl, seat);
 	}
 
+	// Una sola request para N asientos en vez de un POST por asiento — ver bulk-create-seats-modal.
+	bulkCreateSeats(seats: SeatInput[]): Observable<Seat[]> {
+		return this.httpClient.post<Seat[]>(`${this.baseUrl}/bulk`, { seats });
+	}
+
 	updateSeat(id: number, seat: Partial<SeatInput>): Observable<Seat> {
 		return this.httpClient.put<Seat>(`${this.baseUrl}/${id}`, seat);
 	}

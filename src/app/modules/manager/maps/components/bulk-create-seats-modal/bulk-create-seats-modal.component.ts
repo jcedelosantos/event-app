@@ -1,11 +1,10 @@
 import { ChangeDetectionStrategy, Component, inject, Input, output } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
-import { forkJoin } from 'rxjs';
 import { Seat } from '../../../../../models/maps/seat';
 import { Table } from '../../../../../models/maps/table';
-import { SeatsService } from '../../services/seats.service';
-import { TablesService } from '../../services/tables.service';
+import { SeatsService, SeatInput } from '../../services/seats.service';
+import { TablesService, TableInput } from '../../services/tables.service';
 import { extractErrorMessage } from '../../../../../utils/api-error';
 import { closeModal } from '../../../../../utils/modal';
 
@@ -204,10 +203,10 @@ export class BulkCreateSeatsModalComponent {
 		const spacing = 60;
 		const margin = 40;
 		const startNumber = this.nextNumber(this.existingFlatSeatNames, prefix, '');
-		const requests = Array.from({ length: count }, (_, i) => {
+		const seatInputs: SeatInput[] = Array.from({ length: count }, (_, i) => {
 			const col = i % cols;
 			const row = Math.floor(i / cols);
-			return this.seatsService.createSeat({
+			return {
 				name: `${prefix}${startNumber + i}`,
 				x: col * spacing + margin,
 				y: row * spacing + margin,
@@ -215,11 +214,14 @@ export class BulkCreateSeatsModalComponent {
 				color: '#000000',
 				icon: '',
 				areaId: this.areaId!,
-			});
+			};
 		});
 
+		// Un solo POST con todos los asientos en vez de uno por fila — con 200 asientos eso eran 200
+		// requests simultáneas vía forkJoin, que en producción (latencia real, no localhost) se sentía
+		// como que la página se congelaba (mismo problema ya resuelto para el resize, ver bulk-resize).
 		this.creating = true;
-		forkJoin(requests).subscribe({
+		this.seatsService.bulkCreateSeats(seatInputs).subscribe({
 			next: (seats) => {
 				this.seatsCreated.emit(seats);
 				this.finish();
@@ -240,10 +242,10 @@ export class BulkCreateSeatsModalComponent {
 		// pegadas arriba, casi saliéndose del plano).
 		const margin = ringRadius + 55;
 		const startNumber = this.nextNumber(this.existingTableNames, prefix, ' ');
-		const tableRequests = Array.from({ length: tableCount }, (_, i) => {
+		const tableInputs: TableInput[] = Array.from({ length: tableCount }, (_, i) => {
 			const col = i % cols;
 			const row = Math.floor(i / cols);
-			return this.tablesService.createTable({
+			return {
 				name: `${prefix} ${startNumber + i}`,
 				icon: tableIcon,
 				x: col * tableSpacing + margin,
@@ -251,16 +253,19 @@ export class BulkCreateSeatsModalComponent {
 				size: 30,
 				color: '#dc3545',
 				areaId: this.areaId!,
-			});
+			};
 		});
 
+		// Un solo POST para todas las mesas y otro para todos sus asientos, en vez de un POST por mesa
+		// y otro por asiento vía forkJoin anidado — con 20 mesas x 10 asientos eso eran ~220 requests
+		// simultáneas (mismo anti-patrón ya resuelto para el resize, ver tables.ts/seats.ts POST /bulk).
 		this.creating = true;
-		forkJoin(tableRequests).subscribe({
+		this.tablesService.bulkCreateTables(tableInputs).subscribe({
 			next: (tables) => {
-				const seatRequests = tables.flatMap((table) =>
+				const seatInputs: SeatInput[] = tables.flatMap((table) =>
 					Array.from({ length: seatsPerTable }, (_, s) => {
 						const angle = (2 * Math.PI * s) / seatsPerTable;
-						return this.seatsService.createSeat({
+						return {
 							name: `${table.name}-${s + 1}`,
 							x: Math.round(table.x + ringRadius * Math.cos(angle)),
 							y: Math.round(table.y + ringRadius * Math.sin(angle)),
@@ -269,10 +274,10 @@ export class BulkCreateSeatsModalComponent {
 							icon: '',
 							areaId: this.areaId!,
 							tableId: table.id,
-						});
+						};
 					}),
 				);
-				forkJoin(seatRequests).subscribe({
+				this.seatsService.bulkCreateSeats(seatInputs).subscribe({
 					next: (seats) => {
 						this.tablesCreated.emit(tables);
 						this.seatsCreated.emit(seats);

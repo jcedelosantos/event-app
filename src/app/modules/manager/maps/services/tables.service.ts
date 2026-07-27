@@ -29,6 +29,11 @@ export class TablesService {
 		return this.httpClient.post<Table>(this.baseUrl, table);
 	}
 
+	// Una sola request para N mesas en vez de un POST por mesa — ver bulk-create-seats-modal.
+	bulkCreateTables(tables: TableInput[]): Observable<Table[]> {
+		return this.httpClient.post<Table[]>(`${this.baseUrl}/bulk`, { tables });
+	}
+
 	updateTable(id: number, table: Partial<TableInput>): Observable<Table> {
 		return this.httpClient.put<Table>(`${this.baseUrl}/${id}`, table);
 	}

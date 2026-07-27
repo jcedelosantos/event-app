@@ -46,6 +46,27 @@ tablesRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	}
 }));
 
+const bulkCreateSchema = z.object({
+	tables: z.array(tableInputSchema).min(1).max(500),
+});
+
+// Una sola request con TODAS las mesas en vez de un POST por mesa — mismo motivo que bulk-resize:
+// "Generar varios" con 20+ mesas disparaba vía forkJoin una tanda de POSTs simultáneos que en
+// producción (latencia real, no localhost) se sentía como que la página se congelaba. $transaction
+// en vez de createMany porque necesitamos los ids generados de vuelta (para crear los asientos de
+// cada mesa a continuación), algo que createMany no devuelve.
+tablesRouter.post('/bulk', asyncHandler(async (req: AuthenticatedRequest, res) => {
+	const parsed = bulkCreateSchema.safeParse(req.body);
+	if (!parsed.success) {
+		res.status(400).json({ error: parsed.error.flatten() });
+		return;
+	}
+
+	const tenantId = req.user!.tenantId!;
+	const tables = await prisma.$transaction(parsed.data.tables.map((t) => prisma.table.create({ data: { ...t, tenantId }, include: { seats: true } })));
+	res.status(201).json(tables);
+}));
+
 const bulkResizeSchema = z.object({
 	ids: z.array(z.number().int()).min(1),
 	size: z.coerce.number(),

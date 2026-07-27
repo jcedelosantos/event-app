@@ -58,6 +58,24 @@ seatsRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	}
 }));
 
+const bulkCreateSchema = z.object({
+	seats: z.array(seatInputSchema).min(1).max(6000),
+});
+
+// Mismo motivo y misma solución que tables.ts POST /bulk: un solo request con TODOS los asientos
+// en vez de un POST por asiento (con 20 mesas x 10 asientos, eso eran 200 requests simultáneas).
+seatsRouter.post('/bulk', asyncHandler(async (req: AuthenticatedRequest, res) => {
+	const parsed = bulkCreateSchema.safeParse(req.body);
+	if (!parsed.success) {
+		res.status(400).json({ error: parsed.error.flatten() });
+		return;
+	}
+
+	const tenantId = req.user!.tenantId!;
+	const seats = await prisma.$transaction(parsed.data.seats.map((s) => prisma.seat.create({ data: { ...s, tenantId } })));
+	res.status(201).json(seats);
+}));
+
 const bulkResizeSchema = z.object({
 	ids: z.array(z.number().int()).min(1),
 	size: z.coerce.number(),
