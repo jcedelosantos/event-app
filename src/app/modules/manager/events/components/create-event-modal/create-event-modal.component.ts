@@ -56,6 +56,11 @@ function toDateInputValue(date: Date): string {
 								}
 							</div>
 							<div class="col-md-4 mb-2">
+								<label for="dateOff" class="small mb-1">End Date <span class="text-muted">(opcional)</span></label>
+								<input type="date" class="form-control form-control-sm" formControlName="dateOff" />
+								<div class="form-text">Si no se llena, se usa la misma fecha de inicio.</div>
+							</div>
+							<div class="col-md-4 mb-2">
 								<label for="code" class="small mb-1">Code </label>
 								<input type="text" class="form-control form-control-sm" formControlName="code" />
 							</div>
@@ -145,6 +150,7 @@ export class CreateEventModalComponent {
 		code: [''],
 		description: [''],
 		dateOn: ['', Validators.required],
+		dateOff: [''],
 		startTime: ['', Validators.required],
 		type: ['', Validators.required],
 		active: [true, Validators.required],
@@ -163,6 +169,7 @@ export class CreateEventModalComponent {
 					code: current.code,
 					description: current.description,
 					dateOn: toDateInputValue(current.dateOn),
+					dateOff: current.dateOff ? toDateInputValue(current.dateOff) : '',
 					startTime: current.startTime ?? '',
 					type: current.type,
 					active: current.active,
@@ -206,6 +213,7 @@ export class CreateEventModalComponent {
 			description: value.description ?? '',
 			type: value.type!,
 			dateOn: value.dateOn!,
+			dateOff: value.dateOff?.trim() ? value.dateOff : undefined,
 			startTime: value.startTime!,
 			active: value.active!,
 			mapId: value.mapId,
