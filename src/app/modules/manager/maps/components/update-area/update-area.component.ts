@@ -4,7 +4,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Area } from '../../../../../models/maps/area';
 import { AreasService } from '../../services/areas.service';
 import { extractErrorMessage } from '../../../../../utils/api-error';
-import { cleanupOrphanedModalBackdrop } from '../../../../../utils/modal';
+import { closeModal as closeModalById } from '../../../../../utils/modal';
 
 @Component({
 	selector: 'update-area',
@@ -128,9 +128,6 @@ export class UpdateAreaComponent implements OnChanges {
 	selectedIcon: string = this.icons[0].value;
 
 	@Input()
-	modal: any;
-
-	@Input()
 	area: Area | undefined;
 
 	@Output()
@@ -178,9 +175,13 @@ export class UpdateAreaComponent implements OnChanges {
 		this.postUpdateArea();
 	}
 
+	// Antes llamaba this.modal.hide() directo — cerraba el modal pero nunca quedaba registrado en
+	// closingModalIds (ver utils/modal.ts), así que si se reabría rápido (crear/editar área varias
+	// veces seguidas) el guard global no tenía forma de saber que este modal todavía estaba cerrando
+	// y no interceptaba la reapertura — la misma condición de carrera de backdrop que freeza la
+	// página, ya resuelta para el resto de los modales, pero no para este por pasarla por alto.
 	closeModal() {
-		this.modal.hide();
-		cleanupOrphanedModalBackdrop();
+		closeModalById('updateAreaModal');
 		this.fillForm();
 	}
 

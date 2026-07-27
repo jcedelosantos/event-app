@@ -131,8 +131,8 @@ import { HttpErrorResponse } from '@angular/common/http';
 			</div>
 		</div>
 
-		<create-area [modal]="modalCreateArea" [coordinates]="coordinates" [mapId]="map()?.id" (createAreaEvent)="addArea($event.createArea)" />
-		<update-area [modal]="modalUpdateArea" [area]="areaUpdate" (updateAreaEvent)="onAreaUpdated($event.updateArea)" />
+		<create-area [coordinates]="coordinates" [mapId]="map()?.id" (createAreaEvent)="addArea($event.createArea)" />
+		<update-area [area]="areaUpdate" (updateAreaEvent)="onAreaUpdated($event.updateArea)" />
 	`,
 	styleUrl: './areas.component.css',
 	changeDetection: ChangeDetectionStrategy.OnPush,
