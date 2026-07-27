@@ -63,17 +63,15 @@ declare const bootstrap: any;
 							<h5>Now <span class="badge text-bg-secondary">{{ eventsNow().length }}</span></h5>
 
 							@if (eventsNow().length) {
-								<div class="d-flex flex-row flex-wrap event-card-list">
+								<div class="event-card-list">
 									@for (event of eventsNow(); track event.id) {
-										<div class="p-2">
-											<event-card
-												[event]="event"
-												(showQr)="onShowQr($event)"
-												(editEvent)="onEditEvent($event)"
-												(duplicateEvent)="onDuplicateEvent($event)"
-												(deleteEvent)="onDeleteEvent($event)"
-											/>
-										</div>
+										<event-card
+											[event]="event"
+											(showQr)="onShowQr($event)"
+											(editEvent)="onEditEvent($event)"
+											(duplicateEvent)="onDuplicateEvent($event)"
+											(deleteEvent)="onDeleteEvent($event)"
+										/>
 									}
 								</div>
 							} @else {
@@ -84,17 +82,15 @@ declare const bootstrap: any;
 							<h5>Up Coming <span class="badge text-bg-secondary">{{ eventsUpcoming().length }}</span></h5>
 
 							@if (eventsUpcoming().length) {
-								<div class="d-flex flex-row flex-wrap event-card-list">
+								<div class="event-card-list">
 									@for (event of eventsUpcoming(); track event.id) {
-										<div class="p-2">
-											<event-card
-												[event]="event"
-												(showQr)="onShowQr($event)"
-												(editEvent)="onEditEvent($event)"
-												(duplicateEvent)="onDuplicateEvent($event)"
-												(deleteEvent)="onDeleteEvent($event)"
-											/>
-										</div>
+										<event-card
+											[event]="event"
+											(showQr)="onShowQr($event)"
+											(editEvent)="onEditEvent($event)"
+											(duplicateEvent)="onDuplicateEvent($event)"
+											(deleteEvent)="onDeleteEvent($event)"
+										/>
 									}
 								</div>
 							} @else {

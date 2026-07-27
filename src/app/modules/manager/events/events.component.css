@@ -6,8 +6,15 @@
 
 /* Reemplaza el carrusel paginado anterior — con muchos eventos, esconder los siguientes detrás de
    flechas de "next" chiquitas hacía que usuarios no se dieran cuenta de que existían (bug real
-   reportado: "creé eventos nuevos y no me salen"). Ahora se ven todos, envueltos en filas, con
-   scroll vertical si no entran en el alto disponible. */
+   reportado: "creé eventos nuevos y no me salen"). Ahora se ven todos, con scroll vertical si no
+   entran en el alto disponible.
+   Grid en vez de flex-wrap: con flex-wrap cada tarjeta toma su alto natural (una con dos badges de
+   ticket queda más alta que una sin descripción), y sin una forma confiable de igualar la altura
+   dentro de la misma fila el resultado se ve como un muro de ladrillos desparejo. Grid iguala la
+   altura de fila automáticamente. */
 .event-card-list {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+	gap: 1rem;
 	overflow-y: auto;
 }
