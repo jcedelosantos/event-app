@@ -102,6 +102,26 @@ export type PurchaseResult = { saleTickets: PurchasedSaleTicket[]; children: Pur
 
 export type SponsorStatus = { registered: boolean; used: number; max: number; blocked: boolean };
 
+export type PublicOrgEvent = {
+	id: number;
+	name: string;
+	code: string;
+	img: string;
+	description: string;
+	dateOn: string;
+	dateOff: string;
+	startTime: string | null;
+	map: { name: string } | null;
+};
+
+// Portada pública de una organización — lista sus próximos eventos activos (ver org-landing).
+export type PublicOrg = {
+	name: string;
+	slug: string;
+	type: TenantType;
+	events: PublicOrgEvent[];
+};
+
 @Injectable({ providedIn: 'root' })
 export class PublicEventService {
 	private readonly httpClient = inject(HttpClient);
@@ -109,6 +129,10 @@ export class PublicEventService {
 
 	getEvent(code: string): Observable<PublicEvent> {
 		return this.httpClient.get<PublicEvent>(`${this.baseUrl}/events/${code}`);
+	}
+
+	getOrg(slug: string): Observable<PublicOrg> {
+		return this.httpClient.get<PublicOrg>(`${this.baseUrl}/org/${slug}`);
 	}
 
 	purchase(input: PurchaseInput): Observable<PurchaseResult> {

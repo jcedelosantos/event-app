@@ -26,6 +26,31 @@ const MAX_SEATS_PER_ORDER = 5;
 // visita. Una vez resuelto el evento, TODO lo demás se filtra por `event.tenantId` con el cliente
 // normal (con tenant-guard), así ninguna query subsiguiente puede fugarse a otro tenant.
 
+// Portada pública de una organización: lista sus próximos eventos activos, para que un comprador
+// que no tiene el link de un evento puntual pueda ver "todo lo que hay" de ese club/iglesia en un
+// solo lugar. Igual que /events/:code, el tenant se resuelve por slug (único globalmente) con
+// prismaUnscoped — es el único lookup legítimo sin tenantId, porque acá todavía no lo sabemos.
+publicRouter.get('/org/:slug', asyncHandler(async (req, res) => {
+	const tenant = await prismaUnscoped.tenant.findUnique({ where: { slug: req.params.slug } });
+	if (!tenant || !tenant.active) {
+		res.status(404).json({ error: 'Organización no encontrada' });
+		return;
+	}
+
+	const events = await prisma.event.findMany({
+		where: { tenantId: tenant.id, active: true, dateOff: { gte: new Date() } },
+		orderBy: { dateOn: 'asc' },
+		select: { id: true, name: true, code: true, img: true, description: true, dateOn: true, dateOff: true, startTime: true, map: { select: { name: true } } },
+	});
+
+	res.json({
+		name: tenant.name,
+		slug: tenant.slug,
+		type: tenant.type,
+		events,
+	});
+}));
+
 publicRouter.get('/events/:code', asyncHandler(async (req, res) => {
 	const event = await prismaUnscoped.event.findUnique({
 		where: { code: req.params.code },

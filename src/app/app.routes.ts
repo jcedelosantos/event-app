@@ -26,6 +26,10 @@ export const routes: Routes = [
 		loadComponent: () => import('./modules/public-event/public-event.component').then((m) => m.PublicEventComponent),
 	},
 	{
+		path: 'o/:slug',
+		loadComponent: () => import('./modules/org-landing/org-landing.component').then((m) => m.OrgLandingComponent),
+	},
+	{
 		path: '',
 		redirectTo: 'site-web',
 		pathMatch: 'full',
