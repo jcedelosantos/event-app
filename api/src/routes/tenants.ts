@@ -137,7 +137,7 @@ tenantsRouter.post('/:id/impersonate', asyncHandler(async (req: AuthenticatedReq
 
 	const adminUser = await prismaUnscoped.user.findFirst({
 		where: { tenantId: id, type: { type: 'ROOT' } },
-		include: { type: true, tenant: { select: { id: true, name: true, type: true } } },
+		include: { type: true, tenant: { select: { id: true, name: true, type: true, slug: true } } },
 		orderBy: { id: 'asc' },
 	});
 	if (!adminUser) {

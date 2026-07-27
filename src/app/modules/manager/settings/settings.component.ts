@@ -1,7 +1,8 @@
-import { ChangeDetectionStrategy, Component, inject, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { SettingsService } from '../../../core/services/settings.service';
 import { ACCENT_SETTING_KEY, DEFAULT_ACCENT, ThemeService } from '../../../core/services/theme.service';
+import { AuthService } from '../../../core/services/auth.service';
 import { extractErrorMessage } from '../../../utils/api-error';
 
 const PRESETS = [
@@ -69,6 +70,26 @@ const PRESETS = [
 				</div>
 			</div>
 		</div>
+
+		@if (orgUrl(); as url) {
+			<h2 class="section-title mt-4">Portada pública</h2>
+			<p class="text-body-secondary small">Página pública con todos los próximos eventos de tu organización — compartila con tus clientes.</p>
+
+			<div class="card" style="max-width: 480px;">
+				<div class="card-body">
+					<div class="input-group">
+						<input type="text" class="form-control" readonly [value]="url" />
+						<button type="button" class="btn btn-outline-secondary" (click)="copyOrgUrl(url)">
+							<i class="bi" [class.bi-clipboard]="!urlCopied()" [class.bi-clipboard-check]="urlCopied()" aria-hidden="true"></i>
+							{{ urlCopied() ? 'Copiado' : 'Copiar' }}
+						</button>
+						<a class="btn btn-outline-secondary" [href]="url" target="_blank" rel="noopener">
+							<i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
+						</a>
+					</div>
+				</div>
+			</div>
+		}
 	`,
 	styleUrl: './settings.component.css',
 	changeDetection: ChangeDetectionStrategy.OnPush,
@@ -76,12 +97,19 @@ const PRESETS = [
 export class SettingsComponent implements OnInit {
 	private readonly settingsService = inject(SettingsService);
 	private readonly themeService = inject(ThemeService);
+	private readonly authService = inject(AuthService);
 
 	presets = PRESETS;
 	accent = signal(DEFAULT_ACCENT);
 	saving = signal(false);
 	saved = signal(false);
 	errorMessage = signal('');
+	urlCopied = signal(false);
+
+	orgUrl = computed(() => {
+		const slug = this.authService.currentUser()?.tenant?.slug;
+		return slug ? `${window.location.origin}/o/${slug}` : null;
+	});
 
 	ngOnInit(): void {
 		this.settingsService.getSettings().subscribe((settings) => {
@@ -116,5 +144,12 @@ export class SettingsComponent implements OnInit {
 		this.accent.set(DEFAULT_ACCENT);
 		this.themeService.applyAccent(DEFAULT_ACCENT);
 		this.saved.set(false);
+	}
+
+	copyOrgUrl(url: string) {
+		navigator.clipboard.writeText(url).then(() => {
+			this.urlCopied.set(true);
+			setTimeout(() => this.urlCopied.set(false), 2000);
+		});
 	}
 }
