@@ -9,6 +9,7 @@ import { asyncHandler } from '../lib/async-handler';
 import { isClubTenant, validateAttendeeRule, normalizeCarnet, MAX_INVITADOS_PER_SOCIO } from '../lib/attendee';
 import { uniqueUsername } from '../lib/unique-username';
 import { resolveFamilyCodeQR } from '../lib/family-code';
+import { checkDuplicateEventRegistration } from '../lib/duplicate-event-guard';
 
 export const publicRouter = Router();
 
@@ -238,6 +239,17 @@ publicRouter.post('/purchase', asyncHandler(async (req, res) => {
 		});
 		if (attendeeError) {
 			res.status(400).json({ error: attendeeError });
+			return;
+		}
+
+		const duplicateError = await checkDuplicateEventRegistration({
+			tenantId,
+			eventId: event.id,
+			clientEmail: clientData.email,
+			clientCarnet: clientData.carnet,
+		});
+		if (duplicateError) {
+			res.status(409).json({ error: duplicateError });
 			return;
 		}
 	}

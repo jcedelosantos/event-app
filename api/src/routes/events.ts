@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
@@ -7,6 +8,9 @@ import { logAudit } from '../lib/audit';
 
 export const eventsRouter = Router();
 eventsRouter.use(requireAuth, requireTenant);
+
+class LinkedEventNotFoundError extends Error {}
+class EventNotFoundError extends Error {}
 
 const eventInputSchema = z.object({
 	name: z.string().min(1),
@@ -28,6 +32,10 @@ const eventInputSchema = z.object({
 	// tenant acá, un club que los cargue simplemente no tendría dónde usarlos en la UI.
 	hostName: z.string().trim().min(1).nullable().optional(),
 	maxHostGuests: z.number().int().min(0).nullable().optional(),
+	// Solo se usa en PUT, para vincular/desvincular este evento como "misma función, otra fecha" (ver
+	// Event.duplicateGroupKey): number = vincular con ese evento, null = desvincular, undefined (no
+	// mandarlo) = no tocar el vínculo actual.
+	linkedEventId: z.number().int().nullable().optional(),
 });
 
 const include = { map: { include: { areas: true } }, tickets: true, products: true };
@@ -57,7 +65,9 @@ eventsRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	}
 
 	const tenantId = req.user!.tenantId!;
-	const { dateSale, dateOff, code, ...data } = parsed.data;
+	// linkedEventId solo tiene sentido al editar un evento ya existente (ver PUT más abajo) — acá se
+	// descarta si llega, no hay nada que vincular todavía.
+	const { dateSale, dateOff, code, linkedEventId: _linkedEventId, ...data } = parsed.data;
 	const created = await prisma.event.create({
 		data: {
 			...data,
@@ -88,12 +98,37 @@ eventsRouter.put('/:id', asyncHandler(async (req: AuthenticatedRequest, res) => 
 		return;
 	}
 
+	const { linkedEventId, ...eventData } = parsed.data;
+
 	try {
-		const event = await prisma.event.update({ where: { id, tenantId }, data: parsed.data, include });
+		const event = await prisma.$transaction(async (tx) => {
+			if (linkedEventId === null) {
+				await tx.event.update({ where: { id, tenantId }, data: { duplicateGroupKey: null } });
+			} else if (typeof linkedEventId === 'number') {
+				const target = await tx.event.findUnique({ where: { id: linkedEventId, tenantId }, select: { duplicateGroupKey: true } });
+				if (!target) {
+					throw new LinkedEventNotFoundError();
+				}
+				const current = await tx.event.findUnique({ where: { id, tenantId }, select: { duplicateGroupKey: true } });
+				if (!current) {
+					throw new EventNotFoundError();
+				}
+				// Reutiliza el grupo que ya tenga cualquiera de los dos eventos (así vincular un tercer
+				// evento a un par ya vinculado los suma al mismo grupo) — si ninguno tiene uno todavía, se
+				// crea uno nuevo compartido.
+				const groupKey = target.duplicateGroupKey ?? current.duplicateGroupKey ?? randomUUID();
+				await tx.event.updateMany({ where: { tenantId, id: { in: [id, linkedEventId] } }, data: { duplicateGroupKey: groupKey } });
+			}
+			return tx.event.update({ where: { id, tenantId }, data: eventData, include });
+		});
 		await logAudit({ tenantId, userId: req.user!.userId, action: 'UPDATE', entity: 'Event', entityId: event.id, summary: `Editó el evento "${event.name}"` });
 		res.json(event);
 	} catch (err: any) {
-		if (err.code === 'P2025') {
+		if (err instanceof LinkedEventNotFoundError) {
+			res.status(400).json({ error: 'El evento a vincular no existe' });
+			return;
+		}
+		if (err instanceof EventNotFoundError || err.code === 'P2025') {
 			res.status(404).json({ error: 'Evento no encontrado' });
 			return;
 		}

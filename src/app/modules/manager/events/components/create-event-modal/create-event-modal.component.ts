@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, Input, model, output, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
+import { DatePipe } from '@angular/common';
 import { Events } from '../../../../../models/events/events';
 import { EventsService } from '../../services/events.service';
 import { Map } from '../../../../../models/maps/map';
@@ -24,7 +25,7 @@ function toDateInputValue(date: Date): string {
 
 @Component({
 	selector: 'app-create-event-modal',
-	imports: [ReactiveFormsModule],
+	imports: [ReactiveFormsModule, DatePipe],
 	template: `
   <div class="modal fade" id="createEventModal" tabindex="-1" aria-labelledby="createEventModalLabel" aria-hidden="true">
 		<div class="modal-dialog">
@@ -135,6 +136,22 @@ function toDateInputValue(date: Date): string {
 									<input type="number" min="0" class="form-control form-control-sm" formControlName="maxHostGuests" />
 								</div>
 							}
+							@if (isClubTenant() && event()) {
+								<div class="col-md-12 mb-2">
+									<label for="linkedEventId" class="small mb-1">
+										Vincular con otra fecha de este mismo evento <span class="text-muted">(opcional)</span>
+									</label>
+									<select class="form-select form-select-sm" formControlName="linkedEventId">
+										<option [ngValue]="null">Sin vincular</option>
+										@for (other of otherEvents(); track other.id) {
+											<option [ngValue]="other.id">{{ other.name }} — {{ other.dateOn | date: 'dd/MM/yyyy' }}</option>
+										}
+									</select>
+									<div class="form-text">
+										Un socio o invitado que ya se registró en una de las dos fechas no va a poder registrarse en la otra.
+									</div>
+								</div>
+							}
 						</div>
 						@if (errorMessage) {
 							<div class="text-danger mt-2">{{ errorMessage }}</div>
@@ -168,6 +185,7 @@ export class CreateEventModalComponent {
 	private readonly uploadsService = inject(UploadsService);
 
 	@Input() maps: Map[] = [];
+	@Input() events: Events[] = [];
 
 	event = model<Events | null>(null);
 	eventCreated = output<Events>();
@@ -177,6 +195,14 @@ export class CreateEventModalComponent {
 	uploadError = signal('');
 
 	isChurchTenant = computed(() => this.authService.currentUser()?.tenant?.type === 'CHURCH');
+	isClubTenant = computed(() => this.authService.currentUser()?.tenant?.type === 'CLUB');
+
+	// El evento que se está editando no puede vincularse consigo mismo.
+	otherEvents = computed(() => this.events.filter((e) => e.id !== this.event()?.id));
+
+	// El id del evento vinculado ANTES de abrir el form — solo se manda linkedEventId en el submit si
+	// cambia, para no desvincular por accidente un vínculo que el usuario ni tocó (ver submit()).
+	private originalLinkedEventId: number | null = null;
 
 	eventForm = this.fb.group({
 		name: ['', Validators.required],
@@ -191,6 +217,7 @@ export class CreateEventModalComponent {
 		mapId: this.fb.control<number | null>(null),
 		hostName: [''],
 		maxHostGuests: this.fb.control<number | null>(null),
+		linkedEventId: this.fb.control<number | null>(null),
 	});
 
 	constructor() {
@@ -199,6 +226,9 @@ export class CreateEventModalComponent {
 			this.errorMessage = '';
 			this.uploadError.set('');
 			if (current) {
+				this.originalLinkedEventId = current.duplicateGroupKey
+					? (this.events.find((e) => e.id !== current.id && e.duplicateGroupKey === current.duplicateGroupKey)?.id ?? null)
+					: null;
 				this.eventForm.patchValue({
 					name: current.name,
 					code: current.code,
@@ -212,9 +242,11 @@ export class CreateEventModalComponent {
 					mapId: current.map?.id ?? null,
 					hostName: current.hostName ?? '',
 					maxHostGuests: current.maxHostGuests ?? null,
+					linkedEventId: this.originalLinkedEventId,
 				});
 			} else {
-				this.eventForm.reset({ active: true, mapId: null, hostName: '', maxHostGuests: null });
+				this.originalLinkedEventId = null;
+				this.eventForm.reset({ active: true, mapId: null, hostName: '', maxHostGuests: null, linkedEventId: null });
 			}
 		});
 	}
@@ -264,6 +296,8 @@ export class CreateEventModalComponent {
 		}
 
 		const value = this.eventForm.getRawValue();
+		const current = this.event();
+		const linkedEventIdChanged = !!current && value.linkedEventId !== this.originalLinkedEventId;
 		const payload = {
 			name: value.name!,
 			code: value.code ?? '',
@@ -277,9 +311,8 @@ export class CreateEventModalComponent {
 			mapId: value.mapId,
 			hostName: value.hostName?.trim() ? value.hostName.trim() : null,
 			maxHostGuests: value.maxHostGuests,
+			linkedEventId: linkedEventIdChanged ? value.linkedEventId : undefined,
 		};
-
-		const current = this.event();
 		const request = current ? this.eventsService.updateEvent(current.id, payload) : this.eventsService.createEvent(payload);
 
 		request.subscribe({

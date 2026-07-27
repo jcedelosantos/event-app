@@ -10,6 +10,7 @@ import { sendTicketEmail } from '../lib/mail';
 import { asyncHandler } from '../lib/async-handler';
 import { logAudit } from '../lib/audit';
 import { isClubTenant, validateAttendeeRule } from '../lib/attendee';
+import { checkDuplicateEventRegistration } from '../lib/duplicate-event-guard';
 import { validateHostGuestRule } from '../lib/host-guest';
 import { uniqueUsername } from '../lib/unique-username';
 
@@ -82,6 +83,17 @@ saleTicketsRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res) 
 		});
 		if (attendeeError) {
 			res.status(400).json({ error: attendeeError });
+			return;
+		}
+
+		const duplicateError = await checkDuplicateEventRegistration({
+			tenantId,
+			eventId: parsed.data.eventId,
+			clientEmail: client?.email ?? '',
+			clientCarnet: client?.carnet,
+		});
+		if (duplicateError) {
+			res.status(409).json({ error: duplicateError });
 			return;
 		}
 	}

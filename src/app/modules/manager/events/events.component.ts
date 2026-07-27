@@ -39,7 +39,7 @@ declare const bootstrap: any;
 				</div>
 			</nav>
 			<br />
-			<app-create-event-modal [maps]="maps()" [(event)]="eventToEdit" (eventCreated)="onEventCreated($event)" (eventUpdated)="onEventUpdated($event)" />
+			<app-create-event-modal [maps]="maps()" [events]="events()" [(event)]="eventToEdit" (eventCreated)="onEventCreated($event)" (eventUpdated)="onEventUpdated()" />
 			<create-map-modal (mapCreated)="onMapCreated($event)" />
 			<div class="row">
 				<div class="col-12 col-lg-8">
@@ -177,8 +177,11 @@ export class EventsComponent implements OnInit, AfterViewInit {
 		this.events.update((list) => [event, ...list]);
 	}
 
-	onEventUpdated(event: Events) {
-		this.events.update((list) => list.map((e) => (e.id === event.id ? event : e)));
+	// Recarga la lista completa en vez de parchear solo el evento editado — vincular/desvincular
+	// "otra fecha" (ver create-event-modal) también cambia duplicateGroupKey en OTRO evento que esta
+	// respuesta no incluye, y ese evento quedaría con datos viejos hasta el próximo refresh manual.
+	onEventUpdated() {
+		this.loadEvents();
 	}
 
 	onEditEvent(event: Events) {

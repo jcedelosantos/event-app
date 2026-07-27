@@ -17,6 +17,9 @@ export interface Events {
 	active: boolean;
 	hostName?: string | null;
 	maxHostGuests?: number | null;
+	// Solo tiene sentido en tenants CLUB — eventos que comparten este valor son "misma función,
+	// distinta fecha" (ver create-event-modal). null = este evento no está vinculado a ningún otro.
+	duplicateGroupKey?: string | null;
 	map?: Map;
 	tickets: Array<Ticket>;
 	products: Array<Product>;

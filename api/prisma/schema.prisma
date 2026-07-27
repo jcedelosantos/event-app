@@ -131,11 +131,20 @@ model Event {
   hostName      String?
   maxHostGuests Int?
 
+  // Solo tiene sentido en tenants tipo CLUB (ver Tenant.type) — "misma función, distinta fecha"
+  // (ej. un concierto repetido dos noches). Dos o más eventos que comparten este valor forman un
+  // grupo: un socio/invitado que ya se registró en uno no puede volver a registrarse en otro del
+  // mismo grupo (ver lib/duplicate-event-guard.ts). null significa que el evento no está vinculado
+  // a ningún otro.
+  duplicateGroupKey String?
+
   tickets      Ticket[]
   products     Product[]
   saleProducts SaleProduct[]
   saleTickets  SaleTicket[]
   children     Child[]
+
+  @@index([tenantId, duplicateGroupKey])
 }
 
 model Map {

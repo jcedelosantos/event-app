@@ -18,6 +18,9 @@ export type EventInput = {
 	mapId?: number | null;
 	hostName?: string | null;
 	maxHostGuests?: number | null;
+	// Solo se usa al editar (ver PUT /events/:id) — número para vincular con ese evento, null para
+	// desvincular, ausente/undefined para no tocar el vínculo actual.
+	linkedEventId?: number | null;
 };
 
 @Injectable({
