@@ -38,7 +38,7 @@ import { AuthService } from '../../../../../core/services/auth.service';
 				</div>
 				<div class="card-footer text-body-secondary py-2">
 					<div class="d-flex justify-content-between flex-row">
-						<button class="btn btn-danger btn-sm" [routerLink]="['/manager/sales', event.id]">Sale</button>
+						<button class="btn btn-danger btn-sm" [routerLink]="['/manager/qrs']" [queryParams]="{ eventId: event.id }">Sale</button>
 						<button class="btn btn-danger btn-sm" [routerLink]="['/manager/events', event.id]">Details</button>
 					</div>
 				</div>

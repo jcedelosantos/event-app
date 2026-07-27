@@ -7,7 +7,7 @@ import { AuthService } from '../../../core/services/auth.service';
 import { Events } from '../../../models/events/events';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { EventDetailModalComponent } from './components/event-detail-modal/event-detail-modal.component';
 import { CreateQrModalComponent } from './components/create-qr-modal/create-qr-modal.component';
 import { ProductSaleDetailModalComponent } from './components/product-sale-detail-modal/product-sale-detail-modal.component';
@@ -58,6 +58,7 @@ export class QrsComponent implements OnInit, AfterViewInit {
   childrenService = inject(ChildrenService);
   private readonly eventsService = inject(EventsService);
   private readonly authService = inject(AuthService);
+  private readonly route = inject(ActivatedRoute);
 
   isChurchTenant = computed(() => this.authService.currentUser()?.tenant?.type === 'CHURCH');
   childrenList = signal<Child[]>([]);
@@ -228,14 +229,21 @@ export class QrsComponent implements OnInit, AfterViewInit {
   }
 
   ngOnInit(): void {
+    // El botón "Sale" de la tarjeta de un evento (events.component) trae acá con ?eventId=X — ese
+    // evento puntual tiene prioridad sobre el default de "el que está corriendo hoy".
+    const eventIdParam = Number(this.route.snapshot.queryParamMap.get('eventId'));
     this.eventsService.getEvents().subscribe((events) => {
       this.events.set(events);
-      // El staff casi siempre está mirando esta pantalla para UN evento puntual (el que está
-      // corriendo hoy) — filtrar por ese de entrada evita tener que buscarlo entre todos cuando
-      // hay varios eventos activos en fechas parecidas.
-      const today = todayKey();
-      const todayEvent = events.find((e) => eventDateKey(e.dateOn) <= today && eventDateKey(e.dateOff) >= today);
-      this.selectedEventId.set(todayEvent?.id ?? null);
+      if (eventIdParam && events.some((e) => e.id === eventIdParam)) {
+        this.selectedEventId.set(eventIdParam);
+      } else {
+        // El staff casi siempre está mirando esta pantalla para UN evento puntual (el que está
+        // corriendo hoy) — filtrar por ese de entrada evita tener que buscarlo entre todos cuando
+        // hay varios eventos activos en fechas parecidas.
+        const today = todayKey();
+        const todayEvent = events.find((e) => eventDateKey(e.dateOn) <= today && eventDateKey(e.dateOff) >= today);
+        this.selectedEventId.set(todayEvent?.id ?? null);
+      }
       this.loadQRs();
       this.loadProductSales();
       if (this.isChurchTenant()) {
