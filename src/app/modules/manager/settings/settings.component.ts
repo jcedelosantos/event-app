@@ -4,6 +4,7 @@ import { SettingsService } from '../../../core/services/settings.service';
 import { ACCENT_SETTING_KEY, DEFAULT_ACCENT, ThemeService } from '../../../core/services/theme.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { extractErrorMessage } from '../../../utils/api-error';
+import { QRCodeComponent } from 'angularx-qrcode';
 
 const PRESETS = [
 	{ name: 'Azul oscuro', hex: '#1e3a8a' },
@@ -15,7 +16,7 @@ const PRESETS = [
 
 @Component({
 	selector: 'app-settings',
-	imports: [],
+	imports: [QRCodeComponent],
 	template: `
 		<h2 class="section-title">Settings</h2>
 		<p class="text-body-secondary small">Color de acento de toda la app: botones, badges, bordes y textos destacados.</p>
@@ -86,6 +87,10 @@ const PRESETS = [
 						<a class="btn btn-outline-secondary" [href]="url" target="_blank" rel="noopener">
 							<i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
 						</a>
+					</div>
+					<div class="text-center mt-3">
+						<qrcode [qrdata]="url" [width]="180" [errorCorrectionLevel]="'M'"></qrcode>
+						<p class="small text-body-secondary mt-2 mb-0">Compartí este QR para que tus clientes vean todos tus próximos eventos</p>
 					</div>
 				</div>
 			</div>
