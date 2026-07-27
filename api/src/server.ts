@@ -19,6 +19,8 @@ import { auditLogsRouter } from './routes/audit-logs';
 import { settingsRouter } from './routes/settings';
 import { tenantsRouter } from './routes/tenants';
 import { childrenRouter } from './routes/children';
+import { uploadsRouter } from './routes/uploads';
+import { uploadsDir } from './lib/uploads';
 
 // Red de seguridad: una promesa rechazada sin manejar en cualquier punto del proceso (no solo
 // dentro de una request) tumbaba el server entero en Node moderno. asyncHandler cubre las rutas,
@@ -33,7 +35,8 @@ app.use(cors());
 app.use(express.json());
 
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+app.use('/uploads', express.static(uploadsDir));
+app.use('/uploads', uploadsRouter);
 
 app.use('/auth', authRouter);
 app.use('/users', usersRouter);

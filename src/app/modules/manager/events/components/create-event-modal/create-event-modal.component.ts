@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, Input, model, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, Input, model, output, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Events } from '../../../../../models/events/events';
@@ -7,6 +7,8 @@ import { Map } from '../../../../../models/maps/map';
 import { extractErrorMessage } from '../../../../../utils/api-error';
 import { closeModal } from '../../../../../utils/modal';
 import { AuthService } from '../../../../../core/services/auth.service';
+import { UploadsService } from '../../../../../core/services/uploads.service';
+import { environment } from '../../../../../../environments/environment';
 
 declare const bootstrap: any;
 
@@ -40,6 +42,23 @@ function toDateInputValue(date: Date): string {
 								@if (isInvalid('name')) {
 									<div class="invalid-feedback">El nombre es obligatorio.</div>
 								}
+							</div>
+							<div class="col-md-12 mb-2">
+								<label for="eventImage" class="small mb-1">Imagen del evento <span class="text-muted">(opcional — la foto/flyer que envía el cliente)</span></label>
+								<div class="d-flex align-items-center gap-2">
+									@if (eventForm.controls.img.value) {
+										<img [src]="eventForm.controls.img.value" alt="" class="event-image-preview" />
+									}
+									<div class="flex-grow-1">
+										<input type="file" accept="image/*" class="form-control form-control-sm" id="eventImage" (change)="onImageSelected($event)" [disabled]="uploading()" />
+										@if (uploading()) {
+											<div class="form-text">Subiendo imagen...</div>
+										}
+										@if (uploadError()) {
+											<div class="text-danger small">{{ uploadError() }}</div>
+										}
+									</div>
+								</div>
 							</div>
 							<div class="col-md-4 mb-2">
 								<label for="code" class="small mb-1">Start Date *</label>
@@ -124,17 +143,29 @@ function toDateInputValue(date: Date): string {
 				</div>
 				<div class="modal-footer">
 					<button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
-					<button type="button" class="btn btn-danger btn-sm" (click)="submit()">{{ event() ? 'Update' : 'Create' }}</button>
+					<button type="button" class="btn btn-danger btn-sm" [disabled]="uploading()" (click)="submit()">{{ event() ? 'Update' : 'Create' }}</button>
 				</div>
 			</div>
 		</div>
 	</div>`,
+	styles: [
+		`
+			.event-image-preview {
+				width: 56px;
+				height: 56px;
+				object-fit: cover;
+				border-radius: 0.375rem;
+				flex-shrink: 0;
+			}
+		`,
+	],
 	changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class CreateEventModalComponent {
 	private readonly fb = inject(FormBuilder);
 	private readonly eventsService = inject(EventsService);
 	private readonly authService = inject(AuthService);
+	private readonly uploadsService = inject(UploadsService);
 
 	@Input() maps: Map[] = [];
 
@@ -142,6 +173,8 @@ export class CreateEventModalComponent {
 	eventCreated = output<Events>();
 	eventUpdated = output<Events>();
 	errorMessage = '';
+	uploading = signal(false);
+	uploadError = signal('');
 
 	isChurchTenant = computed(() => this.authService.currentUser()?.tenant?.type === 'CHURCH');
 
@@ -149,6 +182,7 @@ export class CreateEventModalComponent {
 		name: ['', Validators.required],
 		code: [''],
 		description: [''],
+		img: [''],
 		dateOn: ['', Validators.required],
 		dateOff: [''],
 		startTime: ['', Validators.required],
@@ -163,11 +197,13 @@ export class CreateEventModalComponent {
 		effect(() => {
 			const current = this.event();
 			this.errorMessage = '';
+			this.uploadError.set('');
 			if (current) {
 				this.eventForm.patchValue({
 					name: current.name,
 					code: current.code,
 					description: current.description,
+					img: current.img ?? '',
 					dateOn: toDateInputValue(current.dateOn),
 					dateOff: current.dateOff ? toDateInputValue(current.dateOff) : '',
 					startTime: current.startTime ?? '',
@@ -200,6 +236,27 @@ export class CreateEventModalComponent {
 		}
 	}
 
+	onImageSelected(event: Event) {
+		const input = event.target as HTMLInputElement;
+		const file = input.files?.[0];
+		if (!file) {
+			return;
+		}
+
+		this.uploading.set(true);
+		this.uploadError.set('');
+		this.uploadsService.uploadImage(file).subscribe({
+			next: ({ url }) => {
+				this.eventForm.controls.img.setValue(`${environment.apiUrl}${url}`);
+				this.uploading.set(false);
+			},
+			error: (err: HttpErrorResponse) => {
+				this.uploadError.set(extractErrorMessage(err));
+				this.uploading.set(false);
+			},
+		});
+	}
+
 	submit() {
 		if (this.eventForm.invalid) {
 			this.eventForm.markAllAsTouched();
@@ -211,6 +268,7 @@ export class CreateEventModalComponent {
 			name: value.name!,
 			code: value.code ?? '',
 			description: value.description ?? '',
+			img: value.img ?? '',
 			type: value.type!,
 			dateOn: value.dateOn!,
 			dateOff: value.dateOff?.trim() ? value.dateOff : undefined,
