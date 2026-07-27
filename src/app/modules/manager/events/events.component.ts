@@ -5,6 +5,7 @@ import { Events } from '../../../models/events/events';
 import { EventsService } from './services/events.service';
 import { EventCardComponent } from './components/event-card/event-card.component';
 import { CreateMapModalComponent } from '../maps/components/create-map-modal/create-map-modal.component';
+import { EventQrModalComponent } from './components/event-qr-modal/event-qr-modal.component';
 import { Map } from '../../../models/maps/map';
 import { MapsService } from '../maps/services/maps.service';
 import { eventDateKey, todayKey } from '../../../utils/dates';
@@ -16,7 +17,7 @@ declare const bootstrap: any;
 
 @Component({
 	selector: 'app-events',
-	imports: [CreateEventModalComponent, ScheduleComponent, EventCardComponent, CreateMapModalComponent],
+	imports: [CreateEventModalComponent, ScheduleComponent, EventCardComponent, CreateMapModalComponent, EventQrModalComponent],
 	template: `
 			<h2 class="section-title">Events Manager</h2>
 			<nav class="navbar border-bottom border-body">
@@ -48,6 +49,7 @@ declare const bootstrap: any;
 				(eventUpdated)="onEventUpdated()"
 			/>
 			<create-map-modal (mapCreated)="onMapCreated($event)" />
+			<app-event-qr-modal [event]="eventForQr()" />
 			<div class="row">
 				<div class="col-12 col-lg-8">
 					<div class="d-flex flex-column vh-85">
@@ -60,6 +62,7 @@ declare const bootstrap: any;
 										<div class="p-2">
 											<event-card
 												[event]="event"
+												(showQr)="onShowQr($event)"
 												(editEvent)="onEditEvent($event)"
 												(duplicateEvent)="onDuplicateEvent($event)"
 												(deleteEvent)="onDeleteEvent($event)"
@@ -80,6 +83,7 @@ declare const bootstrap: any;
 										<div class="p-2">
 											<event-card
 												[event]="event"
+												(showQr)="onShowQr($event)"
 												(editEvent)="onEditEvent($event)"
 												(duplicateEvent)="onDuplicateEvent($event)"
 												(deleteEvent)="onDeleteEvent($event)"
@@ -109,6 +113,7 @@ export class EventsComponent implements OnInit, AfterViewInit {
 	events = signal<Events[]>([]);
 	maps = signal<Map[]>([]);
 	eventToEdit = signal<Events | null>(null);
+	eventForQr = signal<Events | null>(null);
 	searchText = signal('');
 	private readonly createEventModalRef = viewChild<CreateEventModalComponent>('createEventModalRef');
 
@@ -164,6 +169,14 @@ export class EventsComponent implements OnInit, AfterViewInit {
 	// respuesta no incluye, y ese evento quedaría con datos viejos hasta el próximo refresh manual.
 	onEventUpdated() {
 		this.loadEvents();
+	}
+
+	onShowQr(event: Events) {
+		this.eventForQr.set(event);
+		const modalEl = document.getElementById('eventQrModal');
+		if (modalEl) {
+			bootstrap.Modal.getOrCreateInstance(modalEl).show();
+		}
 	}
 
 	onEditEvent(event: Events) {
