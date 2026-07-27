@@ -112,6 +112,9 @@ export type PublicOrgEvent = {
 	dateOff: string;
 	startTime: string | null;
 	map: { name: string } | null;
+	// Calculado en el backend (ver GET /public/org/:slug) — la portada usa esto para deshabilitar la
+	// tarjeta sin tener que exponer tickets/precios en este listado público.
+	soldOut: boolean;
 };
 
 // Portada pública de una organización — lista sus próximos eventos activos (ver org-landing).

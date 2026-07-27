@@ -77,6 +77,9 @@ const MAX_INVITADO_SEATS = 2;
 								<p>{{ ev.description }}</p>
 							}
 
+							@if (purchaseBlockedReason(); as reason) {
+								<div class="alert alert-warning">{{ reason }}</div>
+							} @else {
 							@if (ev.tenantType === 'CLUB') {
 								<div class="mb-4">
 									<h5>1. Tus datos</h5>
@@ -333,6 +336,7 @@ const MAX_INVITADO_SEATS = 2;
 							<button type="button" class="btn btn-danger btn-lg w-100" [disabled]="submitting()" (click)="submit(ev)">
 								{{ submitting() ? 'Procesando...' : 'Confirmar y generar mis QR' }}
 							</button>
+							}
 						</div>
 					}
 				}
@@ -532,6 +536,21 @@ export class PublicEventComponent implements OnInit {
 
 	step = signal<'loading' | 'not-found' | 'ready' | 'confirmed'>('loading');
 	event = signal<PublicEvent | null>(null);
+
+	// Único gatekeeper de "se puede comprar" — cubre tanto entrar por la portada de la organización
+	// (que ya oculta/etiqueta estos casos) como entrar directo por un QR/link viejo que se saltea esa
+	// pantalla: acá se bloquea la compra sin importar cómo llegó el comprador.
+	purchaseBlockedReason = computed<string | null>(() => {
+		const ev = this.event();
+		if (!ev) return null;
+		if (new Date() > new Date(ev.dateOff)) {
+			return 'Las ventas para este evento ya cerraron.';
+		}
+		if (!ev.tickets.length || ev.tickets.every((t) => t.count <= 0)) {
+			return 'Este evento está agotado — ya no hay entradas disponibles.';
+		}
+		return null;
+	});
 	// Elegido a mano por el comprador en tenants no-CLUB (botones de ticket, paso 1) — en tenants
 	// CLUB el ticket activo sale solo de attendeeTypeValue (ver activeTicket más abajo), este signal
 	// queda sin usar en ese camino.
@@ -871,6 +890,11 @@ export class PublicEventComponent implements OnInit {
 	submit(event: PublicEvent) {
 		this.errorMessage.set('');
 		this.attendeeError.set('');
+
+		if (this.purchaseBlockedReason()) {
+			this.errorMessage.set(this.purchaseBlockedReason()!);
+			return;
+		}
 
 		const { name, lastname, email, phone, carnet, attendeeType, sponsorCarnet } = this.registerForm.getRawValue();
 

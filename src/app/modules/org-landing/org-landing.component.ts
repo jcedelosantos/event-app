@@ -46,28 +46,54 @@ import { PublicEventService, PublicOrg, PublicOrgEvent } from '../public-event/s
 							} @else {
 								<div class="event-grid">
 									@for (event of filteredEvents(); track event.id) {
-										<a class="event-card" [routerLink]="['/e', event.code]">
-											<div class="event-poster">
-												@if (event.img) {
-													<img [src]="event.img" [alt]="event.name" loading="lazy" />
-												} @else {
-													<div class="event-poster-fallback">{{ event.name }}</div>
-												}
-												<span class="event-date-badge">{{ formatShortDate(event.dateOn) }}</span>
-											</div>
-											<div class="event-info">
-												<h3 class="event-name">{{ event.name }}</h3>
-												<p class="event-meta mb-0">
-													{{ formatFullDate(event.dateOn) }}
-													@if (event.startTime) {
-														— {{ formatStartTime(event.startTime) }}
+										@if (statusLabel(event); as label) {
+											<div class="event-card event-card-disabled">
+												<div class="event-poster">
+													@if (event.img) {
+														<img [src]="event.img" [alt]="event.name" loading="lazy" />
+													} @else {
+														<div class="event-poster-fallback">{{ event.name }}</div>
 													}
-												</p>
-												@if (event.map?.name) {
-													<p class="event-meta text-truncate mb-0">{{ event.map!.name }}</p>
-												}
+													<span class="event-date-badge">{{ formatShortDate(event.dateOn) }}</span>
+													<span class="event-status-badge">{{ label }}</span>
+												</div>
+												<div class="event-info">
+													<h3 class="event-name">{{ event.name }}</h3>
+													<p class="event-meta mb-0">
+														{{ formatFullDate(event.dateOn) }}
+														@if (event.startTime) {
+															— {{ formatStartTime(event.startTime) }}
+														}
+													</p>
+													@if (event.map?.name) {
+														<p class="event-meta text-truncate mb-0">{{ event.map!.name }}</p>
+													}
+												</div>
 											</div>
-										</a>
+										} @else {
+											<a class="event-card" [routerLink]="['/e', event.code]">
+												<div class="event-poster">
+													@if (event.img) {
+														<img [src]="event.img" [alt]="event.name" loading="lazy" />
+													} @else {
+														<div class="event-poster-fallback">{{ event.name }}</div>
+													}
+													<span class="event-date-badge">{{ formatShortDate(event.dateOn) }}</span>
+												</div>
+												<div class="event-info">
+													<h3 class="event-name">{{ event.name }}</h3>
+													<p class="event-meta mb-0">
+														{{ formatFullDate(event.dateOn) }}
+														@if (event.startTime) {
+															— {{ formatStartTime(event.startTime) }}
+														}
+													</p>
+													@if (event.map?.name) {
+														<p class="event-meta text-truncate mb-0">{{ event.map!.name }}</p>
+													}
+												</div>
+											</a>
+										}
 									}
 								</div>
 							}
@@ -135,6 +161,28 @@ import { PublicEventService, PublicOrg, PublicOrgEvent } from '../public-event/s
 			.event-card:hover {
 				transform: translateY(-3px);
 				border-color: var(--app-accent);
+			}
+			.event-card-disabled {
+				cursor: not-allowed;
+			}
+			.event-card-disabled .event-poster {
+				filter: grayscale(1);
+				opacity: 0.55;
+			}
+			.event-card-disabled .event-info {
+				opacity: 0.55;
+			}
+			.event-status-badge {
+				position: absolute;
+				top: 0.5rem;
+				right: 0.5rem;
+				background: rgba(0, 0, 0, 0.85);
+				color: #fff;
+				font-size: 0.7rem;
+				font-weight: 700;
+				padding: 0.2rem 0.5rem;
+				border-radius: 0.25rem;
+				text-transform: uppercase;
 			}
 			.event-poster {
 				position: relative;
@@ -217,6 +265,13 @@ export class OrgLandingComponent implements OnInit {
 			},
 			error: () => this.step.set('not-found'),
 		});
+	}
+
+	// null = evento seleccionable normalmente. Si no, la card se muestra sin link (ver template) —
+	// mismo criterio que el gate de compra en public-event.component.ts, calculado en el backend acá
+	// (ver GET /public/org/:slug) para no tener que traer tickets/precios a este listado público.
+	statusLabel(event: PublicOrgEvent): string | null {
+		return event.soldOut ? 'Agotado' : null;
 	}
 
 	// dateOn es un instante UTC medianoche que representa un día calendario — usar getters UTC para

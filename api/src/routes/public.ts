@@ -40,14 +40,30 @@ publicRouter.get('/org/:slug', asyncHandler(async (req, res) => {
 	const events = await prisma.event.findMany({
 		where: { tenantId: tenant.id, active: true, dateOff: { gte: new Date() } },
 		orderBy: { dateOn: 'asc' },
-		select: { id: true, name: true, code: true, img: true, description: true, dateOn: true, dateOff: true, startTime: true, map: { select: { name: true } } },
+		select: {
+			id: true,
+			name: true,
+			code: true,
+			img: true,
+			description: true,
+			dateOn: true,
+			dateOff: true,
+			startTime: true,
+			map: { select: { name: true } },
+			tickets: { where: { active: true }, select: { count: true } },
+		},
 	});
 
 	res.json({
 		name: tenant.name,
 		slug: tenant.slug,
 		type: tenant.type,
-		events,
+		// soldOut se calcula acá para no exponer tickets/precios en este listado público — la portada
+		// solo necesita saber si puede o no llevar al comprador a /e/:code.
+		events: events.map(({ tickets, ...event }) => ({
+			...event,
+			soldOut: !tickets.length || tickets.every((t) => t.count <= 0),
+		})),
 	});
 }));
 
@@ -186,6 +202,15 @@ publicRouter.post('/purchase', asyncHandler(async (req, res) => {
 	const event = await prismaUnscoped.event.findUnique({ where: { code: eventCode } });
 	if (!event || !event.active) {
 		res.status(404).json({ error: 'Evento no encontrado' });
+		return;
+	}
+	// Repite acá el mismo gate que ya aplica el frontend (ver public-event.component.ts) — sin esto,
+	// alguien podría comprar igual pegándole directo a este endpoint, sin pasar por la UI. Ojo: NO se
+	// chequea dateSale acá — hoy siempre es igual a dateOn (nadie lo edita, la UI no lo expone), así
+	// que tratarlo como "inicio de venta" bloquearía la compra de eventos vigentes hasta el mismo día
+	// del evento. Si en el futuro se expone dateSale como campo editable, sumar ese chequeo acá.
+	if (event.dateOff < new Date()) {
+		res.status(409).json({ error: 'Las ventas para este evento ya cerraron.' });
 		return;
 	}
 	const tenantId = event.tenantId;
