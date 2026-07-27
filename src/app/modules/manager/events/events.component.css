@@ -3,3 +3,11 @@
   width: auto;
   overflow-x: scroll;
 }
+
+/* Reemplaza el carrusel paginado anterior — con muchos eventos, esconder los siguientes detrás de
+   flechas de "next" chiquitas hacía que usuarios no se dieran cuenta de que existían (bug real
+   reportado: "creé eventos nuevos y no me salen"). Ahora se ven todos, envueltos en filas, con
+   scroll vertical si no entran en el alto disponible. */
+.event-card-list {
+	overflow-y: auto;
+}

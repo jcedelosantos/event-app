@@ -160,7 +160,9 @@ function toDateInputValue(date: Date): string {
 				</div>
 				<div class="modal-footer">
 					<button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
-					<button type="button" class="btn btn-danger btn-sm" [disabled]="uploading()" (click)="submit()">{{ event() ? 'Update' : 'Create' }}</button>
+					<button type="button" class="btn btn-danger btn-sm" [disabled]="uploading() || submitting()" (click)="submit()">
+						{{ submitting() ? 'Guardando...' : event() ? 'Update' : 'Create' }}
+					</button>
 				</div>
 			</div>
 		</div>
@@ -193,6 +195,10 @@ export class CreateEventModalComponent {
 	errorMessage = '';
 	uploading = signal(false);
 	uploadError = signal('');
+	// Sin esto, un doble-click en "Create" (algo tan simple como un click impaciente mientras la
+	// request todavía viaja) disparaba dos POST y creaba el mismo evento dos veces — bug real
+	// reportado en producción.
+	submitting = signal(false);
 
 	isChurchTenant = computed(() => this.authService.currentUser()?.tenant?.type === 'CHURCH');
 	isClubTenant = computed(() => this.authService.currentUser()?.tenant?.type === 'CLUB');
@@ -251,6 +257,23 @@ export class CreateEventModalComponent {
 		});
 	}
 
+	// Precarga el form con los datos de otro evento para "duplicar sin empezar de cero" — a
+	// propósito NO toca event() (queda en null, submit() lo trata como creación, no como edición) ni
+	// copia code/dateOn/dateOff/startTime: el usuario tiene que elegir la fecha nueva sí o sí, tanto
+	// para que tenga sentido como para no chocar con la validación de fecha+mapa duplicados.
+	prefillForDuplicate(source: Events) {
+		this.event.set(null);
+		this.errorMessage = '';
+		this.uploadError.set('');
+		this.eventForm.reset({ active: true, mapId: source.map?.id ?? null, hostName: source.hostName ?? '', maxHostGuests: source.maxHostGuests ?? null, linkedEventId: null });
+		this.eventForm.patchValue({
+			name: `${source.name} (copia)`,
+			description: source.description,
+			img: source.img ?? '',
+			type: source.type,
+		});
+	}
+
 	isInvalid(controlName: keyof typeof this.eventForm.controls): boolean {
 		const control = this.eventForm.controls[controlName];
 		return control.invalid && control.touched;
@@ -290,6 +313,7 @@ export class CreateEventModalComponent {
 	}
 
 	submit() {
+		if (this.submitting()) return;
 		if (this.eventForm.invalid) {
 			this.eventForm.markAllAsTouched();
 			return;
@@ -315,8 +339,10 @@ export class CreateEventModalComponent {
 		};
 		const request = current ? this.eventsService.updateEvent(current.id, payload) : this.eventsService.createEvent(payload);
 
+		this.submitting.set(true);
 		request.subscribe({
 			next: (event) => {
+				this.submitting.set(false);
 				if (current) {
 					this.eventUpdated.emit(event);
 				} else {
@@ -327,6 +353,7 @@ export class CreateEventModalComponent {
 				closeModal('createEventModal');
 			},
 			error: (err: HttpErrorResponse) => {
+				this.submitting.set(false);
 				this.errorMessage = extractErrorMessage(err);
 			},
 		});

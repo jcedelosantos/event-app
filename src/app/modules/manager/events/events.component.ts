@@ -1,4 +1,4 @@
-import { AfterViewInit, ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
+import { AfterViewInit, ChangeDetectionStrategy, Component, computed, inject, OnInit, signal, viewChild } from '@angular/core';
 import { CreateEventModalComponent } from './components/create-event-modal/create-event-modal.component';
 import { ScheduleComponent } from '../../../shared/schedule/schedule.component';
 import { Events } from '../../../models/events/events';
@@ -39,7 +39,14 @@ declare const bootstrap: any;
 				</div>
 			</nav>
 			<br />
-			<app-create-event-modal [maps]="maps()" [events]="events()" [(event)]="eventToEdit" (eventCreated)="onEventCreated($event)" (eventUpdated)="onEventUpdated()" />
+			<app-create-event-modal
+				#createEventModalRef
+				[maps]="maps()"
+				[events]="events()"
+				[(event)]="eventToEdit"
+				(eventCreated)="onEventCreated($event)"
+				(eventUpdated)="onEventUpdated()"
+			/>
 			<create-map-modal (mapCreated)="onMapCreated($event)" />
 			<div class="row">
 				<div class="col-12 col-lg-8">
@@ -48,29 +55,16 @@ declare const bootstrap: any;
 							<h5>Now <span class="badge text-bg-secondary">{{ eventsNow().length }}</span></h5>
 
 							@if (eventsNow().length) {
-								<div id="carouselEvents" class="carousel slide">
-									<div class="carousel-inner">
-										@for (chunk of chunk2(eventsNow()); track $index; let idx = $index) {
-											<div [class]="0 === idx ? 'carousel-item active' : 'carousel-item'">
-												<div class="d-flex flex-row">
-													@for (event of chunk; track event.id) {
-														<div class="p-2">
-															<event-card [event]="event" (editEvent)="onEditEvent($event)" (deleteEvent)="onDeleteEvent($event)" />
-														</div>
-													}
-												</div>
-											</div>
-										}
-									</div>
-									@if (chunk2(eventsNow()).length > 1) {
-										<button class="carousel-control-prev" type="button" data-bs-target="#carouselEvents" data-bs-slide="prev">
-											<span class="carousel-control-prev-icon" aria-hidden="true"></span>
-											<span class="visually-hidden">Previous</span>
-										</button>
-										<button class="carousel-control-next" type="button" data-bs-target="#carouselEvents" data-bs-slide="next">
-											<span class="carousel-control-next-icon" aria-hidden="true"></span>
-											<span class="visually-hidden">Next</span>
-										</button>
+								<div class="d-flex flex-row flex-wrap event-card-list">
+									@for (event of eventsNow(); track event.id) {
+										<div class="p-2">
+											<event-card
+												[event]="event"
+												(editEvent)="onEditEvent($event)"
+												(duplicateEvent)="onDuplicateEvent($event)"
+												(deleteEvent)="onDeleteEvent($event)"
+											/>
+										</div>
 									}
 								</div>
 							} @else {
@@ -81,29 +75,16 @@ declare const bootstrap: any;
 							<h5>Up Coming <span class="badge text-bg-secondary">{{ eventsUpcoming().length }}</span></h5>
 
 							@if (eventsUpcoming().length) {
-								<div id="carouselEventsUpComing" class="carousel slide">
-									<div class="carousel-inner">
-										@for (chunk of chunk3(eventsUpcoming()); track $index; let idx = $index) {
-											<div [class]="0 === idx ? 'carousel-item active' : 'carousel-item'">
-												<div class="d-flex flex-row">
-													@for (event of chunk; track event.id) {
-														<div class="p-2">
-															<event-card [event]="event" (editEvent)="onEditEvent($event)" (deleteEvent)="onDeleteEvent($event)" />
-														</div>
-													}
-												</div>
-											</div>
-										}
-									</div>
-									@if (chunk3(eventsUpcoming()).length > 1) {
-										<button class="carousel-control-prev" type="button" data-bs-target="#carouselEventsUpComing" data-bs-slide="prev">
-											<span class="carousel-control-prev-icon" aria-hidden="true"></span>
-											<span class="visually-hidden">Previous</span>
-										</button>
-										<button class="carousel-control-next" type="button" data-bs-target="#carouselEventsUpComing" data-bs-slide="next">
-											<span class="carousel-control-next-icon" aria-hidden="true"></span>
-											<span class="visually-hidden">Next</span>
-										</button>
+								<div class="d-flex flex-row flex-wrap event-card-list">
+									@for (event of eventsUpcoming(); track event.id) {
+										<div class="p-2">
+											<event-card
+												[event]="event"
+												(editEvent)="onEditEvent($event)"
+												(duplicateEvent)="onDuplicateEvent($event)"
+												(deleteEvent)="onDeleteEvent($event)"
+											/>
+										</div>
 									}
 								</div>
 							} @else {
@@ -129,6 +110,7 @@ export class EventsComponent implements OnInit, AfterViewInit {
 	maps = signal<Map[]>([]);
 	eventToEdit = signal<Events | null>(null);
 	searchText = signal('');
+	private readonly createEventModalRef = viewChild<CreateEventModalComponent>('createEventModalRef');
 
 	filteredEvents = computed(() => {
 		const term = this.searchText().trim().toLowerCase();
@@ -192,6 +174,18 @@ export class EventsComponent implements OnInit, AfterViewInit {
 		}
 	}
 
+	// "Duplicar" precarga el form de creación con los datos del evento origen (ver
+	// prefillForDuplicate) en vez de armar un evento nuevo desde cero — a propósito no toca
+	// eventToEdit: si lo hiciera, el modal quedaría en modo "editar" y el submit haría un PUT sobre
+	// el evento original en lugar de crear uno nuevo.
+	onDuplicateEvent(event: Events) {
+		this.createEventModalRef()?.prefillForDuplicate(event);
+		const modalEl = document.getElementById('createEventModal');
+		if (modalEl) {
+			bootstrap.Modal.getOrCreateInstance(modalEl).show();
+		}
+	}
+
 	onDeleteEvent(event: Events) {
 		confirm(`¿Eliminar el evento "${event.name}"? Esta acción no se puede deshacer.`, {
 			onConfirm: () => {
@@ -205,21 +199,5 @@ export class EventsComponent implements OnInit, AfterViewInit {
 
 	onMapCreated(map: Map) {
 		this.maps.update((list) => [map, ...list]);
-	}
-
-	chunk2(array: Events[]): Events[][] {
-		return this.chunkArray(array, 2);
-	}
-
-	chunk3(array: Events[]): Events[][] {
-		return this.chunkArray(array, 3);
-	}
-
-	private chunkArray<T>(array: T[], size: number): T[][] {
-		const result: T[][] = [];
-		for (let i = 0; i < array.length; i += size) {
-			result.push(array.slice(i, i + size));
-		}
-		return result;
 	}
 }

@@ -11,11 +11,12 @@ import { AuthService } from '../../../../../core/services/auth.service';
 	imports: [CommonModule, RouterLink],
 	template: `
 		@if (event) {
-			<div class="card text-center" style="height: 220px; min-width: 240px;">
-				<div class="card-header py-2 d-flex justify-content-between align-items-center">
-					<span>{{ event.name }}</span>
-					<div class="d-flex gap-1">
+			<div class="card text-center event-card-fixed" style="min-width: 240px;">
+				<div class="card-header py-2 d-flex justify-content-between align-items-center gap-2">
+					<span class="event-name" [title]="event.name">{{ event.name }}</span>
+					<div class="d-flex gap-1 flex-shrink-0">
 						<button type="button" class="btn btn-dark btn-sm rounded-circle" (click)="editEvent.emit(event)" title="Editar evento"><i class="bi bi-pencil"></i></button>
+						<button type="button" class="btn btn-dark btn-sm rounded-circle" (click)="duplicateEvent.emit(event)" title="Duplicar evento"><i class="bi bi-copy"></i></button>
 						<button type="button" class="btn btn-danger btn-sm rounded-circle" (click)="deleteEvent.emit(event)" title="Eliminar evento"><i class="bi bi-trash"></i></button>
 					</div>
 				</div>
@@ -28,8 +29,8 @@ import { AuthService } from '../../../../../core/services/auth.service';
 					</div>
 					<hr class="my-1" />
 
-					<p class="card-text small mb-1">{{ event.description }}</p>
-					<p class="card-text small text-body-secondary mb-1">{{ event.map?.description }}</p>
+					<p class="card-text small mb-1 event-description" [title]="event.description">{{ event.description }}</p>
+					<p class="card-text small text-body-secondary mb-1 event-description" [title]="event.map?.description">{{ event.map?.description }}</p>
 					<div class="d-flex justify-content-start flex-row flex-wrap gap-1">
 						@for (ticket of event.tickets; track $index; let idx = $index) {
 							<span class="badge rounded-pill text-bg-warning">{{ ticketBadgeLabel(ticket) }}</span>
@@ -61,6 +62,7 @@ export class EventCardComponent {
 	event!: Events;
 
 	editEvent = output<Events>();
+	duplicateEvent = output<Events>();
 	deleteEvent = output<Events>();
 
 	ticketBadgeLabel(ticket: Ticket): string {

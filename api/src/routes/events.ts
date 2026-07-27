@@ -40,6 +40,17 @@ const eventInputSchema = z.object({
 
 const include = { map: { include: { areas: true } }, tickets: true, products: true };
 
+// Solo tiene sentido cuando el evento tiene un mapa asignado — dos eventos "Sin asignar" no son
+// necesariamente el mismo evento repetido por error. Cubre el caso real reportado: crear "eventos
+// nuevos iguales" y terminar con la misma función cargada dos veces sin querer.
+async function findDuplicateEventSlot(tenantId: number, mapId: number | null | undefined, dateOn: Date, excludeId?: number) {
+	if (!mapId) return null;
+	return prisma.event.findFirst({
+		where: { tenantId, mapId, dateOn, ...(excludeId ? { id: { not: excludeId } } : {}) },
+		select: { name: true },
+	});
+}
+
 eventsRouter.get('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const tenantId = req.user!.tenantId!;
 	const events = await prisma.event.findMany({ where: { tenantId }, include, orderBy: { dateOn: 'asc' } });
@@ -68,6 +79,13 @@ eventsRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	// linkedEventId solo tiene sentido al editar un evento ya existente (ver PUT más abajo) — acá se
 	// descarta si llega, no hay nada que vincular todavía.
 	const { dateSale, dateOff, code, linkedEventId: _linkedEventId, ...data } = parsed.data;
+
+	const duplicate = await findDuplicateEventSlot(tenantId, data.mapId, data.dateOn);
+	if (duplicate) {
+		res.status(409).json({ error: `Ya existe un evento ("${duplicate.name}") con esa misma fecha y mapa asignado.` });
+		return;
+	}
+
 	const created = await prisma.event.create({
 		data: {
 			...data,
@@ -99,6 +117,20 @@ eventsRouter.put('/:id', asyncHandler(async (req: AuthenticatedRequest, res) => 
 	}
 
 	const { linkedEventId, ...eventData } = parsed.data;
+
+	const current = await prisma.event.findUnique({ where: { id, tenantId }, select: { mapId: true, dateOn: true } });
+	if (!current) {
+		res.status(404).json({ error: 'Evento no encontrado' });
+		return;
+	}
+
+	const effectiveMapId = 'mapId' in eventData ? eventData.mapId : current.mapId;
+	const effectiveDateOn = eventData.dateOn ?? current.dateOn;
+	const duplicate = await findDuplicateEventSlot(tenantId, effectiveMapId, effectiveDateOn, id);
+	if (duplicate) {
+		res.status(409).json({ error: `Ya existe un evento ("${duplicate.name}") con esa misma fecha y mapa asignado.` });
+		return;
+	}
 
 	try {
 		const event = await prisma.$transaction(async (tx) => {

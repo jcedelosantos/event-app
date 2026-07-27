@@ -1,0 +1,26 @@
+/* Antes la tarjeta tenía height fijo (220px) — con un nombre/descripción largos el contenido
+   desbordaba y empujaba (o directamente tapaba) los botones Sale/Details del footer fuera de la
+   tarjeta. display:flex + column deja que el body crezca lo que necesite y el footer se acomode
+   siempre después, nunca cortado. */
+.event-card-fixed {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+}
+
+.event-name {
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	min-width: 0;
+}
+
+.event-description {
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
