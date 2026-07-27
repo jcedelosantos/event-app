@@ -12,6 +12,7 @@ import { eventDateKey, todayKey } from '../../../utils/dates';
 import { confirm, error } from '../../../utils/messages';
 import { extractErrorMessage } from '../../../utils/api-error';
 import { HttpErrorResponse } from '@angular/common/http';
+import { AuthService } from '../../../core/services/auth.service';
 
 declare const bootstrap: any;
 
@@ -26,6 +27,11 @@ declare const bootstrap: any;
 						<button type="button" class="btn btn-danger  me-4" data-bs-toggle="modal" data-bs-target="#createEventModal">Create</button>
 						<input #searchInput class="form-control me-2" type="search" placeholder="Search" aria-label="Name" (input)="searchText.set(searchInput.value)" />
 						<button class="btn btn-dark me-4" type="submit">Search</button>
+						@if (orgUrl(); as url) {
+							<a class="btn btn-outline-light me-4" [href]="url" target="_blank" rel="noopener" title="Abrir la portada pública de tu organización">
+								<i class="bi bi-box-arrow-up-right"></i> Portada pública
+							</a>
+						}
 					</form>
 					<div class="navbar-brand">
 						<div class="row">
@@ -109,6 +115,7 @@ declare const bootstrap: any;
 export class EventsComponent implements OnInit, AfterViewInit {
 	private readonly eventSrv = inject(EventsService);
 	private readonly mapsService = inject(MapsService);
+	private readonly authService = inject(AuthService);
 
 	events = signal<Events[]>([]);
 	maps = signal<Map[]>([]);
@@ -116,6 +123,13 @@ export class EventsComponent implements OnInit, AfterViewInit {
 	eventForQr = signal<Events | null>(null);
 	searchText = signal('');
 	private readonly createEventModalRef = viewChild<CreateEventModalComponent>('createEventModalRef');
+
+	// Mismo link que "Portada pública" en Settings — un acceso directo acá evita tener que ir hasta
+	// Settings solo para abrir/compartir la página pública con todos los eventos de la organización.
+	orgUrl = computed(() => {
+		const slug = this.authService.currentUser()?.tenant?.slug;
+		return slug ? `${window.location.origin}/o/${slug}` : null;
+	});
 
 	filteredEvents = computed(() => {
 		const term = this.searchText().trim().toLowerCase();
