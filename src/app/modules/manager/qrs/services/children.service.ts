@@ -19,7 +19,7 @@ export type Child = {
 	saleProductId: number | null;
 	event: Events;
 	parent: User;
-	saleProduct: { id: number; product: Product } | null;
+	saleProduct: { id: number; deliveredAt: string | null; product: Product } | null;
 };
 
 export type ChildInput = {
@@ -51,6 +51,12 @@ export class ChildrenService {
 
 	setCheckedIn(id: number, checkedIn: boolean): Observable<Child> {
 		return this.httpClient.put<Child>(`${this.baseUrl}/${id}/check-in`, { checkedIn });
+	}
+
+	// Independiente de setCheckedIn — retiro del niño y entrega de comida son dos acciones
+	// separadas (ver scan.ts).
+	setMealDelivered(id: number, delivered: boolean): Observable<Child> {
+		return this.httpClient.put<Child>(`${this.baseUrl}/${id}/meal-delivered`, { delivered });
 	}
 
 	deleteChild(id: number): Observable<void> {

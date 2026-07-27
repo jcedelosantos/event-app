@@ -286,6 +286,16 @@ export class QrsComponent implements OnInit, AfterViewInit {
     });
   }
 
+  // Independiente de toggleChildCheckedIn — retiro del niño y entrega de comida son dos acciones
+  // separadas (ver scan.ts), se puede marcar una sin la otra.
+  toggleChildMealDelivered(child: Child) {
+    const delivered = !child.saleProduct?.deliveredAt;
+    this.childrenService.setMealDelivered(child.id, delivered).subscribe({
+      next: (updated) => this.childrenList.update((list) => list.map((c) => (c.id === updated.id ? updated : c))),
+      error: (err: HttpErrorResponse) => error(extractErrorMessage(err)),
+    });
+  }
+
   deleteChild(child: Child) {
     confirm(`¿Eliminar el registro de ${child.name}? Si tenía comida del día asociada, se libera el cupo.`, {
       onConfirm: () => {

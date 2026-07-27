@@ -1,10 +1,11 @@
-import { AfterViewInit, ChangeDetectionStrategy, Component, inject, OnDestroy, signal } from '@angular/core';
+import { AfterViewInit, ChangeDetectionStrategy, Component, computed, inject, OnDestroy, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Html5Qrcode } from 'html5-qrcode';
 import { ScanService, ScanResult } from '../../../qrs/services/scan.service';
 import { Child } from '../../../qrs/services/children.service';
+import { AuthService } from '../../../../../core/services/auth.service';
 
 type ScanAction = { message: string; ok: boolean; time: Date };
 
@@ -24,6 +25,8 @@ const SCAN_COOLDOWN_MS = 2500;
 })
 export class QrScannerComponent implements AfterViewInit, OnDestroy {
 	private readonly scanService = inject(ScanService);
+	private readonly authService = inject(AuthService);
+	isChurchTenant = computed(() => this.authService.currentUser()?.tenant?.type === 'CHURCH');
 	private scanner: Html5Qrcode | null = null;
 	private processing = false;
 	private cooldownTimer: ReturnType<typeof setTimeout> | null = null;
@@ -34,6 +37,12 @@ export class QrScannerComponent implements AfterViewInit, OnDestroy {
 	lastActions = signal<ScanAction[]>([]);
 	lastResult = signal<ScanResult | null>(null);
 	cooling = signal(false);
+
+	// Solo aplica cuando el código escaneado es un talón familiar (Child) — retiro del niño y
+	// entrega de comida son dos acciones independientes (ver scan.ts), este selector decide cuál
+	// hace el próximo escaneo. Queda en memoria entre escaneos porque normalmente un mismo puesto
+	// (comida, o salida) escanea todo un rato en el mismo modo.
+	childScanMode = signal<'pickup' | 'meal'>('pickup');
 
 	async ngAfterViewInit(): Promise<void> {
 		try {
@@ -83,7 +92,7 @@ export class QrScannerComponent implements AfterViewInit, OnDestroy {
 	}
 
 	private scan(codeQR: string) {
-		return this.scanService.scan(codeQR).subscribe({
+		return this.scanService.scan(codeQR, this.childScanMode()).subscribe({
 			next: (result) => {
 				this.lastResult.set(result);
 				if (result.type === 'ticket') {
@@ -93,7 +102,8 @@ export class QrScannerComponent implements AfterViewInit, OnDestroy {
 					const { saleProduct } = result;
 					this.pushAction(`✔ ${saleProduct.client.name} ${saleProduct.client.lastname} — ${saleProduct.product.name} x${saleProduct.quantity}`, true);
 				} else {
-					this.pushAction(`✔ Retiro: ${this.familyLabel(result.children)}`, true);
+					const verb = this.childScanMode() === 'meal' ? 'Comida entregada' : 'Retiro';
+					this.pushAction(`✔ ${verb}: ${this.familyLabel(result.children)}`, true);
 				}
 			},
 			error: (err: HttpErrorResponse) => {
@@ -112,7 +122,9 @@ export class QrScannerComponent implements AfterViewInit, OnDestroy {
 					this.pushAction(`✘ Ya fue entregado — ${body.saleProduct.client.name} ${body.saleProduct.client.lastname} (${new Date(body.saleProduct.deliveredAt).toLocaleString()})`, false);
 				} else if (body?.type === 'child' && body.children) {
 					this.lastResult.set({ type: 'child', ok: true, children: body.children });
-					this.pushAction(`✘ Esta familia ya retiró — ${this.familyLabel(body.children)}`, false);
+					// El backend ya manda el mensaje correcto según el modo (ver scan.ts): "ya fue
+					// retirada", "ya fue entregada" o "no tiene comida del día para retirar".
+					this.pushAction(`✘ ${body.error} — ${this.familyLabel(body.children)}`, false);
 				} else {
 					this.lastResult.set(null);
 					this.pushAction(`✘ ${body?.error ?? 'Código no válido'}`, false);

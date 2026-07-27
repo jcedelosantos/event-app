@@ -2,6 +2,19 @@
 
 <div class="row d-flex my-3" style="min-height: 80vh;">
 	<div class="col-8 border-end">
+		@if (isChurchTenant()) {
+			<div class="d-flex justify-content-center mb-3">
+				<div class="btn-group" role="group" aria-label="Qué hace el escaneo de un talón de hijo">
+					<input type="radio" class="btn-check" name="childScanMode" id="modePickup" autocomplete="off" [checked]="childScanMode() === 'pickup'" (change)="childScanMode.set('pickup')" />
+					<label class="btn btn-outline-danger btn-sm" for="modePickup">Retiro de niño/a</label>
+					<input type="radio" class="btn-check" name="childScanMode" id="modeMeal" autocomplete="off" [checked]="childScanMode() === 'meal'" (change)="childScanMode.set('meal')" />
+					<label class="btn btn-outline-danger btn-sm" for="modeMeal">Entrega de comida</label>
+				</div>
+			</div>
+			<p class="text-body-secondary small text-center mb-3">
+				Para talones de hijos: elegí qué acción hace este escaneo — son independientes, se puede entregar la comida sin retirar al niño/a todavía, o al revés.
+			</p>
+		}
 		<div class="text-center mb-3">
 			<div id="qr-reader" class="qr-reader"></div>
 			@if (cameraError()) {
@@ -59,9 +72,16 @@
 								<li>
 									{{ child.name }}{{ child.age != null ? ' (' + child.age + ')' : '' }}
 									@if (child.checkedInAt) {
-										<span class="badge text-bg-success">Retirado {{ child.checkedInAt | date: 'short' }}</span>
+										<span class="badge text-bg-success">Retirado</span>
 									} @else {
-										<span class="badge text-bg-secondary">Pendiente</span>
+										<span class="badge text-bg-secondary">Sin retirar</span>
+									}
+									@if (child.saleProduct) {
+										@if (child.saleProduct.deliveredAt) {
+											<span class="badge text-bg-success">Comida entregada</span>
+										} @else {
+											<span class="badge text-bg-secondary">Comida pendiente</span>
+										}
 									}
 								</li>
 							}

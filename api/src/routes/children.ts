@@ -142,6 +142,31 @@ childrenRouter.put('/:id/check-in', asyncHandler(async (req: AuthenticatedReques
 	}
 }));
 
+// Toggle manual de entrega de comida — separado del retiro del niño (PUT /:id/check-in): son dos
+// acciones independientes (ver scan.ts), se puede entregar la comida sin haber retirado al niño
+// todavía, o al revés.
+childrenRouter.put('/:id/meal-delivered', asyncHandler(async (req: AuthenticatedRequest, res) => {
+	const id = Number(req.params.id);
+	const tenantId = req.user!.tenantId!;
+	const delivered = req.body?.delivered;
+	if (typeof delivered !== 'boolean') {
+		res.status(400).json({ error: 'delivered debe ser true o false' });
+		return;
+	}
+	const child = await prisma.child.findUnique({ where: { id, tenantId } });
+	if (!child) {
+		res.status(404).json({ error: 'Registro no encontrado' });
+		return;
+	}
+	if (!child.saleProductId) {
+		res.status(400).json({ error: 'Este hijo no tiene comida del día asociada' });
+		return;
+	}
+	await prisma.saleProduct.update({ where: { id: child.saleProductId, tenantId }, data: { deliveredAt: delivered ? new Date() : null } });
+	const updated = await prisma.child.findUnique({ where: { id, tenantId }, include: childInclude });
+	res.json(toPublicChild(updated));
+}));
+
 childrenRouter.delete('/:id', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const id = Number(req.params.id);
 	const tenantId = req.user!.tenantId!;

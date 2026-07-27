@@ -20,7 +20,10 @@ export class ScanService {
 	private readonly httpClient = inject(HttpClient);
 	private readonly baseUrl = `${environment.apiUrl}/scan`;
 
-	scan(codeQR: string): Observable<ScanResult> {
-		return this.httpClient.post<ScanResult>(this.baseUrl, { codeQR });
+	// mode solo importa cuando el código escaneado resuelve a un talón familiar (Child) — retiro del
+	// niño y entrega de comida son acciones independientes (ver api/src/routes/scan.ts); se ignora
+	// para tickets/productos.
+	scan(codeQR: string, mode?: 'pickup' | 'meal'): Observable<ScanResult> {
+		return this.httpClient.post<ScanResult>(this.baseUrl, { codeQR, mode });
 	}
 }

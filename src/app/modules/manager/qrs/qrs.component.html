@@ -249,12 +249,24 @@
             <td scope="row">
                 @if (!child.saleProduct) {
                     <span class="text-muted">—</span>
-                } @else if (child.saleProduct?.product; as product) {
-                    @if (child.checkedInAt) {
-                        <span class="badge text-bg-success" [title]="product.name">Entregada</span>
-                    } @else {
-                        <span class="badge text-bg-secondary" [title]="product.name">Pendiente</span>
-                    }
+                } @else {
+                    <div class="form-check form-switch mb-0" [title]="child.saleProduct.deliveredAt ? 'Marcar comida como pendiente' : 'Marcar comida como entregada'">
+                        <input
+                            class="form-check-input"
+                            type="checkbox"
+                            role="switch"
+                            [id]="'child-meal-' + child.id"
+                            [checked]="!!child.saleProduct.deliveredAt"
+                            (change)="toggleChildMealDelivered(child)"
+                        />
+                        <label class="form-check-label small" [for]="'child-meal-' + child.id" [title]="child.saleProduct.product.name">
+                            @if (child.saleProduct.deliveredAt) {
+                                <span class="badge text-bg-success">Entregada</span>
+                            } @else {
+                                <span class="badge text-bg-secondary">Pendiente</span>
+                            }
+                        </label>
+                    </div>
                 }
             </td>
             <td scope="row">
