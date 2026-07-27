@@ -166,7 +166,9 @@ const MAX_INVITADO_SEATS = 2;
 									<h5 class="mb-0">2. Elegí tu(s) asiento(s)</h5>
 									<span class="badge text-bg-danger">{{ selectedSeatIds().size }} / {{ effectiveMaxSeats() }}</span>
 								</div>
-								@if (sponsorBlocked()) {
+								@if (duplicateEventBlockReason()) {
+									<p class="text-danger">{{ duplicateEventBlockReason() }}</p>
+								} @else if (sponsorBlocked()) {
 									<p class="text-danger">{{ attendeeError() }}</p>
 								} @else if (!canPickSeats()) {
 									<p class="text-body-secondary">{{ seatsLockedMessage(ev) }}</p>
@@ -719,6 +721,11 @@ export class PublicEventComponent implements OnInit {
 	sponsorBlockReason = signal<'not-registered' | 'max-reached' | null>(null);
 	sponsorBlocked = computed(() => this.sponsorBlockReason() !== null);
 
+	// Motivo por el que esta persona (email o carnet) ya está registrada en otra fecha vinculada del
+	// mismo evento — se chequea apenas se completan email/carnet, ANTES de dejar elegir asiento (ver
+	// constructor y checkDuplicateEventStatus). null = no hay bloqueo.
+	duplicateEventBlockReason = signal<string | null>(null);
+
 	// True solo cuando el carnet del socio que invita ya fue chequeado contra el backend y quedó
 	// habilitado (registrado + no llegó al tope) — hasta entonces la selección de asientos queda
 	// bloqueada, aunque el ticket ya se haya auto-resuelto por attendeeType. Se resetea a false apenas
@@ -745,6 +752,15 @@ export class PublicEventComponent implements OnInit {
 		this.registerForm.controls.sponsorCarnet.valueChanges.pipe(debounceTime(400), distinctUntilChanged()).subscribe((carnet) => {
 			this.checkSponsorStatus(carnet);
 		});
+
+		this.registerForm.controls.email.valueChanges.pipe(debounceTime(400), distinctUntilChanged()).subscribe(() => {
+			this.duplicateEventBlockReason.set(null);
+			this.checkDuplicateEventStatus();
+		});
+		this.registerForm.controls.carnet.valueChanges.pipe(debounceTime(400), distinctUntilChanged()).subscribe(() => {
+			this.duplicateEventBlockReason.set(null);
+			this.checkDuplicateEventStatus();
+		});
 	}
 
 	sponsorBlockMessage(carnet: string): string {
@@ -761,6 +777,7 @@ export class PublicEventComponent implements OnInit {
 	canPickSeats(): boolean {
 		const ev = this.event();
 		if (!ev || !this.activeTicketId()) return false;
+		if (this.duplicateEventBlockReason()) return false;
 		if (ev.tenantType !== 'CLUB') return true;
 
 		const type = this.attendeeTypeValue();
@@ -778,6 +795,9 @@ export class PublicEventComponent implements OnInit {
 	// Mensaje que explica por qué "2. Elegí tu(s) asiento(s)" sigue bloqueado — un solo lugar para
 	// toda la lógica de qué falta, en el mismo orden que valida canPickSeats().
 	seatsLockedMessage(ev: PublicEvent): string {
+		if (this.duplicateEventBlockReason()) {
+			return this.duplicateEventBlockReason()!;
+		}
 		if (ev.tenantType !== 'CLUB') {
 			return 'Elegí primero un tipo de ticket arriba para poder elegir tu(s) asiento(s).';
 		}
@@ -825,6 +845,25 @@ export class PublicEventComponent implements OnInit {
 			},
 			// Silencioso: si el chequeo preventivo falla (red, etc.) no bloqueamos por las dudas — el
 			// submit real vuelve a validar esto igual, así que nunca se cuela una reserva de más.
+			error: () => {},
+		});
+	}
+
+	private checkDuplicateEventStatus() {
+		const ev = this.event();
+		const email = this.registerForm.controls.email.value?.trim();
+		const carnet = this.registerForm.controls.carnet.value?.trim() ?? '';
+		if (!ev || ev.tenantType !== 'CLUB' || !email || this.registerForm.controls.email.invalid) return;
+
+		this.publicEventService.getDuplicateEventStatus(ev.code, email, carnet).subscribe({
+			next: (status) => {
+				if (status.blocked && status.reason) {
+					this.duplicateEventBlockReason.set(status.reason);
+					this.selectedSeatIds.set(new Set());
+				}
+			},
+			// Silencioso por la misma razón que checkSponsorStatus: el submit real (y el backend) vuelven
+			// a validar esto igual, así que un chequeo preventivo que falla no puede colar una reserva.
 			error: () => {},
 		});
 	}
@@ -893,6 +932,10 @@ export class PublicEventComponent implements OnInit {
 
 		if (this.purchaseBlockedReason()) {
 			this.errorMessage.set(this.purchaseBlockedReason()!);
+			return;
+		}
+		if (this.duplicateEventBlockReason()) {
+			this.attendeeError.set(this.duplicateEventBlockReason()!);
 			return;
 		}
 

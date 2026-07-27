@@ -159,6 +159,33 @@ publicRouter.get('/events/:code/sponsor-status', asyncHandler(async (req, res) =
 	});
 }));
 
+// Mismo espíritu que /sponsor-status: el picker público lo llama apenas se completa email/carnet en
+// "1. Tus datos", ANTES de dejar elegir asiento — así un socio/invitado que ya se registró en otra
+// función del mismo evento (ver Event.duplicateGroupKey) se entera de una al toque, en vez de armar
+// toda la selección de asiento para recién enterarse del rechazo al confirmar (bug real reportado).
+publicRouter.get('/events/:code/duplicate-check', asyncHandler(async (req, res) => {
+	const email = String(req.query.email ?? '').trim();
+	const carnet = String(req.query.carnet ?? '').trim();
+	if (!email) {
+		res.json({ blocked: false, reason: null });
+		return;
+	}
+
+	const event = await prismaUnscoped.event.findUnique({ where: { code: req.params.code }, select: { id: true, tenantId: true } });
+	if (!event) {
+		res.status(404).json({ error: 'Evento no encontrado' });
+		return;
+	}
+
+	if (!(await isClubTenant(event.tenantId))) {
+		res.json({ blocked: false, reason: null });
+		return;
+	}
+
+	const reason = await checkDuplicateEventRegistration({ tenantId: event.tenantId, eventId: event.id, clientEmail: email, clientCarnet: carnet });
+	res.json({ blocked: !!reason, reason });
+}));
+
 const registerSchema = z.object({
 	name: z.string().min(1),
 	// Igual que la importación masiva de CSV: el nombre completo suele venir todo junto en `name`,

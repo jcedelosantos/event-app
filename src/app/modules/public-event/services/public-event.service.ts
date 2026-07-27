@@ -102,6 +102,8 @@ export type PurchaseResult = { saleTickets: PurchasedSaleTicket[]; children: Pur
 
 export type SponsorStatus = { registered: boolean; used: number; max: number; blocked: boolean };
 
+export type DuplicateEventStatus = { blocked: boolean; reason: string | null };
+
 export type PublicOrgEvent = {
 	id: number;
 	name: string;
@@ -146,5 +148,12 @@ export class PublicEventService {
 	// arme toda su selección para recién enterarse del rechazo al confirmar (ver public.ts).
 	getSponsorStatus(code: string, carnet: string): Observable<SponsorStatus> {
 		return this.httpClient.get<SponsorStatus>(`${this.baseUrl}/events/${code}/sponsor-status`, { params: { carnet } });
+	}
+
+	// Chequea si esta persona (por email o carnet) ya se registró en otra fecha vinculada del mismo
+	// evento (ver Event.duplicateGroupKey) ANTES de dejar elegir asiento — mismo espíritu que
+	// getSponsorStatus, evita hacer perder tiempo armando una selección que el submit igual rechaza.
+	getDuplicateEventStatus(code: string, email: string, carnet: string): Observable<DuplicateEventStatus> {
+		return this.httpClient.get<DuplicateEventStatus>(`${this.baseUrl}/events/${code}/duplicate-check`, { params: { email, carnet } });
 	}
 }
