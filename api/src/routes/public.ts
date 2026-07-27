@@ -59,11 +59,16 @@ publicRouter.get('/org/:slug', asyncHandler(async (req, res) => {
 		name: tenant.name,
 		slug: tenant.slug,
 		type: tenant.type,
-		// soldOut se calcula acá para no exponer tickets/precios en este listado público — la portada
-		// solo necesita saber si puede o no llevar al comprador a /e/:code.
+		// soldOut/inactive se calculan acá para no exponer tickets/precios en este listado público — la
+		// portada solo necesita saber si puede o no llevar al comprador a /e/:code, y con qué etiqueta.
+		// Son casos distintos: "inactive" es un evento a futuro que el manager todavía no terminó de
+		// configurar (sin tickets cargados) — "soldOut" es uno real que ya se vendió por completo. Antes
+		// ambos mostraban "Agotado" por igual, dando a entender que hubo entradas cuando en realidad
+		// nunca se llegaron a cargar.
 		events: events.map(({ tickets, ...event }) => ({
 			...event,
-			soldOut: !tickets.length || tickets.every((t) => t.count <= 0),
+			inactive: !tickets.length,
+			soldOut: tickets.length > 0 && tickets.every((t) => t.count <= 0),
 		})),
 	});
 }));

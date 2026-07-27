@@ -9,6 +9,13 @@ import { extractErrorMessage } from '../../utils/api-error';
 import { shortSeatLabel } from '../../utils/seat-label';
 import { warning } from '../../utils/messages';
 
+// Formato real del carnet (ver create-qr-modal / lib/attendee.ts): una letra (inicial del primer
+// apellido) + 4 dígitos para el socio accionista — ej. "C6735". Los dependientes agregan "-N": "-0"
+// para cónyuge, "-1"/"-2"/... para cada hijo en orden. Antes canPickSeats() solo chequeaba que el
+// campo no estuviera vacío, así que un solo caracter ("c") ya destrababa el mapa de asientos — bug
+// real reportado en producción.
+const CARNET_PATTERN = /^[A-Za-z]\d{4}(-\d+)?$/;
+
 const MAX_SEATS = 5;
 // Un invitado (tenant CLUB) puede reservar como máximo 2 asientos en una sola compra — coincide con
 // el tope de 2 invitados por socio por evento que ya valida el backend (ver api/src/lib/attendee.ts),
@@ -548,7 +555,10 @@ export class PublicEventComponent implements OnInit {
 		if (new Date() > new Date(ev.dateOff)) {
 			return 'Las ventas para este evento ya cerraron.';
 		}
-		if (!ev.tickets.length || ev.tickets.every((t) => t.count <= 0)) {
+		if (!ev.tickets.length) {
+			return 'Este evento todavía no está disponible para la venta — probá más adelante.';
+		}
+		if (ev.tickets.every((t) => t.count <= 0)) {
 			return 'Este evento está agotado — ya no hay entradas disponibles.';
 		}
 		return null;
@@ -703,8 +713,10 @@ export class PublicEventComponent implements OnInit {
 		email: this.fb.control('', [Validators.required, Validators.email]),
 		phone: this.fb.control('', Validators.required),
 		// Solo obligatorio para un socio de un tenant CLUB — se valida en submit() porque depende del
-		// tipo de organización (viene con el evento) y de qué elige el comprador arriba.
-		carnet: this.fb.control(''),
+		// tipo de organización (viene con el evento) y de qué elige el comprador arriba. El pattern sí
+		// se chequea siempre que haya contenido (ver CARNET_PATTERN) para que isInvalid() marque un
+		// carnet incompleto/mal tipeado en rojo apenas el campo pierde foco.
+		carnet: this.fb.control('', Validators.pattern(CARNET_PATTERN)),
 		attendeeType: this.fb.control<AttendeeType | ''>(''),
 		sponsorCarnet: this.fb.control(''),
 	});
@@ -787,9 +799,13 @@ export class PublicEventComponent implements OnInit {
 		if (!contactFilled) return false;
 
 		if (type === 'SOCIO') {
-			return !!this.registerForm.controls.carnet.value?.trim();
+			return this.isValidCarnet(this.registerForm.controls.carnet.value);
 		}
 		return this.sponsorConfirmed();
+	}
+
+	private isValidCarnet(value: string | null | undefined): boolean {
+		return !!value && CARNET_PATTERN.test(value.trim());
 	}
 
 	// Mensaje que explica por qué "2. Elegí tu(s) asiento(s)" sigue bloqueado — un solo lugar para
@@ -813,6 +829,10 @@ export class PublicEventComponent implements OnInit {
 			return 'Completá tu nombre, email y teléfono arriba para poder elegir tu(s) asiento(s).';
 		}
 		if (type === 'SOCIO') {
+			const carnet = this.registerForm.controls.carnet.value?.trim();
+			if (carnet && !this.isValidCarnet(carnet)) {
+				return 'El carnet no tiene el formato correcto (ej. C6735, o C6735-0 para tu cónyuge/hijos).';
+			}
 			return 'Ingresá tu carnet de socio arriba para poder elegir tu(s) asiento(s).';
 		}
 		return 'Ingresá el carnet del socio que te invita para poder elegir tu(s) asiento(s).';

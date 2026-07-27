@@ -270,8 +270,12 @@ export class OrgLandingComponent implements OnInit {
 	// null = evento seleccionable normalmente. Si no, la card se muestra sin link (ver template) —
 	// mismo criterio que el gate de compra en public-event.component.ts, calculado en el backend acá
 	// (ver GET /public/org/:slug) para no tener que traer tickets/precios a este listado público.
+	// "Inactivo" (sin tickets cargados todavía) se distingue de "Agotado" (sí tuvo, se vendieron todos)
+	// para no confundir un evento a futuro sin terminar de configurar con uno que de verdad se agotó.
 	statusLabel(event: PublicOrgEvent): string | null {
-		return event.soldOut ? 'Agotado' : null;
+		if (event.inactive) return 'Inactivo';
+		if (event.soldOut) return 'Agotado';
+		return null;
 	}
 
 	// dateOn es un instante UTC medianoche que representa un día calendario — usar getters UTC para

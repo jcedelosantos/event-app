@@ -114,8 +114,11 @@ export type PublicOrgEvent = {
 	dateOff: string;
 	startTime: string | null;
 	map: { name: string } | null;
-	// Calculado en el backend (ver GET /public/org/:slug) — la portada usa esto para deshabilitar la
-	// tarjeta sin tener que exponer tickets/precios en este listado público.
+	// Calculados en el backend (ver GET /public/org/:slug) — la portada usa esto para deshabilitar la
+	// tarjeta sin tener que exponer tickets/precios en este listado público. Son casos distintos:
+	// inactive = todavía no tiene tickets cargados (evento a futuro sin terminar de configurar);
+	// soldOut = sí tiene tickets, pero ya se vendieron todos.
+	inactive: boolean;
 	soldOut: boolean;
 };
 
