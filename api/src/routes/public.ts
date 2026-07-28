@@ -10,6 +10,8 @@ import { isClubTenant, validateAttendeeRule, normalizeCarnet, MAX_INVITADOS_PER_
 import { uniqueUsername } from '../lib/unique-username';
 import { resolveFamilyCodeQR } from '../lib/family-code';
 import { checkDuplicateEventRegistration } from '../lib/duplicate-event-guard';
+import { createOrder as createPaypalOrder, captureOrder as capturePaypalOrder, verifyWebhookSignature, PayPalNotConfiguredError, PayPalRequestError } from '../lib/paypal';
+import { finalizePaidSaleTickets } from '../lib/checkout';
 
 export const publicRouter = Router();
 
@@ -17,6 +19,24 @@ class InsufficientStockError extends Error {}
 class NoMealConfiguredError extends Error {}
 
 const MAX_SEATS_PER_ORDER = 5;
+// Tiempo que un asiento queda "apartado" (SaleTicket en PENDING) mientras el comprador paga —
+// vencido esto, el próximo intento de reservar ESE asiento lo libera solo (ver releaseExpiredHolds),
+// sin necesitar un cron aparte.
+const HOLD_MINUTES = 15;
+
+// Libera asientos cuyo hold (SaleTicket PENDING) ya venció, devolviendo el cupo al stock del
+// ticket — se llama al principio de /checkout/hold, ANTES de chequear disponibilidad, así un
+// comprador que abandonó el pago no deja el asiento bloqueado para siempre.
+async function releaseExpiredHolds(tenantId: number, eventId: number, seatIds: number[]) {
+	const expired = await prisma.saleTicket.findMany({
+		where: { eventId, seatId: { in: seatIds }, tenantId, paymentStatus: 'PENDING', paymentExpiresAt: { lt: new Date() } },
+	});
+	if (!expired.length) return;
+	await prisma.$transaction([
+		...expired.map((s) => prisma.ticket.update({ where: { id: s.ticketId, tenantId }, data: { count: { increment: 1 } } })),
+		prisma.saleTicket.deleteMany({ where: { id: { in: expired.map((s) => s.id) }, tenantId } }),
+	]);
+}
 
 // Rutas sin auth: las usa el cliente final desde el link/QR del evento, no tiene cuenta de manager.
 // Al ser público y sin autenticación es la superficie más expuesta de toda la API — el wrap con
@@ -92,6 +112,22 @@ publicRouter.get('/events/:code', asyncHandler(async (req, res) => {
 
 	const mealProduct = await prisma.product.findFirst({ where: { eventId: event.id, tenantId: event.tenantId, isMealOfTheDay: true }, select: { id: true } });
 
+	// Solo se arman a mano estas 3 keys puntuales (nunca un dump de AppSetting) — así el secret de
+	// PayPal (payments.paypalSecret) jamás puede llegar a este endpoint público, sin depender de que
+	// el filtro de GET /settings se mantenga correcto para siempre (ver settings.ts).
+	let payment: { mode: string; paypalClientId: string | null; linkUrl: string | null } | null = null;
+	if (event.paymentMode !== 'NONE') {
+		const paymentSettings = await prisma.appSetting.findMany({
+			where: { tenantId: event.tenantId, key: { in: ['payments.paypalClientId', 'payments.linkUrl'] } },
+		});
+		const settingsMap = Object.fromEntries(paymentSettings.map((s) => [s.key, s.value]));
+		payment = {
+			mode: event.paymentMode,
+			paypalClientId: settingsMap['payments.paypalClientId'] ?? null,
+			linkUrl: settingsMap['payments.linkUrl'] ?? null,
+		};
+	}
+
 	const map = event.map
 		? {
 				...event.map,
@@ -117,6 +153,7 @@ publicRouter.get('/events/:code', asyncHandler(async (req, res) => {
 		// lib/attendee.ts. Solo importa el tipo, no se expone nada más del tenant acá.
 		tenantType: event.tenant?.type ?? 'GENERAL',
 		hasMealOfTheDay: !!mealProduct,
+		payment,
 	});
 }));
 
@@ -433,4 +470,281 @@ publicRouter.post('/purchase', asyncHandler(async (req, res) => {
 		}
 		throw err;
 	}
+}));
+
+// --- Checkout con pago (Event.paymentMode PAYPAL/LINK/BOTH) --------------------------------------
+// Mismo espíritu que POST /purchase de arriba, pero en dos tiempos: acá solo se "aparta" el asiento
+// (SaleTicket en PENDING, ver HOLD_MINUTES) — recién pasa a PAID (y ahí sí sale el email con el QR
+// real) cuando se confirma el pago, ya sea por PayPal (capture/webhook) o a mano desde el panel de
+// QRs (Opción "Link", ver sale-tickets.ts PUT /:id/mark-paid). A propósito NO soporta `children`
+// (registro de hijos, solo CHURCH) en esta primera vuelta — un evento con cobro online vende solo
+// tickets/asientos.
+const checkoutHoldSchema = z.object({
+	eventCode: z.string().min(1),
+	ticketId: z.number().int(),
+	client: registerSchema,
+	seatIds: z.array(z.number().int()).min(1).max(MAX_SEATS_PER_ORDER),
+	attendeeType: z.enum(['SOCIO', 'INVITADO']).optional(),
+	sponsorCarnet: z.string().optional(),
+	provider: z.enum(['PAYPAL', 'LINK']),
+});
+
+publicRouter.post('/checkout/hold', asyncHandler(async (req, res) => {
+	const parsed = checkoutHoldSchema.safeParse(req.body);
+	if (!parsed.success) {
+		res.status(400).json({ error: parsed.error.flatten() });
+		return;
+	}
+	const { eventCode, ticketId, client: clientData, seatIds, attendeeType, sponsorCarnet, provider } = parsed.data;
+
+	const event = await prismaUnscoped.event.findUnique({ where: { code: eventCode } });
+	if (!event || !event.active) {
+		res.status(404).json({ error: 'Evento no encontrado' });
+		return;
+	}
+	if (event.paymentMode === 'NONE' || (provider === 'PAYPAL' && event.paymentMode === 'LINK') || (provider === 'LINK' && event.paymentMode === 'PAYPAL')) {
+		res.status(400).json({ error: 'Este evento no acepta ese método de pago.' });
+		return;
+	}
+	if (event.dateOff < new Date()) {
+		res.status(409).json({ error: 'Las ventas para este evento ya cerraron.' });
+		return;
+	}
+	const tenantId = event.tenantId;
+
+	const ticket = await prisma.ticket.findFirst({ where: { id: ticketId, eventId: event.id, tenantId } });
+	if (!ticket) {
+		res.status(400).json({ error: 'El ticket elegido no pertenece a este evento' });
+		return;
+	}
+
+	await releaseExpiredHolds(tenantId, event.id, seatIds);
+
+	const alreadySold = await prisma.saleTicket.findMany({ where: { eventId: event.id, seatId: { in: seatIds }, tenantId } });
+	if (alreadySold.length) {
+		res.status(409).json({ error: 'Uno o más asientos elegidos ya no están disponibles. Volvé a intentarlo.' });
+		return;
+	}
+
+	if (await isClubTenant(tenantId)) {
+		const attendeeError = await validateAttendeeRule({
+			tenantId,
+			eventId: event.id,
+			attendeeType,
+			sponsorCarnet,
+			clientCarnet: clientData.carnet,
+			newInviteCount: seatIds.length,
+		});
+		if (attendeeError) {
+			res.status(400).json({ error: attendeeError });
+			return;
+		}
+
+		const duplicateError = await checkDuplicateEventRegistration({
+			tenantId,
+			eventId: event.id,
+			clientEmail: clientData.email,
+			clientCarnet: clientData.carnet,
+		});
+		if (duplicateError) {
+			res.status(409).json({ error: duplicateError });
+			return;
+		}
+	}
+
+	const clientType = await prisma.userType.findFirst({ where: { type: 'CLIENT' } });
+	if (!clientType) {
+		res.status(500).json({ error: 'No existe el tipo de usuario CLIENT' });
+		return;
+	}
+	let client = await prisma.user.findFirst({ where: { email: clientData.email, tenantId } });
+	if (!client) {
+		const hashed = await bcrypt.hash(randomUUID(), 10);
+		client = await prisma.user.create({
+			data: {
+				username: await uniqueUsername(prisma, clientData.email),
+				password: hashed,
+				name: clientData.name,
+				lastname: clientData.lastname,
+				email: clientData.email,
+				phone: clientData.phone,
+				gender: '',
+				adress: '',
+				carnet: clientData.carnet,
+				typeId: clientType.id,
+				tenantId,
+			},
+		});
+	} else if (!client.carnet && clientData.carnet) {
+		client = await prisma.user.update({ where: { id: client.id }, data: { carnet: clientData.carnet } });
+	}
+
+	const rootUser = await prisma.user.findFirst({ where: { type: { type: 'ROOT' }, tenantId } });
+	if (!rootUser) {
+		res.status(500).json({ error: 'No hay un usuario administrador configurado' });
+		return;
+	}
+
+	try {
+		const expiresAt = new Date(Date.now() + HOLD_MINUTES * 60 * 1000);
+		const saleTickets = await prisma.$transaction(async (tx) => {
+			const stockUpdate = await tx.ticket.updateMany({
+				where: { id: ticket.id, count: { gte: seatIds.length }, tenantId },
+				data: { count: { decrement: seatIds.length } },
+			});
+			if (stockUpdate.count === 0) {
+				throw new InsufficientStockError();
+			}
+			return Promise.all(
+				seatIds.map((seatId) =>
+					tx.saleTicket.create({
+						data: {
+							eventId: event.id,
+							seatId,
+							ticketId: ticket.id,
+							userId: rootUser.id,
+							clientId: client!.id,
+							paidType: provider === 'PAYPAL' ? 'PayPal' : 'Link de pago',
+							description: provider === 'PAYPAL' ? 'Checkout PayPal (pendiente)' : 'Link de pago (pendiente)',
+							codeQR: randomUUID(),
+							tenantId,
+							paymentStatus: 'PENDING',
+							paymentProvider: provider,
+							paymentExpiresAt: expiresAt,
+							...(attendeeType ? { attendeeType, sponsorCarnet: attendeeType === 'INVITADO' ? sponsorCarnet?.trim() : null } : {}),
+						},
+					}),
+				),
+			);
+		});
+
+		res.status(201).json({
+			holdIds: saleTickets.map((s) => s.id),
+			totalUSD: ticket.price * seatIds.length,
+			expiresAt,
+		});
+	} catch (err: any) {
+		if (err instanceof InsufficientStockError) {
+			res.status(409).json({ error: 'No hay suficiente stock disponible para este tipo de ticket.' });
+			return;
+		}
+		if (err.code === 'P2002') {
+			res.status(409).json({ error: 'Uno o más asientos elegidos ya no están disponibles. Volvé a intentarlo.' });
+			return;
+		}
+		throw err;
+	}
+}));
+
+const paypalOrderSchema = z.object({ holdIds: z.array(z.number().int()).min(1) });
+
+publicRouter.post('/checkout/paypal/order', asyncHandler(async (req, res) => {
+	const parsed = paypalOrderSchema.safeParse(req.body);
+	if (!parsed.success) {
+		res.status(400).json({ error: parsed.error.flatten() });
+		return;
+	}
+
+	const holds = await prismaUnscoped.saleTicket.findMany({ where: { id: { in: parsed.data.holdIds } }, include: { ticket: true } });
+	if (!holds.length || holds.some((h) => h.paymentStatus !== 'PENDING' || h.paymentProvider !== 'PAYPAL')) {
+		res.status(409).json({ error: 'Esta reserva ya no es válida — volvé a elegir tu asiento.' });
+		return;
+	}
+	if (holds.some((h) => !h.paymentExpiresAt || h.paymentExpiresAt < new Date())) {
+		res.status(409).json({ error: 'El tiempo para pagar esta reserva venció — volvé a elegir tu asiento.' });
+		return;
+	}
+
+	const tenantId = holds[0].tenantId;
+	const totalUSD = holds.reduce((sum, h) => sum + h.ticket.price, 0);
+
+	try {
+		const { orderId } = await createPaypalOrder(tenantId, totalUSD, holds.map((h) => h.id).join(','));
+		await prisma.saleTicket.updateMany({ where: { id: { in: holds.map((h) => h.id) }, tenantId }, data: { paypalOrderId: orderId } });
+		res.json({ orderId });
+	} catch (err) {
+		if (err instanceof PayPalNotConfiguredError || err instanceof PayPalRequestError) {
+			res.status(502).json({ error: err.message });
+			return;
+		}
+		throw err;
+	}
+}));
+
+const paypalCaptureSchema = z.object({ orderId: z.string().min(1) });
+
+publicRouter.post('/checkout/paypal/capture', asyncHandler(async (req, res) => {
+	const parsed = paypalCaptureSchema.safeParse(req.body);
+	if (!parsed.success) {
+		res.status(400).json({ error: parsed.error.flatten() });
+		return;
+	}
+
+	const holds = await prismaUnscoped.saleTicket.findMany({ where: { paypalOrderId: parsed.data.orderId } });
+	if (!holds.length) {
+		res.status(404).json({ error: 'No encontramos esa reserva.' });
+		return;
+	}
+	const tenantId = holds[0].tenantId;
+
+	try {
+		if (holds.every((h) => h.paymentStatus === 'PAID')) {
+			const result = await finalizePaidSaleTickets(tenantId, holds.map((h) => h.id));
+			res.json(result);
+			return;
+		}
+		const capture = await capturePaypalOrder(tenantId, parsed.data.orderId);
+		if (capture.status !== 'COMPLETED') {
+			res.status(409).json({ error: 'PayPal todavía no confirmó el pago — esperá un momento y volvé a intentar.' });
+			return;
+		}
+		const result = await finalizePaidSaleTickets(tenantId, holds.map((h) => h.id));
+		res.json(result);
+	} catch (err) {
+		if (err instanceof PayPalNotConfiguredError || err instanceof PayPalRequestError) {
+			res.status(502).json({ error: err.message });
+			return;
+		}
+		throw err;
+	}
+}));
+
+// Notificación server-to-server de PayPal — fuente de verdad real del pago (ver Opción A del plan):
+// captura del lado del cliente (arriba) es el camino rápido, esto es la red de seguridad si el
+// comprador cierra la pestaña después de aprobar y antes de que nuestro capture llegue a dispararse.
+publicRouter.post('/webhooks/paypal', asyncHandler(async (req, res) => {
+	const resource = req.body?.resource;
+	const orderId: string | undefined = req.body?.resource_type === 'checkout-order' ? resource?.id : resource?.supplementary_data?.related_ids?.order_id;
+	if (!orderId) {
+		res.json({ received: true });
+		return;
+	}
+
+	const holds = await prismaUnscoped.saleTicket.findMany({ where: { paypalOrderId: orderId } });
+	if (!holds.length) {
+		res.json({ received: true });
+		return;
+	}
+	const tenantId = holds[0].tenantId;
+
+	const verified = await verifyWebhookSignature(tenantId, req.headers as Record<string, string | string[] | undefined>, req.body);
+	if (!verified) {
+		res.status(400).json({ error: 'Firma de webhook inválida' });
+		return;
+	}
+
+	if (holds.every((h) => h.paymentStatus === 'PAID')) {
+		res.json({ received: true });
+		return;
+	}
+
+	try {
+		const capture = await capturePaypalOrder(tenantId, orderId);
+		if (capture.status === 'COMPLETED') {
+			await finalizePaidSaleTickets(tenantId, holds.map((h) => h.id));
+		}
+	} catch (err) {
+		console.error('Error procesando webhook de PayPal:', err);
+	}
+	res.json({ received: true });
 }));

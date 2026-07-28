@@ -20,6 +20,9 @@ export interface Events {
 	// Solo tiene sentido en tenants CLUB — eventos que comparten este valor son "misma función,
 	// distinta fecha" (ver create-event-modal). null = este evento no está vinculado a ningún otro.
 	duplicateGroupKey?: string | null;
+	// Si el portal público de este evento exige pago online antes de reservar el asiento, y con qué
+	// método(s) — ver create-event-modal (select "Cobro") y public-event.component.ts.
+	paymentMode: 'NONE' | 'PAYPAL' | 'LINK' | 'BOTH';
 	map?: Map;
 	tickets: Array<Ticket>;
 	products: Array<Product>;

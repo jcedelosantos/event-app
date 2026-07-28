@@ -138,6 +138,11 @@ model Event {
   // a ningún otro.
   duplicateGroupKey String?
 
+  // NONE | PAYPAL | LINK | BOTH — si el portal público de ESTE evento exige pago online antes de
+  // reservar el asiento, y con qué método(s). Las credenciales/URL reales viven en AppSetting (una
+  // por tenant, ver "payments.*"), esto solo prende/apaga por evento (ver public.ts).
+  paymentMode String @default("NONE")
+
   tickets      Ticket[]
   products     Product[]
   saleProducts SaleProduct[]
@@ -369,6 +374,20 @@ model SaleTicket {
   // (ver Event.hostName/maxHostGuests), no se cobra y cuenta contra el tope de invitados del
   // anfitrión (validado en la ruta, no acá).
   isHostGuest Boolean @default(false)
+
+  // PAID (default) preserva el comportamiento de siempre para toda venta manual del manager
+  // (create-qr-modal, bulk-import) y eventos sin cobro online — nada de esto cambia. PENDING es
+  // exclusivo del checkout público con pago (ver Event.paymentMode / public.ts): el asiento ya
+  // queda tomado (protegido por el @@unique de abajo) pero el email con el QR no sale hasta que
+  // pasa a PAID, ya sea por webhook/capture de PayPal o a mano desde el panel de QRs (Opción "Link").
+  paymentStatus String @default("PAID")
+  // PAYPAL | LINK | null — método usado en el checkout con pago; null para ventas manuales/sin cobro.
+  paymentProvider String?
+  paypalOrderId   String?
+  // Solo seteado mientras paymentStatus = PENDING — vencido este momento, el próximo intento de
+  // reservar ESE asiento borra la fila vieja antes de crear la nueva (ver public.ts), sin necesitar
+  // un cron aparte.
+  paymentExpiresAt DateTime?
 
   // Un mismo asiento no se puede vender dos veces para el mismo evento.
   @@unique([eventId, seatId])

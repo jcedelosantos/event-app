@@ -45,7 +45,14 @@ class MissingTenantScopeError extends Error {
 }
 
 function hasTenantId(value: unknown): boolean {
-	return typeof value === 'object' && value !== null && 'tenantId' in value && (value as { tenantId?: unknown }).tenantId != null;
+	if (typeof value !== 'object' || value === null) return false;
+	if ('tenantId' in value && (value as { tenantId?: unknown }).tenantId != null) return true;
+	// Claves únicas compuestas (ej. AppSetting: where: { tenantId_key: { tenantId, key } }) anidan
+	// tenantId un nivel más adentro que un where/data plano — mirar los valores directos alcanza sin
+	// tener que enumerar cada nombre de constraint compuesta que exista o se agregue después.
+	return Object.values(value as Record<string, unknown>).some(
+		(v) => typeof v === 'object' && v !== null && 'tenantId' in v && (v as { tenantId?: unknown }).tenantId != null,
+	);
 }
 
 export function tenantGuardExtension() {

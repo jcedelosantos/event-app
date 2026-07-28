@@ -29,7 +29,20 @@ settingsRouter.get('/', asyncHandler(async (req, res) => {
 		return;
 	}
 	const settings = await prisma.appSetting.findMany({ where: { tenantId } });
-	res.json(Object.fromEntries(settings.map((s) => [s.key, s.value])));
+	// Keys que terminan en "Secret" o "WebhookId" (ej. payments.paypalSecret) nunca salen por acá,
+	// ni siquiera a un manager logueado de su propio tenant — son credenciales que solo el backend
+	// necesita leer (ver lib/paypal.ts), no algo para reflejar de vuelta al navegador. En su lugar se
+	// manda un flag booleano "<key>Configured" para que el form de Settings pueda mostrar "••••
+	// configurado" sin depender de releer el valor real.
+	const result: Record<string, string> = {};
+	for (const s of settings) {
+		if (s.key.endsWith('Secret') || s.key.endsWith('WebhookId')) {
+			result[`${s.key}Configured`] = 'true';
+		} else {
+			result[s.key] = s.value;
+		}
+	}
+	res.json(result);
 }));
 
 const valueSchema = z.object({ value: z.string().min(1).max(200) });

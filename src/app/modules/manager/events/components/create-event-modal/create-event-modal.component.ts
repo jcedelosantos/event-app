@@ -114,6 +114,16 @@ function toDateInputValue(date: Date): string {
 								}
 							</div>
 							<div class="col-md-12 mb-2">
+								<label for="paymentMode" class="small mb-1">Cobro <span class="text-muted">(pago online en el portal público, antes de reservar el asiento)</span></label>
+								<select class="form-select form-select-sm" formControlName="paymentMode">
+									<option value="NONE">Ninguno — registro gratis (como hoy)</option>
+									<option value="PAYPAL">PayPal</option>
+									<option value="LINK">Link de pago (transferencia, etc. — confirmás vos a mano)</option>
+									<option value="BOTH">Ambos — el comprador elige</option>
+								</select>
+								<div class="form-text">Configurá las credenciales de PayPal y/o el link de pago en Settings → Pagos.</div>
+							</div>
+							<div class="col-md-12 mb-2">
 								<label for="map" class="small mb-1">Map <span class="text-muted">(opcional — necesario para vender tickets con asiento)</span></label>
 								<div class="d-flex gap-2">
 									<select class="form-select form-select-sm" formControlName="mapId">
@@ -224,6 +234,7 @@ export class CreateEventModalComponent {
 		hostName: [''],
 		maxHostGuests: this.fb.control<number | null>(null),
 		linkedEventId: this.fb.control<number | null>(null),
+		paymentMode: this.fb.control<'NONE' | 'PAYPAL' | 'LINK' | 'BOTH'>('NONE'),
 	});
 
 	constructor() {
@@ -249,10 +260,11 @@ export class CreateEventModalComponent {
 					hostName: current.hostName ?? '',
 					maxHostGuests: current.maxHostGuests ?? null,
 					linkedEventId: this.originalLinkedEventId,
+					paymentMode: current.paymentMode ?? 'NONE',
 				});
 			} else {
 				this.originalLinkedEventId = null;
-				this.eventForm.reset({ active: true, mapId: null, hostName: '', maxHostGuests: null, linkedEventId: null });
+				this.eventForm.reset({ active: true, mapId: null, hostName: '', maxHostGuests: null, linkedEventId: null, paymentMode: 'NONE' });
 			}
 		});
 	}
@@ -265,7 +277,14 @@ export class CreateEventModalComponent {
 		this.event.set(null);
 		this.errorMessage = '';
 		this.uploadError.set('');
-		this.eventForm.reset({ active: true, mapId: source.map?.id ?? null, hostName: source.hostName ?? '', maxHostGuests: source.maxHostGuests ?? null, linkedEventId: null });
+		this.eventForm.reset({
+			active: true,
+			mapId: source.map?.id ?? null,
+			hostName: source.hostName ?? '',
+			maxHostGuests: source.maxHostGuests ?? null,
+			linkedEventId: null,
+			paymentMode: source.paymentMode ?? 'NONE',
+		});
 		this.eventForm.patchValue({
 			name: `${source.name} (copia)`,
 			description: source.description,
@@ -336,6 +355,7 @@ export class CreateEventModalComponent {
 			hostName: value.hostName?.trim() ? value.hostName.trim() : null,
 			maxHostGuests: value.maxHostGuests,
 			linkedEventId: linkedEventIdChanged ? value.linkedEventId : undefined,
+			paymentMode: value.paymentMode!,
 		};
 		const request = current ? this.eventsService.updateEvent(current.id, payload) : this.eventsService.createEvent(payload);
 

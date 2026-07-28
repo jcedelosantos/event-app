@@ -55,6 +55,15 @@ export type PublicTicket = {
 
 export type TenantType = 'GENERAL' | 'CLUB' | 'CHURCH';
 
+// null = este evento no exige pago online (Event.paymentMode = NONE), el registro sigue siendo
+// gratis como siempre. paypalClientId/linkUrl pueden venir null igual si el manager activó el modo
+// pero todavía no cargó las credenciales en Settings → Pagos.
+export type PublicEventPayment = {
+	mode: 'PAYPAL' | 'LINK' | 'BOTH';
+	paypalClientId: string | null;
+	linkUrl: string | null;
+};
+
 export type PublicEvent = {
 	id: number;
 	name: string;
@@ -70,6 +79,7 @@ export type PublicEvent = {
 	tenantType: TenantType;
 	// Solo relevante en tenants CHURCH — habilita el checkbox "¿retira comida?" al registrar hijos.
 	hasMealOfTheDay: boolean;
+	payment: PublicEventPayment | null;
 };
 
 export type RegisterInput = { name: string; lastname: string; email: string; phone: string; carnet: string };
@@ -88,6 +98,24 @@ export type PurchaseInput = {
 	sponsorCarnet?: string;
 	children?: ChildDraftInput[];
 };
+
+// Checkout con pago (ver Event.paymentMode) — sin `children`, a propósito: un evento con cobro
+// online vende solo tickets/asientos en esta primera vuelta (ver public.ts /checkout/hold).
+export type CheckoutHoldInput = {
+	eventCode: string;
+	ticketId: number;
+	client: RegisterInput;
+	seatIds: number[];
+	attendeeType?: AttendeeType;
+	sponsorCarnet?: string;
+	provider: 'PAYPAL' | 'LINK';
+};
+
+export type CheckoutHoldResult = { holdIds: number[]; totalUSD: number; expiresAt: string };
+export type PaypalOrderResult = { orderId: string };
+// Sin `children` a propósito — el checkout con pago no soporta registro de hijos (ver
+// CheckoutHoldInput / public.ts).
+export type PaypalCaptureResult = { saleTickets: PurchasedSaleTicket[] };
 
 export type PurchasedSaleTicket = {
 	id: number;
@@ -145,6 +173,21 @@ export class PublicEventService {
 
 	purchase(input: PurchaseInput): Observable<PurchaseResult> {
 		return this.httpClient.post<PurchaseResult>(`${this.baseUrl}/purchase`, input);
+	}
+
+	// "Aparta" el/los asiento(s) (SaleTicket en PENDING, ver public.ts) mientras el comprador paga —
+	// PayPal lo usa para saber el total antes de crear la orden; Link lo usa para mostrar el link de
+	// pago con el asiento ya reservado.
+	holdCheckout(input: CheckoutHoldInput): Observable<CheckoutHoldResult> {
+		return this.httpClient.post<CheckoutHoldResult>(`${this.baseUrl}/checkout/hold`, input);
+	}
+
+	createPaypalOrder(holdIds: number[]): Observable<PaypalOrderResult> {
+		return this.httpClient.post<PaypalOrderResult>(`${this.baseUrl}/checkout/paypal/order`, { holdIds });
+	}
+
+	capturePaypalOrder(orderId: string): Observable<PaypalCaptureResult> {
+		return this.httpClient.post<PaypalCaptureResult>(`${this.baseUrl}/checkout/paypal/capture`, { orderId });
 	}
 
 	// Chequea el tope de invitados de un socio ANTES de dejar elegir asiento — evita que un invitado

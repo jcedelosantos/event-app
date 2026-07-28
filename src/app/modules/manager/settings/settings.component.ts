@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
+import { Observable, forkJoin } from 'rxjs';
 import { SettingsService } from '../../../core/services/settings.service';
 import { ACCENT_SETTING_KEY, DEFAULT_ACCENT, ThemeService } from '../../../core/services/theme.service';
 import { AuthService } from '../../../core/services/auth.service';
@@ -95,6 +96,76 @@ const PRESETS = [
 				</div>
 			</div>
 		}
+
+			<h2 class="section-title mt-4">Pagos</h2>
+			<p class="text-body-secondary small">
+				Cobro online en el portal público — configurá acá PayPal y/o un link de pago manual, y después elegí "Cobro" al crear/editar cada evento.
+			</p>
+
+			<div class="card" style="max-width: 480px;">
+				<div class="card-body">
+					<div class="mb-3">
+						<label class="small mb-1">PayPal Client ID</label>
+						<input
+							type="text"
+							class="form-control form-control-sm"
+							[value]="paypalClientId()"
+							(input)="paypalClientId.set($any($event.target).value)"
+							placeholder="Client ID de tu app en developer.paypal.com"
+						/>
+					</div>
+					<div class="mb-3">
+						<label class="small mb-1">PayPal Client Secret</label>
+						<input
+							type="password"
+							class="form-control form-control-sm"
+							[value]="paypalSecret()"
+							(input)="paypalSecret.set($any($event.target).value)"
+							[placeholder]="paypalSecretConfigured() ? '•••• configurado — dejalo vacío para no cambiarlo' : 'Pegá tu Client Secret'"
+						/>
+					</div>
+					<div class="mb-3">
+						<label class="small mb-1">Modo</label>
+						<select class="form-select form-select-sm" [value]="paypalMode()" (change)="paypalMode.set($any($event.target).value)">
+							<option value="sandbox">Sandbox (pruebas, sin plata real)</option>
+							<option value="live">Live (cobros reales)</option>
+						</select>
+					</div>
+					<div class="mb-3">
+						<label class="small mb-1">Webhook ID <span class="text-muted">(de developer.paypal.com — confirma pagos automáticamente)</span></label>
+						<input
+							type="password"
+							class="form-control form-control-sm"
+							[value]="paypalWebhookId()"
+							(input)="paypalWebhookId.set($any($event.target).value)"
+							[placeholder]="paypalWebhookIdConfigured() ? '•••• configurado — dejalo vacío para no cambiarlo' : 'Opcional, pero recomendado'"
+						/>
+					</div>
+					<hr />
+					<div class="mb-3">
+						<label class="small mb-1">Link de pago manual <span class="text-muted">(Opción "Link" — PayPal.me, instrucciones de transferencia, etc.)</span></label>
+						<input
+							type="url"
+							class="form-control form-control-sm"
+							[value]="linkUrl()"
+							(input)="linkUrl.set($any($event.target).value)"
+							placeholder="https://paypal.me/tuclub"
+						/>
+					</div>
+
+					<div class="d-flex gap-2 align-items-center">
+						<button type="button" class="btn btn-danger btn-sm" [disabled]="savingPayments()" (click)="savePayments()">
+							{{ savingPayments() ? 'Guardando...' : 'Guardar' }}
+						</button>
+						@if (paymentsSaved()) {
+							<span class="text-success small"><i class="bi bi-check-circle" aria-hidden="true"></i> Guardado</span>
+						}
+					</div>
+					@if (paymentsError()) {
+						<div class="text-danger small mt-2">{{ paymentsError() }}</div>
+					}
+				</div>
+			</div>
 	`,
 	styleUrl: './settings.component.css',
 	changeDetection: ChangeDetectionStrategy.OnPush,
@@ -111,6 +182,20 @@ export class SettingsComponent implements OnInit {
 	errorMessage = signal('');
 	urlCopied = signal(false);
 
+	// Client Secret y Webhook ID nunca vuelven del backend (ver el filtro de GET /settings) — solo un
+	// flag "Configured" que dice si ya hay uno guardado, para mostrar el placeholder "•••• configurado"
+	// sin depender de releer el valor real.
+	paypalClientId = signal('');
+	paypalSecret = signal('');
+	paypalSecretConfigured = signal(false);
+	paypalMode = signal<'sandbox' | 'live'>('sandbox');
+	paypalWebhookId = signal('');
+	paypalWebhookIdConfigured = signal(false);
+	linkUrl = signal('');
+	savingPayments = signal(false);
+	paymentsSaved = signal(false);
+	paymentsError = signal('');
+
 	orgUrl = computed(() => {
 		const slug = this.authService.currentUser()?.tenant?.slug;
 		return slug ? `${window.location.origin}/o/${slug}` : null;
@@ -119,6 +204,49 @@ export class SettingsComponent implements OnInit {
 	ngOnInit(): void {
 		this.settingsService.getSettings().subscribe((settings) => {
 			this.accent.set(settings[ACCENT_SETTING_KEY] ?? DEFAULT_ACCENT);
+			this.paypalClientId.set(settings['payments.paypalClientId'] ?? '');
+			this.paypalSecretConfigured.set(settings['payments.paypalSecretConfigured'] === 'true');
+			this.paypalMode.set(settings['payments.paypalMode'] === 'live' ? 'live' : 'sandbox');
+			this.paypalWebhookIdConfigured.set(settings['payments.paypalWebhookIdConfigured'] === 'true');
+			this.linkUrl.set(settings['payments.linkUrl'] ?? '');
+		});
+	}
+
+	// Solo manda los campos que realmente tienen contenido — el backend rechaza valores vacíos (ver
+	// PUT /settings/:key), y así tampoco hay forma de borrar una credencial ya guardada (Client
+	// Secret/Webhook ID) por accidente dejando el campo en blanco y apretando Guardar. El modo
+	// siempre viaja porque el <select> siempre tiene un valor real.
+	savePayments() {
+		this.savingPayments.set(true);
+		this.paymentsError.set('');
+		this.paymentsSaved.set(false);
+		const clientIdToSave = this.paypalClientId().trim();
+		const linkUrlToSave = this.linkUrl().trim();
+		const secretToSave = this.paypalSecret().trim();
+		const webhookIdToSave = this.paypalWebhookId().trim();
+		const calls: Observable<unknown>[] = [this.settingsService.setSetting('payments.paypalMode', this.paypalMode())];
+		if (clientIdToSave) calls.push(this.settingsService.setSetting('payments.paypalClientId', clientIdToSave));
+		if (linkUrlToSave) calls.push(this.settingsService.setSetting('payments.linkUrl', linkUrlToSave));
+		if (secretToSave) calls.push(this.settingsService.setSetting('payments.paypalSecret', secretToSave));
+		if (webhookIdToSave) calls.push(this.settingsService.setSetting('payments.paypalWebhookId', webhookIdToSave));
+
+		forkJoin(calls).subscribe({
+			next: () => {
+				this.savingPayments.set(false);
+				this.paymentsSaved.set(true);
+				if (secretToSave) {
+					this.paypalSecret.set('');
+					this.paypalSecretConfigured.set(true);
+				}
+				if (webhookIdToSave) {
+					this.paypalWebhookId.set('');
+					this.paypalWebhookIdConfigured.set(true);
+				}
+			},
+			error: (err: HttpErrorResponse) => {
+				this.savingPayments.set(false);
+				this.paymentsError.set(extractErrorMessage(err));
+			},
 		});
 	}
 

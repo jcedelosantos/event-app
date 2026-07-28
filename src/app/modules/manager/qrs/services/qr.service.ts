@@ -33,6 +33,11 @@ export type SaleTicket = {
 	sponsorCarnet: string | null;
 	// Solo relevante en tenants tipo CHURCH — ver models/events/events.ts (hostName/maxHostGuests).
 	isHostGuest: boolean;
+	// PAID (default, incluye toda venta manual del manager) | PENDING — solo eventos con
+	// Event.paymentMode ver reservas en PENDING mientras esperan que se confirme el pago (webhook de
+	// PayPal o "Marcar como pagado" acá mismo, ver Opción "Link").
+	paymentStatus: 'PAID' | 'PENDING';
+	paymentProvider: 'PAYPAL' | 'LINK' | null;
 };
 
 export type SaleTicketInput = {
@@ -99,6 +104,13 @@ export class QRService {
 	// por QR (POST /scan), es para cuando alguien ya entró sin escanear o hay que revertir un error.
 	setCheckedIn(id: number, checkedIn: boolean): Observable<SaleTicket> {
 		return this.httpClient.put<SaleTicket>(`${this.baseUrl}/${id}/check-in`, { checkedIn });
+	}
+
+	// Confirmación manual de pago (Opción "Link") — también confirma de yapa el resto de los asientos
+	// PENDING del mismo comprador/evento/método (ver sale-tickets.ts), así una compra de varios
+	// asientos por transferencia no obliga a marcarlos uno por uno.
+	markPaid(id: number): Observable<SaleTicket> {
+		return this.httpClient.put<SaleTicket>(`${this.baseUrl}/${id}/mark-paid`, {});
 	}
 
 	bulkImport(input: BulkImportSaleTicketsInput): Observable<BulkImportResult> {

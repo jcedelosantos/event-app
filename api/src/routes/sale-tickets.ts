@@ -13,6 +13,7 @@ import { isClubTenant, validateAttendeeRule } from '../lib/attendee';
 import { checkDuplicateEventRegistration } from '../lib/duplicate-event-guard';
 import { validateHostGuestRule } from '../lib/host-guest';
 import { uniqueUsername } from '../lib/unique-username';
+import { finalizePaidSaleTickets } from '../lib/checkout';
 
 export const saleTicketsRouter = Router();
 saleTicketsRouter.use(requireAuth, requireTenant);
@@ -332,6 +333,36 @@ saleTicketsRouter.put('/:id/check-in', asyncHandler(async (req: AuthenticatedReq
 		}
 		throw err;
 	}
+}));
+
+// Confirmación manual de pago (Opción "Link" — ver public.ts /checkout/hold): el resto de los
+// asientos PENDING de este mismo comprador/evento/método se confirman junto con este, para no
+// obligar a marcarlos uno por uno cuando una sola transferencia cubrió varios asientos (ver
+// finalizePaidSaleTickets, que también dispara el email con el QR real). Un ticket vendido
+// directamente por el manager (paymentStatus ya PAID por default) no tiene nada que hacer acá.
+saleTicketsRouter.put('/:id/mark-paid', asyncHandler(async (req: AuthenticatedRequest, res) => {
+	const id = Number(req.params.id);
+	const tenantId = req.user!.tenantId!;
+	const saleTicket = await prisma.saleTicket.findUnique({ where: { id, tenantId } });
+	if (!saleTicket) {
+		res.status(404).json({ error: 'Venta no encontrada' });
+		return;
+	}
+
+	const siblingIds =
+		saleTicket.paymentStatus === 'PAID'
+			? [id]
+			: (
+					await prisma.saleTicket.findMany({
+						where: { eventId: saleTicket.eventId, clientId: saleTicket.clientId, paymentProvider: saleTicket.paymentProvider, paymentStatus: 'PENDING', tenantId },
+						select: { id: true },
+					})
+				).map((s) => s.id);
+
+	await finalizePaidSaleTickets(tenantId, siblingIds);
+
+	const updated = await prisma.saleTicket.findUnique({ where: { id, tenantId }, include });
+	res.json(toPublicSaleTicket(updated));
 }));
 
 // Borrar la venta libera el asiento (la disponibilidad se calcula por ausencia de SaleTicket) — por

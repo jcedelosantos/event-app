@@ -21,7 +21,7 @@ import * as bootstrap from "bootstrap";
 
 type QrSortKey = 'carnet' | 'client' | 'event' | 'seat' | 'price';
 type ProductSortKey = 'carnet' | 'client' | 'date' | 'event' | 'product' | 'qty';
-type QrColumnKey = QrSortKey | 'time' | 'status' | 'attendeeType';
+type QrColumnKey = QrSortKey | 'time' | 'status' | 'attendeeType' | 'payment';
 type QrStatusFilter = 'all' | 'checked' | 'pending';
 
 const QR_COLUMN_LABELS: Record<QrColumnKey, string> = {
@@ -33,6 +33,7 @@ const QR_COLUMN_LABELS: Record<QrColumnKey, string> = {
   price: 'Price',
   status: 'Estado',
   attendeeType: 'Socio/Invitado',
+  payment: 'Pago',
 };
 
 // dateSold viene como string ISO — comparar por el día calendario en hora LOCAL (no UTC), que es
@@ -134,6 +135,7 @@ export class QrsComponent implements OnInit, AfterViewInit {
     price: true,
     status: true,
     attendeeType: this.authService.currentUser()?.tenant?.type === 'CLUB',
+    payment: true,
   });
 
   toggleQrColumn(key: QrColumnKey) {
@@ -348,6 +350,20 @@ export class QrsComponent implements OnInit, AfterViewInit {
     this.qrService.setCheckedIn(qr.id, checkedIn).subscribe({
       next: (updated) => this.qrList.update((list) => list.map((q) => (q.id === updated.id ? updated : q))),
       error: (err: HttpErrorResponse) => error(extractErrorMessage(err)),
+    });
+  }
+
+  // Confirmación manual de pago (Opción "Link") — recarga toda la lista en vez de parchear solo esta
+  // fila porque el backend también confirma de yapa las demás filas PENDING del mismo comprador
+  // (ver sale-tickets.ts /mark-paid), y esas no vienen en esta respuesta.
+  markPaid(qr: SaleTicket) {
+    confirm(`¿Confirmar que "${qr.client.name} ${qr.client.lastname}" ya pagó? Se le envía el correo con el QR real.`, {
+      onConfirm: () => {
+        this.qrService.markPaid(qr.id).subscribe({
+          next: () => this.loadQRs(),
+          error: (err: HttpErrorResponse) => error(extractErrorMessage(err)),
+        });
+      },
     });
   }
 

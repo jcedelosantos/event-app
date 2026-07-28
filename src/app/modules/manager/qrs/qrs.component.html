@@ -105,6 +105,9 @@
             @if (visibleQrColumns()['attendeeType']) {
                 <th>Socio/Invitado</th>
             }
+            @if (visibleQrColumns()['payment']) {
+                <th>Pago</th>
+            }
             <th></th>
         </tr>
     </thead>
@@ -156,6 +159,17 @@
                         <span class="badge text-bg-secondary" [title]="'Invitado por socio con carnet ' + (qr.sponsorCarnet ?? '—')">INV-{{ qr.sponsorCarnet ?? '—' }}</span>
                     } @else {
                         <span class="badge text-bg-secondary">Socio</span>
+                    }
+                </td>
+            }
+            @if (visibleQrColumns()['payment']) {
+                <td scope="row">
+                    @if (qr.paymentStatus === 'PENDING') {
+                        <button type="button" class="btn btn-outline-warning btn-sm" [title]="'Reservado por ' + (qr.paymentProvider === 'PAYPAL' ? 'PayPal' : 'link de pago') + ' — todavía sin confirmar'" (click)="markPaid(qr)">
+                            <span class="badge text-bg-warning">Pendiente</span> Marcar pagado
+                        </button>
+                    } @else {
+                        <span class="badge text-bg-success">Pagado</span>
                     }
                 </td>
             }

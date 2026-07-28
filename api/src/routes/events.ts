@@ -36,6 +36,9 @@ const eventInputSchema = z.object({
 	// Event.duplicateGroupKey): number = vincular con ese evento, null = desvincular, undefined (no
 	// mandarlo) = no tocar el vínculo actual.
 	linkedEventId: z.number().int().nullable().optional(),
+	// Si el portal público de este evento exige pago online antes de reservar el asiento, y con qué
+	// método(s) — ver public.ts (checkout con hold) y Event.paymentMode.
+	paymentMode: z.enum(['NONE', 'PAYPAL', 'LINK', 'BOTH']).optional().default('NONE'),
 });
 
 const include = { map: { include: { areas: true } }, tickets: true, products: true };

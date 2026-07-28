@@ -2,9 +2,9 @@ import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } 
 import { ActivatedRoute } from '@angular/router';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
-import { debounceTime, distinctUntilChanged } from 'rxjs';
+import { debounceTime, distinctUntilChanged, firstValueFrom } from 'rxjs';
 import { QRCodeComponent } from 'angularx-qrcode';
-import { AttendeeType, PublicArea, PublicEvent, PublicEventService, PublicSeat, PurchasedChild, PurchasedSaleTicket } from './services/public-event.service';
+import { AttendeeType, CheckoutHoldInput, PublicArea, PublicEvent, PublicEventService, PublicSeat, PurchasedChild, PurchasedSaleTicket } from './services/public-event.service';
 import { extractErrorMessage } from '../../utils/api-error';
 import { shortSeatLabel } from '../../utils/seat-label';
 import { warning } from '../../utils/messages';
@@ -68,6 +68,23 @@ const MAX_INVITADO_SEATS = 2;
 								</div>
 							</div>
 						}
+					</div>
+				}
+				@case ('link-pending') {
+					<div class="container py-4" style="max-width: 640px;">
+						<h3>¡Ya casi, {{ registerForm.controls.name.value }}!</h3>
+						<div class="alert alert-warning">
+							Reservamos tu(s) asiento(s) por 15 minutos mientras completás el pago.
+							@if (linkPendingInfo()?.linkUrl; as linkUrl) {
+								<a [href]="linkUrl" target="_blank" rel="noopener" class="fw-bold d-block mt-2">{{ linkUrl }}</a>
+							} @else {
+								<div class="fw-bold mt-2">Coordiná el pago con la organización.</div>
+							}
+						</div>
+						<p class="text-body-secondary">
+							Total: {{ linkPendingInfo()?.totalUSD }} USD. En cuanto confirmemos tu pago te llega el código QR real a
+							{{ registerForm.controls.email.value }}.
+						</p>
 					</div>
 				}
 				@default {
@@ -287,7 +304,7 @@ const MAX_INVITADO_SEATS = 2;
 								</div>
 							}
 
-							@if (ev.tenantType === 'CHURCH') {
+							@if (ev.tenantType === 'CHURCH' && !ev.payment) {
 								<div class="mb-4">
 									<div class="d-flex justify-content-between align-items-center mb-2">
 										<h5 class="mb-0">4. ¿Venís con hijos?</h5>
@@ -342,9 +359,25 @@ const MAX_INVITADO_SEATS = 2;
 								<div class="alert alert-danger">{{ errorMessage() }}</div>
 							}
 
-							<button type="button" class="btn btn-danger btn-lg w-100" [disabled]="submitting()" (click)="submit(ev)">
-								{{ submitting() ? 'Procesando...' : 'Confirmar y generar mis QR' }}
-							</button>
+							@if (ev.payment; as payment) {
+								@if (payment.mode === 'PAYPAL' || payment.mode === 'BOTH') {
+									<div class="mb-2">
+										<div id="paypal-button-container"></div>
+										@if (checkingOut()) {
+											<p class="text-body-secondary small text-center mt-2">Procesando...</p>
+										}
+									</div>
+								}
+								@if (payment.mode === 'LINK' || payment.mode === 'BOTH') {
+									<button type="button" class="btn btn-outline-danger btn-lg w-100" [disabled]="checkingOut()" (click)="payByLink(ev)">
+										{{ checkingOut() ? 'Procesando...' : 'Pagar por transferencia / link' }}
+									</button>
+								}
+							} @else {
+								<button type="button" class="btn btn-danger btn-lg w-100" [disabled]="submitting()" (click)="submit(ev)">
+									{{ submitting() ? 'Procesando...' : 'Confirmar y generar mis QR' }}
+								</button>
+							}
 							}
 						</div>
 					}
@@ -543,8 +576,13 @@ export class PublicEventComponent implements OnInit {
 		}
 	}
 
-	step = signal<'loading' | 'not-found' | 'ready' | 'confirmed'>('loading');
+	step = signal<'loading' | 'not-found' | 'ready' | 'confirmed' | 'link-pending'>('loading');
 	event = signal<PublicEvent | null>(null);
+
+	// --- Checkout con pago (Event.paymentMode) ---------------------------------------------------
+	checkingOut = signal(false);
+	linkPendingInfo = signal<{ linkUrl: string | null; totalUSD: number } | null>(null);
+	private paypalButtonsRendered = false;
 
 	// Único gatekeeper de "se puede comprar" — cubre tanto entrar por la portada de la organización
 	// (que ya oculta/etiqueta estos casos) como entrar directo por un QR/link viejo que se saltea esa
@@ -901,6 +939,9 @@ export class PublicEventComponent implements OnInit {
 				// elija explícitamente un tipo de ticket, para que sepa a qué precio/tipo corresponde
 				// el asiento que va a reservar.
 				this.step.set('ready');
+				if (event.payment?.paypalClientId && (event.payment.mode === 'PAYPAL' || event.payment.mode === 'BOTH')) {
+					this.ensurePaypalButtons(event);
+				}
 			},
 			error: () => this.step.set('not-found'),
 		});
@@ -1034,5 +1075,137 @@ export class PublicEventComponent implements OnInit {
 					this.errorMessage.set(extractErrorMessage(err));
 				},
 			});
+	}
+
+	// --- Checkout con pago (Event.paymentMode) ----------------------------------------------------
+
+	// Mismas validaciones que submit(), sin el chequeo de hijos (el checkout con pago no los soporta
+	// en esta primera vuelta, ver CheckoutHoldInput) — se corre ANTES de reservar el asiento, para no
+	// apartarlo con datos que el backend igual va a rechazar.
+	private validateBeforeCheckout(event: PublicEvent): string | null {
+		if (this.purchaseBlockedReason()) return this.purchaseBlockedReason();
+		if (this.duplicateEventBlockReason()) return this.duplicateEventBlockReason();
+
+		const { carnet, attendeeType, sponsorCarnet } = this.registerForm.getRawValue();
+		if (event.tenantType === 'CLUB') {
+			if (!attendeeType) return 'Elegí si sos socio o invitado.';
+			if (this.sponsorBlocked()) return this.sponsorBlockMessage(sponsorCarnet?.trim() ?? '');
+			if (!this.activeTicketId()) {
+				return `Este evento no tiene un ticket de ${attendeeType === 'SOCIO' ? 'socio' : 'invitado'} disponible — contactá a la organización.`;
+			}
+		} else if (!this.activeTicketId()) {
+			return 'Elegí un ticket.';
+		}
+		if (!this.selectedSeatIds().size) return 'Elegí al menos un asiento.';
+		if (this.registerForm.invalid) {
+			this.registerForm.markAllAsTouched();
+			return 'Completá tus datos.';
+		}
+		if (event.tenantType === 'CLUB') {
+			if (attendeeType === 'SOCIO' && !carnet?.trim()) return 'Ingresá tu carnet de socio.';
+			if (attendeeType === 'INVITADO' && !sponsorCarnet?.trim()) return 'Ingresá el carnet del socio que te invita.';
+		}
+		return null;
+	}
+
+	private buildCheckoutHoldInput(event: PublicEvent, provider: 'PAYPAL' | 'LINK'): CheckoutHoldInput {
+		const { name, lastname, email, phone, carnet, attendeeType, sponsorCarnet } = this.registerForm.getRawValue();
+		return {
+			eventCode: event.code,
+			ticketId: this.activeTicketId()!,
+			client: { name: name!, lastname: lastname!, email: email!, phone: phone!, carnet: carnet ?? '' },
+			seatIds: Array.from(this.selectedSeatIds()),
+			...(event.tenantType === 'CLUB' ? { attendeeType: attendeeType as AttendeeType, sponsorCarnet: sponsorCarnet ?? undefined } : {}),
+			provider,
+		};
+	}
+
+	// Opción "Link": aparta el/los asiento(s) igual que PayPal, pero sin pasar por ninguna pasarela —
+	// el staff confirma el pago a mano desde el panel de QRs (ver sale-tickets.ts /mark-paid).
+	payByLink(event: PublicEvent) {
+		this.errorMessage.set('');
+		const validation = this.validateBeforeCheckout(event);
+		if (validation) {
+			this.errorMessage.set(validation);
+			return;
+		}
+
+		this.checkingOut.set(true);
+		this.publicEventService.holdCheckout(this.buildCheckoutHoldInput(event, 'LINK')).subscribe({
+			next: (hold) => {
+				this.checkingOut.set(false);
+				this.linkPendingInfo.set({ linkUrl: event.payment?.linkUrl ?? null, totalUSD: hold.totalUSD });
+				this.step.set('link-pending');
+			},
+			error: (err: HttpErrorResponse) => {
+				this.checkingOut.set(false);
+				this.errorMessage.set(extractErrorMessage(err));
+			},
+		});
+	}
+
+	// Carga el SDK de PayPal (una sola vez) y renderiza los Smart Buttons en #paypal-button-container.
+	// createOrder corre las mismas validaciones que submit()/payByLink justo antes de reservar el
+	// asiento — si algo falta, cancela el checkout sin llegar a pegarle al backend.
+	private ensurePaypalButtons(event: PublicEvent) {
+		const clientId = event.payment?.paypalClientId;
+		if (this.paypalButtonsRendered || !clientId) return;
+		this.paypalButtonsRendered = true;
+
+		const render = () => {
+			const paypal = (window as any).paypal;
+			if (!paypal) return;
+			paypal
+				.Buttons({
+					createOrder: async () => {
+						this.errorMessage.set('');
+						const validation = this.validateBeforeCheckout(event);
+						if (validation) {
+							this.errorMessage.set(validation);
+							throw new Error(validation);
+						}
+						this.checkingOut.set(true);
+						const hold = await firstValueFrom(this.publicEventService.holdCheckout(this.buildCheckoutHoldInput(event, 'PAYPAL')));
+						const order = await firstValueFrom(this.publicEventService.createPaypalOrder(hold.holdIds));
+						return order.orderId;
+					},
+					onApprove: async (data: { orderID: string }) => {
+						try {
+							const result = await firstValueFrom(this.publicEventService.capturePaypalOrder(data.orderID));
+							this.purchasedTickets.set(result.saleTickets);
+							this.purchasedChildren.set([]);
+							this.checkingOut.set(false);
+							this.step.set('confirmed');
+						} catch (err) {
+							this.checkingOut.set(false);
+							this.errorMessage.set(extractErrorMessage(err as HttpErrorResponse));
+						}
+					},
+					onCancel: () => {
+						this.checkingOut.set(false);
+					},
+					onError: (err: unknown) => {
+						this.checkingOut.set(false);
+						console.error('Error de PayPal:', err);
+						this.errorMessage.set('Hubo un problema con PayPal — intentá de nuevo.');
+					},
+				})
+				.render('#paypal-button-container');
+		};
+
+		if ((window as any).paypal) {
+			render();
+			return;
+		}
+		const existing = document.getElementById('paypal-sdk-script');
+		if (existing) {
+			existing.addEventListener('load', render, { once: true });
+			return;
+		}
+		const script = document.createElement('script');
+		script.id = 'paypal-sdk-script';
+		script.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(clientId)}&currency=USD`;
+		script.addEventListener('load', render, { once: true });
+		document.body.appendChild(script);
 	}
 }
