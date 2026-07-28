@@ -15,6 +15,11 @@
 							} @else {
 								<span class="badge text-bg-secondary">Todavía no se ha registrado</span>
 							}
+							@if (detail.paymentStatus === 'PENDING') {
+								<span class="badge text-bg-secondary ms-1">Pago pendiente ({{ detail.paymentProvider === 'PAYPAL' ? 'PayPal' : 'link de pago' }})</span>
+							} @else {
+								<span class="badge text-bg-success ms-1">Pagado</span>
+							}
 						</div>
 					</div>
 					<div class="row">
