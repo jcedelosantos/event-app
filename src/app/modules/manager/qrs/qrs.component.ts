@@ -13,7 +13,7 @@ import { CreateQrModalComponent } from './components/create-qr-modal/create-qr-m
 import { ProductSaleDetailModalComponent } from './components/product-sale-detail-modal/product-sale-detail-modal.component';
 import { CreateProductQrModalComponent } from './components/create-product-qr-modal/create-product-qr-modal.component';
 import { ImportSalesModalComponent } from './components/import-sales-modal/import-sales-modal.component';
-import { confirm, error } from '../../../utils/messages';
+import { confirm, error, promptSelect } from '../../../utils/messages';
 import { extractErrorMessage } from '../../../utils/api-error';
 import { eventDateKey, todayKey } from '../../../utils/dates';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -64,14 +64,19 @@ export class QrsComponent implements OnInit, AfterViewInit {
   isChurchTenant = computed(() => this.authService.currentUser()?.tenant?.type === 'CHURCH');
   childrenList = signal<Child[]>([]);
 
-  // Borrar una venta libera el asiento — solo lo puede hacer un usuario cuyo UserType.license
-  // incluya '*' (admin) o el permiso explícito RELEASE_SEAT (ver requireLicense en el backend,
-  // que es quien realmente hace cumplir esto; acá solo se oculta el botón para no ofrecer una
-  // acción que el servidor va a rechazar con 403).
+  // Borrar una venta PAID libera el asiento — solo lo puede hacer un usuario cuyo UserType.license
+  // incluya '*' (admin) o el permiso explícito RELEASE_SEAT (ver hasLicense en el backend, que es
+  // quien realmente hace cumplir esto; acá solo se oculta el botón para no ofrecer una acción que
+  // el servidor va a rechazar con 403). Un hold todavía PENDING (checkout con pago sin confirmar)
+  // no requiere ese permiso — cualquier manager puede destrabar una reserva de prueba o abandonada.
   canReleaseSeat = computed(() => {
     const license = this.authService.currentUser()?.type?.license ?? [];
     return license.includes('*') || license.includes('RELEASE_SEAT');
   });
+
+  canDeleteQr(qr: SaleTicket): boolean {
+    return qr.paymentStatus === 'PENDING' || this.canReleaseSeat();
+  }
 
   qrList = signal<SaleTicket[]>([]);
   productSaleList = signal<SaleProduct[]>([]);
@@ -353,14 +358,26 @@ export class QrsComponent implements OnInit, AfterViewInit {
     });
   }
 
-  // Confirmación manual de pago (Opción "Link") — recarga toda la lista en vez de parchear solo esta
-  // fila porque el backend también confirma de yapa las demás filas PENDING del mismo comprador
-  // (ver sale-tickets.ts /mark-paid), y esas no vienen en esta respuesta.
+  // Confirmación manual de pago (Opción "Link") — pide la forma de pago real (el hold solo guardaba
+  // "Link de pago" genérico) antes de confirmar, así el reporte de ventas queda igual de preciso que
+  // una venta manual del manager.
   markPaid(qr: SaleTicket) {
-    confirm(`¿Confirmar que "${qr.client.name} ${qr.client.lastname}" ya pagó? Se le envía el correo con el QR real.`, {
+    promptSelect(`¿Cómo pagó "${qr.client.name} ${qr.client.lastname}"?`, { Cash: 'Efectivo', Card: 'Tarjeta', Transfer: 'Transferencia', PayPal: 'PayPal' }).then((paidType) => {
+      if (!paidType) return;
+      this.qrService.markPaid(qr.id, paidType).subscribe({
+        next: (updated) => this.qrList.update((list) => list.map((q) => (q.id === updated.id ? updated : q))),
+        error: (err: HttpErrorResponse) => error(extractErrorMessage(err)),
+      });
+    });
+  }
+
+  // Deshace un "Marcar como pagado" apretado por error — no libera el asiento (para eso ya está
+  // "Liberar asiento"), solo vuelve a Pendiente para poder confirmarlo de nuevo bien.
+  markPending(qr: SaleTicket) {
+    confirm(`¿Revertir el pago de "${qr.client.name} ${qr.client.lastname}"? Vuelve a quedar "Pendiente de pago" — el asiento sigue reservado.`, {
       onConfirm: () => {
-        this.qrService.markPaid(qr.id).subscribe({
-          next: () => this.loadQRs(),
+        this.qrService.markPending(qr.id).subscribe({
+          next: (updated) => this.qrList.update((list) => list.map((q) => (q.id === updated.id ? updated : q))),
           error: (err: HttpErrorResponse) => error(extractErrorMessage(err)),
         });
       },

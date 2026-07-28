@@ -170,6 +170,11 @@
                         </button>
                     } @else {
                         <span class="badge text-bg-success">Pagado</span>
+                        @if (qr.paymentProvider) {
+                            <button type="button" class="btn btn-link btn-sm p-0 ms-1" title="Revertir a pendiente (por si se marcó por error)" (click)="markPending(qr)">
+                                <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
+                            </button>
+                        }
                     }
                 </td>
             }
@@ -177,8 +182,8 @@
                     <button class="btn btn-primary btn-sm me-2" (click)="openDetailModal(qr)">
                         <i class="bi bi-eye" aria-hidden="true"></i> View
                     </button>
-                    @if (canReleaseSeat()) {
-                        <button class="btn btn-dark btn-sm" title="Liberar asiento" (click)="deleteQR(qr)">
+                    @if (canDeleteQr(qr)) {
+                        <button class="btn btn-dark btn-sm" [title]="qr.paymentStatus === 'PENDING' ? 'Liberar reserva (todavía sin pagar)' : 'Liberar asiento'" (click)="deleteQR(qr)">
                             <i class="bi bi-unlock" aria-hidden="true"></i>
                         </button>
                     }

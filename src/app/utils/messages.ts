@@ -73,6 +73,21 @@ export const promptText = (title: string, defaultValue: string = ''): Promise<st
   }).then((result) => (result.isConfirmed ? (result.value as string) : null));
 }
 
+export const promptSelect = (title: string, options: Record<string, string>, defaultValue: string = ''): Promise<string | null> => {
+  return Swal.fire({
+    title,
+    input: 'select',
+    inputOptions: options,
+    inputValue: defaultValue,
+    showCancelButton: true,
+    confirmButtonColor: '#3085d6',
+    cancelButtonColor: '#d33',
+    confirmButtonText: 'Confirmar',
+    cancelButtonText: 'Cancelar',
+    inputValidator: (value) => (!value ? 'Elegí una opción.' : undefined),
+  }).then((result) => (result.isConfirmed ? (result.value as string) : null));
+}
+
 export const Toast = Swal.mixin({
   toast: true,
   position: "top-end",

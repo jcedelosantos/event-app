@@ -4,7 +4,7 @@ import { z } from 'zod';
 import bcrypt from 'bcryptjs';
 import { prisma } from '../lib/prisma';
 import { requireAuth, requireTenant, AuthenticatedRequest } from '../middleware/auth';
-import { requireLicense } from '../middleware/license';
+import { hasLicense } from '../middleware/license';
 import { toPublicUser } from '../lib/serialize';
 import { sendTicketEmail } from '../lib/mail';
 import { asyncHandler } from '../lib/async-handler';
@@ -335,12 +335,40 @@ saleTicketsRouter.put('/:id/check-in', asyncHandler(async (req: AuthenticatedReq
 	}
 }));
 
-// Confirmación manual de pago (Opción "Link" — ver public.ts /checkout/hold): el resto de los
-// asientos PENDING de este mismo comprador/evento/método se confirman junto con este, para no
-// obligar a marcarlos uno por uno cuando una sola transferencia cubrió varios asientos (ver
-// finalizePaidSaleTickets, que también dispara el email con el QR real). Un ticket vendido
-// directamente por el manager (paymentStatus ya PAID por default) no tiene nada que hacer acá.
+const markPaidSchema = z.object({ paidType: z.string().min(1) });
+
+// Confirmación manual de pago (Opción "Link" — ver public.ts /checkout/hold), UNA venta a la vez —
+// a propósito no agrupa otras filas PENDING del mismo comprador: dos asientos reservados juntos
+// pueden terminar pagándose por separado (o uno cancelarse), así que confirmar uno no debe dar por
+// pagado al otro sin que el manager lo vea explícitamente. Pide la forma de pago real (Efectivo,
+// Transferencia, etc.) porque el hold solo guardaba "Link de pago" genérico como placeholder.
 saleTicketsRouter.put('/:id/mark-paid', asyncHandler(async (req: AuthenticatedRequest, res) => {
+	const id = Number(req.params.id);
+	const tenantId = req.user!.tenantId!;
+	const parsed = markPaidSchema.safeParse(req.body);
+	if (!parsed.success) {
+		res.status(400).json({ error: parsed.error.flatten() });
+		return;
+	}
+
+	const saleTicket = await prisma.saleTicket.findUnique({ where: { id, tenantId } });
+	if (!saleTicket) {
+		res.status(404).json({ error: 'Venta no encontrada' });
+		return;
+	}
+
+	await prisma.saleTicket.update({ where: { id, tenantId }, data: { paidType: parsed.data.paidType } });
+	await finalizePaidSaleTickets(tenantId, [id]);
+
+	const updated = await prisma.saleTicket.findUnique({ where: { id, tenantId }, include });
+	res.json(toPublicSaleTicket(updated));
+}));
+
+// Deshace un "Marcar como pagado" hecho por error — vuelve a PENDING sin tocar el stock ni liberar
+// el asiento (para eso ya existe DELETE /:id, con su propio permiso RELEASE_SEAT). Solo tiene
+// sentido para ventas que vinieron del checkout con pago (paymentProvider seteado); una venta manual
+// del manager (paidType libre, sin provider) nunca pasó por PENDING, no hay nada que revertir.
+saleTicketsRouter.put('/:id/mark-pending', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const id = Number(req.params.id);
 	const tenantId = req.user!.tenantId!;
 	const saleTicket = await prisma.saleTicket.findUnique({ where: { id, tenantId } });
@@ -348,29 +376,33 @@ saleTicketsRouter.put('/:id/mark-paid', asyncHandler(async (req: AuthenticatedRe
 		res.status(404).json({ error: 'Venta no encontrada' });
 		return;
 	}
+	if (!saleTicket.paymentProvider) {
+		res.status(400).json({ error: 'Esta venta no vino del checkout con pago — no hay nada que revertir.' });
+		return;
+	}
 
-	const siblingIds =
-		saleTicket.paymentStatus === 'PAID'
-			? [id]
-			: (
-					await prisma.saleTicket.findMany({
-						where: { eventId: saleTicket.eventId, clientId: saleTicket.clientId, paymentProvider: saleTicket.paymentProvider, paymentStatus: 'PENDING', tenantId },
-						select: { id: true },
-					})
-				).map((s) => s.id);
-
-	await finalizePaidSaleTickets(tenantId, siblingIds);
-
-	const updated = await prisma.saleTicket.findUnique({ where: { id, tenantId }, include });
+	const updated = await prisma.saleTicket.update({ where: { id, tenantId }, data: { paymentStatus: 'PENDING' }, include });
 	res.json(toPublicSaleTicket(updated));
 }));
 
-// Borrar la venta libera el asiento (la disponibilidad se calcula por ausencia de SaleTicket) — por
-// eso esta acción requiere el permiso RELEASE_SEAT en vez de quedar abierta a cualquier manager
-// autenticado.
-saleTicketsRouter.delete('/:id', requireLicense('RELEASE_SEAT'), asyncHandler(async (req: AuthenticatedRequest, res) => {
+// Borrar la venta libera el asiento (la disponibilidad se calcula por ausencia de SaleTicket) — una
+// venta ya PAID requiere el permiso RELEASE_SEAT (perder una venta confirmada es una acción
+// sensible), pero un hold todavía PENDING (checkout con pago sin confirmar, ver public.ts) es solo
+// una reserva sin plata de por medio — cualquier manager autenticado puede soltarla, por ejemplo
+// para destrabar un asiento de prueba o una compra abandonada sin tener que esperar los 15 minutos
+// de expiración automática.
+saleTicketsRouter.delete('/:id', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const id = Number(req.params.id);
 	const tenantId = req.user!.tenantId!;
+	const existing = await prisma.saleTicket.findUnique({ where: { id, tenantId }, select: { paymentStatus: true } });
+	if (!existing) {
+		res.status(404).json({ error: 'Venta no encontrada' });
+		return;
+	}
+	if (existing.paymentStatus === 'PAID' && !(await hasLicense(req.user!.userId, 'RELEASE_SEAT'))) {
+		res.status(403).json({ error: 'Tu usuario no tiene permiso para esta acción.' });
+		return;
+	}
 	try {
 		// Igual que sale-products.ts: liberar un asiento también devuelve el cupo al stock del
 		// ticket, si no cada corrección/liberación termina "perdiendo" cupo real.

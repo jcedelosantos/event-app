@@ -106,11 +106,15 @@ export class QRService {
 		return this.httpClient.put<SaleTicket>(`${this.baseUrl}/${id}/check-in`, { checkedIn });
 	}
 
-	// Confirmación manual de pago (Opción "Link") — también confirma de yapa el resto de los asientos
-	// PENDING del mismo comprador/evento/método (ver sale-tickets.ts), así una compra de varios
-	// asientos por transferencia no obliga a marcarlos uno por uno.
-	markPaid(id: number): Observable<SaleTicket> {
-		return this.httpClient.put<SaleTicket>(`${this.baseUrl}/${id}/mark-paid`, {});
+	// Confirmación manual de pago (Opción "Link") — una venta a la vez, con la forma de pago real (no
+	// el "Link de pago" genérico que quedó guardado al reservar, ver sale-tickets.ts).
+	markPaid(id: number, paidType: string): Observable<SaleTicket> {
+		return this.httpClient.put<SaleTicket>(`${this.baseUrl}/${id}/mark-paid`, { paidType });
+	}
+
+	// Deshace un "Marcar como pagado" hecho por error — vuelve a Pendiente sin liberar el asiento.
+	markPending(id: number): Observable<SaleTicket> {
+		return this.httpClient.put<SaleTicket>(`${this.baseUrl}/${id}/mark-pending`, {});
 	}
 
 	bulkImport(input: BulkImportSaleTicketsInput): Observable<BulkImportResult> {
