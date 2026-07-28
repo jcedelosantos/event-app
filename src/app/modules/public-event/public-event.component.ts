@@ -369,8 +369,9 @@ const MAX_INVITADO_SEATS = 2;
 									</div>
 								}
 								@if (payment.mode === 'LINK' || payment.mode === 'BOTH') {
-									<button type="button" class="btn btn-outline-danger btn-lg w-100" [disabled]="checkingOut()" (click)="payByLink(ev)">
-										{{ checkingOut() ? 'Procesando...' : 'Pagar por transferencia / link' }}
+									<button type="button" class="pay-link-btn" [disabled]="checkingOut()" (click)="payByLink(ev)">
+										<i class="bi bi-bank2" aria-hidden="true"></i>
+										<span>{{ checkingOut() ? 'Procesando...' : 'Pagar por transferencia / link' }}</span>
 									</button>
 								}
 							} @else {
@@ -533,6 +534,36 @@ const MAX_INVITADO_SEATS = 2;
 				background: #6c757d;
 				color: #ccc;
 				cursor: not-allowed;
+			}
+			/* Antes era un btn-outline-danger finito — al lado del bloque de botones de PayPal (que
+			   el SDK renderiza grande, sólido y con esquinas redondeadas) se veía como una opción
+			   secundaria de segunda clase en vez de un método de pago más. Mismo alto/peso visual que
+			   el botón de PayPal, con su propio color (el acento del club) para no confundirlo con un
+			   botón de PayPal real — es un método distinto (confirmación manual, no automática). */
+			.pay-link-btn {
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				gap: 0.5rem;
+				width: 100%;
+				padding: 0.9rem 1rem;
+				border: none;
+				border-radius: 0.5rem;
+				background: var(--app-accent);
+				color: #fff;
+				font-size: 1.05rem;
+				font-weight: 700;
+				cursor: pointer;
+			}
+			.pay-link-btn:hover:not(:disabled) {
+				filter: brightness(1.08);
+			}
+			.pay-link-btn:disabled {
+				opacity: 0.65;
+				cursor: not-allowed;
+			}
+			.pay-link-btn i {
+				font-size: 1.2rem;
 			}
 			.legend-dot {
 				display: inline-block;
