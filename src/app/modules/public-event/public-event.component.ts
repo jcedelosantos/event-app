@@ -1187,7 +1187,14 @@ export class PublicEventComponent implements OnInit {
 					onError: (err: unknown) => {
 						this.checkingOut.set(false);
 						console.error('Error de PayPal:', err);
-						this.errorMessage.set('Hubo un problema con PayPal — intentá de nuevo.');
+						// createOrder ya deja un mensaje específico (ej. "Elegí si sos socio o invitado")
+						// y CANCELA el checkout tirando un Error a propósito — eso hace que el SDK de
+						// PayPal dispare este mismo onError, que antes pisaba ese mensaje puntual con uno
+						// genérico. Solo cae acá el genérico si de verdad no había ningún mensaje puesto
+						// (un error real de PayPal, no una validación nuestra).
+						if (!this.errorMessage()) {
+							this.errorMessage.set('Hubo un problema con PayPal — intentá de nuevo.');
+						}
 					},
 				})
 				.render('#paypal-button-container');
