@@ -13,12 +13,13 @@ import { confirm, error } from '../../../utils/messages';
 import { extractErrorMessage } from '../../../utils/api-error';
 import { HttpErrorResponse } from '@angular/common/http';
 import { AuthService } from '../../../core/services/auth.service';
+import { QRCodeComponent } from 'angularx-qrcode';
 
 declare const bootstrap: any;
 
 @Component({
 	selector: 'app-events',
-	imports: [CreateEventModalComponent, ScheduleComponent, EventCardComponent, CreateMapModalComponent, EventQrModalComponent],
+	imports: [CreateEventModalComponent, ScheduleComponent, EventCardComponent, CreateMapModalComponent, EventQrModalComponent, QRCodeComponent],
 	template: `
 			<h2 class="section-title">Events Manager</h2>
 			<nav class="navbar border-bottom border-body">
@@ -28,9 +29,12 @@ declare const bootstrap: any;
 						<input #searchInput class="form-control me-2" type="search" placeholder="Search" aria-label="Name" (input)="searchText.set(searchInput.value)" />
 						<button class="btn btn-dark me-4" type="submit">Search</button>
 						@if (orgUrl(); as url) {
-							<a class="btn btn-outline-light me-4" [href]="url" target="_blank" rel="noopener" title="Abrir la portada pública de tu organización">
+							<a class="btn btn-outline-light me-2" [href]="url" target="_blank" rel="noopener" title="Abrir la portada pública de tu organización">
 								<i class="bi bi-box-arrow-up-right"></i> Portada pública
 							</a>
+							<button type="button" class="btn btn-outline-light me-4" data-bs-toggle="modal" data-bs-target="#orgQrModal" title="QR de la portada pública">
+								<i class="bi bi-qr-code"></i>
+							</button>
 						}
 					</form>
 					<div class="navbar-brand">
@@ -56,6 +60,26 @@ declare const bootstrap: any;
 			/>
 			<create-map-modal (mapCreated)="onMapCreated($event)" />
 			<app-event-qr-modal [event]="eventForQr()" />
+			@if (orgUrl(); as url) {
+				<div class="modal fade" id="orgQrModal" tabindex="-1" aria-labelledby="orgQrModalLabel" aria-hidden="true">
+					<div class="modal-dialog">
+						<div class="modal-content">
+							<div class="modal-header">
+								<h1 class="modal-title fs-5" id="orgQrModalLabel">Portada pública</h1>
+								<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+							</div>
+							<div class="modal-body text-center">
+								<qrcode [qrdata]="url" [width]="220" [errorCorrectionLevel]="'M'"></qrcode>
+								<p class="small text-body-secondary mt-2 mb-1">Compartí este QR para que tus clientes vean todos tus próximos eventos</p>
+								<a [href]="url" target="_blank" rel="noopener">{{ url }}</a>
+							</div>
+							<div class="modal-footer">
+								<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+							</div>
+						</div>
+					</div>
+				</div>
+			}
 			<div class="row">
 				<div class="col-12 col-lg-8">
 					<div class="d-flex flex-column vh-85">
