@@ -52,7 +52,13 @@ import { PublicEventService, PublicOrg, PublicOrgEvent } from '../public-event/s
 													@if (event.img) {
 														<img [src]="event.img" [alt]="event.name" loading="lazy" />
 													} @else {
-														<div class="event-poster-fallback">{{ event.name }}</div>
+														<div class="event-poster-fallback">
+															<i class="bi bi-calendar-event event-poster-fallback-icon"></i>
+															<span class="event-poster-fallback-name">{{ event.name }}</span>
+															@if (event.map?.name) {
+																<span class="event-poster-fallback-meta">{{ event.map!.name }}</span>
+															}
+														</div>
 													}
 													<span class="event-date-badge">{{ formatShortDate(event.dateOn) }}</span>
 													<span class="event-status-badge">{{ label }}</span>
@@ -76,7 +82,13 @@ import { PublicEventService, PublicOrg, PublicOrgEvent } from '../public-event/s
 													@if (event.img) {
 														<img [src]="event.img" [alt]="event.name" loading="lazy" />
 													} @else {
-														<div class="event-poster-fallback">{{ event.name }}</div>
+														<div class="event-poster-fallback">
+															<i class="bi bi-calendar-event event-poster-fallback-icon"></i>
+															<span class="event-poster-fallback-name">{{ event.name }}</span>
+															@if (event.map?.name) {
+																<span class="event-poster-fallback-meta">{{ event.map!.name }}</span>
+															}
+														</div>
 													}
 													<span class="event-date-badge">{{ formatShortDate(event.dateOn) }}</span>
 												</div>
@@ -195,18 +207,53 @@ import { PublicEventService, PublicOrg, PublicOrgEvent } from '../public-event/s
 				object-fit: cover;
 				display: block;
 			}
+			/* Placeholder para eventos sin foto todavía — antes era solo el nombre centrado sobre un
+			   gradiente plano, se veía como un error de carga más que un diseño a propósito. Ahora
+			   suma una textura sutil, un ícono y (si el evento tiene mapa asignado) el lugar, para que
+			   se lea como una portada mientras el manager no sube la imagen real. */
 			.event-poster-fallback {
+				position: relative;
 				width: 100%;
 				height: 100%;
 				display: flex;
+				flex-direction: column;
 				align-items: center;
 				justify-content: center;
-				padding: 1rem;
+				gap: 0.6rem;
+				padding: 1.25rem;
 				text-align: center;
+				overflow: hidden;
+				background:
+					radial-gradient(circle at 25% 15%, rgba(255, 255, 255, 0.12), transparent 55%),
+					linear-gradient(135deg, var(--app-accent), #1c1f24 78%);
+			}
+			.event-poster-fallback::before {
+				content: '';
+				position: absolute;
+				inset: -25%;
+				background-image: repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.06) 0 2px, transparent 2px 16px);
+				pointer-events: none;
+			}
+			.event-poster-fallback-icon {
+				position: relative;
+				font-size: 1.75rem;
+				color: rgba(255, 255, 255, 0.55);
+			}
+			.event-poster-fallback-name {
+				position: relative;
 				font-weight: 700;
-				font-size: 1.1rem;
+				font-size: 1.05rem;
+				line-height: 1.3;
 				color: #fff;
-				background: linear-gradient(135deg, var(--app-accent), #1c1f24);
+				text-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+			}
+			.event-poster-fallback-meta {
+				position: relative;
+				font-size: 0.7rem;
+				font-weight: 600;
+				letter-spacing: 0.04em;
+				text-transform: uppercase;
+				color: rgba(255, 255, 255, 0.75);
 			}
 			.event-date-badge {
 				position: absolute;
