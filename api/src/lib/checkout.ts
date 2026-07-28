@@ -25,6 +25,14 @@ export async function finalizePaidSaleTickets(tenantId: number, saleTicketIds: n
 			where: { id: { in: stillPending.map((r) => r.id) }, tenantId },
 			data: { paymentStatus: 'PAID', paymentExpiresAt: null },
 		});
+		// El hold guardó "(pendiente)" en la descripción a propósito (ver public.ts) — al confirmar el
+		// pago ya no aplica, y dejarlo así confundía en el panel de QRs a alguien viendo una venta ya
+		// pagada que todavía decía "pendiente".
+		await Promise.all(
+			stillPending
+				.filter((r) => r.description.includes('(pendiente)'))
+				.map((r) => prisma.saleTicket.update({ where: { id: r.id, tenantId }, data: { description: r.description.replace(' (pendiente)', '') } })),
+		);
 	}
 
 	const publicSaleTickets = rows.map(({ client, seller, ...rest }) => ({

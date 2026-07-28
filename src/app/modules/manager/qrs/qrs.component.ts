@@ -21,7 +21,7 @@ import * as bootstrap from "bootstrap";
 
 type QrSortKey = 'carnet' | 'client' | 'event' | 'seat' | 'price';
 type ProductSortKey = 'carnet' | 'client' | 'date' | 'event' | 'product' | 'qty';
-type QrColumnKey = QrSortKey | 'time' | 'status' | 'attendeeType' | 'payment';
+type QrColumnKey = QrSortKey | 'time' | 'status' | 'attendeeType' | 'payment' | 'channel';
 type QrStatusFilter = 'all' | 'checked' | 'pending';
 
 const QR_COLUMN_LABELS: Record<QrColumnKey, string> = {
@@ -34,6 +34,7 @@ const QR_COLUMN_LABELS: Record<QrColumnKey, string> = {
   status: 'Estado',
   attendeeType: 'Socio/Invitado',
   payment: 'Pago',
+  channel: 'Origen',
 };
 
 // dateSold viene como string ISO — comparar por el día calendario en hora LOCAL (no UTC), que es
@@ -141,6 +142,9 @@ export class QrsComponent implements OnInit, AfterViewInit {
     status: true,
     attendeeType: this.authService.currentUser()?.tenant?.type === 'CLUB',
     payment: true,
+    // Oculta por defecto — la mayoría de los días no importa quién cargó la venta, solo cuando hay
+    // que auditar algo puntual (el staff la prende a mano con el toggle de columnas).
+    channel: false,
   });
 
   toggleQrColumn(key: QrColumnKey) {

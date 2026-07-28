@@ -38,6 +38,9 @@ export type SaleTicket = {
 	// PayPal o "Marcar como pagado" acá mismo, ver Opción "Link").
 	paymentStatus: 'PAID' | 'PENDING';
 	paymentProvider: 'PAYPAL' | 'LINK' | null;
+	// MANUAL (venta cargada por un staff desde el manager) | PUBLIC (el comprador se autogestionó
+	// desde el portal público) — ver columna "Origen" en el panel de QRs.
+	channel: 'MANUAL' | 'PUBLIC';
 };
 
 export type SaleTicketInput = {

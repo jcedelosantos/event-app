@@ -375,6 +375,11 @@ model SaleTicket {
   // anfitrión (validado en la ruta, no acá).
   isHostGuest Boolean @default(false)
 
+  // MANUAL (default) = la vendió un staff desde el manager (create-qr-modal, bulk-import) — PUBLIC =
+  // el comprador se autogestionó desde el portal público (/purchase o /checkout/hold, con o sin
+  // pago). Para saber "por dónde entró" cada venta en el panel de QRs (columna Origen).
+  channel String @default("MANUAL")
+
   // PAID (default) preserva el comportamiento de siempre para toda venta manual del manager
   // (create-qr-modal, bulk-import) y eventos sin cobro online — nada de esto cambia. PENDING es
   // exclusivo del checkout público con pago (ver Event.paymentMode / public.ts): el asiento ya
