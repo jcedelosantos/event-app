@@ -45,7 +45,9 @@ settingsRouter.get('/', asyncHandler(async (req, res) => {
 	res.json(result);
 }));
 
-const valueSchema = z.object({ value: z.string().min(1).max(200) });
+// 2000 en vez de 200: los Access Token permanentes de WhatsApp Cloud API (Usuario del sistema) son
+// bastante más largos que un Client ID/Secret típico.
+const valueSchema = z.object({ value: z.string().min(1).max(2000) });
 
 settingsRouter.put('/:key', requireAuth, requireTenant, asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const parsed = valueSchema.safeParse(req.body);

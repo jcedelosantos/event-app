@@ -32,7 +32,16 @@ process.on('unhandledRejection', (reason) => {
 const app = express();
 
 app.use(cors());
-app.use(express.json());
+// El body crudo se guarda en req.rawBody además de parsearse — lo necesita el webhook de WhatsApp
+// para verificar la firma HMAC de Meta (ver lib/whatsapp.ts), que se calcula sobre los bytes
+// exactos recibidos, no sobre el objeto ya parseado (que puede serializar distinto).
+app.use(
+	express.json({
+		verify: (req, _res, buf) => {
+			(req as express.Request & { rawBody?: Buffer }).rawBody = buf;
+		},
+	}),
+);
 
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 app.use('/uploads', express.static(uploadsDir));

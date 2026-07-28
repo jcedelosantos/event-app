@@ -5,6 +5,7 @@ import { prisma } from '../lib/prisma';
 import { requireAuth, requireTenant, AuthenticatedRequest } from '../middleware/auth';
 import { asyncHandler } from '../lib/async-handler';
 import { logAudit } from '../lib/audit';
+import { findDuplicateEventSlot } from '../lib/find-duplicate-event-slot';
 
 export const eventsRouter = Router();
 eventsRouter.use(requireAuth, requireTenant);
@@ -42,17 +43,6 @@ const eventInputSchema = z.object({
 });
 
 const include = { map: { include: { areas: true } }, tickets: true, products: true };
-
-// Solo tiene sentido cuando el evento tiene un mapa asignado — dos eventos "Sin asignar" no son
-// necesariamente el mismo evento repetido por error. Cubre el caso real reportado: crear "eventos
-// nuevos iguales" y terminar con la misma función cargada dos veces sin querer.
-async function findDuplicateEventSlot(tenantId: number, mapId: number | null | undefined, dateOn: Date, excludeId?: number) {
-	if (!mapId) return null;
-	return prisma.event.findFirst({
-		where: { tenantId, mapId, dateOn, ...(excludeId ? { id: { not: excludeId } } : {}) },
-		select: { name: true },
-	});
-}
 
 eventsRouter.get('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const tenantId = req.user!.tenantId!;

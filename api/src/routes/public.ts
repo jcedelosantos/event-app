@@ -12,6 +12,11 @@ import { resolveFamilyCodeQR } from '../lib/family-code';
 import { checkDuplicateEventRegistration } from '../lib/duplicate-event-guard';
 import { createOrder as createPaypalOrder, captureOrder as capturePaypalOrder, verifyWebhookSignature, PayPalNotConfiguredError, PayPalRequestError } from '../lib/paypal';
 import { finalizePaidSaleTickets } from '../lib/checkout';
+import { findDuplicateEventSlot } from '../lib/find-duplicate-event-slot';
+import { extractEventFromImage, AnthropicNotConfiguredError, AnthropicRequestError } from '../lib/event-extraction';
+import { getTenantConfig as getWhatsAppConfig, verifySignature as verifyWhatsAppSignature, downloadMedia, sendTextMessage, WhatsAppNotConfiguredError } from '../lib/whatsapp';
+import { saveBuffer } from '../lib/uploads';
+import { logAudit } from '../lib/audit';
 
 export const publicRouter = Router();
 
@@ -749,4 +754,205 @@ publicRouter.post('/webhooks/paypal', asyncHandler(async (req, res) => {
 		console.error('Error procesando webhook de PayPal:', err);
 	}
 	res.json({ received: true });
+}));
+
+// --- WhatsApp: crear eventos automáticamente a partir de una foto de flyer ---
+//
+// El tenant se identifica por :slug en la URL (mismo patrón que /public/org/:slug) — cada club
+// registra su propia URL de webhook en su App de Meta, así que acá ya sabemos a quién pertenece el
+// mensaje antes de leer el body. El evento se PUBLICA directo (active: true), sin pantalla de
+// revisión — decisión explícita del club, sabiendo que la IA puede leer mal un precio o una fecha
+// (ver los casos reales de esta misma sesión). La única red de seguridad es la respuesta por
+// WhatsApp al final con un resumen de lo que se creó, para que el error se note al toque.
+
+// Handshake único al configurar el webhook en el panel de Meta — responde el challenge tal cual si
+// el verify_token coincide con el guardado en Settings → WhatsApp.
+publicRouter.get('/webhooks/whatsapp/:slug', asyncHandler(async (req, res) => {
+	const tenant = await prismaUnscoped.tenant.findUnique({ where: { slug: req.params.slug } });
+	if (!tenant) {
+		res.sendStatus(404);
+		return;
+	}
+	const config = await getWhatsAppConfig(tenant.id).catch(() => null);
+	const mode = req.query['hub.mode'];
+	const token = req.query['hub.verify_token'];
+	const challenge = req.query['hub.challenge'];
+	if (config?.verifyToken && mode === 'subscribe' && token === config.verifyToken) {
+		res.status(200).send(challenge);
+		return;
+	}
+	res.sendStatus(403);
+}));
+
+// Adivina a qué mapa/área del club se refiere el flyer por nombre — la IA nunca ve ni inventa un
+// mapId real, solo un texto (venueNameGuess) que se resuelve acá contra los mapas que existen de
+// verdad. Sin match, cae al primer mapa/área del tenant (mejor una venta con el mapa "por defecto"
+// que un evento sin ningún asiento donde vender).
+async function resolveWhatsAppVenue(tenantId: number, venueNameGuess: string | null) {
+	const maps = await prisma.map.findMany({ where: { tenantId }, include: { areas: true } });
+	if (!maps.length) return null;
+	const needle = venueNameGuess?.toLowerCase().trim();
+	if (needle) {
+		for (const map of maps) {
+			if (map.name.toLowerCase().includes(needle) || needle.includes(map.name.toLowerCase())) {
+				return { mapId: map.id, areaId: map.areas[0]?.id ?? null };
+			}
+			for (const area of map.areas) {
+				if (area.name.toLowerCase().includes(needle) || needle.includes(area.name.toLowerCase())) {
+					return { mapId: map.id, areaId: area.id };
+				}
+			}
+		}
+	}
+	return { mapId: maps[0].id, areaId: maps[0].areas[0]?.id ?? null };
+}
+
+publicRouter.post('/webhooks/whatsapp/:slug', asyncHandler(async (req, res) => {
+	// Meta espera 200 rápido siempre que se pueda — el procesamiento real sigue después de responder,
+	// así que TODO lo que sigue va dentro de un único try/catch que nunca vuelve a tocar `res` ni
+	// relanza el error (si algo escapara acá, asyncHandler lo mandaría al middleware de errores, que
+	// intentaría mandar una respuesta que ya se envió, y Express tira "headers already sent").
+	res.json({ received: true });
+
+	let from: string | undefined;
+	let config: Awaited<ReturnType<typeof getWhatsAppConfig>> | null = null;
+
+	try {
+		const tenant = await prismaUnscoped.tenant.findUnique({ where: { slug: req.params.slug } });
+		if (!tenant) return;
+
+		config = await getWhatsAppConfig(tenant.id).catch((err) => {
+			if (err instanceof WhatsAppNotConfiguredError) return null;
+			throw err;
+		});
+		if (!config) return;
+
+		if (config.appSecret) {
+			const rawBody = (req as typeof req & { rawBody?: Buffer }).rawBody;
+			const signature = req.headers['x-hub-signature-256'] as string | undefined;
+			if (!rawBody || !verifyWhatsAppSignature(rawBody, signature, config.appSecret)) {
+				console.error(`Firma de webhook de WhatsApp inválida para tenant ${tenant.id}`);
+				return;
+			}
+		}
+
+		const value = req.body?.entry?.[0]?.changes?.[0]?.value;
+		const message = value?.messages?.[0];
+		if (!message) return; // callback de estado (entregado/leído), no un mensaje nuevo
+
+		from = message.from as string | undefined;
+		if (!from) return;
+		if (!config.allowedSenders.includes(from)) {
+			console.warn(`Mensaje de WhatsApp de un número no autorizado (${from}) para tenant ${tenant.id}, ignorado.`);
+			return;
+		}
+
+		if (message.type !== 'image') {
+			await sendTextMessage(config, from, 'Mandame una foto del flyer del evento y lo cargo automáticamente. 📸');
+			return;
+		}
+
+		const { buffer, mimeType } = await downloadMedia(message.image.id, config.accessToken);
+		const maps = await prisma.map.findMany({ where: { tenantId: tenant.id }, select: { name: true } });
+		const extracted = await extractEventFromImage(buffer, mimeType, maps.map((m) => m.name));
+
+		const venue = await resolveWhatsAppVenue(tenant.id, extracted.venueNameGuess);
+		if (!venue) {
+			await sendTextMessage(config, from, `No pude crear "${extracted.name}" porque este club todavía no tiene ningún mapa configurado en el sistema.`);
+			return;
+		}
+
+		const dateOn = new Date(extracted.dateOn);
+		const duplicate = await findDuplicateEventSlot(tenant.id, venue.mapId, dateOn);
+		if (duplicate) {
+			await sendTextMessage(
+				config,
+				from,
+				`No cargué "${extracted.name}" (${extracted.dateOn}) porque ya existe "${duplicate.name}" con esa misma fecha y mapa. Si son eventos distintos, cargalo a mano desde el manager.`,
+			);
+			return;
+		}
+
+		// Ninguna sesión está logueada en este flujo — se atribuye al primer usuario administrador del
+		// tenant, el mismo que tiene que haber cargado las credenciales de WhatsApp en Settings.
+		const adminUser = await prisma.user.findFirst({ where: { tenantId: tenant.id, type: { type: 'ROOT' } } });
+		if (!adminUser) {
+			await sendTextMessage(config, from, `No pude crear "${extracted.name}" porque no encontré un usuario administrador en este club.`);
+			return;
+		}
+
+		const img = saveBuffer(buffer, mimeType);
+		const created = await prisma.event.create({
+			data: {
+				name: extracted.name,
+				img,
+				code: '',
+				type: 'Normal',
+				description: extracted.description,
+				dateSale: new Date(),
+				dateOn,
+				dateOff: new Date(extracted.dateOff),
+				startTime: extracted.startTime,
+				mapId: venue.mapId,
+				userId: adminUser.id,
+				tenantId: tenant.id,
+			},
+		});
+		// Código legible basado en el id (mismo patrón que POST /events autenticado).
+		const event = await prisma.event.update({ where: { id: created.id, tenantId: tenant.id }, data: { code: `EVT-${String(created.id).padStart(4, '0')}` } });
+
+		// Ticket.code también es único y se genera server-side desde el id — createMany no permite un
+		// update por fila después, así que van uno por uno (mismo patrón que POST /tickets autenticado).
+		for (const t of extracted.tickets) {
+			const createdTicket = await prisma.ticket.create({
+				data: {
+					name: t.name,
+					img: '',
+					code: '',
+					description: '',
+					type: 'Normal',
+					count: t.count,
+					price: t.price,
+					eventId: event.id,
+					areaId: venue.areaId,
+					attendeeType: t.attendeeType,
+					tenantId: tenant.id,
+				},
+			});
+			await prisma.ticket.update({ where: { id: createdTicket.id, tenantId: tenant.id }, data: { code: `TCK-${String(createdTicket.id).padStart(4, '0')}` } });
+		}
+
+		await logAudit({
+			tenantId: tenant.id,
+			userId: adminUser.id,
+			action: 'CREATE',
+			entity: 'Event',
+			entityId: event.id,
+			summary: `Creó el evento "${event.name}" automáticamente desde una imagen de WhatsApp`,
+		});
+
+		const publicUrl = `${req.protocol}://${req.get('host')}/e/${event.code}`;
+		const ticketsSummary = extracted.tickets.map((t) => `• ${t.name}: RD$${t.price} (${t.count} cupos)`).join('\n');
+		await sendTextMessage(
+			config,
+			from,
+			[
+				`✅ Evento creado: ${extracted.name}`,
+				`📅 ${extracted.dateOn}${extracted.dateOn !== extracted.dateOff ? ` al ${extracted.dateOff}` : ''}${extracted.startTime ? ` — ${extracted.startTime}` : ''}`,
+				ticketsSummary,
+				`🔗 ${publicUrl}`,
+				'',
+				'Ya está publicado. Revisalo en el manager por si algo salió mal (fechas, precios, mapa).',
+			].join('\n'),
+		);
+	} catch (err) {
+		console.error(`Error procesando imagen de WhatsApp (slug ${req.params.slug}):`, err);
+		if (config && from) {
+			const message =
+				err instanceof AnthropicNotConfiguredError || err instanceof AnthropicRequestError
+					? 'No pude leer la imagen con IA — probá de nuevo en un rato.'
+					: 'Algo salió mal creando el evento a partir de esa imagen.';
+			await sendTextMessage(config, from, `❌ ${message}`).catch(() => {});
+		}
+	}
 }));

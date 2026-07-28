@@ -28,3 +28,14 @@ export const imageUpload = multer({
 		cb(null, true);
 	},
 });
+
+const EXT_BY_MIME: Record<string, string> = { 'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp' };
+
+// Mismo destino que imageUpload (multer), pero para guardar un buffer que ya está en memoria (ej. la
+// imagen bajada de la API de WhatsApp, ver lib/whatsapp.ts) en vez de un archivo subido por HTTP.
+export function saveBuffer(buffer: Buffer, mimeType: string): string {
+	const ext = EXT_BY_MIME[mimeType] ?? '.jpg';
+	const filename = `${randomUUID()}${ext}`;
+	fs.writeFileSync(path.join(uploadsDir, filename), buffer);
+	return `/uploads/${filename}`;
+}

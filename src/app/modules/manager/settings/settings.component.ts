@@ -6,6 +6,7 @@ import { ACCENT_SETTING_KEY, DEFAULT_ACCENT, ThemeService } from '../../../core/
 import { AuthService } from '../../../core/services/auth.service';
 import { extractErrorMessage } from '../../../utils/api-error';
 import { QRCodeComponent } from 'angularx-qrcode';
+import { environment } from '../../../../environments/environment';
 
 const PRESETS = [
 	{ name: 'Azul oscuro', hex: '#1e3a8a' },
@@ -166,6 +167,91 @@ const PRESETS = [
 					}
 				</div>
 			</div>
+
+			<h2 class="section-title mt-4">WhatsApp</h2>
+			<p class="text-body-secondary small">
+				Le mandás por WhatsApp la foto de un flyer a tu número de WhatsApp Business y se crea el evento solo (IA lee la imagen, publica el
+				evento y te responde por WhatsApp con un resumen). Necesitás una App de WhatsApp Business Platform en
+				<a href="https://developers.facebook.com" target="_blank" rel="noopener">developers.facebook.com</a>.
+			</p>
+
+			<div class="card" style="max-width: 480px;">
+				<div class="card-body">
+					@if (whatsappWebhookUrl(); as webhookUrl) {
+						<div class="mb-3">
+							<label class="small mb-1">URL del webhook <span class="text-muted">(pegala en Meta → WhatsApp → Configuración → Webhook)</span></label>
+							<div class="input-group input-group-sm">
+								<input type="text" class="form-control form-control-sm" readonly [value]="webhookUrl" />
+								<button type="button" class="btn btn-outline-secondary btn-sm" (click)="copyWebhookUrl(webhookUrl)">
+									<i class="bi" [class.bi-clipboard]="!webhookUrlCopied()" [class.bi-clipboard-check]="webhookUrlCopied()" aria-hidden="true"></i>
+								</button>
+							</div>
+						</div>
+					}
+					<div class="mb-3">
+						<label class="small mb-1">Phone Number ID <span class="text-muted">(de API Setup en tu App de Meta)</span></label>
+						<input
+							type="text"
+							class="form-control form-control-sm"
+							[value]="whatsappPhoneNumberId()"
+							(input)="whatsappPhoneNumberId.set($any($event.target).value)"
+							placeholder="Ej. 123456789012345"
+						/>
+					</div>
+					<div class="mb-3">
+						<label class="small mb-1">Access Token <span class="text-muted">(permanente, de un Usuario del sistema)</span></label>
+						<input
+							type="password"
+							class="form-control form-control-sm"
+							[value]="whatsappAccessToken()"
+							(input)="whatsappAccessToken.set($any($event.target).value)"
+							[placeholder]="whatsappAccessTokenConfigured() ? '•••• configurado — dejalo vacío para no cambiarlo' : 'Pegá el token'"
+						/>
+					</div>
+					<div class="mb-3">
+						<label class="small mb-1">Verify Token <span class="text-muted">(elegís vos cualquier texto — tiene que coincidir con el que pongas en Meta)</span></label>
+						<input
+							type="password"
+							class="form-control form-control-sm"
+							[value]="whatsappVerifyToken()"
+							(input)="whatsappVerifyToken.set($any($event.target).value)"
+							[placeholder]="whatsappVerifyTokenConfigured() ? '•••• configurado — dejalo vacío para no cambiarlo' : 'Ej. un texto random que inventes'"
+						/>
+					</div>
+					<div class="mb-3">
+						<label class="small mb-1">App Secret <span class="text-muted">(Configuración básica de tu App de Meta — confirma que el webhook es real)</span></label>
+						<input
+							type="password"
+							class="form-control form-control-sm"
+							[value]="whatsappAppSecret()"
+							(input)="whatsappAppSecret.set($any($event.target).value)"
+							[placeholder]="whatsappAppSecretConfigured() ? '•••• configurado — dejalo vacío para no cambiarlo' : 'Opcional, pero muy recomendado'"
+						/>
+					</div>
+					<div class="mb-3">
+						<label class="small mb-1">Números autorizados <span class="text-muted">(solo estos pueden crear eventos por WhatsApp — separados por coma, ej. 18095551234)</span></label>
+						<input
+							type="text"
+							class="form-control form-control-sm"
+							[value]="whatsappAllowedSenders()"
+							(input)="whatsappAllowedSenders.set($any($event.target).value)"
+							placeholder="18095551234, 18095556789"
+						/>
+					</div>
+
+					<div class="d-flex gap-2 align-items-center">
+						<button type="button" class="btn btn-danger btn-sm" [disabled]="savingWhatsapp()" (click)="saveWhatsapp()">
+							{{ savingWhatsapp() ? 'Guardando...' : 'Guardar' }}
+						</button>
+						@if (whatsappSaved()) {
+							<span class="text-success small"><i class="bi bi-check-circle" aria-hidden="true"></i> Guardado</span>
+						}
+					</div>
+					@if (whatsappError()) {
+						<div class="text-danger small mt-2">{{ whatsappError() }}</div>
+					}
+				</div>
+			</div>
 	`,
 	styleUrl: './settings.component.css',
 	changeDetection: ChangeDetectionStrategy.OnPush,
@@ -196,9 +282,32 @@ export class SettingsComponent implements OnInit {
 	paymentsSaved = signal(false);
 	paymentsError = signal('');
 
+	// accessTokenSecret/verifyTokenSecret/appSecretSecret nunca vuelven del backend (mismo filtro que
+	// Client Secret de PayPal, ver GET /settings) — solo el flag "Configured".
+	whatsappPhoneNumberId = signal('');
+	whatsappAccessToken = signal('');
+	whatsappAccessTokenConfigured = signal(false);
+	whatsappVerifyToken = signal('');
+	whatsappVerifyTokenConfigured = signal(false);
+	whatsappAppSecret = signal('');
+	whatsappAppSecretConfigured = signal(false);
+	whatsappAllowedSenders = signal('');
+	savingWhatsapp = signal(false);
+	whatsappSaved = signal(false);
+	whatsappError = signal('');
+	webhookUrlCopied = signal(false);
+
 	orgUrl = computed(() => {
 		const slug = this.authService.currentUser()?.tenant?.slug;
 		return slug ? `${window.location.origin}/o/${slug}` : null;
+	});
+
+	// El backend expone este mismo webhook bajo /public (ver routes/public.ts) — el slug del tenant en
+	// la URL es lo único que identifica a qué club pertenece cada mensaje entrante, antes de leer nada
+	// del body (ver el comentario en public.ts sobre /webhooks/whatsapp/:slug).
+	whatsappWebhookUrl = computed(() => {
+		const slug = this.authService.currentUser()?.tenant?.slug;
+		return slug ? `${environment.apiUrl}/public/webhooks/whatsapp/${slug}` : null;
 	});
 
 	ngOnInit(): void {
@@ -209,6 +318,11 @@ export class SettingsComponent implements OnInit {
 			this.paypalMode.set(settings['payments.paypalMode'] === 'live' ? 'live' : 'sandbox');
 			this.paypalWebhookIdConfigured.set(settings['payments.paypalWebhookIdConfigured'] === 'true');
 			this.linkUrl.set(settings['payments.linkUrl'] ?? '');
+			this.whatsappPhoneNumberId.set(settings['whatsapp.phoneNumberId'] ?? '');
+			this.whatsappAccessTokenConfigured.set(settings['whatsapp.accessTokenSecretConfigured'] === 'true');
+			this.whatsappVerifyTokenConfigured.set(settings['whatsapp.verifyTokenSecretConfigured'] === 'true');
+			this.whatsappAppSecretConfigured.set(settings['whatsapp.appSecretSecretConfigured'] === 'true');
+			this.whatsappAllowedSenders.set(settings['whatsapp.allowedSenders'] ?? '');
 		});
 	}
 
@@ -247,6 +361,60 @@ export class SettingsComponent implements OnInit {
 				this.savingPayments.set(false);
 				this.paymentsError.set(extractErrorMessage(err));
 			},
+		});
+	}
+
+	// Mismo criterio que savePayments(): solo manda los campos con contenido, para no borrar un
+	// Access Token/Verify Token/App Secret ya guardado con un campo vacío por accidente.
+	saveWhatsapp() {
+		this.savingWhatsapp.set(true);
+		this.whatsappError.set('');
+		this.whatsappSaved.set(false);
+		const phoneNumberIdToSave = this.whatsappPhoneNumberId().trim();
+		const allowedSendersToSave = this.whatsappAllowedSenders().trim();
+		const accessTokenToSave = this.whatsappAccessToken().trim();
+		const verifyTokenToSave = this.whatsappVerifyToken().trim();
+		const appSecretToSave = this.whatsappAppSecret().trim();
+		const calls: Observable<unknown>[] = [];
+		if (phoneNumberIdToSave) calls.push(this.settingsService.setSetting('whatsapp.phoneNumberId', phoneNumberIdToSave));
+		if (allowedSendersToSave) calls.push(this.settingsService.setSetting('whatsapp.allowedSenders', allowedSendersToSave));
+		if (accessTokenToSave) calls.push(this.settingsService.setSetting('whatsapp.accessTokenSecret', accessTokenToSave));
+		if (verifyTokenToSave) calls.push(this.settingsService.setSetting('whatsapp.verifyTokenSecret', verifyTokenToSave));
+		if (appSecretToSave) calls.push(this.settingsService.setSetting('whatsapp.appSecretSecret', appSecretToSave));
+
+		if (!calls.length) {
+			this.savingWhatsapp.set(false);
+			return;
+		}
+
+		forkJoin(calls).subscribe({
+			next: () => {
+				this.savingWhatsapp.set(false);
+				this.whatsappSaved.set(true);
+				if (accessTokenToSave) {
+					this.whatsappAccessToken.set('');
+					this.whatsappAccessTokenConfigured.set(true);
+				}
+				if (verifyTokenToSave) {
+					this.whatsappVerifyToken.set('');
+					this.whatsappVerifyTokenConfigured.set(true);
+				}
+				if (appSecretToSave) {
+					this.whatsappAppSecret.set('');
+					this.whatsappAppSecretConfigured.set(true);
+				}
+			},
+			error: (err: HttpErrorResponse) => {
+				this.savingWhatsapp.set(false);
+				this.whatsappError.set(extractErrorMessage(err));
+			},
+		});
+	}
+
+	copyWebhookUrl(url: string) {
+		navigator.clipboard.writeText(url).then(() => {
+			this.webhookUrlCopied.set(true);
+			setTimeout(() => this.webhookUrlCopied.set(false), 2000);
 		});
 	}
 
