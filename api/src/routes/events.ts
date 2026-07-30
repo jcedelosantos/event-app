@@ -44,6 +44,10 @@ const eventInputSchema = z.object({
 	// escanear desde cualquier momento antes del evento (sin ventana), sin tope arbitrario hacia
 	// arriba más allá de lo razonable para un solo evento.
 	checkInWindowHours: z.number().int().min(0).max(72).optional().default(1),
+	// Fecha/hora de publicación en el portal público (ver public.ts) — null/ausente = visible ya
+	// mismo, igual que siempre. Nullable (no solo optional) para poder desprogramar un evento ya
+	// programado mandando explícitamente null.
+	publishAt: z.coerce.date().nullable().optional(),
 });
 
 const include = { map: { include: { areas: true } }, tickets: true, products: true };

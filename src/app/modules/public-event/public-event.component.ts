@@ -615,6 +615,10 @@ export class PublicEventComponent implements OnInit {
 		if (new Date() > new Date(ev.dateOff)) {
 			return 'Las ventas para este evento ya cerraron.';
 		}
+		if (ev.publishAt && new Date() < new Date(ev.publishAt)) {
+			const publishDate = new Date(ev.publishAt).toLocaleString('es-DO', { dateStyle: 'long', timeStyle: 'short' });
+			return `Este evento estará disponible para la venta a partir del ${publishDate}.`;
+		}
 		if (!ev.tickets.length) {
 			return 'Este evento todavía no está disponible para la venta — probá más adelante.';
 		}

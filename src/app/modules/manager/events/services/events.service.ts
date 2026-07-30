@@ -21,6 +21,8 @@ export type EventInput = {
 	// Solo se usa al editar (ver PUT /events/:id) — número para vincular con ese evento, null para
 	// desvincular, ausente/undefined para no tocar el vínculo actual.
 	linkedEventId?: number | null;
+	// Fecha/hora de publicación en el portal público — null = sin restricción, visible ya mismo.
+	publishAt?: string | Date | null;
 };
 
 @Injectable({
@@ -58,5 +60,6 @@ function reviveDates(event: Events): Events {
 		dateSale: new Date(event.dateSale),
 		dateOn: new Date(event.dateOn),
 		dateOff: new Date(event.dateOff),
+		publishAt: event.publishAt ? new Date(event.publishAt) : null,
 	};
 }

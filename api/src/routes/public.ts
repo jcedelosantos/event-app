@@ -77,6 +77,7 @@ publicRouter.get('/org/:slug', asyncHandler(async (req, res) => {
 			dateOn: true,
 			dateOff: true,
 			startTime: true,
+			publishAt: true,
 			map: { select: { name: true } },
 			tickets: { where: { active: true }, select: { count: true } },
 		},
@@ -86,16 +87,18 @@ publicRouter.get('/org/:slug', asyncHandler(async (req, res) => {
 		name: tenant.name,
 		slug: tenant.slug,
 		type: tenant.type,
-		// soldOut/inactive se calculan acá para no exponer tickets/precios en este listado público — la
-		// portada solo necesita saber si puede o no llevar al comprador a /e/:code, y con qué etiqueta.
-		// Son casos distintos: "inactive" es un evento a futuro que el manager todavía no terminó de
-		// configurar (sin tickets cargados) — "soldOut" es uno real que ya se vendió por completo. Antes
-		// ambos mostraban "Agotado" por igual, dando a entender que hubo entradas cuando en realidad
-		// nunca se llegaron a cargar.
+		// soldOut/inactive/scheduled se calculan acá para no exponer tickets/precios en este listado
+		// público — la portada solo necesita saber si puede o no llevar al comprador a /e/:code, y con
+		// qué etiqueta. "scheduled" (Event.publishAt a futuro) a propósito NO excluye el evento del
+		// listado (el manager pidió explícitamente que quede visible, solo no elegible hasta esa fecha)
+		// — la venta en sí se sigue bloqueando en el backend (ver /purchase, /checkout/hold). publishAt
+		// se manda tal cual (no solo el booleano `scheduled`) para que la portada pueda mostrar la
+		// fecha/hora exacta o un conteo regresivo en el badge (ver org-landing.component.ts).
 		events: events.map(({ tickets, ...event }) => ({
 			...event,
 			inactive: !tickets.length,
 			soldOut: tickets.length > 0 && tickets.every((t) => t.count <= 0),
+			scheduled: !!event.publishAt && event.publishAt > new Date(),
 		})),
 	});
 }));
@@ -154,6 +157,11 @@ publicRouter.get('/events/:code', asyncHandler(async (req, res) => {
 		dateOn: event.dateOn,
 		dateOff: event.dateOff,
 		startTime: event.startTime,
+		// El comprador puede ver el evento antes de esta fecha (queda visible, no oculto) — el frontend
+		// lo usa para bloquear la compra y mostrar "disponible a partir de..." (ver
+		// public-event.component.ts purchaseBlockedReason). El bloqueo real vive en el backend
+		// (/purchase, /checkout/hold), esto es solo para el mensaje.
+		publishAt: event.publishAt,
 		tickets: event.tickets,
 		map,
 		// El picker público lo usa para saber si tiene que pedir socio/invitado + carnet — ver
@@ -285,9 +293,13 @@ publicRouter.post('/purchase', asyncHandler(async (req, res) => {
 	// alguien podría comprar igual pegándole directo a este endpoint, sin pasar por la UI. Ojo: NO se
 	// chequea dateSale acá — hoy siempre es igual a dateOn (nadie lo edita, la UI no lo expone), así
 	// que tratarlo como "inicio de venta" bloquearía la compra de eventos vigentes hasta el mismo día
-	// del evento. Si en el futuro se expone dateSale como campo editable, sumar ese chequeo acá.
+	// del evento. El gate real de "inicio de venta" es Event.publishAt (opcional, ver abajo).
 	if (event.dateOff < new Date()) {
 		res.status(409).json({ error: 'Las ventas para este evento ya cerraron.' });
+		return;
+	}
+	if (event.publishAt && event.publishAt > new Date()) {
+		res.status(409).json({ error: 'Este evento todavía no está disponible para la venta.' });
 		return;
 	}
 	const tenantId = event.tenantId;
@@ -516,6 +528,10 @@ publicRouter.post('/checkout/hold', asyncHandler(async (req, res) => {
 	}
 	if (event.dateOff < new Date()) {
 		res.status(409).json({ error: 'Las ventas para este evento ya cerraron.' });
+		return;
+	}
+	if (event.publishAt && event.publishAt > new Date()) {
+		res.status(409).json({ error: 'Este evento todavía no está disponible para la venta.' });
 		return;
 	}
 	const tenantId = event.tenantId;

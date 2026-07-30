@@ -73,6 +73,9 @@ export type PublicEvent = {
 	dateOn: string;
 	dateOff: string;
 	startTime: string | null;
+	// El evento es visible/consultable igual antes de esta fecha, pero no comprable (ver
+	// purchaseBlockedReason en public-event.component.ts) — null = sin restricción.
+	publishAt: string | null;
 	tickets: PublicTicket[];
 	map: PublicMap;
 	// Si es CLUB, hay que pedir socio/invitado + carnet al reservar (ver AttendeeType más abajo).
@@ -141,13 +144,18 @@ export type PublicOrgEvent = {
 	dateOn: string;
 	dateOff: string;
 	startTime: string | null;
+	// Se manda tal cual (no solo el booleano `scheduled`) para poder armar la fecha/hora exacta o un
+	// conteo regresivo en el badge "Próximamente" (ver org-landing.component.ts).
+	publishAt: string | null;
 	map: { name: string } | null;
 	// Calculados en el backend (ver GET /public/org/:slug) — la portada usa esto para deshabilitar la
 	// tarjeta sin tener que exponer tickets/precios en este listado público. Son casos distintos:
 	// inactive = todavía no tiene tickets cargados (evento a futuro sin terminar de configurar);
-	// soldOut = sí tiene tickets, pero ya se vendieron todos.
+	// soldOut = sí tiene tickets, pero ya se vendieron todos; scheduled = Event.publishAt a futuro (el
+	// evento queda visible en el listado, solo no es elegible hasta esa fecha).
 	inactive: boolean;
 	soldOut: boolean;
+	scheduled: boolean;
 };
 
 // Portada pública de una organización — lista sus próximos eventos activos (ver org-landing).

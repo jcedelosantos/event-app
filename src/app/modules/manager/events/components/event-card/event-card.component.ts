@@ -28,6 +28,11 @@ import { AuthService } from '../../../../../core/services/auth.service';
 							<span class="p-1"> {{ event.startTime }}</span>
 						}
 					</div>
+					@if (isScheduled()) {
+						<span class="badge text-bg-warning" [title]="'Se publica el ' + (event.publishAt | date: 'dd/MM/yyyy HH:mm')">
+							<i class="bi bi-clock-history"></i> Programado
+						</span>
+					}
 					<hr class="my-1" />
 
 					<p class="card-text small mb-1 event-description" [title]="event.description">{{ event.description }}</p>
@@ -66,6 +71,10 @@ export class EventCardComponent {
 	editEvent = output<Events>();
 	duplicateEvent = output<Events>();
 	deleteEvent = output<Events>();
+
+	isScheduled(): boolean {
+		return !!this.event.publishAt && new Date(this.event.publishAt) > new Date();
+	}
 
 	ticketBadgeLabel(ticket: Ticket): string {
 		if (this.isClubTenant()) {

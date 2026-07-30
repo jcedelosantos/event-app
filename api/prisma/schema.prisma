@@ -112,6 +112,13 @@ model Event {
   dateOff     DateTime
   startTime   String?
   active      Boolean  @default(true)
+  // Fecha/hora a partir de la cual el evento se vuelve visible/comprable en el portal público (ver
+  // public.ts) — permite subir y configurar un evento con anticipación sin exponerlo todavía. null
+  // (default para todo lo existente vía migración) = sin restricción, visible apenas se crea, igual
+  // que el comportamiento de siempre. A propósito NO se reutiliza `dateSale` para esto: ya existe
+  // hoy pero defaultea silenciosamente a `dateOn` para TODOS los eventos ya creados — usarlo como
+  // gate rompería la visibilidad de cualquier evento vigente hasta el mismo día del evento.
+  publishAt   DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

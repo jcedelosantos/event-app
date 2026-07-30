@@ -26,6 +26,9 @@ export interface Events {
 	// Cuántas horas antes de startTime se habilita el check-in/entrega en el scanner (ver
 	// create-event-modal). Default 1, configurable por evento.
 	checkInWindowHours: number;
+	// Fecha/hora de publicación en el portal público (ver public.ts) — null = sin restricción,
+	// visible ya mismo. Permite subir y configurar un evento con anticipación sin exponerlo todavía.
+	publishAt?: Date | null;
 	map?: Map;
 	tickets: Array<Ticket>;
 	products: Array<Product>;

@@ -23,6 +23,19 @@ function toDateInputValue(date: Date): string {
 	return `${yyyy}-${mm}-${dd}`;
 }
 
+// publishAt es un instante real (no un día calendario como dateOn) — a diferencia de
+// toDateInputValue, acá SÍ usamos getters locales: el navegador interpreta y produce el string de
+// <input type="datetime-local"> en la hora local del que lo está tipeando (el staff del club), y
+// `new Date(value)` en el submit lo reconstruye correctamente sin necesitar ningún offset manual.
+function toDateTimeInputValue(date: Date): string {
+	const yyyy = date.getFullYear();
+	const mm = String(date.getMonth() + 1).padStart(2, '0');
+	const dd = String(date.getDate()).padStart(2, '0');
+	const hh = String(date.getHours()).padStart(2, '0');
+	const min = String(date.getMinutes()).padStart(2, '0');
+	return `${yyyy}-${mm}-${dd}T${hh}:${min}`;
+}
+
 @Component({
 	selector: 'app-create-event-modal',
 	imports: [ReactiveFormsModule, DatePipe],
@@ -112,6 +125,19 @@ function toDateInputValue(date: Date): string {
 								@if (isInvalid('active')) {
 									<div class="invalid-feedback">Elegí un estado.</div>
 								}
+							</div>
+							<div class="col-md-12 mb-2">
+								<label for="publishAt" class="small mb-1">Publicar en el portal público <span class="text-muted">(opcional — programar fecha y hora)</span></label>
+								<div class="d-flex align-items-center gap-2">
+									<input type="datetime-local" id="publishAt" class="form-control form-control-sm" formControlName="publishAt" />
+									@if (eventForm.controls.publishAt.value) {
+										<button type="button" class="btn btn-outline-secondary btn-sm text-nowrap" (click)="eventForm.controls.publishAt.setValue(null)">Quitar</button>
+									}
+								</div>
+								<div class="form-text">
+									Si lo dejás vacío, el evento queda visible/comprable apenas lo creás. Si elegís una fecha, se oculta del
+									portal público hasta ese momento.
+								</div>
 							</div>
 							<div class="col-md-12 mb-2">
 								<label for="paymentMode" class="small mb-1">Cobro <span class="text-muted">(pago online en el portal público, antes de reservar el asiento)</span></label>
@@ -252,6 +278,7 @@ export class CreateEventModalComponent {
 		linkedEventId: this.fb.control<number | null>(null),
 		paymentMode: this.fb.control<'NONE' | 'PAYPAL' | 'LINK' | 'BOTH'>('NONE'),
 		checkInWindowHours: this.fb.control<number>(1, [Validators.required, Validators.min(0), Validators.max(72)]),
+		publishAt: this.fb.control<string | null>(null),
 	});
 
 	constructor() {
@@ -279,6 +306,7 @@ export class CreateEventModalComponent {
 					linkedEventId: this.originalLinkedEventId,
 					paymentMode: current.paymentMode ?? 'NONE',
 					checkInWindowHours: current.checkInWindowHours ?? 1,
+					publishAt: current.publishAt ? toDateTimeInputValue(current.publishAt) : null,
 				});
 			} else {
 				this.originalLinkedEventId = null;
@@ -290,6 +318,7 @@ export class CreateEventModalComponent {
 					linkedEventId: null,
 					paymentMode: 'NONE',
 					checkInWindowHours: 1,
+					publishAt: null,
 				});
 			}
 		});
@@ -311,6 +340,7 @@ export class CreateEventModalComponent {
 			linkedEventId: null,
 			paymentMode: source.paymentMode ?? 'NONE',
 			checkInWindowHours: source.checkInWindowHours ?? 1,
+			publishAt: null,
 		});
 		this.eventForm.patchValue({
 			name: `${source.name} (copia)`,
@@ -384,6 +414,7 @@ export class CreateEventModalComponent {
 			linkedEventId: linkedEventIdChanged ? value.linkedEventId : undefined,
 			paymentMode: value.paymentMode!,
 			checkInWindowHours: value.checkInWindowHours!,
+			publishAt: value.publishAt ? new Date(value.publishAt) : null,
 		};
 		const request = current ? this.eventsService.updateEvent(current.id, payload) : this.eventsService.createEvent(payload);
 

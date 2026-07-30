@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { PublicEventService, PublicOrg, PublicOrgEvent } from '../public-event/services/public-event.service';
 
@@ -61,7 +61,9 @@ import { PublicEventService, PublicOrg, PublicOrgEvent } from '../public-event/s
 														</div>
 													}
 													<span class="event-date-badge">{{ formatShortDate(event.dateOn) }}</span>
-													<span class="event-status-badge">{{ label }}</span>
+													<span class="event-status-badge" [title]="event.scheduled ? 'Disponible el ' + formatFullDateTime(event.publishAt) : null">{{
+														label
+													}}</span>
 												</div>
 												<div class="event-info">
 													<h3 class="event-name">{{ event.name }}</h3>
@@ -287,10 +289,21 @@ import { PublicEventService, PublicOrg, PublicOrgEvent } from '../public-event/s
 export class OrgLandingComponent implements OnInit {
 	private readonly route = inject(ActivatedRoute);
 	private readonly publicEventService = inject(PublicEventService);
+	private readonly destroyRef = inject(DestroyRef);
 
 	step = signal<'loading' | 'not-found' | 'ready'>('loading');
 	org = signal<PublicOrg | null>(null);
 	searchText = signal('');
+
+	// Tickea cada minuto para que el conteo regresivo de eventos "Próximamente" (ver statusLabel) se
+	// vaya achicando solo mientras alguien tiene la portada abierta, sin necesitar un refresh manual.
+	// Cada minuto alcanza de sobra acá — no es un cronómetro, es un badge en una tarjeta.
+	now = signal(new Date());
+
+	constructor() {
+		const intervalId = setInterval(() => this.now.set(new Date()), 60_000);
+		this.destroyRef.onDestroy(() => clearInterval(intervalId));
+	}
 
 	filteredEvents = computed(() => {
 		const term = this.searchText().trim().toLowerCase();
@@ -320,9 +333,32 @@ export class OrgLandingComponent implements OnInit {
 	// "Inactivo" (sin tickets cargados todavía) se distingue de "Agotado" (sí tuvo, se vendieron todos)
 	// para no confundir un evento a futuro sin terminar de configurar con uno que de verdad se agotó.
 	statusLabel(event: PublicOrgEvent): string | null {
+		if (event.scheduled) return this.countdownLabel(event.publishAt);
 		if (event.inactive) return 'Inactivo';
 		if (event.soldOut) return 'Agotado';
 		return null;
+	}
+
+	// Lee `now()` a propósito — al tickear (ver constructor) esto se recalcula solo en cada render, sin
+	// eso el conteo quedaría congelado en el momento en que cargó la página.
+	private countdownLabel(publishAt: string | null): string {
+		if (!publishAt) return 'Próximamente';
+		const diffMs = new Date(publishAt).getTime() - this.now().getTime();
+		if (diffMs <= 0) return 'Próximamente';
+		const days = Math.floor(diffMs / 86_400_000);
+		const hours = Math.floor((diffMs % 86_400_000) / 3_600_000);
+		const minutes = Math.floor((diffMs % 3_600_000) / 60_000);
+		if (days > 0) return `En ${days}d ${hours}h`;
+		if (hours > 0) return `En ${hours}h ${minutes}m`;
+		if (minutes > 0) return `En ${minutes}m`;
+		return 'Ya casi';
+	}
+
+	// publishAt es un instante real (a diferencia de dateOn, que representa un día calendario a
+	// medianoche UTC) — se muestra en hora local del visitante, igual que en public-event.component.ts.
+	formatFullDateTime(publishAt: string | null): string {
+		if (!publishAt) return '';
+		return new Date(publishAt).toLocaleString('es-DO', { dateStyle: 'long', timeStyle: 'short' });
 	}
 
 	// dateOn es un instante UTC medianoche que representa un día calendario — usar getters UTC para
