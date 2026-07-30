@@ -1,4 +1,6 @@
-import { randomUUID } from 'node:crypto';
+import { randomUUID, createHash } from 'node:crypto';
+import path from 'node:path';
+import fs from 'node:fs';
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
@@ -15,7 +17,7 @@ import { finalizePaidSaleTickets } from '../lib/checkout';
 import { findDuplicateEventSlot } from '../lib/find-duplicate-event-slot';
 import { extractEventFromImage, AnthropicNotConfiguredError, AnthropicRequestError } from '../lib/event-extraction';
 import { getTenantConfig as getWhatsAppConfig, verifySignature as verifyWhatsAppSignature, downloadMedia, sendTextMessage, WhatsAppNotConfiguredError } from '../lib/whatsapp';
-import { saveBuffer } from '../lib/uploads';
+import { saveBuffer, uploadsDir } from '../lib/uploads';
 import { logAudit } from '../lib/audit';
 
 export const publicRouter = Router();
@@ -789,7 +791,9 @@ publicRouter.get('/webhooks/whatsapp/:slug', asyncHandler(async (req, res) => {
 // verdad. Sin match, cae al primer mapa/área del tenant (mejor una venta con el mapa "por defecto"
 // que un evento sin ningún asiento donde vender).
 async function resolveWhatsAppVenue(tenantId: number, venueNameGuess: string | null) {
-	const maps = await prisma.map.findMany({ where: { tenantId }, include: { areas: true } });
+	// orderBy explícito (antes confiaba en el orden implícito de SQLite) para que el fallback "primer
+	// mapa del tenant" sea determinístico y no dependa de un detalle de implementación de la DB.
+	const maps = await prisma.map.findMany({ where: { tenantId }, include: { areas: true }, orderBy: { id: 'asc' } });
 	if (!maps.length) return null;
 	const needle = venueNameGuess?.toLowerCase().trim();
 	if (needle) {
@@ -827,20 +831,25 @@ publicRouter.post('/webhooks/whatsapp/:slug', asyncHandler(async (req, res) => {
 		});
 		if (!config) return;
 
-		if (config.appSecret) {
-			const rawBody = (req as typeof req & { rawBody?: Buffer }).rawBody;
-			const signature = req.headers['x-hub-signature-256'] as string | undefined;
-			if (!rawBody || !verifyWhatsAppSignature(rawBody, signature, config.appSecret)) {
-				console.error(`Firma de webhook de WhatsApp inválida para tenant ${tenant.id}`);
-				return;
-			}
+		// Falla CERRADO si no hay App Secret cargado — sin esto, cualquiera que descubra la URL del
+		// webhook (no es secreta) y un número de la lista de autorizados (tampoco lo es, necesariamente)
+		// podría mandar un POST fabricado a mano y crear eventos falsos sin pasar por WhatsApp en
+		// absoluto. Antes esto se saltaba en silencio si `appSecret` era null; ahora es obligatorio.
+		const rawBody = (req as typeof req & { rawBody?: Buffer }).rawBody;
+		const signature = req.headers['x-hub-signature-256'] as string | undefined;
+		if (!config.appSecret || !rawBody || !verifyWhatsAppSignature(rawBody, signature, config.appSecret)) {
+			console.error(`Firma de webhook de WhatsApp inválida o App Secret no configurado para tenant ${tenant.id}`);
+			return;
 		}
 
 		const value = req.body?.entry?.[0]?.changes?.[0]?.value;
 		const message = value?.messages?.[0];
 		if (!message) return; // callback de estado (entregado/leído), no un mensaje nuevo
 
-		from = message.from as string | undefined;
+		// Normalizado a solo-dígitos en los dos lados (acá y al guardar "Números autorizados" en
+		// Settings) — así "+1 809-627-9180" matchea contra "18096279180" en vez de fallar en silencio
+		// por un formato distinto sin ningún aviso de por qué.
+		from = (message.from as string | undefined)?.replace(/\D/g, '');
 		if (!from) return;
 		if (!config.allowedSenders.includes(from)) {
 			console.warn(`Mensaje de WhatsApp de un número no autorizado (${from}) para tenant ${tenant.id}, ignorado.`);
@@ -853,6 +862,25 @@ publicRouter.post('/webhooks/whatsapp/:slug', asyncHandler(async (req, res) => {
 		}
 
 		const { buffer, mimeType } = await downloadMedia(message.image.id, config.accessToken);
+
+		// Reenvío accidental de la misma foto (pasó de verdad en pruebas: WhatsApp/el usuario la manda
+		// dos veces seguidas) — comparar el hash contra los eventos creados por este canal en los
+		// últimos 15 min, en vez de crear un evento duplicado con una fecha adivinada distinta cada vez.
+		const imageHash = createHash('sha256').update(buffer).digest('hex');
+		const recentEvents = await prisma.event.findMany({
+			where: { tenantId: tenant.id, createdAt: { gt: new Date(Date.now() - 15 * 60 * 1000) } },
+			select: { id: true, name: true, code: true, img: true },
+		});
+		for (const ev of recentEvents) {
+			if (!ev.img) continue;
+			const filePath = path.join(uploadsDir, path.basename(ev.img));
+			if (!fs.existsSync(filePath)) continue;
+			if (createHash('sha256').update(fs.readFileSync(filePath)).digest('hex') === imageHash) {
+				await sendTextMessage(config, from, `Ya había procesado esta misma foto hace un rato: "${ev.name}" (${ev.code}). Si es un evento distinto, mandame una versión editada del flyer.`);
+				return;
+			}
+		}
+
 		const maps = await prisma.map.findMany({ where: { tenantId: tenant.id }, select: { name: true } });
 		const extracted = await extractEventFromImage(buffer, mimeType, maps.map((m) => m.name));
 

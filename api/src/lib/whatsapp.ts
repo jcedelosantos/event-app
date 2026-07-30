@@ -35,9 +35,12 @@ export async function getTenantConfig(tenantId: number): Promise<WhatsAppConfig>
 		accessToken,
 		verifyToken: map['whatsapp.verifyTokenSecret'] ?? null,
 		appSecret: map['whatsapp.appSecretSecret'] ?? null,
+		// Solo dígitos — así "+1 809-627-9180" matchea igual que "18096279180" contra el remitente que
+		// manda Meta (que siempre llega sin símbolos), sin que un formato distinto rechace en silencio
+		// un número que en realidad sí estaba autorizado.
 		allowedSenders: (map['whatsapp.allowedSenders'] ?? '')
 			.split(',')
-			.map((s) => s.trim())
+			.map((s) => s.replace(/\D/g, ''))
 			.filter(Boolean),
 	};
 }
@@ -54,6 +57,11 @@ export function verifySignature(rawBody: Buffer, signatureHeader: string | undef
 	return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(provided));
 }
 
+// WhatsApp ya limita las imágenes de chat a 5MB de su lado, pero esto es una red de seguridad barata
+// contra un media_id que devuelva algo inesperadamente grande — sin esto, un archivo enorme se
+// mandaría igual a Claude, gastando tokens/tiempo de más sin necesidad.
+const MAX_MEDIA_BYTES = 10 * 1024 * 1024;
+
 // El payload del mensaje solo trae el ID del media, no la imagen — hay que resolverlo en dos pasos:
 // 1) pedirle a Graph la URL temporal de descarga, 2) bajar los bytes de esa URL con el mismo token.
 export async function downloadMedia(mediaId: string, accessToken: string): Promise<{ buffer: Buffer; mimeType: string }> {
@@ -61,12 +69,18 @@ export async function downloadMedia(mediaId: string, accessToken: string): Promi
 	if (!metaRes.ok) {
 		throw new WhatsAppRequestError(`No se pudo resolver la URL del media de WhatsApp (${metaRes.status})`);
 	}
-	const meta = (await metaRes.json()) as { url: string; mime_type: string };
+	const meta = (await metaRes.json()) as { url: string; mime_type: string; file_size?: number };
+	if (meta.file_size && meta.file_size > MAX_MEDIA_BYTES) {
+		throw new WhatsAppRequestError(`La imagen es demasiado grande (${Math.round(meta.file_size / 1024 / 1024)}MB, máximo 10MB)`);
+	}
 	const fileRes = await fetch(meta.url, { headers: { Authorization: `Bearer ${accessToken}` } });
 	if (!fileRes.ok) {
 		throw new WhatsAppRequestError(`No se pudo descargar la imagen de WhatsApp (${fileRes.status})`);
 	}
 	const buffer = Buffer.from(await fileRes.arrayBuffer());
+	if (buffer.length > MAX_MEDIA_BYTES) {
+		throw new WhatsAppRequestError(`La imagen es demasiado grande (${Math.round(buffer.length / 1024 / 1024)}MB, máximo 10MB)`);
+	}
 	return { buffer, mimeType: meta.mime_type };
 }
 

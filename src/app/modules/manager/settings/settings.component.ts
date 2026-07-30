@@ -219,17 +219,17 @@ const PRESETS = [
 						/>
 					</div>
 					<div class="mb-3">
-						<label class="small mb-1">App Secret <span class="text-muted">(Configuración básica de tu App de Meta — confirma que el webhook es real)</span></label>
+						<label class="small mb-1">App Secret <span class="text-muted">(Configuración básica de tu App de Meta — obligatorio, sin esto el webhook no procesa nada)</span></label>
 						<input
 							type="password"
 							class="form-control form-control-sm"
 							[value]="whatsappAppSecret()"
 							(input)="whatsappAppSecret.set($any($event.target).value)"
-							[placeholder]="whatsappAppSecretConfigured() ? '•••• configurado — dejalo vacío para no cambiarlo' : 'Opcional, pero muy recomendado'"
+							[placeholder]="whatsappAppSecretConfigured() ? '•••• configurado — dejalo vacío para no cambiarlo' : 'Obligatorio — sin esto no se procesan los mensajes'"
 						/>
 					</div>
 					<div class="mb-3">
-						<label class="small mb-1">Números autorizados <span class="text-muted">(solo estos pueden crear eventos por WhatsApp — separados por coma, ej. 18095551234)</span></label>
+						<label class="small mb-1">Números autorizados <span class="text-muted">(solo estos pueden crear eventos por WhatsApp — separados por coma o espacio, con o sin +, ej. 18095551234)</span></label>
 						<input
 							type="text"
 							class="form-control form-control-sm"
