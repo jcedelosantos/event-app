@@ -17,7 +17,14 @@ export function requireAuth(req: AuthenticatedRequest, res: Response, next: Next
 	try {
 		req.user = verifyToken(token);
 		next();
-	} catch {
+	} catch (err) {
+		// Diagnóstico para el reporte real de logout inesperado guardando un evento — no se pudo
+		// reproducir el defecto por revisión de código sola (JWT_SECRET estable, expiresIn 8h en login
+		// e impersonate por igual, GETs con el mismo token funcionando segundos antes del PUT que
+		// falló). Si vuelve a pasar, este log dice exactamente por qué falló verifyToken en vez de
+		// tener que reconstruir la hipótesis a partir de logs HTTP de Railway.
+		const name = err instanceof Error ? err.name : 'UnknownError';
+		console.error(`requireAuth: token rechazado (${name}) en ${req.method} ${req.originalUrl}`);
 		res.status(401).json({ error: 'Invalid or expired token' });
 	}
 }
