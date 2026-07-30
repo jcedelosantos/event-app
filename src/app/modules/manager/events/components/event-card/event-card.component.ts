@@ -12,13 +12,13 @@ import { AuthService } from '../../../../../core/services/auth.service';
 	template: `
 		@if (event) {
 			<div class="card text-center event-card-fixed" style="min-width: 240px;">
-				<div class="card-header py-2 d-flex justify-content-between align-items-center gap-2">
-					<span class="event-name" [title]="event.name">{{ event.name }}</span>
-					<div class="d-flex gap-1 flex-shrink-0">
-						<button type="button" class="btn btn-dark btn-sm rounded-circle" (click)="showQr.emit(event)" title="Ver QR"><i class="bi bi-qr-code"></i></button>
-						<button type="button" class="btn btn-dark btn-sm rounded-circle" (click)="editEvent.emit(event)" title="Editar evento"><i class="bi bi-pencil"></i></button>
-						<button type="button" class="btn btn-dark btn-sm rounded-circle" (click)="duplicateEvent.emit(event)" title="Duplicar evento"><i class="bi bi-copy"></i></button>
-						<button type="button" class="btn btn-danger btn-sm rounded-circle" (click)="deleteEvent.emit(event)" title="Eliminar evento"><i class="bi bi-trash"></i></button>
+				<div class="card-header py-2">
+					<div class="event-name mb-2" [title]="event.name">{{ event.name }}</div>
+					<div class="d-flex justify-content-center gap-2">
+						<button type="button" class="btn btn-dark btn-sm icon-btn" (click)="showQr.emit(event)" title="Ver QR"><i class="bi bi-qr-code"></i></button>
+						<button type="button" class="btn btn-dark btn-sm icon-btn" (click)="editEvent.emit(event)" title="Editar evento"><i class="bi bi-pencil"></i></button>
+						<button type="button" class="btn btn-dark btn-sm icon-btn" (click)="duplicateEvent.emit(event)" title="Duplicar evento"><i class="bi bi-copy"></i></button>
+						<button type="button" class="btn btn-danger btn-sm icon-btn" (click)="deleteEvent.emit(event)" title="Eliminar evento"><i class="bi bi-trash"></i></button>
 					</div>
 				</div>
 				<div class="card-body py-2">

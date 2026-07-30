@@ -18,3 +18,16 @@
 	gap: 1rem;
 	overflow-y: auto;
 }
+
+/* btn-sm por sí solo no fuerza ancho == alto — con un solo ícono adentro el botón queda más ancho
+   que alto (se ve "rectangular" en vez de un círculo/cuadrado prolijo). Tamaño fijo + flex centrado
+   resuelve eso sin depender del ancho natural del ícono. */
+.icon-btn {
+	width: 30px;
+	height: 30px;
+	padding: 0;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+}

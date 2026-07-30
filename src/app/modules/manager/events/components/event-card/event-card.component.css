@@ -37,3 +37,18 @@
 	overflow: hidden;
 	text-overflow: ellipsis;
 }
+
+/* rounded-circle por sí solo no fuerza ancho == alto — con un ícono más ancho (ej. bi-qr-code) el
+   botón quedaba ovalado/rectangular en vez de un círculo prolijo (bug real reportado). Tamaño fijo +
+   flex centrado resuelve eso sin depender del ancho natural del ícono. */
+.icon-btn {
+	width: 28px;
+	height: 28px;
+	padding: 0;
+	border-radius: 50%;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+	font-size: 0.8rem;
+}

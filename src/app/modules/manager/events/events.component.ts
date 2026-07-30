@@ -24,15 +24,23 @@ declare const bootstrap: any;
 			<h2 class="section-title">Events Manager</h2>
 			<nav class="navbar border-bottom border-body">
 				<div class="container-fluid">
-					<form class="d-flex" role="search" (submit)="$event.preventDefault(); searchText.set(searchInput.value)">
-						<button type="button" class="btn btn-danger  me-4" data-bs-toggle="modal" data-bs-target="#createEventModal">Create</button>
-						<input #searchInput class="form-control me-2" type="search" placeholder="Search" aria-label="Name" (input)="searchText.set(searchInput.value)" />
-						<button class="btn btn-dark me-4" type="submit">Search</button>
+					<form class="d-flex align-items-center gap-2 flex-wrap" role="search" (submit)="$event.preventDefault(); searchText.set(searchInput.value)">
+						<button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#createEventModal">Create</button>
+						<input
+							#searchInput
+							class="form-control form-control-sm"
+							style="max-width: 140px"
+							type="search"
+							placeholder="Search"
+							aria-label="Name"
+							(input)="searchText.set(searchInput.value)"
+						/>
+						<button class="btn btn-dark btn-sm" type="submit">Search</button>
 						@if (orgUrl(); as url) {
-							<a class="btn btn-outline-light me-2" [href]="url" target="_blank" rel="noopener" title="Abrir la portada pública de tu organización">
+							<a class="btn btn-outline-light btn-sm" [href]="url" target="_blank" rel="noopener" title="Abrir la portada pública de tu organización">
 								<i class="bi bi-box-arrow-up-right"></i> Portada pública
 							</a>
-							<button type="button" class="btn btn-outline-light me-4" data-bs-toggle="modal" data-bs-target="#orgQrModal" title="QR de la portada pública">
+							<button type="button" class="btn btn-outline-light btn-sm icon-btn" data-bs-toggle="modal" data-bs-target="#orgQrModal" title="QR de la portada pública">
 								<i class="bi bi-qr-code"></i>
 							</button>
 						}
