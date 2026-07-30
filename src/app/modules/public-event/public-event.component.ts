@@ -417,13 +417,18 @@ const MAX_INVITADO_SEATS = 2;
 			}
 			.seat-btn {
 				position: absolute;
-				width: 22px;
-				height: 22px;
+				/* % (no px fijo) porque se posiciona en % del contenedor (seat-picker-image, ver arriba)
+				   — así el círculo achica junto con la imagen en vez de quedar gigante/amontonado en
+				   pantallas chicas (pasaba sobre todo en el plano genérico 900x600 sin foto real, que se
+				   achica mucho más que su tamaño natural en un celular). clamp() evita que quede
+				   ilegiblemente chico o más grande que la imagen misma. */
+				width: clamp(14px, 2.6%, 24px);
+				aspect-ratio: 1;
 				padding: 0;
 				display: flex;
 				align-items: center;
 				justify-content: center;
-				font-size: 10px;
+				font-size: clamp(7px, 1.1%, 10px);
 				line-height: 1;
 				border-radius: 50%;
 				border: 1px solid var(--app-accent);
@@ -443,8 +448,9 @@ const MAX_INVITADO_SEATS = 2;
 			}
 			.table-btn {
 				position: absolute;
-				width: 32px;
-				height: 32px;
+				/* Mismo criterio que .seat-btn (ver comentario ahí) — % en vez de px fijo. */
+				width: clamp(20px, 3.6%, 34px);
+				aspect-ratio: 1;
 				padding: 0;
 				display: flex;
 				align-items: center;
@@ -453,7 +459,7 @@ const MAX_INVITADO_SEATS = 2;
 				border: 2px solid var(--app-accent);
 				background: var(--app-accent);
 				color: #fff;
-				font-size: 13px;
+				font-size: clamp(9px, 1.4%, 13px);
 				font-weight: 700;
 				line-height: 1;
 				cursor: pointer;
@@ -463,21 +469,6 @@ const MAX_INVITADO_SEATS = 2;
 			.table-btn.table-full {
 				border-color: #6c757d;
 				background: #6c757d;
-			}
-			/* El tamaño de los círculos es fijo en px (no escala con el ancho de la imagen, que sí es
-			   responsive) — en un mapa con muchos asientos juntos, achicarlos un poco en pantallas
-			   angostas da más margen antes de que se toquen entre sí o salgan del plano. */
-			@media (max-width: 480px) {
-				.seat-btn {
-					width: 18px;
-					height: 18px;
-					font-size: 8px;
-				}
-				.table-btn {
-					width: 26px;
-					height: 26px;
-					font-size: 11px;
-				}
 			}
 			.table-badge {
 				position: absolute;
