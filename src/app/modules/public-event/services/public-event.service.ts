@@ -135,6 +135,11 @@ export type SponsorStatus = { registered: boolean; used: number; max: number; bl
 
 export type DuplicateEventStatus = { blocked: boolean; reason: string | null };
 
+// enabled:false = el evento no usa sala de espera (o ya no queda en cola) — el frontend sigue
+// directo al picker. admitted:true + position:null = ya puede pasar. admitted:false + position = su
+// lugar en la fila (1-based). Ver api/src/lib/waiting-room.ts para el diseño completo.
+export type WaitingRoomResult = { enabled: boolean; admitted: boolean; position: number | null };
+
 export type PublicOrgEvent = {
 	id: number;
 	name: string;
@@ -173,6 +178,17 @@ export class PublicEventService {
 
 	getEvent(code: string): Observable<PublicEvent> {
 		return this.httpClient.get<PublicEvent>(`${this.baseUrl}/events/${code}`);
+	}
+
+	// Se llama ANTES de getEvent() — si el evento no tiene sala de espera prendida, responde
+	// `enabled:false` de inmediato sin que el visitante dispare nunca la query pesada de getEvent()
+	// mientras espera (ver public-event.component.ts).
+	joinWaitingRoom(code: string, sessionId: string): Observable<WaitingRoomResult> {
+		return this.httpClient.post<WaitingRoomResult>(`${this.baseUrl}/events/${code}/waiting-room/join`, { sessionId });
+	}
+
+	getWaitingRoomStatus(code: string, sessionId: string): Observable<WaitingRoomResult> {
+		return this.httpClient.get<WaitingRoomResult>(`${this.baseUrl}/events/${code}/waiting-room/status`, { params: { sessionId } });
 	}
 
 	getOrg(slug: string): Observable<PublicOrg> {

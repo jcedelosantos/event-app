@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, OnInit, signal } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -31,6 +31,16 @@ const MAX_INVITADO_SEATS = 2;
 			@switch (step()) {
 				@case ('loading') {
 					<div class="center-msg">Cargando evento...</div>
+				}
+				@case ('waiting-room') {
+					<div class="center-msg">
+						<h4>Estás en la fila</h4>
+						@if (waitingRoomPosition(); as position) {
+							<p class="text-body-secondary">Sos el #{{ position }} en la fila — esta pantalla se actualiza sola, no hace falta que recargues.</p>
+						} @else {
+							<p class="text-body-secondary">Ya casi te toca...</p>
+						}
+					</div>
 				}
 				@case ('not-found') {
 					<div class="center-msg">
@@ -572,6 +582,7 @@ export class PublicEventComponent implements OnInit {
 	private readonly route = inject(ActivatedRoute);
 	private readonly publicEventService = inject(PublicEventService);
 	private readonly fb = inject(FormBuilder);
+	private readonly destroyRef = inject(DestroyRef);
 
 	readonly maxSeats = MAX_SEATS;
 	// Mismo plano genérico que usa el editor del manager (seats.component.ts) cuando el área
@@ -598,8 +609,11 @@ export class PublicEventComponent implements OnInit {
 		}
 	}
 
-	step = signal<'loading' | 'not-found' | 'ready' | 'confirmed' | 'link-pending'>('loading');
+	step = signal<'loading' | 'waiting-room' | 'not-found' | 'ready' | 'confirmed' | 'link-pending'>('loading');
 	event = signal<PublicEvent | null>(null);
+	// Posición en la fila mientras step() es 'waiting-room' (ver enterEvent/startWaitingRoomPolling
+	// más abajo, y lib/waiting-room.ts del lado del servidor).
+	waitingRoomPosition = signal<number | null>(null);
 
 	// --- Checkout con pago (Event.paymentMode) ---------------------------------------------------
 	checkingOut = signal(false);
@@ -958,6 +972,66 @@ export class PublicEventComponent implements OnInit {
 			this.step.set('not-found');
 			return;
 		}
+		this.enterEvent(code);
+	}
+
+	// Gate de sala de espera virtual (opt-in por evento, ver Event.waitingRoomEnabled) — se llama
+	// ANTES de loadEvent() para que la gente en cola no dispare nunca la query pesada de
+	// GET /events/:code mientras espera. Si el evento no la tiene prendida, `enabled` viene en false
+	// y esto sigue directo a loadEvent() — cero cambio de comportamiento para el resto de los eventos.
+	private enterEvent(code: string): void {
+		const sessionId = this.waitingRoomSessionId(code);
+		this.publicEventService.joinWaitingRoom(code, sessionId).subscribe({
+			next: (result) => {
+				if (!result.enabled || result.admitted) {
+					this.loadEvent(code);
+					return;
+				}
+				this.waitingRoomPosition.set(result.position);
+				this.step.set('waiting-room');
+				this.startWaitingRoomPolling(code, sessionId);
+			},
+			// Fail-open: si el endpoint nuevo falla (caída puntual, timeout), seguir al flujo normal en
+			// vez de dejar a alguien bloqueado por una sala de espera que ni siquiera pudo consultarse.
+			error: () => this.loadEvent(code),
+		});
+	}
+
+	// sessionStorage (no localStorage): sobrevive un refresh de la pestaña sin perder el lugar en la
+	// fila, pero una pestaña nueva arranca de cero — cada visitante real cuenta una sola vez, y dos
+	// pestañas duplicadas del mismo visitante (Cmd+clic en recargar) terminan compartiendo sessionId,
+	// que es lo correcto (misma persona, mismo lugar en la fila — ver lib/waiting-room.ts).
+	private waitingRoomSessionId(code: string): string {
+		const key = `waitingRoomSessionId:${code}`;
+		let sessionId = sessionStorage.getItem(key);
+		if (!sessionId) {
+			sessionId = crypto.randomUUID();
+			sessionStorage.setItem(key, sessionId);
+		}
+		return sessionId;
+	}
+
+	private startWaitingRoomPolling(code: string, sessionId: string): void {
+		const intervalId = setInterval(() => {
+			this.publicEventService.getWaitingRoomStatus(code, sessionId).subscribe({
+				next: (result) => {
+					if (!result.enabled || result.admitted) {
+						clearInterval(intervalId);
+						this.loadEvent(code);
+						return;
+					}
+					this.waitingRoomPosition.set(result.position);
+				},
+				// Si un poll puntual falla, no sacar a nadie de la sala de espera del lado cliente —
+				// simplemente se reintenta en el próximo tick (el backend poda por inactividad si de
+				// verdad se fue).
+				error: () => {},
+			});
+		}, 4000);
+		this.destroyRef.onDestroy(() => clearInterval(intervalId));
+	}
+
+	private loadEvent(code: string): void {
 		this.publicEventService.getEvent(code).subscribe({
 			next: (event) => {
 				this.event.set(event);

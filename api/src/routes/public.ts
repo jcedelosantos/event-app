@@ -19,6 +19,7 @@ import { extractEventFromImage, AnthropicNotConfiguredError, AnthropicRequestErr
 import { getTenantConfig as getWhatsAppConfig, verifySignature as verifyWhatsAppSignature, downloadMedia, sendTextMessage, WhatsAppNotConfiguredError } from '../lib/whatsapp';
 import { saveBuffer, uploadsDir } from '../lib/uploads';
 import { logAudit } from '../lib/audit';
+import { joinWaitingRoom, getWaitingRoomStatus } from '../lib/waiting-room';
 
 export const publicRouter = Router();
 
@@ -241,6 +242,33 @@ publicRouter.get('/events/:code/duplicate-check', asyncHandler(async (req, res) 
 
 	const reason = await checkDuplicateEventRegistration({ tenantId: event.tenantId, eventId: event.id, clientEmail: email, clientCarnet: carnet });
 	res.json({ blocked: !!reason, reason });
+}));
+
+// Sala de espera virtual (opt-in por evento, ver Event.waitingRoomEnabled) — el picker público llama
+// esto ANTES de pegarle a GET /events/:code (la query pesada con mapa/áreas/asientos/tickets), así
+// la gente en cola no dispara esa query hasta estar admitida. Si el evento no tiene la sala de
+// espera prendida, responde `enabled:false` de inmediato — cero cambio de comportamiento y cero
+// costo extra para el resto de los eventos. Ver lib/waiting-room.ts para el diseño completo.
+const waitingRoomJoinSchema = z.object({ sessionId: z.string().min(1) });
+
+publicRouter.post('/events/:code/waiting-room/join', asyncHandler(async (req, res) => {
+	const parsed = waitingRoomJoinSchema.safeParse(req.body);
+	if (!parsed.success) {
+		res.status(400).json({ error: 'Falta sessionId' });
+		return;
+	}
+	const result = await joinWaitingRoom(req.params.code, parsed.data.sessionId);
+	res.json(result);
+}));
+
+publicRouter.get('/events/:code/waiting-room/status', asyncHandler(async (req, res) => {
+	const sessionId = String(req.query.sessionId ?? '');
+	if (!sessionId) {
+		res.status(400).json({ error: 'Falta sessionId' });
+		return;
+	}
+	const result = await getWaitingRoomStatus(req.params.code, sessionId);
+	res.json(result);
 }));
 
 const registerSchema = z.object({

@@ -29,6 +29,9 @@ export interface Events {
 	// Fecha/hora de publicación en el portal público (ver public.ts) — null = sin restricción,
 	// visible ya mismo. Permite subir y configurar un evento con anticipación sin exponerlo todavía.
 	publishAt?: Date | null;
+	// Sala de espera virtual del picker público (ver public-event.component.ts). false por defecto.
+	waitingRoomEnabled: boolean;
+	waitingRoomBatchSize?: number | null;
 	map?: Map;
 	tickets: Array<Ticket>;
 	products: Array<Product>;

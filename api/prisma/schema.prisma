@@ -155,6 +155,15 @@ model Event {
   // puerta más temprano (ej. eventos con acreditación) o más ajustado.
   checkInWindowHours Int @default(1)
 
+  // Si está prendido, el picker público de este evento hace pasar a los visitantes por una fila
+  // virtual (ver lib/waiting-room.ts) antes de cargar la query pesada de GET /events/:code — para
+  // eventos de alta demanda donde publishAt dispara mucha gente al mismo tiempo. false por defecto
+  // (opt-in, cero cambio de comportamiento para el resto de los eventos).
+  waitingRoomEnabled Boolean @default(false)
+  // Cuántas personas se admiten a la vez cuando waitingRoomEnabled está prendido. null = usa el
+  // default del código (DEFAULT_BATCH_SIZE, ver lib/waiting-room.ts).
+  waitingRoomBatchSize Int?
+
   tickets      Ticket[]
   products     Product[]
   saleProducts SaleProduct[]

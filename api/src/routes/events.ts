@@ -48,6 +48,10 @@ const eventInputSchema = z.object({
 	// mismo, igual que siempre. Nullable (no solo optional) para poder desprogramar un evento ya
 	// programado mandando explícitamente null.
 	publishAt: z.coerce.date().nullable().optional(),
+	// Sala de espera virtual del picker público (ver lib/waiting-room.ts) — false por defecto, opt-in
+	// por evento. batchSize null = usa el default del código.
+	waitingRoomEnabled: z.boolean().optional().default(false),
+	waitingRoomBatchSize: z.number().int().min(1).nullable().optional(),
 });
 
 const include = { map: { include: { areas: true } }, tickets: true, products: true };

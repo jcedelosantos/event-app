@@ -23,6 +23,9 @@ export type EventInput = {
 	linkedEventId?: number | null;
 	// Fecha/hora de publicación en el portal público — null = sin restricción, visible ya mismo.
 	publishAt?: string | Date | null;
+	// Sala de espera virtual del picker público — false por defecto.
+	waitingRoomEnabled?: boolean;
+	waitingRoomBatchSize?: number | null;
 };
 
 @Injectable({

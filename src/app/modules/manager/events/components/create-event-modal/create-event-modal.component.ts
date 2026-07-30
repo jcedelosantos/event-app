@@ -140,6 +140,32 @@ function toDateTimeInputValue(date: Date): string {
 								</div>
 							</div>
 							<div class="col-md-12 mb-2">
+								<div class="form-check">
+									<input type="checkbox" class="form-check-input" id="waitingRoomEnabled" formControlName="waitingRoomEnabled" />
+									<label for="waitingRoomEnabled" class="form-check-label small">
+										Sala de espera virtual <span class="text-muted">(para eventos de alta demanda)</span>
+									</label>
+								</div>
+								@if (eventForm.controls.waitingRoomEnabled.value) {
+									<div class="mt-1">
+										<label for="waitingRoomBatchSize" class="small mb-1">Personas admitidas a la vez</label>
+										<input
+											type="number"
+											id="waitingRoomBatchSize"
+											class="form-control form-control-sm"
+											style="max-width: 160px"
+											formControlName="waitingRoomBatchSize"
+											min="1"
+											placeholder="Por defecto: 50"
+										/>
+										<div class="form-text">
+											Los visitantes entran al picker de a tandas en vez de todos juntos — evita que se sature el sitio si mucha
+											gente entra apenas se habilita la venta.
+										</div>
+									</div>
+								}
+							</div>
+							<div class="col-md-12 mb-2">
 								<label for="paymentMode" class="small mb-1">Cobro <span class="text-muted">(pago online en el portal público, antes de reservar el asiento)</span></label>
 								<select class="form-select form-select-sm" formControlName="paymentMode">
 									<option value="NONE">Ninguno — registro gratis (como hoy)</option>
@@ -279,6 +305,8 @@ export class CreateEventModalComponent {
 		paymentMode: this.fb.control<'NONE' | 'PAYPAL' | 'LINK' | 'BOTH'>('NONE'),
 		checkInWindowHours: this.fb.control<number>(1, [Validators.required, Validators.min(0), Validators.max(72)]),
 		publishAt: this.fb.control<string | null>(null),
+		waitingRoomEnabled: this.fb.control<boolean>(false),
+		waitingRoomBatchSize: this.fb.control<number | null>(null),
 	});
 
 	constructor() {
@@ -307,6 +335,8 @@ export class CreateEventModalComponent {
 					paymentMode: current.paymentMode ?? 'NONE',
 					checkInWindowHours: current.checkInWindowHours ?? 1,
 					publishAt: current.publishAt ? toDateTimeInputValue(current.publishAt) : null,
+					waitingRoomEnabled: current.waitingRoomEnabled ?? false,
+					waitingRoomBatchSize: current.waitingRoomBatchSize ?? null,
 				});
 			} else {
 				this.originalLinkedEventId = null;
@@ -319,6 +349,8 @@ export class CreateEventModalComponent {
 					paymentMode: 'NONE',
 					checkInWindowHours: 1,
 					publishAt: null,
+					waitingRoomEnabled: false,
+					waitingRoomBatchSize: null,
 				});
 			}
 		});
@@ -341,6 +373,8 @@ export class CreateEventModalComponent {
 			paymentMode: source.paymentMode ?? 'NONE',
 			checkInWindowHours: source.checkInWindowHours ?? 1,
 			publishAt: null,
+			waitingRoomEnabled: source.waitingRoomEnabled ?? false,
+			waitingRoomBatchSize: source.waitingRoomBatchSize ?? null,
 		});
 		this.eventForm.patchValue({
 			name: `${source.name} (copia)`,
@@ -415,6 +449,8 @@ export class CreateEventModalComponent {
 			paymentMode: value.paymentMode!,
 			checkInWindowHours: value.checkInWindowHours!,
 			publishAt: value.publishAt ? new Date(value.publishAt) : null,
+			waitingRoomEnabled: value.waitingRoomEnabled!,
+			waitingRoomBatchSize: value.waitingRoomBatchSize,
 		};
 		const request = current ? this.eventsService.updateEvent(current.id, payload) : this.eventsService.createEvent(payload);
 
