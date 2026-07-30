@@ -9,6 +9,12 @@
 				@if (eventDetail(); as detail) {
 					<div class="text-center mb-3">
 						<qrcode [qrdata]="detail.codeQR" [width]="180" [errorCorrectionLevel]="'M'"></qrcode>
+						<div class="input-group input-group-sm mt-2 mx-auto" style="max-width: 260px">
+							<input type="text" class="form-control font-monospace" readonly [value]="detail.codeQR" title="Código para pegar en el scanner si la cámara falla" />
+							<button type="button" class="btn btn-outline-secondary" (click)="copyCode(detail.codeQR)">
+								<i class="bi" [class.bi-clipboard]="!codeCopied()" [class.bi-clipboard-check]="codeCopied()" aria-hidden="true"></i>
+							</button>
+						</div>
 						<div class="mt-2">
 							@if (detail.checkedInAt) {
 								<span class="badge text-bg-success">Registrado el {{ detail.checkedInAt | date: 'short' }}</span>

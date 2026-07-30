@@ -143,6 +143,11 @@ model Event {
   // por tenant, ver "payments.*"), esto solo prende/apaga por evento (ver public.ts).
   paymentMode String @default("NONE")
 
+  // Cuántas horas antes de startTime se habilita el check-in/entrega (scan.ts) — antes era un valor
+  // fijo (1 hora) igual para todos los eventos, ahora configurable por si el club necesita abrir la
+  // puerta más temprano (ej. eventos con acreditación) o más ajustado.
+  checkInWindowHours Int @default(1)
+
   tickets      Ticket[]
   products     Product[]
   saleProducts SaleProduct[]

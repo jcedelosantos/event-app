@@ -20,6 +20,12 @@ import { extractErrorMessage } from '../../../../../utils/api-error';
 						@if (saleProduct(); as detail) {
 							<div class="text-center mb-3">
 								<qrcode [qrdata]="detail.codeQR" [width]="180" [errorCorrectionLevel]="'M'"></qrcode>
+								<div class="input-group input-group-sm mt-2 mx-auto" style="max-width: 260px">
+									<input type="text" class="form-control font-monospace" readonly [value]="detail.codeQR" title="Código para pegar en el scanner si la cámara falla" />
+									<button type="button" class="btn btn-outline-secondary" (click)="copyCode(detail.codeQR)">
+										<i class="bi" [class.bi-clipboard]="!codeCopied()" [class.bi-clipboard-check]="codeCopied()" aria-hidden="true"></i>
+									</button>
+								</div>
 								<div class="mt-2">
 									@if (detail.deliveredAt) {
 										<span class="badge text-bg-success">Entregado el {{ detail.deliveredAt | date: 'short' }}</span>
@@ -58,6 +64,17 @@ export class ProductSaleDetailModalComponent {
 	resending = signal(false);
 	resendMessage = signal('');
 	resendOk = signal(false);
+	codeCopied = signal(false);
+
+	// Mismo motivo que en event-detail-modal.component.ts: el scanner cae a un campo de código manual
+	// si la cámara falla, y sin esto no había forma de conseguir ese texto — solo existía adentro de
+	// la imagen del QR.
+	copyCode(code: string) {
+		navigator.clipboard.writeText(code).then(() => {
+			this.codeCopied.set(true);
+			setTimeout(() => this.codeCopied.set(false), 2000);
+		});
+	}
 
 	resend() {
 		const detail = this.saleProduct();

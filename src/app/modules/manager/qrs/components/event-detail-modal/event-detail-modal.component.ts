@@ -20,6 +20,17 @@ export class EventDetailModalComponent {
 	resending = signal(false);
 	resendMessage = signal('');
 	resendOk = signal(false);
+	codeCopied = signal(false);
+
+	// El scanner cae a un campo de código manual cuando la cámara falla (ver qr-scanner.component.ts)
+	// — sin esto, ese fallback no servía de nada porque el codeQR solo existía codificado adentro de
+	// la imagen del QR, nunca como texto que alguien pudiera copiar/tipear a mano.
+	copyCode(code: string) {
+		navigator.clipboard.writeText(code).then(() => {
+			this.codeCopied.set(true);
+			setTimeout(() => this.codeCopied.set(false), 2000);
+		});
+	}
 
 	resend() {
 		const detail = this.eventDetail();

@@ -40,6 +40,10 @@ const eventInputSchema = z.object({
 	// Si el portal público de este evento exige pago online antes de reservar el asiento, y con qué
 	// método(s) — ver public.ts (checkout con hold) y Event.paymentMode.
 	paymentMode: z.enum(['NONE', 'PAYPAL', 'LINK', 'BOTH']).optional().default('NONE'),
+	// Cuántas horas antes de startTime se habilita el check-in/entrega (ver scan.ts). 0 = permite
+	// escanear desde cualquier momento antes del evento (sin ventana), sin tope arbitrario hacia
+	// arriba más allá de lo razonable para un solo evento.
+	checkInWindowHours: z.number().int().min(0).max(72).optional().default(1),
 });
 
 const include = { map: { include: { areas: true } }, tickets: true, products: true };

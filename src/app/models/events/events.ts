@@ -23,6 +23,9 @@ export interface Events {
 	// Si el portal público de este evento exige pago online antes de reservar el asiento, y con qué
 	// método(s) — ver create-event-modal (select "Cobro") y public-event.component.ts.
 	paymentMode: 'NONE' | 'PAYPAL' | 'LINK' | 'BOTH';
+	// Cuántas horas antes de startTime se habilita el check-in/entrega en el scanner (ver
+	// create-event-modal). Default 1, configurable por evento.
+	checkInWindowHours: number;
 	map?: Map;
 	tickets: Array<Ticket>;
 	products: Array<Product>;

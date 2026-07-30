@@ -123,6 +123,22 @@ function toDateInputValue(date: Date): string {
 								</select>
 								<div class="form-text">Configurá las credenciales de PayPal y/o el link de pago en Settings → Pagos.</div>
 							</div>
+							<div class="col-md-6 mb-2">
+								<label for="checkInWindowHours" class="small mb-1">Abrir check-in <span class="text-muted">(horas antes del inicio)</span></label>
+								<input
+									type="number"
+									id="checkInWindowHours"
+									class="form-control form-control-sm"
+									[class.is-invalid]="isInvalid('checkInWindowHours')"
+									formControlName="checkInWindowHours"
+									min="0"
+									max="72"
+								/>
+								@if (isInvalid('checkInWindowHours')) {
+									<div class="invalid-feedback">Entre 0 y 72 horas.</div>
+								}
+								<div class="form-text">El scanner rechaza el ingreso antes de esta ventana (default 1 hora).</div>
+							</div>
 							<div class="col-md-12 mb-2">
 								<label for="map" class="small mb-1">Map <span class="text-muted">(opcional — necesario para vender tickets con asiento)</span></label>
 								<div class="d-flex gap-2">
@@ -235,6 +251,7 @@ export class CreateEventModalComponent {
 		maxHostGuests: this.fb.control<number | null>(null),
 		linkedEventId: this.fb.control<number | null>(null),
 		paymentMode: this.fb.control<'NONE' | 'PAYPAL' | 'LINK' | 'BOTH'>('NONE'),
+		checkInWindowHours: this.fb.control<number>(1, [Validators.required, Validators.min(0), Validators.max(72)]),
 	});
 
 	constructor() {
@@ -261,10 +278,19 @@ export class CreateEventModalComponent {
 					maxHostGuests: current.maxHostGuests ?? null,
 					linkedEventId: this.originalLinkedEventId,
 					paymentMode: current.paymentMode ?? 'NONE',
+					checkInWindowHours: current.checkInWindowHours ?? 1,
 				});
 			} else {
 				this.originalLinkedEventId = null;
-				this.eventForm.reset({ active: true, mapId: null, hostName: '', maxHostGuests: null, linkedEventId: null, paymentMode: 'NONE' });
+				this.eventForm.reset({
+					active: true,
+					mapId: null,
+					hostName: '',
+					maxHostGuests: null,
+					linkedEventId: null,
+					paymentMode: 'NONE',
+					checkInWindowHours: 1,
+				});
 			}
 		});
 	}
@@ -284,6 +310,7 @@ export class CreateEventModalComponent {
 			maxHostGuests: source.maxHostGuests ?? null,
 			linkedEventId: null,
 			paymentMode: source.paymentMode ?? 'NONE',
+			checkInWindowHours: source.checkInWindowHours ?? 1,
 		});
 		this.eventForm.patchValue({
 			name: `${source.name} (copia)`,
@@ -356,6 +383,7 @@ export class CreateEventModalComponent {
 			maxHostGuests: value.maxHostGuests,
 			linkedEventId: linkedEventIdChanged ? value.linkedEventId : undefined,
 			paymentMode: value.paymentMode!,
+			checkInWindowHours: value.checkInWindowHours!,
 		};
 		const request = current ? this.eventsService.updateEvent(current.id, payload) : this.eventsService.createEvent(payload);
 
