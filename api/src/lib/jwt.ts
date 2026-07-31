@@ -1,6 +1,12 @@
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET ?? 'dev-only-secret-change-in-production';
+// Sin fallback: un default hardcodeado es un secreto público — si esta env var alguna vez se pierde
+// en el deploy, mejor que el proceso ni arranque a que arranque emitiendo/aceptando JWTs firmados con
+// un valor que cualquiera puede leer en el código fuente (incluye tokens de Super Admin).
+if (!process.env.JWT_SECRET) {
+	throw new Error('JWT_SECRET no está seteada — ver api/.env.example.');
+}
+const JWT_SECRET: string = process.env.JWT_SECRET;
 
 export type AuthTokenPayload = {
 	userId: number;

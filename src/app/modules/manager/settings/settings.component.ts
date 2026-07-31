@@ -6,6 +6,7 @@ import { ACCENT_SETTING_KEY, DEFAULT_ACCENT, ThemeService } from '../../../core/
 import { AuthService } from '../../../core/services/auth.service';
 import { UploadsService } from '../../../core/services/uploads.service';
 import { extractErrorMessage } from '../../../utils/api-error';
+import { confirm } from '../../../utils/messages';
 import { QRCodeComponent } from 'angularx-qrcode';
 import { environment } from '../../../../environments/environment';
 
@@ -22,6 +23,9 @@ const PRESETS = [
 	imports: [QRCodeComponent],
 	template: `
 		<h2 class="section-title">Settings</h2>
+		@if (loadError()) {
+			<div class="alert alert-danger">No se pudo cargar la configuración: {{ loadError() }}</div>
+		}
 		<p class="text-body-secondary small">Color de acento de toda la app: botones, badges, bordes y textos destacados.</p>
 
 		<div class="card" style="max-width: 480px;">
@@ -356,8 +360,13 @@ export class SettingsComponent implements OnInit {
 		});
 	}
 
+	// Mismo patrón de confirmación que las 13+ acciones destructivas del resto de la app (borrar
+	// evento/mapa/área/asiento/mesa/ticket/producto/usuario, etc.) — antes esto borraba el logo del
+	// club con un solo click, sin avisar.
 	removeLogo() {
-		this.saveLogo(null);
+		confirm('¿Quitar el logo de la organización?', {
+			onConfirm: () => this.saveLogo(null),
+		});
 	}
 
 	private saveLogo(logoUrl: string | null) {
@@ -391,19 +400,27 @@ export class SettingsComponent implements OnInit {
 		return slug ? `${environment.apiUrl}/public/webhooks/whatsapp/${slug}` : null;
 	});
 
+	loadError = signal('');
+
 	ngOnInit(): void {
-		this.settingsService.getSettings().subscribe((settings) => {
-			this.accent.set(settings[ACCENT_SETTING_KEY] ?? DEFAULT_ACCENT);
-			this.paypalClientId.set(settings['payments.paypalClientId'] ?? '');
-			this.paypalSecretConfigured.set(settings['payments.paypalSecretConfigured'] === 'true');
-			this.paypalMode.set(settings['payments.paypalMode'] === 'live' ? 'live' : 'sandbox');
-			this.paypalWebhookIdConfigured.set(settings['payments.paypalWebhookIdConfigured'] === 'true');
-			this.linkUrl.set(settings['payments.linkUrl'] ?? '');
-			this.whatsappPhoneNumberId.set(settings['whatsapp.phoneNumberId'] ?? '');
-			this.whatsappAccessTokenConfigured.set(settings['whatsapp.accessTokenSecretConfigured'] === 'true');
-			this.whatsappVerifyTokenConfigured.set(settings['whatsapp.verifyTokenSecretConfigured'] === 'true');
-			this.whatsappAppSecretConfigured.set(settings['whatsapp.appSecretSecretConfigured'] === 'true');
-			this.whatsappAllowedSenders.set(settings['whatsapp.allowedSenders'] ?? '');
+		this.settingsService.getSettings().subscribe({
+			next: (settings) => {
+				this.accent.set(settings[ACCENT_SETTING_KEY] ?? DEFAULT_ACCENT);
+				this.paypalClientId.set(settings['payments.paypalClientId'] ?? '');
+				this.paypalSecretConfigured.set(settings['payments.paypalSecretConfigured'] === 'true');
+				this.paypalMode.set(settings['payments.paypalMode'] === 'live' ? 'live' : 'sandbox');
+				this.paypalWebhookIdConfigured.set(settings['payments.paypalWebhookIdConfigured'] === 'true');
+				this.linkUrl.set(settings['payments.linkUrl'] ?? '');
+				this.whatsappPhoneNumberId.set(settings['whatsapp.phoneNumberId'] ?? '');
+				this.whatsappAccessTokenConfigured.set(settings['whatsapp.accessTokenSecretConfigured'] === 'true');
+				this.whatsappVerifyTokenConfigured.set(settings['whatsapp.verifyTokenSecretConfigured'] === 'true');
+				this.whatsappAppSecretConfigured.set(settings['whatsapp.appSecretSecretConfigured'] === 'true');
+				this.whatsappAllowedSenders.set(settings['whatsapp.allowedSenders'] ?? '');
+			},
+			// Sin esto, un fallo de red dejaba todos los campos en blanco/default, indistinguible de
+			// "nunca configurado" — un admin podía terminar recargando credenciales de PayPal/WhatsApp
+			// que en realidad ya estaban guardadas, solo no se pudieron leer en este request.
+			error: (err: HttpErrorResponse) => this.loadError.set(extractErrorMessage(err)),
 		});
 	}
 

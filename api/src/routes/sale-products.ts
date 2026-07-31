@@ -61,6 +61,15 @@ saleProductsRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res)
 	}
 
 	const tenantId = req.user!.tenantId!;
+
+	// `User` no está en el tenant-guard (ver lib/tenant-guard.ts) — sin este chequeo, un clientId de
+	// OTRO tenant se aceptaría igual y la venta quedaría vinculada a ese cliente ajeno.
+	const client = await prisma.user.findFirst({ where: { id: parsed.data.clientId, tenantId } });
+	if (!client) {
+		res.status(400).json({ error: 'Cliente inválido' });
+		return;
+	}
+
 	try {
 		const saleProduct = await prisma.$transaction(async (tx) => {
 			// updateMany con `count: { gte: quantity }` en el where hace el chequeo-y-descuento en una

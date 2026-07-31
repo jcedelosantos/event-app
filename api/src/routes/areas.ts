@@ -51,6 +51,15 @@ areasRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
 		return;
 	}
 	const tenantId = req.user!.tenantId!;
+
+	// Sin este chequeo, un mapId de OTRO tenant se aceptaba igual (la fila existe, solo que en otro
+	// tenant) y el área quedaba colgada del mapa de otra organización.
+	const map = await prisma.map.findUnique({ where: { id: parsed.data.mapId, tenantId } });
+	if (!map) {
+		res.status(400).json({ error: 'El mapa indicado no existe' });
+		return;
+	}
+
 	const area = await prisma.area.create({ data: { ...parsed.data, tenantId }, include });
 	res.status(201).json(area);
 }));

@@ -46,6 +46,22 @@ seatsRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	}
 
 	const tenantId = req.user!.tenantId!;
+
+	// Sin este chequeo, un areaId (o tableId) de OTRO tenant pasaba el `P2003` de Prisma igual (la fila
+	// existe, solo que en otro tenant) y quedaba un seat huérfano colgado del mapa de otra organización.
+	const area = await prisma.area.findUnique({ where: { id: parsed.data.areaId, tenantId } });
+	if (!area) {
+		res.status(400).json({ error: 'El área indicada no existe' });
+		return;
+	}
+	if (parsed.data.tableId != null) {
+		const table = await prisma.table.findUnique({ where: { id: parsed.data.tableId, tenantId } });
+		if (!table) {
+			res.status(400).json({ error: 'La mesa indicada no existe' });
+			return;
+		}
+	}
+
 	try {
 		const seat = await prisma.seat.create({ data: { ...parsed.data, tenantId } });
 		res.status(201).json(seat);

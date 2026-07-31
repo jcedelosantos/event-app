@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
 import { requireAuth, requireTenant, AuthenticatedRequest } from '../middleware/auth';
+import { requireLicense } from '../middleware/license';
 import { verifyToken } from '../lib/jwt';
 import { asyncHandler } from '../lib/async-handler';
 
@@ -56,7 +57,10 @@ settingsRouter.get('/', asyncHandler(async (req, res) => {
 // `{ logoUrl }`, error real encontrado en pruebas).
 const logoSchema = z.object({ logoUrl: z.string().min(1).max(500).nullable() });
 
-settingsRouter.put('/logo', requireAuth, requireTenant, asyncHandler(async (req: AuthenticatedRequest, res) => {
+// Todas las escrituras de Settings (logo, color, credenciales de pago, token de WhatsApp) requieren
+// licencia '*' (Admin) — antes cualquier usuario autenticado del tenant, sin importar su rol, podía
+// reescribir credenciales de PayPal o el link de pago vía PUT /:key.
+settingsRouter.put('/logo', requireAuth, requireTenant, requireLicense('*'), asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const parsed = logoSchema.safeParse(req.body);
 	if (!parsed.success) {
 		res.status(400).json({ error: parsed.error.flatten() });
@@ -73,7 +77,7 @@ settingsRouter.put('/logo', requireAuth, requireTenant, asyncHandler(async (req:
 // bastante más largos que un Client ID/Secret típico.
 const valueSchema = z.object({ value: z.string().min(1).max(2000) });
 
-settingsRouter.put('/:key', requireAuth, requireTenant, asyncHandler(async (req: AuthenticatedRequest, res) => {
+settingsRouter.put('/:key', requireAuth, requireTenant, requireLicense('*'), asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const parsed = valueSchema.safeParse(req.body);
 	if (!parsed.success) {
 		res.status(400).json({ error: parsed.error.flatten() });

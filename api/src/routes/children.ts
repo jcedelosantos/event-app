@@ -63,6 +63,14 @@ childrenRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res) => 
 		return;
 	}
 
+	// `User` no está en el tenant-guard (ver lib/tenant-guard.ts) — sin este chequeo, un parentId de
+	// OTRO tenant se aceptaría igual y el registro quedaría vinculado a ese padre/madre ajeno.
+	const parent = await prisma.user.findFirst({ where: { id: parentId, tenantId } });
+	if (!parent) {
+		res.status(400).json({ error: 'Padre/madre inválido' });
+		return;
+	}
+
 	try {
 		const child = await prisma.$transaction(async (tx) => {
 			let saleProductId: number | undefined;

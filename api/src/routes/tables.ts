@@ -34,6 +34,15 @@ tablesRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	}
 
 	const tenantId = req.user!.tenantId!;
+
+	// Sin este chequeo, un areaId de OTRO tenant pasaba el `P2003` de Prisma igual (la fila existe,
+	// solo que en otro tenant) y la mesa quedaba colgada del mapa de otra organización.
+	const area = await prisma.area.findUnique({ where: { id: parsed.data.areaId, tenantId } });
+	if (!area) {
+		res.status(400).json({ error: 'El área indicada no existe' });
+		return;
+	}
+
 	try {
 		const table = await prisma.table.create({ data: { ...parsed.data, tenantId }, include: { seats: true } });
 		res.status(201).json(table);

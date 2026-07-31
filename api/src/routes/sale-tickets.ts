@@ -73,8 +73,16 @@ saleTicketsRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res) 
 
 	const tenantId = req.user!.tenantId!;
 
+	// `User` no está en el tenant-guard (ver lib/tenant-guard.ts — login/superadmin necesitan
+	// buscarlo sin tenantId conocido), así que un clientId ajeno a este tenant NO lo bloquea la red de
+	// seguridad genérica — hay que validarlo acá a mano antes de usarlo para nada.
+	const client = await prisma.user.findFirst({ where: { id: parsed.data.clientId, tenantId } });
+	if (!client) {
+		res.status(400).json({ error: 'Cliente inválido' });
+		return;
+	}
+
 	if (await isClubTenant(tenantId)) {
-		const client = await prisma.user.findUnique({ where: { id: parsed.data.clientId } });
 		const attendeeError = await validateAttendeeRule({
 			tenantId,
 			eventId: parsed.data.eventId,

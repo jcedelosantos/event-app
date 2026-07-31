@@ -2,9 +2,20 @@ import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, OnIni
 import { ActivatedRoute } from '@angular/router';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
-import { debounceTime, distinctUntilChanged, firstValueFrom } from 'rxjs';
+import { catchError, debounceTime, distinctUntilChanged, firstValueFrom, map, of, switchMap } from 'rxjs';
 import { QRCodeComponent } from 'angularx-qrcode';
-import { AttendeeType, CheckoutHoldInput, PublicArea, PublicEvent, PublicEventService, PublicSeat, PurchasedChild, PurchasedSaleTicket } from './services/public-event.service';
+import {
+	AttendeeType,
+	CheckoutHoldInput,
+	DuplicateEventStatus,
+	PublicArea,
+	PublicEvent,
+	PublicEventService,
+	PublicSeat,
+	PurchasedChild,
+	PurchasedSaleTicket,
+	SponsorStatus,
+} from './services/public-event.service';
 import { extractErrorMessage } from '../../utils/api-error';
 import { shortSeatLabel } from '../../utils/seat-label';
 import { warning } from '../../utils/messages';
@@ -37,15 +48,15 @@ const MAX_INVITADO_SEATS = 2;
 						<div class="waiting-room-badge" [class.waiting-room-badge-cover]="waitingRoomEventImg()">
 							<span class="waiting-room-ring waiting-room-ring-1"></span>
 							<span class="waiting-room-ring waiting-room-ring-2"></span>
-							@if (waitingRoomEventImg(); as cover) {
-								<img [src]="cover" alt="" class="waiting-room-logo waiting-room-cover" />
-							} @else if (waitingRoomTenantLogoUrl(); as logo) {
-								<img [src]="logo" alt="" class="waiting-room-logo" />
+							@if (!waitingRoomCoverBroken() && waitingRoomEventImg(); as cover) {
+								<img [src]="cover" alt="" class="waiting-room-logo waiting-room-cover" (error)="waitingRoomCoverBroken.set(true)" />
+							} @else if (!waitingRoomLogoBroken() && waitingRoomTenantLogoUrl(); as logo) {
+								<img [src]="logo" alt="" class="waiting-room-logo" (error)="waitingRoomLogoBroken.set(true)" />
 							} @else {
 								<div class="waiting-room-logo waiting-room-logo-fallback"><i class="bi bi-hourglass-split" aria-hidden="true"></i></div>
 							}
-							@if (waitingRoomEventImg() && waitingRoomTenantLogoUrl(); as orgLogo) {
-								<img [src]="orgLogo" alt="" class="waiting-room-org-badge" />
+							@if (waitingRoomEventImg() && !waitingRoomCoverBroken() && !waitingRoomLogoBroken() && waitingRoomTenantLogoUrl(); as orgLogo) {
+								<img [src]="orgLogo" alt="" class="waiting-room-org-badge" (error)="waitingRoomLogoBroken.set(true)" />
 							}
 						</div>
 						@if (waitingRoomEventName(); as name) {
@@ -396,12 +407,18 @@ const MAX_INVITADO_SEATS = 2;
 
 							@if (ev.payment; as payment) {
 								@if (payment.mode === 'PAYPAL' || payment.mode === 'BOTH') {
-									<div class="mb-2">
-										<div id="paypal-button-container"></div>
-										@if (checkingOut()) {
-											<p class="text-body-secondary small text-center mt-2">Procesando...</p>
-										}
-									</div>
+									@if (payment.paypalClientId) {
+										<div class="mb-2">
+											<div id="paypal-button-container"></div>
+											@if (checkingOut()) {
+												<p class="text-body-secondary small text-center mt-2">Procesando...</p>
+											}
+										</div>
+									} @else if (payment.mode === 'PAYPAL') {
+										<div class="alert alert-warning small mb-2">
+											La organización todavía no terminó de configurar el cobro online para este evento — contactala directamente para coordinar el pago.
+										</div>
+									}
 								}
 								@if (payment.mode === 'LINK' || payment.mode === 'BOTH') {
 									<button type="button" class="pay-link-btn" [disabled]="checkingOut()" (click)="payByLink(ev)">
@@ -795,6 +812,12 @@ export class PublicEventComponent implements OnInit {
 	waitingRoomTenantLogoUrl = signal<string | null>(null);
 	waitingRoomEventName = signal<string | null>(null);
 	waitingRoomEventImg = signal<string | null>(null);
+	// Se prenden si la portada del evento o el logo del club dan error al cargar (URL borrada, etc.) —
+	// sin esto, un `src` roto mostraba el ícono de imagen rota del navegador en vez de caer al ícono
+	// de reloj de arena que ya existe para el caso de "no hay imagen" (bug real, mismo patrón que
+	// areaImgSrc()/onImageError() ya usan para el mapa de asientos).
+	waitingRoomCoverBroken = signal(false);
+	waitingRoomLogoBroken = signal(false);
 
 	// --- Checkout con pago (Event.paymentMode) ---------------------------------------------------
 	checkingOut = signal(false);
@@ -1020,18 +1043,31 @@ export class PublicEventComponent implements OnInit {
 			this.sponsorConfirmed.set(false);
 		});
 
-		this.registerForm.controls.sponsorCarnet.valueChanges.pipe(debounceTime(400), distinctUntilChanged()).subscribe((carnet) => {
-			this.checkSponsorStatus(carnet);
-		});
+		// `switchMap` en vez de un `.subscribe()` nuevo por cada tick del debounce — así una respuesta
+		// vieja que llega después de una más nueva (plausible en redes móviles) se cancela sola en vez
+		// de pisar el estado de bloqueo correcto con uno desactualizado (bug real, ver [[seat-app-known-issues]]).
+		this.registerForm.controls.sponsorCarnet.valueChanges
+			.pipe(
+				debounceTime(400),
+				distinctUntilChanged(),
+				switchMap((carnet) => this.checkSponsorStatus$(carnet)),
+			)
+			.subscribe((result) => this.applySponsorStatus(result));
 
-		this.registerForm.controls.email.valueChanges.pipe(debounceTime(400), distinctUntilChanged()).subscribe(() => {
-			this.duplicateEventBlockReason.set(null);
-			this.checkDuplicateEventStatus();
-		});
-		this.registerForm.controls.carnet.valueChanges.pipe(debounceTime(400), distinctUntilChanged()).subscribe(() => {
-			this.duplicateEventBlockReason.set(null);
-			this.checkDuplicateEventStatus();
-		});
+		this.registerForm.controls.email.valueChanges
+			.pipe(
+				debounceTime(400),
+				distinctUntilChanged(),
+				switchMap(() => this.checkDuplicateEventStatus$()),
+			)
+			.subscribe((result) => this.applyDuplicateEventStatus(result));
+		this.registerForm.controls.carnet.valueChanges
+			.pipe(
+				debounceTime(400),
+				distinctUntilChanged(),
+				switchMap(() => this.checkDuplicateEventStatus$()),
+			)
+			.subscribe((result) => this.applyDuplicateEventStatus(result));
 	}
 
 	sponsorBlockMessage(carnet: string): string {
@@ -1097,54 +1133,66 @@ export class PublicEventComponent implements OnInit {
 		return 'Ingresá el carnet del socio que te invita para poder elegir tu(s) asiento(s).';
 	}
 
-	private checkSponsorStatus(carnet: string | null) {
+	// Devuelve un Observable (en vez de suscribirse acá mismo) para que el `switchMap` del constructor
+	// pueda cancelar un chequeo en curso si el usuario ya tecleó un carnet distinto — ver comentario
+	// junto a la suscripción. `carnet` viaja en el resultado porque `applySponsorStatus` necesita el
+	// valor exacto que originó CADA respuesta, no el valor actual del form (pudo cambiar mientras la
+	// request estaba en vuelo).
+	private checkSponsorStatus$(carnet: string | null) {
 		this.sponsorBlockReason.set(null);
 		this.sponsorConfirmed.set(false);
 		this.attendeeError.set('');
 		const ev = this.event();
 		const trimmed = carnet?.trim();
-		if (!ev || this.attendeeTypeValue() !== 'INVITADO' || !trimmed) return;
-
-		this.publicEventService.getSponsorStatus(ev.code, trimmed).subscribe({
-			next: (status) => {
-				// Un invitado no puede "entrar solo" — el socio que lo invita tiene que tener su propia
-				// entrada ya comprada para este evento, chequeado antes que el tope de invitados.
-				if (!status.registered) {
-					this.sponsorBlockReason.set('not-registered');
-					this.selectedSeatIds.set(new Set());
-				} else if (status.blocked) {
-					this.sponsorBlockReason.set('max-reached');
-					this.selectedSeatIds.set(new Set());
-				} else {
-					this.sponsorConfirmed.set(true);
-				}
-				if (this.sponsorBlockReason()) {
-					this.attendeeError.set(this.sponsorBlockMessage(trimmed));
-				}
-			},
+		if (!ev || this.attendeeTypeValue() !== 'INVITADO' || !trimmed) {
+			return of<{ carnet: string; status: SponsorStatus | null }>({ carnet: trimmed ?? '', status: null });
+		}
+		return this.publicEventService.getSponsorStatus(ev.code, trimmed).pipe(
+			map((status) => ({ carnet: trimmed, status })),
 			// Silencioso: si el chequeo preventivo falla (red, etc.) no bloqueamos por las dudas — el
 			// submit real vuelve a validar esto igual, así que nunca se cuela una reserva de más.
-			error: () => {},
-		});
+			catchError(() => of({ carnet: trimmed, status: null })),
+		);
 	}
 
-	private checkDuplicateEventStatus() {
+	private applySponsorStatus({ carnet, status }: { carnet: string; status: SponsorStatus | null }): void {
+		if (!status) return;
+		// Un invitado no puede "entrar solo" — el socio que lo invita tiene que tener su propia
+		// entrada ya comprada para este evento, chequeado antes que el tope de invitados.
+		if (!status.registered) {
+			this.sponsorBlockReason.set('not-registered');
+			this.selectedSeatIds.set(new Set());
+		} else if (status.blocked) {
+			this.sponsorBlockReason.set('max-reached');
+			this.selectedSeatIds.set(new Set());
+		} else {
+			this.sponsorConfirmed.set(true);
+		}
+		if (this.sponsorBlockReason()) {
+			this.attendeeError.set(this.sponsorBlockMessage(carnet));
+		}
+	}
+
+	private checkDuplicateEventStatus$() {
+		this.duplicateEventBlockReason.set(null);
 		const ev = this.event();
 		const email = this.registerForm.controls.email.value?.trim();
 		const carnet = this.registerForm.controls.carnet.value?.trim() ?? '';
-		if (!ev || ev.tenantType !== 'CLUB' || !email || this.registerForm.controls.email.invalid) return;
-
-		this.publicEventService.getDuplicateEventStatus(ev.code, email, carnet).subscribe({
-			next: (status) => {
-				if (status.blocked && status.reason) {
-					this.duplicateEventBlockReason.set(status.reason);
-					this.selectedSeatIds.set(new Set());
-				}
-			},
-			// Silencioso por la misma razón que checkSponsorStatus: el submit real (y el backend) vuelven
+		if (!ev || ev.tenantType !== 'CLUB' || !email || this.registerForm.controls.email.invalid) {
+			return of<DuplicateEventStatus | null>(null);
+		}
+		return this.publicEventService.getDuplicateEventStatus(ev.code, email, carnet).pipe(
+			// Silencioso por la misma razón que checkSponsorStatus$: el submit real (y el backend) vuelven
 			// a validar esto igual, así que un chequeo preventivo que falla no puede colar una reserva.
-			error: () => {},
-		});
+			catchError(() => of<DuplicateEventStatus | null>(null)),
+		);
+	}
+
+	private applyDuplicateEventStatus(status: DuplicateEventStatus | null): void {
+		if (status?.blocked && status.reason) {
+			this.duplicateEventBlockReason.set(status.reason);
+			this.selectedSeatIds.set(new Set());
+		}
 	}
 
 	ngOnInit(): void {
