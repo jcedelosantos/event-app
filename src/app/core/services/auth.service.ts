@@ -1,4 +1,4 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { inject, Injectable, signal } from '@angular/core';
 import { Observable, tap } from 'rxjs';
 import { environment } from '../../../environments/environment';
@@ -35,7 +35,14 @@ export class AuthService {
 		if (this.isAuthenticated()) {
 			this.httpClient.get<User>(`${environment.apiUrl}/auth/me`).subscribe({
 				next: (user) => this.currentUser.set(user),
-				error: () => this.logout(),
+				// Solo un 401 real (token inválido/vencido del lado del servidor) justifica cerrar la
+				// sesión acá — cualquier otro error (caída puntual de red, contenedor recién reiniciado
+				// tras un deploy, timeout) no significa que el token esté mal, así que no hay que
+				// descartar una sesión todavía válida por un fallo transitorio. El próximo request real
+				// (o la próxima carga) reintenta solo.
+				error: (err: HttpErrorResponse) => {
+					if (err.status === 401) this.logout();
+				},
 			});
 		}
 	}
