@@ -34,19 +34,27 @@ const MAX_INVITADO_SEATS = 2;
 				}
 				@case ('waiting-room') {
 					<div class="waiting-room">
-						<div class="waiting-room-badge">
+						<div class="waiting-room-badge" [class.waiting-room-badge-cover]="waitingRoomEventImg()">
 							<span class="waiting-room-ring waiting-room-ring-1"></span>
 							<span class="waiting-room-ring waiting-room-ring-2"></span>
-							@if (waitingRoomTenantLogoUrl(); as logo) {
+							@if (waitingRoomEventImg(); as cover) {
+								<img [src]="cover" alt="" class="waiting-room-logo waiting-room-cover" />
+							} @else if (waitingRoomTenantLogoUrl(); as logo) {
 								<img [src]="logo" alt="" class="waiting-room-logo" />
 							} @else {
 								<div class="waiting-room-logo waiting-room-logo-fallback"><i class="bi bi-hourglass-split" aria-hidden="true"></i></div>
 							}
+							@if (waitingRoomEventImg() && waitingRoomTenantLogoUrl(); as orgLogo) {
+								<img [src]="orgLogo" alt="" class="waiting-room-org-badge" />
+							}
 						</div>
+						@if (waitingRoomEventName(); as name) {
+							<div class="waiting-room-event-name">{{ name }}</div>
+						}
 						@if (waitingRoomTenantName(); as name) {
 							<div class="waiting-room-tenant">{{ name }}</div>
 						}
-						<h4 class="mt-2 mb-1">Estás en la fila</h4>
+						<h4 class="mt-3 mb-1">Estás en la fila</h4>
 						@if (waitingRoomPosition(); as position) {
 							<div class="waiting-room-position">#{{ position }}</div>
 							<p class="text-body-secondary small mb-0">tu lugar en la fila</p>
@@ -450,6 +458,14 @@ const MAX_INVITADO_SEATS = 2;
 				justify-content: center;
 				margin-bottom: 1.25rem;
 			}
+			/* Cuando el evento tiene imagen propia, el badge crece de avatar circular a una portada
+			   rectangular (mismo lenguaje que la miniatura de evento en org-landing/event-card) — es lo
+			   que la persona está esperando para poder comprar, así que pesa más que el logo del club. */
+			.waiting-room-badge-cover {
+				width: 168px;
+				height: 168px;
+				margin-bottom: 1.5rem;
+			}
 			.waiting-room-logo {
 				position: relative;
 				z-index: 1;
@@ -460,6 +476,11 @@ const MAX_INVITADO_SEATS = 2;
 				background: #16181d;
 				border: 1px solid rgba(255, 255, 255, 0.1);
 			}
+			.waiting-room-cover {
+				width: 100%;
+				height: 100%;
+				border-radius: 26px;
+			}
 			.waiting-room-logo-fallback {
 				display: flex;
 				align-items: center;
@@ -467,9 +488,25 @@ const MAX_INVITADO_SEATS = 2;
 				font-size: 2.25rem;
 				color: var(--app-accent);
 			}
+			/* Avatar circular del club, superpuesto a la esquina inferior derecha de la portada del
+			   evento — mismo patrón visual que un badge de "organizador" sobre una miniatura. */
+			.waiting-room-org-badge {
+				position: absolute;
+				z-index: 2;
+				bottom: -6px;
+				right: -6px;
+				width: 44px;
+				height: 44px;
+				border-radius: 50%;
+				object-fit: cover;
+				background: #16181d;
+				border: 3px solid #0b0c0f;
+				box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+			}
 			/* Dos anillos concéntricos que laten hacia afuera y se desvanecen (uno con 1.2s de delay) —
 			   el mismo lenguaje visual de "esperando en vivo" que un radar/sonar, en el color de acento
-			   del club en vez de una paleta genérica. */
+			   del club en vez de una paleta genérica. Siguen el border-radius del badge que envuelven,
+			   así que se ven redondos con el logo del club y en forma de portada con la imagen del evento. */
 			.waiting-room-ring {
 				position: absolute;
 				inset: 0;
@@ -477,6 +514,9 @@ const MAX_INVITADO_SEATS = 2;
 				border: 2px solid var(--app-accent);
 				opacity: 0;
 				animation: waiting-room-pulse 2.4s ease-out infinite;
+			}
+			.waiting-room-badge-cover .waiting-room-ring {
+				border-radius: 26px;
 			}
 			.waiting-room-ring-2 {
 				animation-delay: 1.2s;
@@ -491,12 +531,18 @@ const MAX_INVITADO_SEATS = 2;
 					opacity: 0;
 				}
 			}
+			.waiting-room-event-name {
+				font-size: 1.15rem;
+				font-weight: 700;
+				max-width: 320px;
+			}
 			.waiting-room-tenant {
 				font-size: 0.75rem;
 				font-weight: 600;
 				letter-spacing: 0.06em;
 				text-transform: uppercase;
 				color: rgba(255, 255, 255, 0.55);
+				margin-top: 0.15rem;
 			}
 			.waiting-room-position {
 				font-size: 2.75rem;
@@ -742,11 +788,13 @@ export class PublicEventComponent implements OnInit {
 
 	step = signal<'loading' | 'waiting-room' | 'not-found' | 'ready' | 'confirmed' | 'link-pending'>('loading');
 	event = signal<PublicEvent | null>(null);
-	// Posición en la fila y branding del club mientras step() es 'waiting-room' (ver
+	// Posición en la fila, evento y branding del club mientras step() es 'waiting-room' (ver
 	// enterEvent/startWaitingRoomPolling más abajo, y lib/waiting-room.ts del lado del servidor).
 	waitingRoomPosition = signal<number | null>(null);
 	waitingRoomTenantName = signal<string | null>(null);
 	waitingRoomTenantLogoUrl = signal<string | null>(null);
+	waitingRoomEventName = signal<string | null>(null);
+	waitingRoomEventImg = signal<string | null>(null);
 
 	// --- Checkout con pago (Event.paymentMode) ---------------------------------------------------
 	checkingOut = signal(false);
@@ -1123,6 +1171,8 @@ export class PublicEventComponent implements OnInit {
 				this.waitingRoomPosition.set(result.position);
 				this.waitingRoomTenantName.set(result.tenantName);
 				this.waitingRoomTenantLogoUrl.set(result.tenantLogoUrl);
+				this.waitingRoomEventName.set(result.eventName);
+				this.waitingRoomEventImg.set(result.eventImg);
 				this.step.set('waiting-room');
 				this.startWaitingRoomPolling(code, sessionId);
 			},
