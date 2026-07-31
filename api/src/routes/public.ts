@@ -18,6 +18,7 @@ import { findDuplicateEventSlot } from '../lib/find-duplicate-event-slot';
 import { extractEventFromImage, AnthropicNotConfiguredError, AnthropicRequestError } from '../lib/event-extraction';
 import { getTenantConfig as getWhatsAppConfig, verifySignature as verifyWhatsAppSignature, downloadMedia, sendTextMessage, WhatsAppNotConfiguredError } from '../lib/whatsapp';
 import { saveBuffer, uploadsDir } from '../lib/uploads';
+import { checkoutRateLimiter } from '../middleware/rate-limit';
 import { logAudit } from '../lib/audit';
 import { joinWaitingRoom, getWaitingRoomStatus } from '../lib/waiting-room';
 
@@ -304,7 +305,7 @@ const purchaseSchema = z.object({
 	children: z.array(childInputSchema).optional().default([]),
 });
 
-publicRouter.post('/purchase', asyncHandler(async (req, res) => {
+publicRouter.post('/purchase', checkoutRateLimiter, asyncHandler(async (req, res) => {
 	const parsed = purchaseSchema.safeParse(req.body);
 	if (!parsed.success) {
 		res.status(400).json({ error: parsed.error.flatten() });
@@ -537,7 +538,7 @@ const checkoutHoldSchema = z.object({
 	provider: z.enum(['PAYPAL', 'LINK']),
 });
 
-publicRouter.post('/checkout/hold', asyncHandler(async (req, res) => {
+publicRouter.post('/checkout/hold', checkoutRateLimiter, asyncHandler(async (req, res) => {
 	const parsed = checkoutHoldSchema.safeParse(req.body);
 	if (!parsed.success) {
 		res.status(400).json({ error: parsed.error.flatten() });
@@ -639,6 +640,10 @@ publicRouter.post('/checkout/hold', asyncHandler(async (req, res) => {
 
 	try {
 		const expiresAt = new Date(Date.now() + HOLD_MINUTES * 60 * 1000);
+		// Secreto compartido por todos los SaleTicket de ESTE hold — el frontend lo guarda junto con
+		// los holdIds y lo devuelve en /checkout/paypal/order como prueba de que es el mismo comprador
+		// que reservó (ver comentario en schema.prisma sobre SaleTicket.holdToken).
+		const holdToken = randomUUID();
 		const saleTickets = await prisma.$transaction(async (tx) => {
 			const stockUpdate = await tx.ticket.updateMany({
 				where: { id: ticket.id, count: { gte: seatIds.length }, tenantId },
@@ -664,6 +669,7 @@ publicRouter.post('/checkout/hold', asyncHandler(async (req, res) => {
 							paymentStatus: 'PENDING',
 							paymentProvider: provider,
 							paymentExpiresAt: expiresAt,
+							holdToken,
 							...(attendeeType ? { attendeeType, sponsorCarnet: attendeeType === 'INVITADO' ? sponsorCarnet?.trim() : null } : {}),
 						},
 					}),
@@ -673,6 +679,7 @@ publicRouter.post('/checkout/hold', asyncHandler(async (req, res) => {
 
 		res.status(201).json({
 			holdIds: saleTickets.map((s) => s.id),
+			holdToken,
 			totalUSD: ticket.price * seatIds.length,
 			expiresAt,
 		});
@@ -689,17 +696,23 @@ publicRouter.post('/checkout/hold', asyncHandler(async (req, res) => {
 	}
 }));
 
-const paypalOrderSchema = z.object({ holdIds: z.array(z.number().int()).min(1) });
+const paypalOrderSchema = z.object({ holdIds: z.array(z.number().int()).min(1), holdToken: z.string().min(1) });
 
-publicRouter.post('/checkout/paypal/order', asyncHandler(async (req, res) => {
+publicRouter.post('/checkout/paypal/order', checkoutRateLimiter, asyncHandler(async (req, res) => {
 	const parsed = paypalOrderSchema.safeParse(req.body);
 	if (!parsed.success) {
 		res.status(400).json({ error: parsed.error.flatten() });
 		return;
 	}
 
+	// `holdToken` ata este pedido al comprador que reservó (ver checkout/hold) — sin esto, cualquiera
+	// que adivinara un holdId ajeno (ids secuenciales) podía disparar una orden PayPal real contra la
+	// cuenta de OTRO tenant sin haber reservado nada.
 	const holds = await prismaUnscoped.saleTicket.findMany({ where: { id: { in: parsed.data.holdIds } }, include: { ticket: true } });
-	if (!holds.length || holds.some((h) => h.paymentStatus !== 'PENDING' || h.paymentProvider !== 'PAYPAL')) {
+	if (
+		!holds.length ||
+		holds.some((h) => h.paymentStatus !== 'PENDING' || h.paymentProvider !== 'PAYPAL' || h.holdToken !== parsed.data.holdToken)
+	) {
 		res.status(409).json({ error: 'Esta reserva ya no es válida — volvé a elegir tu asiento.' });
 		return;
 	}
@@ -726,7 +739,7 @@ publicRouter.post('/checkout/paypal/order', asyncHandler(async (req, res) => {
 
 const paypalCaptureSchema = z.object({ orderId: z.string().min(1) });
 
-publicRouter.post('/checkout/paypal/capture', asyncHandler(async (req, res) => {
+publicRouter.post('/checkout/paypal/capture', checkoutRateLimiter, asyncHandler(async (req, res) => {
 	const parsed = paypalCaptureSchema.safeParse(req.body);
 	if (!parsed.success) {
 		res.status(400).json({ error: parsed.error.flatten() });

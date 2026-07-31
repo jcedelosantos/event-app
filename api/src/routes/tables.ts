@@ -72,6 +72,15 @@ tablesRouter.post('/bulk', asyncHandler(async (req: AuthenticatedRequest, res) =
 	}
 
 	const tenantId = req.user!.tenantId!;
+
+	// Mismo chequeo que POST / (creación individual), pero en bloque.
+	const areaIds = [...new Set(parsed.data.tables.map((t) => t.areaId))];
+	const areaCount = await prisma.area.count({ where: { id: { in: areaIds }, tenantId } });
+	if (areaCount !== areaIds.length) {
+		res.status(400).json({ error: 'Alguna de las áreas indicadas no existe' });
+		return;
+	}
+
 	const tables = await prisma.$transaction(parsed.data.tables.map((t) => prisma.table.create({ data: { ...t, tenantId }, include: { seats: true } })));
 	res.status(201).json(tables);
 }));
@@ -106,6 +115,14 @@ tablesRouter.put('/:id', asyncHandler(async (req: AuthenticatedRequest, res) => 
 	if (!parsed.success) {
 		res.status(400).json({ error: parsed.error.flatten() });
 		return;
+	}
+
+	if (parsed.data.areaId != null) {
+		const area = await prisma.area.findUnique({ where: { id: parsed.data.areaId, tenantId } });
+		if (!area) {
+			res.status(400).json({ error: 'El área indicada no existe' });
+			return;
+		}
 	}
 
 	try {

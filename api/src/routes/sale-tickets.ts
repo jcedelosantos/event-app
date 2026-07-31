@@ -210,6 +210,12 @@ saleTicketsRouter.post('/bulk-import', asyncHandler(async (req: AuthenticatedReq
 		for (const seat of area.seats) seatIdByName.set(seat.name, seat.id);
 	}
 
+	// Hasheado UNA sola vez fuera del loop, no por fila — esta contraseña es un placeholder random
+	// que nadie va a usar para loguearse (los "invitado.*" no tienen una contraseña real comunicada a
+	// nadie), así que reusar el mismo hash entre todos los clientes placeholder de este lote no baja
+	// la seguridad en nada, y ahorra 10 rondas de bcrypt por fila en un CSV de 1000 filas.
+	const placeholderPasswordHash = await bcrypt.hash(randomUUID(), 10);
+
 	let created = 0;
 	const skipped: { row: number; reason: string }[] = [];
 
@@ -236,11 +242,10 @@ saleTicketsRouter.post('/bulk-import', asyncHandler(async (req: AuthenticatedReq
 				// placeholder único ligado al asiento para que el registro sea válido en el schema
 				// (email es obligatorio, aunque ya no @unique global) sin bloquear la importación.
 				const email = row.email || `invitado.asiento-${seatId}.evento-${eventId}@sin-correo.local`;
-				const hashed = await bcrypt.hash(randomUUID(), 10);
 				client = await prisma.user.create({
 					data: {
 						username: await uniqueUsername(prisma, email),
-						password: hashed,
+						password: placeholderPasswordHash,
 						name: row.name,
 						lastname: row.lastname,
 						email,

@@ -72,6 +72,13 @@ areasRouter.put('/:id', asyncHandler(async (req: AuthenticatedRequest, res) => {
 		res.status(400).json({ error: parsed.error.flatten() });
 		return;
 	}
+	if (parsed.data.mapId != null) {
+		const map = await prisma.map.findUnique({ where: { id: parsed.data.mapId, tenantId } });
+		if (!map) {
+			res.status(400).json({ error: 'El mapa indicado no existe' });
+			return;
+		}
+	}
 	try {
 		const area = await prisma.area.update({ where: { id, tenantId }, data: parsed.data, include });
 		res.json(area);

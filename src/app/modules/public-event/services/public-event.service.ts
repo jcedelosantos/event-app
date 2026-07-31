@@ -114,7 +114,9 @@ export type CheckoutHoldInput = {
 	provider: 'PAYPAL' | 'LINK';
 };
 
-export type CheckoutHoldResult = { holdIds: number[]; totalUSD: number; expiresAt: string };
+// `holdToken` ata este hold al comprador que lo creó — hay que devolverlo junto con `holdIds` en
+// createPaypalOrder para probar que es el mismo comprador (ver schema.prisma SaleTicket.holdToken).
+export type CheckoutHoldResult = { holdIds: number[]; holdToken: string; totalUSD: number; expiresAt: string };
 export type PaypalOrderResult = { orderId: string };
 // Sin `children` a propósito — el checkout con pago no soporta registro de hijos (ver
 // CheckoutHoldInput / public.ts).
@@ -216,8 +218,8 @@ export class PublicEventService {
 		return this.httpClient.post<CheckoutHoldResult>(`${this.baseUrl}/checkout/hold`, input);
 	}
 
-	createPaypalOrder(holdIds: number[]): Observable<PaypalOrderResult> {
-		return this.httpClient.post<PaypalOrderResult>(`${this.baseUrl}/checkout/paypal/order`, { holdIds });
+	createPaypalOrder(holdIds: number[], holdToken: string): Observable<PaypalOrderResult> {
+		return this.httpClient.post<PaypalOrderResult>(`${this.baseUrl}/checkout/paypal/order`, { holdIds, holdToken });
 	}
 
 	capturePaypalOrder(orderId: string): Observable<PaypalCaptureResult> {

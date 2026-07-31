@@ -88,6 +88,24 @@ seatsRouter.post('/bulk', asyncHandler(async (req: AuthenticatedRequest, res) =>
 	}
 
 	const tenantId = req.user!.tenantId!;
+
+	// Mismo chequeo que POST / (creación individual), pero en bloque: se validan TODOS los areaId/
+	// tableId distintos del lote de una sola vez en vez de un round-trip por fila.
+	const areaIds = [...new Set(parsed.data.seats.map((s) => s.areaId))];
+	const areaCount = await prisma.area.count({ where: { id: { in: areaIds }, tenantId } });
+	if (areaCount !== areaIds.length) {
+		res.status(400).json({ error: 'Alguna de las áreas indicadas no existe' });
+		return;
+	}
+	const tableIds = [...new Set(parsed.data.seats.map((s) => s.tableId).filter((id): id is number => id != null))];
+	if (tableIds.length) {
+		const tableCount = await prisma.table.count({ where: { id: { in: tableIds }, tenantId } });
+		if (tableCount !== tableIds.length) {
+			res.status(400).json({ error: 'Alguna de las mesas indicadas no existe' });
+			return;
+		}
+	}
+
 	const seats = await prisma.$transaction(parsed.data.seats.map((s) => prisma.seat.create({ data: { ...s, tenantId } })));
 	res.status(201).json(seats);
 }));
@@ -120,6 +138,23 @@ seatsRouter.put('/:id', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	if (!parsed.success) {
 		res.status(400).json({ error: parsed.error.flatten() });
 		return;
+	}
+
+	// Igual que en POST /: si el body trae un areaId/tableId nuevo, tiene que ser del mismo tenant —
+	// si no se manda, no se toca ninguno de los dos y no hace falta validar nada.
+	if (parsed.data.areaId != null) {
+		const area = await prisma.area.findUnique({ where: { id: parsed.data.areaId, tenantId } });
+		if (!area) {
+			res.status(400).json({ error: 'El área indicada no existe' });
+			return;
+		}
+	}
+	if (parsed.data.tableId != null) {
+		const table = await prisma.table.findUnique({ where: { id: parsed.data.tableId, tenantId } });
+		if (!table) {
+			res.status(400).json({ error: 'La mesa indicada no existe' });
+			return;
+		}
 	}
 
 	try {

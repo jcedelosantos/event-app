@@ -119,18 +119,27 @@ const MAX_INVITADO_SEATS = 2;
 				@case ('link-pending') {
 					<div class="container py-4" style="max-width: 640px;">
 						<h3>¡Ya casi, {{ registerForm.controls.name.value }}!</h3>
-						<div class="alert alert-warning">
-							Reservamos tu(s) asiento(s) por 15 minutos mientras completás el pago.
-							@if (linkPendingInfo()?.linkUrl; as linkUrl) {
-								<a [href]="linkUrl" target="_blank" rel="noopener" class="fw-bold d-block mt-2">{{ linkUrl }}</a>
-							} @else {
-								<div class="fw-bold mt-2">Coordiná el pago con la organización.</div>
-							}
-						</div>
-						<p class="text-body-secondary">
-							Total: {{ linkPendingInfo()?.totalUSD }} USD. En cuanto confirmemos tu pago te llega el código QR real a
-							{{ registerForm.controls.email.value }}.
-						</p>
+						@if (linkPendingExpired()) {
+							<div class="alert alert-danger">
+								Se venció el tiempo para pagar y tu asiento quedó libre de nuevo. Volvé a la página del evento para elegir uno.
+							</div>
+						} @else {
+							<div class="alert alert-warning">
+								Reservamos tu(s) asiento(s) mientras completás el pago
+								@if (linkPendingCountdownLabel(); as countdown) {
+									— te quedan <strong>{{ countdown }}</strong> minutos.
+								}
+								@if (linkPendingInfo()?.linkUrl; as linkUrl) {
+									<a [href]="linkUrl" target="_blank" rel="noopener" class="fw-bold d-block mt-2">{{ linkUrl }}</a>
+								} @else {
+									<div class="fw-bold mt-2">Coordiná el pago con la organización.</div>
+								}
+							</div>
+							<p class="text-body-secondary">
+								Total: {{ linkPendingInfo()?.totalUSD }} USD. En cuanto confirmemos tu pago te llega el código QR real a
+								{{ registerForm.controls.email.value }}.
+							</p>
+						}
 					</div>
 				}
 				@default {
@@ -155,19 +164,25 @@ const MAX_INVITADO_SEATS = 2;
 									<h5>1. Tus datos</h5>
 									<form [formGroup]="registerForm" class="row g-2">
 										<div class="col-md-6">
-											<input type="text" class="form-control" placeholder="Nombre" [class.is-invalid]="isInvalid('name')" formControlName="name" />
+											<label for="club-name" class="visually-hidden">Nombre</label>
+											<input id="club-name" type="text" class="form-control" placeholder="Nombre" [class.is-invalid]="isInvalid('name')" formControlName="name" />
 										</div>
 										<div class="col-md-6">
-											<input type="text" class="form-control" placeholder="Apellido (opcional)" formControlName="lastname" />
+											<label for="club-lastname" class="visually-hidden">Apellido (opcional)</label>
+											<input id="club-lastname" type="text" class="form-control" placeholder="Apellido (opcional)" formControlName="lastname" />
 										</div>
 										<div class="col-md-6">
-											<input type="email" class="form-control" placeholder="Email" [class.is-invalid]="isInvalid('email')" formControlName="email" />
+											<label for="club-email" class="visually-hidden">Email</label>
+											<input id="club-email" type="email" class="form-control" placeholder="Email" [class.is-invalid]="isInvalid('email')" formControlName="email" />
 										</div>
 										<div class="col-md-6">
-											<input type="text" class="form-control" placeholder="Teléfono" [class.is-invalid]="isInvalid('phone')" formControlName="phone" />
+											<label for="club-phone" class="visually-hidden">Teléfono</label>
+											<input id="club-phone" type="text" class="form-control" placeholder="Teléfono" [class.is-invalid]="isInvalid('phone')" formControlName="phone" />
 										</div>
 										<div class="col-md-6">
+											<label for="club-attendee-type" class="visually-hidden">¿Sos socio o invitado?</label>
 											<select
+												id="club-attendee-type"
 												class="form-select"
 												[class.is-invalid]="attendeeError() && !registerForm.controls.attendeeType.value"
 												formControlName="attendeeType"
@@ -179,7 +194,9 @@ const MAX_INVITADO_SEATS = 2;
 										</div>
 										@if (attendeeTypeValue() === 'SOCIO') {
 											<div class="col-md-6">
+												<label for="club-carnet" class="visually-hidden">Tu carnet de socio</label>
 												<input
+													id="club-carnet"
 													type="text"
 													class="form-control"
 													placeholder="Tu carnet de socio"
@@ -189,7 +206,9 @@ const MAX_INVITADO_SEATS = 2;
 											</div>
 										} @else if (attendeeTypeValue() === 'INVITADO') {
 											<div class="col-md-6">
+												<label for="club-sponsor-carnet" class="visually-hidden">Carnet del socio que te invita</label>
 												<input
+													id="club-sponsor-carnet"
 													type="text"
 													class="form-control"
 													placeholder="Carnet del socio que te invita"
@@ -335,16 +354,20 @@ const MAX_INVITADO_SEATS = 2;
 									<h5>3. Tus datos</h5>
 									<form [formGroup]="registerForm" class="row g-2">
 										<div class="col-md-6">
-											<input type="text" class="form-control" placeholder="Nombre" [class.is-invalid]="isInvalid('name')" formControlName="name" />
+											<label for="general-name" class="visually-hidden">Nombre</label>
+											<input id="general-name" type="text" class="form-control" placeholder="Nombre" [class.is-invalid]="isInvalid('name')" formControlName="name" />
 										</div>
 										<div class="col-md-6">
-											<input type="text" class="form-control" placeholder="Apellido (opcional)" formControlName="lastname" />
+											<label for="general-lastname" class="visually-hidden">Apellido (opcional)</label>
+											<input id="general-lastname" type="text" class="form-control" placeholder="Apellido (opcional)" formControlName="lastname" />
 										</div>
 										<div class="col-md-6">
-											<input type="email" class="form-control" placeholder="Email" [class.is-invalid]="isInvalid('email')" formControlName="email" />
+											<label for="general-email" class="visually-hidden">Email</label>
+											<input id="general-email" type="email" class="form-control" placeholder="Email" [class.is-invalid]="isInvalid('email')" formControlName="email" />
 										</div>
 										<div class="col-md-6">
-											<input type="text" class="form-control" placeholder="Teléfono" [class.is-invalid]="isInvalid('phone')" formControlName="phone" />
+											<label for="general-phone" class="visually-hidden">Teléfono</label>
+											<input id="general-phone" type="text" class="form-control" placeholder="Teléfono" [class.is-invalid]="isInvalid('phone')" formControlName="phone" />
 										</div>
 									</form>
 								</div>
@@ -822,7 +845,32 @@ export class PublicEventComponent implements OnInit {
 	// --- Checkout con pago (Event.paymentMode) ---------------------------------------------------
 	checkingOut = signal(false);
 	linkPendingInfo = signal<{ linkUrl: string | null; totalUSD: number } | null>(null);
+	// Cuenta regresiva real del hold (antes se mostraba un texto fijo de "15 minutos" sin avisar
+	// cuando de verdad venció — alguien podía pagar tarde un asiento que ya se había liberado y
+	// revendido sin ningún aviso en pantalla). null = todavía no se calculó el primer tick.
+	linkPendingSecondsLeft = signal<number | null>(null);
+	linkPendingExpired = computed(() => this.linkPendingSecondsLeft() === 0);
 	private paypalButtonsRendered = false;
+
+	private startLinkPendingCountdown(expiresAt: string): void {
+		const deadline = new Date(expiresAt).getTime();
+		const tick = () => {
+			const secondsLeft = Math.max(0, Math.round((deadline - Date.now()) / 1000));
+			this.linkPendingSecondsLeft.set(secondsLeft);
+			if (secondsLeft === 0) clearInterval(intervalId);
+		};
+		tick();
+		const intervalId = setInterval(tick, 1000);
+		this.destroyRef.onDestroy(() => clearInterval(intervalId));
+	}
+
+	linkPendingCountdownLabel(): string {
+		const seconds = this.linkPendingSecondsLeft();
+		if (seconds == null) return '';
+		const m = Math.floor(seconds / 60);
+		const s = seconds % 60;
+		return `${m}:${s.toString().padStart(2, '0')}`;
+	}
 
 	// Único gatekeeper de "se puede comprar" — cubre tanto entrar por la portada de la organización
 	// (que ya oculta/etiqueta estos casos) como entrar directo por un QR/link viejo que se saltea esa
@@ -1468,6 +1516,7 @@ export class PublicEventComponent implements OnInit {
 			next: (hold) => {
 				this.checkingOut.set(false);
 				this.linkPendingInfo.set({ linkUrl: event.payment?.linkUrl ?? null, totalUSD: hold.totalUSD });
+				this.startLinkPendingCountdown(hold.expiresAt);
 				this.step.set('link-pending');
 			},
 			error: (err: HttpErrorResponse) => {
@@ -1499,7 +1548,7 @@ export class PublicEventComponent implements OnInit {
 						}
 						this.checkingOut.set(true);
 						const hold = await firstValueFrom(this.publicEventService.holdCheckout(this.buildCheckoutHoldInput(event, 'PAYPAL')));
-						const order = await firstValueFrom(this.publicEventService.createPaypalOrder(hold.holdIds));
+						const order = await firstValueFrom(this.publicEventService.createPaypalOrder(hold.holdIds, hold.holdToken));
 						return order.orderId;
 					},
 					onApprove: async (data: { orderID: string }) => {

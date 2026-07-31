@@ -418,6 +418,12 @@ model SaleTicket {
   // reservar ESE asiento borra la fila vieja antes de crear la nueva (ver public.ts), sin necesitar
   // un cron aparte.
   paymentExpiresAt DateTime?
+  // Secreto random compartido por todos los SaleTicket de un mismo hold (ver POST /checkout/hold) —
+  // sin esto, POST /checkout/paypal/order solo recibía los `holdIds` (ids autoincrementales, fáciles
+  // de adivinar) y cualquiera podía crear una orden PayPal real contra la cuenta de OTRO comprador.
+  // El frontend tiene que devolver este valor junto con los holdIds para poder avanzar el pago — solo
+  // seteado mientras paymentStatus = PENDING, null en cualquier venta manual/sin cobro online.
+  holdToken String?
 
   // Un mismo asiento no se puede vender dos veces para el mismo evento.
   @@unique([eventId, seatId])

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, Input, OnInit, computed, inject, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, Input, OnChanges, OnInit, SimpleChanges, computed, inject, output, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Events } from '../../../../../models/events/events';
 import { Ticket } from '../../../../../models/tickets/ticket';
@@ -65,7 +65,7 @@ import { EventsService, WaitingRoomStats } from '../../services/events.service';
 	styleUrl: './event-card.component.css',
 	changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class EventCardComponent implements OnInit {
+export class EventCardComponent implements OnInit, OnChanges {
 	private readonly authService = inject(AuthService);
 	private readonly eventsService = inject(EventsService);
 	private readonly destroyRef = inject(DestroyRef);
@@ -85,23 +85,47 @@ export class EventCardComponent implements OnInit {
 	// null mientras no se cargó el primer poll (o si el evento no tiene sala de espera) — el badge del
 	// template solo aparece con datos reales, nunca parpadea un "0 en fila" de arranque.
 	waitingRoomStats = signal<WaitingRoomStats | null>(null);
+	private waitingRoomPollIntervalId: ReturnType<typeof setInterval> | null = null;
+
+	ngOnInit(): void {
+		this.syncWaitingRoomPolling();
+		this.destroyRef.onDestroy(() => {
+			if (this.waitingRoomPollIntervalId != null) clearInterval(this.waitingRoomPollIntervalId);
+		});
+	}
+
+	// `@for (...; track event.id)` en events.component.ts reusa esta MISMA instancia cuando la lista
+	// se recarga (ej. tras crear/editar otro evento) — `event` como @Input cambia de referencia en
+	// cada recarga, pero `ngOnInit` no vuelve a correr. Sin `ngOnChanges`, si un manager prende la sala
+	// de espera de este evento con la página de Events Manager ya abierta, el polling nunca arrancaba
+	// hasta recargar la página entera (bug real reportado en la revisión).
+	ngOnChanges(changes: SimpleChanges): void {
+		if (changes['event']) this.syncWaitingRoomPolling();
+	}
 
 	// Pollea solo si esta tarjeta corresponde a un evento con sala de espera prendida — para el resto
 	// (la gran mayoría) esto no dispara ningún request, mismo espíritu que joinWaitingRoom en el
 	// picker público (cero costo para quien no usa la feature). 5s de intervalo: es una vista de
 	// manager mirando la fila en vivo, no hace falta la latencia más ajustada del lado del comprador.
-	ngOnInit(): void {
-		if (!this.event.waitingRoomEnabled) return;
-		const poll = () => {
-			this.eventsService.getWaitingRoomStats(this.event.id).subscribe({
-				next: (stats) => this.waitingRoomStats.set(stats),
-				// Un poll fallido no debe hacer parpadear el badge a "sin datos" — se reintenta solo.
-				error: () => {},
-			});
-		};
-		poll();
-		const intervalId = setInterval(poll, 5000);
-		this.destroyRef.onDestroy(() => clearInterval(intervalId));
+	// Idempotente: no crea un segundo interval si ya está pollenado, y lo apaga si la sala de espera
+	// se desactiva (ej. el manager edita el evento y la destildó).
+	private syncWaitingRoomPolling(): void {
+		if (this.event.waitingRoomEnabled) {
+			if (this.waitingRoomPollIntervalId != null) return;
+			const poll = () => {
+				this.eventsService.getWaitingRoomStats(this.event.id).subscribe({
+					next: (stats) => this.waitingRoomStats.set(stats),
+					// Un poll fallido no debe hacer parpadear el badge a "sin datos" — se reintenta solo.
+					error: () => {},
+				});
+			};
+			poll();
+			this.waitingRoomPollIntervalId = setInterval(poll, 5000);
+		} else if (this.waitingRoomPollIntervalId != null) {
+			clearInterval(this.waitingRoomPollIntervalId);
+			this.waitingRoomPollIntervalId = null;
+			this.waitingRoomStats.set(null);
+		}
 	}
 
 	isScheduled(): boolean {

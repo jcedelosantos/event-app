@@ -96,8 +96,11 @@ usersRouter.put('/:id', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const typeId = userType ? (await prisma.userType.findFirst({ where: { type: userType } }))?.id : undefined;
 
 	try {
+		// `tenantId` en el where (además del `findFirst` de arriba) — User no está en tenant-guard
+		// (ver lib/tenant-guard.ts), así que esta es la única red de seguridad si el `findFirst` de
+		// arriba alguna vez se reordena o se borra en un refactor futuro.
 		const user = await prisma.user.update({
-			where: { id },
+			where: { id, tenantId },
 			data: {
 				...data,
 				...(password ? { password: await bcrypt.hash(password, 10) } : {}),
@@ -141,7 +144,8 @@ usersRouter.delete('/:id', asyncHandler(async (req: AuthenticatedRequest, res) =
 	}
 
 	try {
-		const user = await prisma.user.delete({ where: { id } });
+		// Mismo motivo que el PUT de arriba: `tenantId` en el where como red de seguridad adicional.
+		const user = await prisma.user.delete({ where: { id, tenantId } });
 		await logAudit({ tenantId, userId: req.user!.userId, action: 'DELETE', entity: 'User', entityId: id, summary: `Borró el usuario "${user.username}"` });
 		res.status(204).send();
 	} catch (err: any) {
