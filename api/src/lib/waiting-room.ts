@@ -87,11 +87,11 @@ async function getConfig(code: string, state: EventQueueState): Promise<CachedCo
 	return config;
 }
 
-// Única función con lógica real, 100% síncrona a propósito — todo el `await` de config se resuelve
-// ANTES de llamar a esto, para que dos requests concurrentes al mismo evento no se pisen mutaciones
-// de `queue`/`admitted` en medio de un `await` (Node es single-threaded pero un `await` sí cede el
-// control a otro request).
-function computeAdmission(state: EventQueueState, sessionId: string, batchSize: number, now: number): { admitted: boolean; position: number | null } {
+// Compartida entre computeAdmission (que además muta queue/admitted) y getWaitingRoomStats (que solo
+// necesita un conteo actualizado, sin sessionId propio) — mismo criterio de vencimiento en los dos
+// casos, para que el número que ve el manager coincida con lo que realmente va a pasar en el próximo
+// join/poll de un visitante.
+function pruneExpired(state: EventQueueState, now: number) {
 	// Poda admitidos cuya ventana ya venció.
 	for (const [sid, entry] of state.admitted) {
 		if (now - entry.admittedAt > ADMISSION_WINDOW_MS) {
@@ -104,6 +104,14 @@ function computeAdmission(state: EventQueueState, sessionId: string, batchSize: 
 			state.queue.delete(sid);
 		}
 	}
+}
+
+// Única función con lógica real, 100% síncrona a propósito — todo el `await` de config se resuelve
+// ANTES de llamar a esto, para que dos requests concurrentes al mismo evento no se pisen mutaciones
+// de `queue`/`admitted` en medio de un `await` (Node es single-threaded pero un `await` sí cede el
+// control a otro request).
+function computeAdmission(state: EventQueueState, sessionId: string, batchSize: number, now: number): { admitted: boolean; position: number | null } {
+	pruneExpired(state, now);
 
 	// Idempotente por sessionId: si ya está admitido (incluye el caso de pestaña duplicada, que
 	// copia el sessionId de sessionStorage), no hay nada más que hacer.
@@ -199,4 +207,20 @@ export async function getWaitingRoomStatus(code: string, sessionId: string): Pro
 		eventName: config.eventName,
 		eventImg: config.eventImg,
 	};
+}
+
+export type WaitingRoomStats = { queueCount: number; admittedCount: number };
+
+// Vista de solo lectura para el manager (ver GET /events/:id/waiting-room/stats) — no crea estado
+// nuevo para el evento si nadie hizo join todavía (a diferencia de join/status, que sí lo crean),
+// así que consultar las stats de un evento sin visitantes no deja un Map vacío dando vueltas en
+// memoria. Poda antes de contar para no mostrarle al manager gente que ya venció.
+export function getWaitingRoomStats(code: string): WaitingRoomStats {
+	const state = statesByEventCode.get(code);
+	if (!state) {
+		return { queueCount: 0, admittedCount: 0 };
+	}
+	pruneExpired(state, Date.now());
+	pruneStateIfEmpty(code, state);
+	return { queueCount: state.queue.size, admittedCount: state.admitted.size };
 }

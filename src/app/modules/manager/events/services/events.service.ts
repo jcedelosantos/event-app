@@ -28,6 +28,8 @@ export type EventInput = {
 	waitingRoomBatchSize?: number | null;
 };
 
+export type WaitingRoomStats = { queueCount: number; admittedCount: number };
+
 @Injectable({
 	providedIn: 'root',
 })
@@ -37,6 +39,12 @@ export class EventsService {
 
 	getEvents(): Observable<Events[]> {
 		return this.httpClient.get<Events[]>(this.baseUrl).pipe(map((events) => events.map(reviveDates)));
+	}
+
+	// Cuánta gente hay ahora mismo en la fila/admitida (ver lib/waiting-room.ts) — solo tiene sentido
+	// pollearlo mientras el evento tiene waitingRoomEnabled prendido (ver event-card.component.ts).
+	getWaitingRoomStats(id: number): Observable<WaitingRoomStats> {
+		return this.httpClient.get<WaitingRoomStats>(`${this.baseUrl}/${id}/waiting-room/stats`);
 	}
 
 	getEvent(id: number): Observable<Events> {

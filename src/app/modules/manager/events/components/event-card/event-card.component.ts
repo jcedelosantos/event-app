@@ -1,9 +1,10 @@
-import { ChangeDetectionStrategy, Component, Input, computed, inject, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, Input, OnInit, computed, inject, output, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Events } from '../../../../../models/events/events';
 import { Ticket } from '../../../../../models/tickets/ticket';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../../../../core/services/auth.service';
+import { EventsService, WaitingRoomStats } from '../../services/events.service';
 
 @Component({
 	selector: 'event-card',
@@ -33,6 +34,13 @@ import { AuthService } from '../../../../../core/services/auth.service';
 							<i class="bi bi-clock-history"></i> Programado
 						</span>
 					}
+					@if (waitingRoomStats(); as stats) {
+						@if (stats.queueCount > 0 || stats.admittedCount > 0) {
+							<span class="badge text-bg-info" [title]="stats.admittedCount + ' admitido(s) ahora mismo'">
+								<i class="bi bi-hourglass-split"></i> {{ stats.queueCount }} en fila
+							</span>
+						}
+					}
 					<hr class="my-1" />
 
 					<p class="card-text small mb-1 event-description" [title]="event.description">{{ event.description }}</p>
@@ -57,8 +65,10 @@ import { AuthService } from '../../../../../core/services/auth.service';
 	styleUrl: './event-card.component.css',
 	changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class EventCardComponent {
+export class EventCardComponent implements OnInit {
 	private readonly authService = inject(AuthService);
+	private readonly eventsService = inject(EventsService);
+	private readonly destroyRef = inject(DestroyRef);
 
 	// Solo los tenants tipo CLUB reemplazan VIP/Normal por Socio/Invitado en la tarjeta — el resto
 	// de las organizaciones sigue viendo el nombre real del tipo de ticket.
@@ -71,6 +81,28 @@ export class EventCardComponent {
 	editEvent = output<Events>();
 	duplicateEvent = output<Events>();
 	deleteEvent = output<Events>();
+
+	// null mientras no se cargó el primer poll (o si el evento no tiene sala de espera) — el badge del
+	// template solo aparece con datos reales, nunca parpadea un "0 en fila" de arranque.
+	waitingRoomStats = signal<WaitingRoomStats | null>(null);
+
+	// Pollea solo si esta tarjeta corresponde a un evento con sala de espera prendida — para el resto
+	// (la gran mayoría) esto no dispara ningún request, mismo espíritu que joinWaitingRoom en el
+	// picker público (cero costo para quien no usa la feature). 5s de intervalo: es una vista de
+	// manager mirando la fila en vivo, no hace falta la latencia más ajustada del lado del comprador.
+	ngOnInit(): void {
+		if (!this.event.waitingRoomEnabled) return;
+		const poll = () => {
+			this.eventsService.getWaitingRoomStats(this.event.id).subscribe({
+				next: (stats) => this.waitingRoomStats.set(stats),
+				// Un poll fallido no debe hacer parpadear el badge a "sin datos" — se reintenta solo.
+				error: () => {},
+			});
+		};
+		poll();
+		const intervalId = setInterval(poll, 5000);
+		this.destroyRef.onDestroy(() => clearInterval(intervalId));
+	}
 
 	isScheduled(): boolean {
 		return !!this.event.publishAt && new Date(this.event.publishAt) > new Date();

@@ -6,6 +6,7 @@ import { requireAuth, requireTenant, AuthenticatedRequest } from '../middleware/
 import { asyncHandler } from '../lib/async-handler';
 import { logAudit } from '../lib/audit';
 import { findDuplicateEventSlot } from '../lib/find-duplicate-event-slot';
+import { getWaitingRoomStats } from '../lib/waiting-room';
 
 export const eventsRouter = Router();
 eventsRouter.use(requireAuth, requireTenant);
@@ -71,6 +72,21 @@ eventsRouter.get('/:id', asyncHandler(async (req: AuthenticatedRequest, res) => 
 		return;
 	}
 	res.json(event);
+}));
+
+// Cuántas personas hay ahora mismo en la fila/admitidas para este evento (ver lib/waiting-room.ts) —
+// solo tiene sentido si waitingRoomEnabled está prendido, pero no hace falta chequearlo acá: si nunca
+// hubo un join, getWaitingRoomStats devuelve 0/0 sin tocar la DB de nuevo (el estado vive 100% en
+// memoria, separado del registro del evento).
+eventsRouter.get('/:id/waiting-room/stats', asyncHandler(async (req: AuthenticatedRequest, res) => {
+	const id = Number(req.params.id);
+	const tenantId = req.user!.tenantId!;
+	const event = await prisma.event.findUnique({ where: { id, tenantId }, select: { code: true } });
+	if (!event) {
+		res.status(404).json({ error: 'Evento no encontrado' });
+		return;
+	}
+	res.json(getWaitingRoomStats(event.code));
 }));
 
 eventsRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
