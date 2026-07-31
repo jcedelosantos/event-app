@@ -345,7 +345,12 @@ publicRouter.post('/purchase', checkoutRateLimiter, asyncHandler(async (req, res
 		return;
 	}
 
-	if (await isClubTenant(tenantId)) {
+	const isClub = await isClubTenant(tenantId);
+	// Un club normalmente vende por socio/invitado, pero un ticket cargado desde un flyer por
+	// WhatsApp puede venir sin esa clasificación (ej. tickets por edad) — la regla socio/invitado
+	// solo tiene sentido si ESTE ticket puntual participa de ese modelo (mismo criterio que
+	// public-event.component.ts, eventUsesAttendeeTypeTickets).
+	if (isClub && ticket.attendeeType != null) {
 		const attendeeError = await validateAttendeeRule({
 			tenantId,
 			eventId: event.id,
@@ -358,7 +363,10 @@ publicRouter.post('/purchase', checkoutRateLimiter, asyncHandler(async (req, res
 			res.status(400).json({ error: attendeeError });
 			return;
 		}
-
+	}
+	// "Misma función, otra fecha" es independiente del modelo de tickets del evento — aplica a
+	// cualquier evento CLUB dentro de un grupo vinculado, tenga o no tickets socio/invitado.
+	if (isClub) {
 		const duplicateError = await checkDuplicateEventRegistration({
 			tenantId,
 			eventId: event.id,
@@ -579,7 +587,12 @@ publicRouter.post('/checkout/hold', checkoutRateLimiter, asyncHandler(async (req
 		return;
 	}
 
-	if (await isClubTenant(tenantId)) {
+	const isClub = await isClubTenant(tenantId);
+	// Un club normalmente vende por socio/invitado, pero un ticket cargado desde un flyer por
+	// WhatsApp puede venir sin esa clasificación (ej. tickets por edad) — la regla socio/invitado
+	// solo tiene sentido si ESTE ticket puntual participa de ese modelo (mismo criterio que
+	// public-event.component.ts, eventUsesAttendeeTypeTickets).
+	if (isClub && ticket.attendeeType != null) {
 		const attendeeError = await validateAttendeeRule({
 			tenantId,
 			eventId: event.id,
@@ -592,7 +605,10 @@ publicRouter.post('/checkout/hold', checkoutRateLimiter, asyncHandler(async (req
 			res.status(400).json({ error: attendeeError });
 			return;
 		}
-
+	}
+	// "Misma función, otra fecha" es independiente del modelo de tickets del evento — aplica a
+	// cualquier evento CLUB dentro de un grupo vinculado, tenga o no tickets socio/invitado.
+	if (isClub) {
 		const duplicateError = await checkDuplicateEventRegistration({
 			tenantId,
 			eventId: event.id,

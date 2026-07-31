@@ -159,7 +159,7 @@ const MAX_INVITADO_SEATS = 2;
 							@if (purchaseBlockedReason(); as reason) {
 								<div class="alert alert-warning">{{ reason }}</div>
 							} @else {
-							@if (ev.tenantType === 'CLUB') {
+							@if (ev.tenantType === 'CLUB' && usesAttendeeTypeTickets()) {
 								<div class="mb-4">
 									<h5>1. Tus datos</h5>
 									<form [formGroup]="registerForm" class="row g-2">
@@ -349,7 +349,7 @@ const MAX_INVITADO_SEATS = 2;
 								</div>
 							}
 
-							@if (ev.tenantType !== 'CLUB') {
+							@if (ev.tenantType !== 'CLUB' || !usesAttendeeTypeTickets()) {
 								<div class="mb-4">
 									<h5>3. Tus datos</h5>
 									<form [formGroup]="registerForm" class="row g-2">
@@ -928,13 +928,28 @@ export class PublicEventComponent implements OnInit {
 	// vía valueChanges (ver constructor).
 	attendeeTypeValue = signal<AttendeeType | ''>('');
 
-	// En tenants CLUB, el ticket lo define automáticamente la respuesta a "¿Sos socio o invitado?"
-	// (ver 1. Tus datos) — el comprador nunca elige un ticket a mano ahí. En el resto, sigue siendo
-	// el que se clickeó en el paso 1.
+	// Un club normalmente vende por socio/invitado, pero un evento cargado desde un flyer por
+	// WhatsApp puede traer tickets clasificados de otra forma (ej. "Niños"/"14 años o más", por
+	// edad) — ninguno con attendeeType asignado. Sin este chequeo, un tenant CLUB siempre intentaba
+	// resolver el ticket por la respuesta socio/invitado aunque NINGÚN ticket del evento use ese
+	// modelo, y nunca encontraba match — bloqueaba la compra entera para cualquier comprador (bug
+	// real reportado en producción con "Acampada en Cabamar 2026"). Si el evento no tiene ningún
+	// ticket con attendeeType, se trata como un tenant no-CLUB: elección manual del ticket.
+	private eventUsesAttendeeTypeTickets(ev: PublicEvent): boolean {
+		return ev.tickets.some((t) => t.attendeeType != null);
+	}
+	usesAttendeeTypeTickets = computed(() => {
+		const ev = this.event();
+		return !!ev && this.eventUsesAttendeeTypeTickets(ev);
+	});
+
+	// En tenants CLUB con tickets socio/invitado, el ticket lo define automáticamente la respuesta a
+	// "¿Sos socio o invitado?" (ver 1. Tus datos) — el comprador nunca elige un ticket a mano ahí. En
+	// el resto (no-CLUB, o CLUB sin ese modelo de tickets), sigue siendo el que se clickeó en el paso 1.
 	activeTicket = computed(() => {
 		const ev = this.event();
 		if (!ev) return null;
-		if (ev.tenantType === 'CLUB') {
+		if (ev.tenantType === 'CLUB' && this.usesAttendeeTypeTickets()) {
 			const type = this.attendeeTypeValue();
 			if (!type) return null;
 			return ev.tickets.find((t) => t.attendeeType === type) ?? null;
@@ -1133,7 +1148,7 @@ export class PublicEventComponent implements OnInit {
 		const ev = this.event();
 		if (!ev || !this.activeTicketId()) return false;
 		if (this.duplicateEventBlockReason()) return false;
-		if (ev.tenantType !== 'CLUB') return true;
+		if (ev.tenantType !== 'CLUB' || !this.usesAttendeeTypeTickets()) return true;
 
 		const type = this.attendeeTypeValue();
 		if (!type) return false;
@@ -1157,7 +1172,7 @@ export class PublicEventComponent implements OnInit {
 		if (this.duplicateEventBlockReason()) {
 			return this.duplicateEventBlockReason()!;
 		}
-		if (ev.tenantType !== 'CLUB') {
+		if (ev.tenantType !== 'CLUB' || !this.usesAttendeeTypeTickets()) {
 			return 'Elegí primero un tipo de ticket arriba para poder elegir tu(s) asiento(s).';
 		}
 		const type = this.attendeeTypeValue();
@@ -1383,7 +1398,8 @@ export class PublicEventComponent implements OnInit {
 
 		const { name, lastname, email, phone, carnet, attendeeType, sponsorCarnet } = this.registerForm.getRawValue();
 
-		if (event.tenantType === 'CLUB') {
+		const usesAttendeeType = event.tenantType === 'CLUB' && this.eventUsesAttendeeTypeTickets(event);
+		if (usesAttendeeType) {
 			if (!attendeeType) {
 				this.attendeeError.set('Elegí si sos socio o invitado.');
 				return;
@@ -1410,7 +1426,7 @@ export class PublicEventComponent implements OnInit {
 			return;
 		}
 
-		if (event.tenantType === 'CLUB') {
+		if (usesAttendeeType) {
 			if (attendeeType === 'SOCIO' && !carnet?.trim()) {
 				this.attendeeError.set('Ingresá tu carnet de socio.');
 				return;
@@ -1433,7 +1449,7 @@ export class PublicEventComponent implements OnInit {
 				ticketId: this.activeTicketId()!,
 				client: { name: name!, lastname: lastname!, email: email!, phone: phone!, carnet: carnet ?? '' },
 				seatIds: Array.from(this.selectedSeatIds()),
-				...(event.tenantType === 'CLUB' ? { attendeeType: attendeeType as AttendeeType, sponsorCarnet: sponsorCarnet ?? undefined } : {}),
+				...(usesAttendeeType ? { attendeeType: attendeeType as AttendeeType, sponsorCarnet: sponsorCarnet ?? undefined } : {}),
 				...(event.tenantType === 'CHURCH' && this.childrenDraft().length
 					? {
 							children: this.childrenDraft().map((c) => ({
@@ -1468,7 +1484,8 @@ export class PublicEventComponent implements OnInit {
 		if (this.duplicateEventBlockReason()) return this.duplicateEventBlockReason();
 
 		const { carnet, attendeeType, sponsorCarnet } = this.registerForm.getRawValue();
-		if (event.tenantType === 'CLUB') {
+		const usesAttendeeType = event.tenantType === 'CLUB' && this.eventUsesAttendeeTypeTickets(event);
+		if (usesAttendeeType) {
 			if (!attendeeType) return 'Elegí si sos socio o invitado.';
 			if (this.sponsorBlocked()) return this.sponsorBlockMessage(sponsorCarnet?.trim() ?? '');
 			if (!this.activeTicketId()) {
@@ -1482,7 +1499,7 @@ export class PublicEventComponent implements OnInit {
 			this.registerForm.markAllAsTouched();
 			return 'Completá tus datos.';
 		}
-		if (event.tenantType === 'CLUB') {
+		if (usesAttendeeType) {
 			if (attendeeType === 'SOCIO' && !carnet?.trim()) return 'Ingresá tu carnet de socio.';
 			if (attendeeType === 'INVITADO' && !sponsorCarnet?.trim()) return 'Ingresá el carnet del socio que te invita.';
 		}
@@ -1491,12 +1508,13 @@ export class PublicEventComponent implements OnInit {
 
 	private buildCheckoutHoldInput(event: PublicEvent, provider: 'PAYPAL' | 'LINK'): CheckoutHoldInput {
 		const { name, lastname, email, phone, carnet, attendeeType, sponsorCarnet } = this.registerForm.getRawValue();
+		const usesAttendeeType = event.tenantType === 'CLUB' && this.eventUsesAttendeeTypeTickets(event);
 		return {
 			eventCode: event.code,
 			ticketId: this.activeTicketId()!,
 			client: { name: name!, lastname: lastname!, email: email!, phone: phone!, carnet: carnet ?? '' },
 			seatIds: Array.from(this.selectedSeatIds()),
-			...(event.tenantType === 'CLUB' ? { attendeeType: attendeeType as AttendeeType, sponsorCarnet: sponsorCarnet ?? undefined } : {}),
+			...(usesAttendeeType ? { attendeeType: attendeeType as AttendeeType, sponsorCarnet: sponsorCarnet ?? undefined } : {}),
 			provider,
 		};
 	}

@@ -82,17 +82,25 @@ saleTicketsRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res) 
 		return;
 	}
 
-	if (await isClubTenant(tenantId)) {
-		const attendeeError = await validateAttendeeRule({
-			tenantId,
-			eventId: parsed.data.eventId,
-			attendeeType: parsed.data.attendeeType,
-			sponsorCarnet: parsed.data.sponsorCarnet,
-			clientCarnet: client?.carnet,
-		});
-		if (attendeeError) {
-			res.status(400).json({ error: attendeeError });
-			return;
+	const isClub = await isClubTenant(tenantId);
+	// Un club normalmente vende por socio/invitado, pero un ticket cargado desde un flyer por
+	// WhatsApp puede venir sin esa clasificación (ej. tickets por edad) — la regla socio/invitado
+	// solo tiene sentido si ESTE ticket puntual participa de ese modelo (mismo criterio que
+	// public-event.component.ts, eventUsesAttendeeTypeTickets).
+	if (isClub) {
+		const ticketForAttendeeCheck = await prisma.ticket.findFirst({ where: { id: parsed.data.ticketId, tenantId }, select: { attendeeType: true } });
+		if (ticketForAttendeeCheck?.attendeeType != null) {
+			const attendeeError = await validateAttendeeRule({
+				tenantId,
+				eventId: parsed.data.eventId,
+				attendeeType: parsed.data.attendeeType,
+				sponsorCarnet: parsed.data.sponsorCarnet,
+				clientCarnet: client?.carnet,
+			});
+			if (attendeeError) {
+				res.status(400).json({ error: attendeeError });
+				return;
+			}
 		}
 
 		const duplicateError = await checkDuplicateEventRegistration({
