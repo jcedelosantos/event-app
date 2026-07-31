@@ -17,4 +17,10 @@ export class SettingsService {
 	setSetting(key: string, value: string): Observable<{ key: string; value: string }> {
 		return this.httpClient.put<{ key: string; value: string }>(`${this.baseUrl}/${key}`, { value });
 	}
+
+	// Logo del tenant — no es una AppSetting más, vive directo en Tenant.logoUrl (ver settings.ts
+	// backend), por eso tiene su propio endpoint en vez de reusar setSetting().
+	setLogo(logoUrl: string | null): Observable<{ logoUrl: string | null }> {
+		return this.httpClient.put<{ logoUrl: string | null }>(`${this.baseUrl}/logo`, { logoUrl });
+	}
 }

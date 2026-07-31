@@ -15,5 +15,5 @@ export interface User {
 	adress: string;
 	phone: string | number;
 	// null solo para la cuenta de Super Admin — no pertenece a ninguna organización.
-	tenant?: { id: number; name: string; type: TenantType; slug: string } | null;
+	tenant?: { id: number; name: string; type: TenantType; slug: string; logoUrl?: string | null } | null;
 }

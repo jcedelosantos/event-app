@@ -4,6 +4,7 @@ import { Observable, forkJoin } from 'rxjs';
 import { SettingsService } from '../../../core/services/settings.service';
 import { ACCENT_SETTING_KEY, DEFAULT_ACCENT, ThemeService } from '../../../core/services/theme.service';
 import { AuthService } from '../../../core/services/auth.service';
+import { UploadsService } from '../../../core/services/uploads.service';
 import { extractErrorMessage } from '../../../utils/api-error';
 import { QRCodeComponent } from 'angularx-qrcode';
 import { environment } from '../../../../environments/environment';
@@ -71,6 +72,37 @@ const PRESETS = [
 					<span class="badge text-bg-danger">Badge</span>
 					<span class="text-danger small align-self-center">Texto destacado</span>
 				</div>
+			</div>
+		</div>
+
+		<h2 class="section-title mt-4">Logo</h2>
+		<p class="text-body-secondary small">
+			Se muestra en pantallas públicas de marca propia de tu organización (ej. la sala de espera virtual del picker de eventos).
+		</p>
+		<div class="card" style="max-width: 480px;">
+			<div class="card-body">
+				<div class="d-flex align-items-center gap-3 mb-3">
+					@if (logoUrl(); as logo) {
+						<img [src]="logo" alt="" class="logo-preview" />
+					} @else {
+						<div class="logo-preview logo-preview-empty"><i class="bi bi-image" aria-hidden="true"></i></div>
+					}
+					<div class="flex-grow-1">
+						<input type="file" accept="image/*" class="form-control form-control-sm" (change)="onLogoSelected($event)" [disabled]="uploadingLogo()" />
+						@if (uploadingLogo()) {
+							<div class="form-text">Subiendo...</div>
+						}
+						@if (logoUrl()) {
+							<button type="button" class="btn btn-link btn-sm p-0 mt-1" [disabled]="uploadingLogo()" (click)="removeLogo()">Quitar logo</button>
+						}
+					</div>
+				</div>
+				@if (logoSaved()) {
+					<span class="text-success small"><i class="bi bi-check-circle" aria-hidden="true"></i> Guardado</span>
+				}
+				@if (logoError()) {
+					<div class="text-danger small mt-2">{{ logoError() }}</div>
+				}
 			</div>
 		</div>
 
@@ -260,6 +292,7 @@ export class SettingsComponent implements OnInit {
 	private readonly settingsService = inject(SettingsService);
 	private readonly themeService = inject(ThemeService);
 	private readonly authService = inject(AuthService);
+	private readonly uploadsService = inject(UploadsService);
 
 	presets = PRESETS;
 	accent = signal(DEFAULT_ACCENT);
@@ -301,6 +334,54 @@ export class SettingsComponent implements OnInit {
 		const slug = this.authService.currentUser()?.tenant?.slug;
 		return slug ? `${window.location.origin}/o/${slug}` : null;
 	});
+
+	logoUrl = computed(() => this.authService.currentUser()?.tenant?.logoUrl ?? null);
+	uploadingLogo = signal(false);
+	logoSaved = signal(false);
+	logoError = signal('');
+
+	onLogoSelected(event: Event) {
+		const input = event.target as HTMLInputElement;
+		const file = input.files?.[0];
+		if (!file) return;
+
+		this.uploadingLogo.set(true);
+		this.logoError.set('');
+		this.uploadsService.uploadImage(file).subscribe({
+			next: ({ url }) => this.saveLogo(`${environment.apiUrl}${url}`),
+			error: (err: HttpErrorResponse) => {
+				this.uploadingLogo.set(false);
+				this.logoError.set(extractErrorMessage(err));
+			},
+		});
+	}
+
+	removeLogo() {
+		this.saveLogo(null);
+	}
+
+	private saveLogo(logoUrl: string | null) {
+		this.uploadingLogo.set(true);
+		this.logoSaved.set(false);
+		this.logoError.set('');
+		this.settingsService.setLogo(logoUrl).subscribe({
+			next: () => {
+				this.uploadingLogo.set(false);
+				this.logoSaved.set(true);
+				// Actualiza currentUser en el momento — sin esto, el logo nuevo no se reflejaría acá (ni en
+				// cualquier otra pantalla que lo use, ver public-event.component.ts) hasta el próximo login.
+				const current = this.authService.currentUser();
+				if (current?.tenant) {
+					this.authService.currentUser.set({ ...current, tenant: { ...current.tenant, logoUrl } });
+				}
+				setTimeout(() => this.logoSaved.set(false), 2000);
+			},
+			error: (err: HttpErrorResponse) => {
+				this.uploadingLogo.set(false);
+				this.logoError.set(extractErrorMessage(err));
+			},
+		});
+	}
 
 	// El backend expone este mismo webhook bajo /public (ver routes/public.ts) — el slug del tenant en
 	// la URL es lo único que identifica a qué club pertenece cada mensaje entrante, antes de leer nada

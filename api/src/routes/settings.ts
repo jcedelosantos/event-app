@@ -45,6 +45,30 @@ settingsRouter.get('/', asyncHandler(async (req, res) => {
 	res.json(result);
 }));
 
+// Logo de la organización — a propósito NO es una AppSetting más: es un asset real y permanente
+// del tenant (como name/slug), no un par clave/valor de configuración, así que vive directo en
+// Tenant.logoUrl (ver schema.prisma). Se sube primero con el mismo endpoint de imágenes que ya usan
+// los eventos (POST /uploads) y acá solo se guarda la URL resultante.
+//
+// Registrada ANTES de PUT /:key a propósito: Express matchea rutas en orden de registro, y "/logo"
+// también matchea el patrón genérico ":key" — si este bloque fuera después, cada request a
+// PUT /settings/logo terminaría en el handler equivocado (esperando `{ value }` en vez de
+// `{ logoUrl }`, error real encontrado en pruebas).
+const logoSchema = z.object({ logoUrl: z.string().min(1).max(500).nullable() });
+
+settingsRouter.put('/logo', requireAuth, requireTenant, asyncHandler(async (req: AuthenticatedRequest, res) => {
+	const parsed = logoSchema.safeParse(req.body);
+	if (!parsed.success) {
+		res.status(400).json({ error: parsed.error.flatten() });
+		return;
+	}
+	const tenant = await prisma.tenant.update({
+		where: { id: req.user!.tenantId! },
+		data: { logoUrl: parsed.data.logoUrl },
+	});
+	res.json({ logoUrl: tenant.logoUrl });
+}));
+
 // 2000 en vez de 200: los Access Token permanentes de WhatsApp Cloud API (Usuario del sistema) son
 // bastante más largos que un Client ID/Secret típico.
 const valueSchema = z.object({ value: z.string().min(1).max(2000) });

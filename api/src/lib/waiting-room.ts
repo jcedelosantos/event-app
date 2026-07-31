@@ -11,7 +11,7 @@ import { prismaUnscoped } from './prisma';
 
 export type QueueEntry = { sessionId: string; joinedAt: number; lastSeenAt: number };
 export type AdmittedEntry = { sessionId: string; admittedAt: number };
-type CachedConfig = { enabled: boolean; batchSize: number; cachedAt: number };
+type CachedConfig = { enabled: boolean; batchSize: number; tenantName: string | null; tenantLogoUrl: string | null; cachedAt: number };
 type EventQueueState = { queue: Map<string, QueueEntry>; admitted: Map<string, AdmittedEntry>; config: CachedConfig | null };
 
 export const DEFAULT_BATCH_SIZE = 50;
@@ -47,18 +47,23 @@ function pruneStateIfEmpty(code: string, state: EventQueueState) {
 	}
 }
 
-async function getConfig(code: string, state: EventQueueState): Promise<{ enabled: boolean; batchSize: number }> {
+async function getConfig(code: string, state: EventQueueState): Promise<CachedConfig> {
 	const now = Date.now();
 	if (state.config && now - state.config.cachedAt < CONFIG_TTL_MS) {
 		return state.config;
 	}
+	// tenant.name/logoUrl viajan en el mismo query (sin JOIN nuevo, ya se resuelve el Event por code) —
+	// el frontend los usa para mostrar el branding del club en la pantalla de espera (ver
+	// public-event.component.ts) sin tener que esperar a la query pesada de GET /events/:code.
 	const event = await prismaUnscoped.event.findUnique({
 		where: { code },
-		select: { waitingRoomEnabled: true, waitingRoomBatchSize: true },
+		select: { waitingRoomEnabled: true, waitingRoomBatchSize: true, tenant: { select: { name: true, logoUrl: true } } },
 	});
 	const config: CachedConfig = {
 		enabled: !!event?.waitingRoomEnabled,
 		batchSize: event?.waitingRoomBatchSize ?? DEFAULT_BATCH_SIZE,
+		tenantName: event?.tenant?.name ?? null,
+		tenantLogoUrl: event?.tenant?.logoUrl ?? null,
 		cachedAt: now,
 	};
 	state.config = config;
@@ -112,33 +117,41 @@ function computeAdmission(state: EventQueueState, sessionId: string, batchSize: 
 	return { admitted: false, position: position + 1 };
 }
 
-export type WaitingRoomResult = { enabled: boolean; admitted: boolean; position: number | null };
+export type WaitingRoomResult = {
+	enabled: boolean;
+	admitted: boolean;
+	position: number | null;
+	// Solo vienen seteados cuando enabled:true — si no, el frontend sigue directo a cargar el evento
+	// completo y no necesita branding acá.
+	tenantName: string | null;
+	tenantLogoUrl: string | null;
+};
 
 // Llamado al entrar a /e/:code — si la sala de espera no está prendida para este evento, responde de
 // inmediato sin tocar ningún estado en memoria (cero costo para el 99% de los eventos que no la usan).
 export async function joinWaitingRoom(code: string, sessionId: string): Promise<WaitingRoomResult> {
 	const state = getOrCreateState(code);
-	const { enabled, batchSize } = await getConfig(code, state);
-	if (!enabled) {
+	const config = await getConfig(code, state);
+	if (!config.enabled) {
 		pruneStateIfEmpty(code, state);
-		return { enabled: false, admitted: true, position: null };
+		return { enabled: false, admitted: true, position: null, tenantName: null, tenantLogoUrl: null };
 	}
-	const { admitted, position } = computeAdmission(state, sessionId, batchSize, Date.now());
-	return { enabled: true, admitted, position };
+	const { admitted, position } = computeAdmission(state, sessionId, config.batchSize, Date.now());
+	return { enabled: true, admitted, position, tenantName: config.tenantName, tenantLogoUrl: config.tenantLogoUrl };
 }
 
 // Polling del frontend mientras espera. Fail-open: si `waitingRoomEnabled` se apagó mientras alguien
 // ya estaba esperando, este chequeo lo libera en el siguiente poll en vez de dejarlo colgado.
 export async function getWaitingRoomStatus(code: string, sessionId: string): Promise<WaitingRoomResult> {
 	const state = getOrCreateState(code);
-	const { enabled, batchSize } = await getConfig(code, state);
-	if (!enabled) {
+	const config = await getConfig(code, state);
+	if (!config.enabled) {
 		state.queue.delete(sessionId);
 		state.admitted.delete(sessionId);
 		pruneStateIfEmpty(code, state);
-		return { enabled: false, admitted: true, position: null };
+		return { enabled: false, admitted: true, position: null, tenantName: null, tenantLogoUrl: null };
 	}
-	const { admitted, position } = computeAdmission(state, sessionId, batchSize, Date.now());
+	const { admitted, position } = computeAdmission(state, sessionId, config.batchSize, Date.now());
 	pruneStateIfEmpty(code, state);
-	return { enabled: true, admitted, position };
+	return { enabled: true, admitted, position, tenantName: config.tenantName, tenantLogoUrl: config.tenantLogoUrl };
 }

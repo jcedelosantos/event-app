@@ -16,6 +16,10 @@ model Tenant {
   name      String
   slug      String   @unique
   active    Boolean  @default(true)
+  // URL del logo de la organización (mismo mecanismo que las imágenes de evento, ver
+  // lib/uploads.ts) — se muestra en pantallas públicas de marca propia (ej. sala de espera
+  // virtual, ver lib/waiting-room.ts). null = sin logo cargado, cae a un ícono genérico.
+  logoUrl   String?
   // GENERAL | CLUB | CHURCH — condiciona reglas de negocio propias de cada tipo de organización.
   // Por ahora solo CLUB tiene una: exigir carnet de socio o del socio que invita al reservar un
   // asiento (ver SaleTicket.attendeeType/sponsorCarnet y la validación en sale-tickets.ts/public.ts).

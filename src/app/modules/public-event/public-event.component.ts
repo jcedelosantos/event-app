@@ -33,13 +33,30 @@ const MAX_INVITADO_SEATS = 2;
 					<div class="center-msg">Cargando evento...</div>
 				}
 				@case ('waiting-room') {
-					<div class="center-msg">
-						<h4>Estás en la fila</h4>
+					<div class="waiting-room">
+						<div class="waiting-room-badge">
+							<span class="waiting-room-ring waiting-room-ring-1"></span>
+							<span class="waiting-room-ring waiting-room-ring-2"></span>
+							@if (waitingRoomTenantLogoUrl(); as logo) {
+								<img [src]="logo" alt="" class="waiting-room-logo" />
+							} @else {
+								<div class="waiting-room-logo waiting-room-logo-fallback"><i class="bi bi-hourglass-split" aria-hidden="true"></i></div>
+							}
+						</div>
+						@if (waitingRoomTenantName(); as name) {
+							<div class="waiting-room-tenant">{{ name }}</div>
+						}
+						<h4 class="mt-2 mb-1">Estás en la fila</h4>
 						@if (waitingRoomPosition(); as position) {
-							<p class="text-body-secondary">Sos el #{{ position }} en la fila — esta pantalla se actualiza sola, no hace falta que recargues.</p>
+							<div class="waiting-room-position">#{{ position }}</div>
+							<p class="text-body-secondary small mb-0">tu lugar en la fila</p>
 						} @else {
 							<p class="text-body-secondary">Ya casi te toca...</p>
 						}
+						<div class="waiting-room-dots" aria-hidden="true">
+							<span></span><span></span><span></span>
+						</div>
+						<p class="text-body-secondary small waiting-room-hint">Esta pantalla se actualiza sola — no hace falta que recargues ni cierres la pestaña.</p>
 					</div>
 				}
 				@case ('not-found') {
@@ -415,6 +432,120 @@ const MAX_INVITADO_SEATS = 2;
 				justify-content: center;
 				text-align: center;
 			}
+			.waiting-room {
+				min-height: 100vh;
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				justify-content: center;
+				text-align: center;
+				padding: 2rem 1.5rem;
+			}
+			.waiting-room-badge {
+				position: relative;
+				width: 96px;
+				height: 96px;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				margin-bottom: 1.25rem;
+			}
+			.waiting-room-logo {
+				position: relative;
+				z-index: 1;
+				width: 96px;
+				height: 96px;
+				border-radius: 50%;
+				object-fit: cover;
+				background: #16181d;
+				border: 1px solid rgba(255, 255, 255, 0.1);
+			}
+			.waiting-room-logo-fallback {
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				font-size: 2.25rem;
+				color: var(--app-accent);
+			}
+			/* Dos anillos concéntricos que laten hacia afuera y se desvanecen (uno con 1.2s de delay) —
+			   el mismo lenguaje visual de "esperando en vivo" que un radar/sonar, en el color de acento
+			   del club en vez de una paleta genérica. */
+			.waiting-room-ring {
+				position: absolute;
+				inset: 0;
+				border-radius: 50%;
+				border: 2px solid var(--app-accent);
+				opacity: 0;
+				animation: waiting-room-pulse 2.4s ease-out infinite;
+			}
+			.waiting-room-ring-2 {
+				animation-delay: 1.2s;
+			}
+			@keyframes waiting-room-pulse {
+				0% {
+					transform: scale(0.82);
+					opacity: 0.55;
+				}
+				100% {
+					transform: scale(1.65);
+					opacity: 0;
+				}
+			}
+			.waiting-room-tenant {
+				font-size: 0.75rem;
+				font-weight: 600;
+				letter-spacing: 0.06em;
+				text-transform: uppercase;
+				color: rgba(255, 255, 255, 0.55);
+			}
+			.waiting-room-position {
+				font-size: 2.75rem;
+				font-weight: 800;
+				line-height: 1;
+				margin: 0.5rem 0 0.25rem;
+				font-variant-numeric: tabular-nums;
+				color: var(--app-accent);
+			}
+			.waiting-room-dots {
+				display: flex;
+				gap: 6px;
+				margin-top: 1.5rem;
+			}
+			.waiting-room-dots span {
+				width: 8px;
+				height: 8px;
+				border-radius: 50%;
+				background: var(--app-accent);
+				animation: waiting-room-bounce 1.2s ease-in-out infinite;
+			}
+			.waiting-room-dots span:nth-child(2) {
+				animation-delay: 0.15s;
+			}
+			.waiting-room-dots span:nth-child(3) {
+				animation-delay: 0.3s;
+			}
+			@keyframes waiting-room-bounce {
+				0%,
+				80%,
+				100% {
+					transform: translateY(0);
+					opacity: 0.4;
+				}
+				40% {
+					transform: translateY(-6px);
+					opacity: 1;
+				}
+			}
+			.waiting-room-hint {
+				max-width: 320px;
+				margin-top: 1.5rem;
+			}
+			@media (prefers-reduced-motion: reduce) {
+				.waiting-room-ring,
+				.waiting-room-dots span {
+					animation: none;
+				}
+			}
 			.seat-picker-image {
 				position: relative;
 				display: inline-block;
@@ -611,9 +742,11 @@ export class PublicEventComponent implements OnInit {
 
 	step = signal<'loading' | 'waiting-room' | 'not-found' | 'ready' | 'confirmed' | 'link-pending'>('loading');
 	event = signal<PublicEvent | null>(null);
-	// Posición en la fila mientras step() es 'waiting-room' (ver enterEvent/startWaitingRoomPolling
-	// más abajo, y lib/waiting-room.ts del lado del servidor).
+	// Posición en la fila y branding del club mientras step() es 'waiting-room' (ver
+	// enterEvent/startWaitingRoomPolling más abajo, y lib/waiting-room.ts del lado del servidor).
 	waitingRoomPosition = signal<number | null>(null);
+	waitingRoomTenantName = signal<string | null>(null);
+	waitingRoomTenantLogoUrl = signal<string | null>(null);
 
 	// --- Checkout con pago (Event.paymentMode) ---------------------------------------------------
 	checkingOut = signal(false);
@@ -988,6 +1121,8 @@ export class PublicEventComponent implements OnInit {
 					return;
 				}
 				this.waitingRoomPosition.set(result.position);
+				this.waitingRoomTenantName.set(result.tenantName);
+				this.waitingRoomTenantLogoUrl.set(result.tenantLogoUrl);
 				this.step.set('waiting-room');
 				this.startWaitingRoomPolling(code, sessionId);
 			},

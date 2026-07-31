@@ -137,8 +137,16 @@ export type DuplicateEventStatus = { blocked: boolean; reason: string | null };
 
 // enabled:false = el evento no usa sala de espera (o ya no queda en cola) — el frontend sigue
 // directo al picker. admitted:true + position:null = ya puede pasar. admitted:false + position = su
-// lugar en la fila (1-based). Ver api/src/lib/waiting-room.ts para el diseño completo.
-export type WaitingRoomResult = { enabled: boolean; admitted: boolean; position: number | null };
+// lugar en la fila (1-based). tenantName/tenantLogoUrl solo vienen seteados con enabled:true — se
+// usan para el branding de la pantalla de espera. Ver api/src/lib/waiting-room.ts para el diseño
+// completo.
+export type WaitingRoomResult = {
+	enabled: boolean;
+	admitted: boolean;
+	position: number | null;
+	tenantName: string | null;
+	tenantLogoUrl: string | null;
+};
 
 export type PublicOrgEvent = {
 	id: number;
