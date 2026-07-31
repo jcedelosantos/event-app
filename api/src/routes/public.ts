@@ -966,6 +966,14 @@ publicRouter.post('/webhooks/whatsapp/:slug', asyncHandler(async (req, res) => {
 			return;
 		}
 
+		// Nadie revisó todavía lo que la IA extrajo del flyer (fechas, precios, mapa asignado por
+		// nombre) antes de publicarlo — a diferencia de un evento cargado a mano en el manager, acá se
+		// programa la publicación 24hs a futuro por default en vez de dejarlo visible al público de
+		// inmediato, dándole al encargado una ventana real para revisar y corregir antes de que alguien
+		// pueda comprar. Sigue siendo un evento normal: el encargado puede adelantar/quitar esta fecha
+		// desde el manager en cualquier momento si quiere publicarlo antes.
+		const publishAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
 		const img = saveBuffer(buffer, mimeType);
 		const created = await prisma.event.create({
 			data: {
@@ -981,6 +989,7 @@ publicRouter.post('/webhooks/whatsapp/:slug', asyncHandler(async (req, res) => {
 				mapId: venue.mapId,
 				userId: adminUser.id,
 				tenantId: tenant.id,
+				publishAt,
 			},
 		});
 		// Código legible basado en el id (mismo patrón que POST /events autenticado).
@@ -1018,6 +1027,14 @@ publicRouter.post('/webhooks/whatsapp/:slug', asyncHandler(async (req, res) => {
 
 		const publicUrl = `${req.protocol}://${req.get('host')}/e/${event.code}`;
 		const ticketsSummary = extracted.tickets.map((t) => `• ${t.name}: RD$${t.price} (${t.count} cupos)`).join('\n');
+		const publishAtLabel = publishAt.toLocaleString('es-DO', {
+			timeZone: 'America/Santo_Domingo',
+			day: 'numeric',
+			month: 'long',
+			hour: 'numeric',
+			minute: '2-digit',
+			hour12: true,
+		});
 		await sendTextMessage(
 			config,
 			from,
@@ -1027,7 +1044,7 @@ publicRouter.post('/webhooks/whatsapp/:slug', asyncHandler(async (req, res) => {
 				ticketsSummary,
 				`🔗 ${publicUrl}`,
 				'',
-				'Ya está publicado. Revisalo en el manager por si algo salió mal (fechas, precios, mapa).',
+				`Se publica solo el ${publishAtLabel} (24hs de margen). Revisalo en el manager antes de esa hora por si algo salió mal (fechas, precios, mapa) — desde ahí también podés adelantar o quitar esa fecha.`,
 			].join('\n'),
 		);
 	} catch (err) {
