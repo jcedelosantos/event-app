@@ -138,6 +138,19 @@ export type PurchaseResult = { saleTickets: PurchasedSaleTicket[]; children: Pur
 
 export type SponsorStatus = { registered: boolean; used: number; max: number; blocked: boolean };
 
+// Consulta la simulación de membresía del club (ver api/src/lib/club-members.ts) por el carnet del
+// PROPIO socio que está comprando — a diferencia de SponsorStatus (que valida el carnet de otra
+// persona), acá sí vienen los datos de contacto para autocompletar el form. found:false = el
+// carnet no existe; active:false + found:true = existe pero está inactivo (mensajes distintos).
+export type MemberStatus = {
+	found: boolean;
+	active: boolean;
+	name?: string;
+	lastname?: string;
+	email?: string;
+	phone?: string;
+};
+
 export type DuplicateEventStatus = { blocked: boolean; reason: string | null };
 
 // enabled:false = el evento no usa sala de espera (o ya no queda en cola) — el frontend sigue
@@ -234,6 +247,10 @@ export class PublicEventService {
 	// arme toda su selección para recién enterarse del rechazo al confirmar (ver public.ts).
 	getSponsorStatus(code: string, carnet: string): Observable<SponsorStatus> {
 		return this.httpClient.get<SponsorStatus>(`${this.baseUrl}/events/${code}/sponsor-status`, { params: { carnet } });
+	}
+
+	getMemberStatus(code: string, carnet: string): Observable<MemberStatus> {
+		return this.httpClient.get<MemberStatus>(`${this.baseUrl}/events/${code}/member-status`, { params: { carnet } });
 	}
 
 	// Chequea si esta persona (por email o carnet) ya se registró en otra fecha vinculada del mismo

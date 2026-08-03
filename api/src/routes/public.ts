@@ -9,6 +9,7 @@ import { toPublicUser } from '../lib/serialize';
 import { sendTicketEmail } from '../lib/mail';
 import { asyncHandler } from '../lib/async-handler';
 import { isClubTenant, validateAttendeeRule, normalizeCarnet, MAX_INVITADOS_PER_SOCIO } from '../lib/attendee';
+import { lookupClubMember, assertActiveMember } from '../lib/club-members';
 import { uniqueUsername } from '../lib/unique-username';
 import { resolveFamilyCodeQR } from '../lib/family-code';
 import { checkDuplicateEventRegistration } from '../lib/duplicate-event-guard';
@@ -223,6 +224,46 @@ publicRouter.get('/events/:code/sponsor-status', asyncHandler(async (req, res) =
 	});
 }));
 
+// El picker público lo llama apenas un SOCIO completa SU PROPIO carnet en "1. Tus datos", para
+// autocompletar nombre/apellido/email/teléfono y confirmar que puede comprar como socio — a
+// diferencia de /sponsor-status (que valida el carnet de OTRA persona, el socio que invita), acá sí
+// se devuelven los datos de contacto porque es el propio dueño del carnet consultándose a sí mismo.
+// `found` y `active` van separados (en vez de un solo booleano) para poder distinguir "ese carnet no
+// existe" de "existe pero está inactivo" en el mensaje que ve el socio — información útil para él,
+// sin el riesgo de privacidad que sí tendría exponer eso de un tercero.
+publicRouter.get('/events/:code/member-status', asyncHandler(async (req, res) => {
+	const carnet = String(req.query.carnet ?? '').trim();
+	if (!carnet) {
+		res.status(400).json({ error: 'Falta el carnet' });
+		return;
+	}
+
+	const event = await prismaUnscoped.event.findUnique({ where: { code: req.params.code }, select: { tenantId: true } });
+	if (!event) {
+		res.status(404).json({ error: 'Evento no encontrado' });
+		return;
+	}
+
+	if (!(await isClubTenant(event.tenantId))) {
+		res.json({ found: false, active: false });
+		return;
+	}
+
+	const member = await lookupClubMember(event.tenantId, carnet);
+	if (!member) {
+		res.json({ found: false, active: false });
+		return;
+	}
+	res.json({
+		found: true,
+		active: member.active,
+		// Solo se manda el resto de los datos si está activo — un socio inactivo no necesita ver
+		// (ni el frontend necesita autocompletar con) datos que igual no van a poder usarse para
+		// comprar.
+		...(member.active ? { name: member.name, lastname: member.lastname, email: member.email, phone: member.phone } : {}),
+	});
+}));
+
 // Mismo espíritu que /sponsor-status: el picker público lo llama apenas se completa email/carnet en
 // "1. Tus datos", ANTES de dejar elegir asiento — así un socio/invitado que ya se registró en otra
 // función del mismo evento (ver Event.duplicateGroupKey) se entera de una al toque, en vez de armar
@@ -367,6 +408,16 @@ publicRouter.post('/purchase', checkoutRateLimiter, asyncHandler(async (req, res
 		if (attendeeError) {
 			res.status(400).json({ error: attendeeError });
 			return;
+		}
+		// Solo en el flujo self-service: un SOCIO tiene que existir y estar activo en la simulación
+		// de membresía del club (ver lib/club-members.ts) — el invitado no se valida acá, su regla
+		// (socio que lo invita ya registrado, tope de invitados) ya la cubrió validateAttendeeRule.
+		if (attendeeType === 'SOCIO') {
+			const memberError = await assertActiveMember(tenantId, clientData.carnet);
+			if (memberError) {
+				res.status(400).json({ error: memberError });
+				return;
+			}
 		}
 	}
 	// "Misma función, otra fecha" es independiente del modelo de tickets del evento — aplica a
@@ -609,6 +660,16 @@ publicRouter.post('/checkout/hold', checkoutRateLimiter, asyncHandler(async (req
 		if (attendeeError) {
 			res.status(400).json({ error: attendeeError });
 			return;
+		}
+		// Solo en el flujo self-service: un SOCIO tiene que existir y estar activo en la simulación
+		// de membresía del club (ver lib/club-members.ts) — el invitado no se valida acá, su regla
+		// (socio que lo invita ya registrado, tope de invitados) ya la cubrió validateAttendeeRule.
+		if (attendeeType === 'SOCIO') {
+			const memberError = await assertActiveMember(tenantId, clientData.carnet);
+			if (memberError) {
+				res.status(400).json({ error: memberError });
+				return;
+			}
 		}
 	}
 	// "Misma función, otra fecha" es independiente del modelo de tickets del evento — aplica a

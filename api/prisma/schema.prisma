@@ -39,6 +39,7 @@ model Tenant {
   auditLogs    AuditLog[]
   appSettings  AppSetting[]
   children     Child[]
+  clubMembers  ClubMember[]
 }
 
 model UserType {
@@ -461,6 +462,28 @@ model Child {
 
   @@index([codeQR])
   @@index([parentId, eventId])
+}
+
+// Simulación local del sistema de membresía real del club (todavía no existe un API real que
+// consultar) — un socio activo/inactivo por carnet, usado para autocompletar y validar sus datos
+// en el picker público (ver lib/club-members.ts, único punto que hay que cambiar el día que haya
+// un API real: esta tabla desaparece, la función pasa a hacer un fetch, y ni el endpoint público
+// ni el frontend se enteran del cambio). NO reemplaza a `User` (el cliente real que compra y
+// termina en SaleTicket) — es la fuente de verdad externa que confirma si ESE carnet corresponde
+// a un socio vigente, antes de dejarlo comprar como tal.
+model ClubMember {
+  id       Int    @id @default(autoincrement())
+  carnet   String
+  name     String
+  lastname String
+  email    String
+  phone    String
+  active   Boolean @default(true)
+
+  tenantId Int
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, carnet])
 }
 
 // Configuración general de la app (ej. color de acento) — key-value genérico en vez de una

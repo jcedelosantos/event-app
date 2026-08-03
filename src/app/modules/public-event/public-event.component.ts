@@ -15,6 +15,7 @@ import {
 	PurchasedChild,
 	PurchasedSaleTicket,
 	SponsorStatus,
+	MemberStatus,
 } from './services/public-event.service';
 import { extractErrorMessage } from '../../utils/api-error';
 import { shortSeatLabel } from '../../utils/seat-label';
@@ -1124,6 +1125,14 @@ export class PublicEventComponent implements OnInit {
 	// "confirmado" un carnet viejo mientras se escribe uno nuevo.
 	sponsorConfirmed = signal(false);
 
+	// Análogo a sponsorBlockReason/sponsorConfirmed, pero para el carnet del PROPIO socio que está
+	// comprando (ver checkMemberStatus$ más abajo) — se consulta contra la simulación de membresía
+	// del club (api/src/lib/club-members.ts) para autocompletar sus datos y confirmar que puede
+	// comprar como socio. Guarda el mensaje directo (no solo un motivo) porque acá no hace falta
+	// derivarlo de otro estado como sponsorBlockMessage.
+	memberBlockReason = signal<string | null>(null);
+	memberConfirmed = signal(false);
+
 	constructor() {
 		this.registerForm.controls.attendeeType.valueChanges.subscribe((value) => {
 			this.attendeeTypeValue.set(value ?? '');
@@ -1133,11 +1142,18 @@ export class PublicEventComponent implements OnInit {
 			this.selectedSeatIds.set(new Set());
 			this.sponsorBlockReason.set(null);
 			this.sponsorConfirmed.set(false);
+			this.memberBlockReason.set(null);
+			this.memberConfirmed.set(false);
 			this.attendeeError.set('');
 		});
 
 		this.registerForm.controls.sponsorCarnet.valueChanges.subscribe(() => {
 			this.sponsorConfirmed.set(false);
+		});
+
+		this.registerForm.controls.carnet.valueChanges.subscribe(() => {
+			this.memberConfirmed.set(false);
+			this.memberBlockReason.set(null);
 		});
 
 		// `switchMap` en vez de un `.subscribe()` nuevo por cada tick del debounce — así una respuesta
@@ -1150,6 +1166,16 @@ export class PublicEventComponent implements OnInit {
 				switchMap((carnet) => this.checkSponsorStatus$(carnet)),
 			)
 			.subscribe((result) => this.applySponsorStatus(result));
+
+		// Mismo patrón que sponsorCarnet arriba, pero para el carnet del propio socio — autocompleta
+		// nombre/apellido/email/teléfono si está activo, bloquea si no existe o está inactivo.
+		this.registerForm.controls.carnet.valueChanges
+			.pipe(
+				debounceTime(400),
+				distinctUntilChanged(),
+				switchMap((carnet) => this.checkMemberStatus$(carnet)),
+			)
+			.subscribe((result) => this.applyMemberStatus(result));
 
 		this.registerForm.controls.email.valueChanges
 			.pipe(
@@ -1191,7 +1217,7 @@ export class PublicEventComponent implements OnInit {
 		if (!contactFilled) return false;
 
 		if (type === 'SOCIO') {
-			return this.isValidCarnet(this.registerForm.controls.carnet.value);
+			return this.isValidCarnet(this.registerForm.controls.carnet.value) && this.memberConfirmed();
 		}
 		return this.sponsorConfirmed();
 	}
@@ -1224,6 +1250,12 @@ export class PublicEventComponent implements OnInit {
 			const carnet = this.registerForm.controls.carnet.value?.trim();
 			if (carnet && !this.isValidCarnet(carnet)) {
 				return 'El carnet no tiene el formato correcto (ej. C6735, o C6735-0 para tu cónyuge/hijos).';
+			}
+			if (this.memberBlockReason()) {
+				return this.memberBlockReason()!;
+			}
+			if (carnet && this.isValidCarnet(carnet) && !this.memberConfirmed()) {
+				return 'Verificando tu carnet de socio...';
 			}
 			return 'Ingresá tu carnet de socio arriba para poder elegir tu(s) asiento(s).';
 		}
@@ -1268,6 +1300,40 @@ export class PublicEventComponent implements OnInit {
 		if (this.sponsorBlockReason()) {
 			this.attendeeError.set(this.sponsorBlockMessage(carnet));
 		}
+	}
+
+	// Mismo patrón que checkSponsorStatus$ (Observable en vez de suscribirse acá, para que el
+	// switchMap del constructor cancele una consulta vieja si el carnet cambió mientras estaba en
+	// vuelo). Solo consulta si el carnet ya tiene el formato completo — evita golpear el backend en
+	// cada tecla mientras el socio todavía está escribiendo.
+	private checkMemberStatus$(carnet: string | null) {
+		const trimmed = carnet?.trim();
+		const ev = this.event();
+		if (!ev || this.attendeeTypeValue() !== 'SOCIO' || !this.isValidCarnet(trimmed)) {
+			return of<{ carnet: string; status: MemberStatus | null }>({ carnet: trimmed ?? '', status: null });
+		}
+		return this.publicEventService.getMemberStatus(ev.code, trimmed!).pipe(
+			map((status) => ({ carnet: trimmed!, status })),
+			// Silencioso: si el chequeo preventivo falla (red, etc.) no bloqueamos por las dudas — el
+			// submit real vuelve a validar esto igual contra el backend (ver assertActiveMember).
+			catchError(() => of({ carnet: trimmed!, status: null })),
+		);
+	}
+
+	private applyMemberStatus({ status }: { carnet: string; status: MemberStatus | null }): void {
+		if (!status) return;
+		if (!status.found) {
+			this.memberBlockReason.set('No encontramos ese carnet en la base de socios del club.');
+			return;
+		}
+		if (!status.active) {
+			this.memberBlockReason.set('Este carnet no está activo — contactá a la organización.');
+			return;
+		}
+		// Autocompleta con los datos reales del socio — sigue siendo editable por si algo cambió
+		// (ej. nuevo teléfono) que la simulación todavía no tiene.
+		this.registerForm.patchValue({ name: status.name, lastname: status.lastname, email: status.email, phone: status.phone });
+		this.memberConfirmed.set(true);
 	}
 
 	private checkDuplicateEventStatus$() {
@@ -1442,6 +1508,10 @@ export class PublicEventComponent implements OnInit {
 				this.attendeeError.set(this.sponsorBlockMessage(sponsorCarnet?.trim() ?? ''));
 				return;
 			}
+			if (attendeeType === 'SOCIO' && this.memberBlockReason()) {
+				this.attendeeError.set(this.memberBlockReason()!);
+				return;
+			}
 			if (!this.activeTicketId()) {
 				this.attendeeError.set(`Este evento no tiene un ticket de ${attendeeType === 'SOCIO' ? 'socio' : 'invitado'} disponible — contactá a la organización.`);
 				return;
@@ -1463,6 +1533,10 @@ export class PublicEventComponent implements OnInit {
 		if (usesAttendeeType) {
 			if (attendeeType === 'SOCIO' && !carnet?.trim()) {
 				this.attendeeError.set('Ingresá tu carnet de socio.');
+				return;
+			}
+			if (attendeeType === 'SOCIO' && !this.memberConfirmed()) {
+				this.attendeeError.set('Verificá tu carnet de socio antes de continuar.');
 				return;
 			}
 			if (attendeeType === 'INVITADO' && !sponsorCarnet?.trim()) {
@@ -1522,6 +1596,7 @@ export class PublicEventComponent implements OnInit {
 		if (usesAttendeeType) {
 			if (!attendeeType) return 'Elegí si sos socio o invitado.';
 			if (this.sponsorBlocked()) return this.sponsorBlockMessage(sponsorCarnet?.trim() ?? '');
+			if (attendeeType === 'SOCIO' && this.memberBlockReason()) return this.memberBlockReason();
 			if (!this.activeTicketId()) {
 				return `Este evento no tiene un ticket de ${attendeeType === 'SOCIO' ? 'socio' : 'invitado'} disponible — contactá a la organización.`;
 			}
@@ -1535,6 +1610,7 @@ export class PublicEventComponent implements OnInit {
 		}
 		if (usesAttendeeType) {
 			if (attendeeType === 'SOCIO' && !carnet?.trim()) return 'Ingresá tu carnet de socio.';
+			if (attendeeType === 'SOCIO' && !this.memberConfirmed()) return 'Verificá tu carnet de socio antes de continuar.';
 			if (attendeeType === 'INVITADO' && !sponsorCarnet?.trim()) return 'Ingresá el carnet del socio que te invita.';
 		}
 		return null;
