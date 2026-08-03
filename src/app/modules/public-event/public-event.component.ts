@@ -173,22 +173,6 @@ const MAX_INVITADO_SEATS = 2;
 									<h5>1. Tus datos</h5>
 									<form [formGroup]="registerForm" class="row g-2">
 										<div class="col-md-6">
-											<label for="club-name" class="visually-hidden">Nombre</label>
-											<input id="club-name" type="text" class="form-control" placeholder="Nombre" [class.is-invalid]="isInvalid('name')" formControlName="name" />
-										</div>
-										<div class="col-md-6">
-											<label for="club-lastname" class="visually-hidden">Apellido (opcional)</label>
-											<input id="club-lastname" type="text" class="form-control" placeholder="Apellido (opcional)" formControlName="lastname" />
-										</div>
-										<div class="col-md-6">
-											<label for="club-email" class="visually-hidden">Email</label>
-											<input id="club-email" type="email" class="form-control" placeholder="Email" [class.is-invalid]="isInvalid('email')" formControlName="email" />
-										</div>
-										<div class="col-md-6">
-											<label for="club-phone" class="visually-hidden">Teléfono</label>
-											<input id="club-phone" type="text" class="form-control" placeholder="Teléfono" [class.is-invalid]="isInvalid('phone')" formControlName="phone" />
-										</div>
-										<div class="col-md-6">
 											<label for="club-attendee-type" class="visually-hidden">¿Sos socio o invitado?</label>
 											<select
 												id="club-attendee-type"
@@ -212,6 +196,7 @@ const MAX_INVITADO_SEATS = 2;
 													[class.is-invalid]="isInvalid('carnet')"
 													formControlName="carnet"
 												/>
+												<div class="form-text">Autocompletamos tus datos si el carnet está activo.</div>
 											</div>
 										} @else if (attendeeTypeValue() === 'INVITADO') {
 											<div class="col-md-6">
@@ -227,6 +212,22 @@ const MAX_INVITADO_SEATS = 2;
 												<div class="form-text">Como invitado podés elegir hasta 2 asientos.</div>
 											</div>
 										}
+										<div class="col-md-6">
+											<label for="club-name" class="visually-hidden">Nombre</label>
+											<input id="club-name" type="text" class="form-control" placeholder="Nombre" [class.is-invalid]="isInvalid('name')" formControlName="name" />
+										</div>
+										<div class="col-md-6">
+											<label for="club-lastname" class="visually-hidden">Apellido (opcional)</label>
+											<input id="club-lastname" type="text" class="form-control" placeholder="Apellido (opcional)" formControlName="lastname" />
+										</div>
+										<div class="col-md-6">
+											<label for="club-email" class="visually-hidden">Email</label>
+											<input id="club-email" type="email" class="form-control" placeholder="Email" [class.is-invalid]="isInvalid('email')" formControlName="email" />
+										</div>
+										<div class="col-md-6">
+											<label for="club-phone" class="visually-hidden">Teléfono</label>
+											<input id="club-phone" type="text" class="form-control" placeholder="Teléfono" [class.is-invalid]="isInvalid('phone')" formControlName="phone" />
+										</div>
 									</form>
 									@if (attendeeError()) {
 										<div class="small text-danger mt-2">{{ attendeeError() }}</div>
@@ -288,7 +289,7 @@ const MAX_INVITADO_SEATS = 2;
 											}
 											<div class="seat-picker-image">
 												<img [src]="areaImgSrc(area)" class="seat-picker-bg" (load)="onImageLoad(area.id, $event)" (error)="onImageError(area.id)" />
-												@if (imgSizes()[area.id]; as size) {
+												@if (positioningFrame(area); as size) {
 													@for (seat of ungroupedSeats(area); track seat.id) {
 														<button
 															type="button"
@@ -296,8 +297,8 @@ const MAX_INVITADO_SEATS = 2;
 															[class.seat-taken]="!seat.available"
 															[class.seat-selected]="selectedSeatIds().has(seat.id)"
 															[disabled]="!seat.available"
-															[style.top.%]="(seat.y / size.h) * 100"
-															[style.left.%]="(seat.x / size.w) * 100"
+															[style.top.%]="((seat.y - size.minY) / size.h) * 100"
+															[style.left.%]="((seat.x - size.minX) / size.w) * 100"
 															[title]="seat.name"
 															(click)="toggleSeat(seat)"
 														>
@@ -310,8 +311,8 @@ const MAX_INVITADO_SEATS = 2;
 																type="button"
 																class="table-btn"
 																[class.table-full]="tableAvailableCount(area, table.id) === 0"
-																[style.top.%]="(table.y / size.h) * 100"
-																[style.left.%]="(table.x / size.w) * 100"
+																[style.top.%]="((table.y - size.minY) / size.h) * 100"
+																[style.left.%]="((table.x - size.minX) / size.w) * 100"
 																[title]="table.name"
 																(click)="onTableClick(area, table.id)"
 															>
@@ -1017,6 +1018,40 @@ export class PublicEventComponent implements OnInit {
 		this.imgSizes.update((sizes) => ({ ...sizes, [areaId]: { w: img.naturalWidth, h: img.naturalHeight } }));
 	}
 
+	// Con una foto real, las coordenadas de cada asiento/mesa se guardaron en píxeles de ESA imagen
+	// (ver comentario de imgSizes arriba) — tiene sentido posicionarlas en % de su tamaño natural.
+	// Pero cuando el área NO tiene foto real, el plano genérico de referencia mide siempre 900x600
+	// (defaultAreaBg), un tamaño arbitrario sin ninguna relación con la escala en la que el manager
+	// puso los asientos — pueden haber sido posicionados contra una foto real más ancha que después
+	// se borró o nunca se llegó a subir. Usar 900x600 como si fuera esa escala original dejaba
+	// asientos/mesas con x/y más grandes cayendo fuera del plano, cortados en el borde (bug real
+	// reportado: mesas en x=1080 en un plano de 900px). En vez de asumir un tamaño fijo, para el caso
+	// genérico se calcula el bounding box real de los asientos/mesas del área (con margen) y se
+	// posiciona todo relativo a ESE rango — así siempre entran completos, sea cual sea la escala en
+	// la que se cargaron originalmente.
+	private genericBounds(area: PublicArea): { w: number; h: number; minX: number; minY: number } {
+		const points = [...area.seats.map((s) => ({ x: s.x, y: s.y })), ...area.tables.map((t) => ({ x: t.x, y: t.y }))];
+		if (!points.length) return { w: 900, h: 600, minX: 0, minY: 0 };
+		const pad = 60;
+		const minX = Math.min(...points.map((p) => p.x)) - pad;
+		const minY = Math.min(...points.map((p) => p.y)) - pad;
+		const w = Math.max(...points.map((p) => p.x)) - minX + pad;
+		const h = Math.max(...points.map((p) => p.y)) - minY + pad;
+		return { w, h, minX, minY };
+	}
+
+	// Marco de referencia para posicionar asientos/mesas en % — con foto real usa su tamaño natural
+	// (minX/minY en 0, comportamiento sin cambios); sin foto real (o rota), usa genericBounds() en
+	// vez del tamaño fijo del plano genérico. null solo mientras la foto real todavía no terminó de
+	// cargar (ver imgSizes/onImageLoad) — recién ahí se puede saber su tamaño natural.
+	positioningFrame(area: PublicArea): { w: number; h: number; minX: number; minY: number } | null {
+		if (area.img && !this.brokenAreaImg().has(area.id)) {
+			const size = this.imgSizes()[area.id];
+			return size ? { w: size.w, h: size.h, minX: 0, minY: 0 } : null;
+		}
+		return this.genericBounds(area);
+	}
+
 	// Con muchos asientos agrupados en mesas, mostrar cada silla como un punto individual sobre el
 	// plano es difícil de tocar con el dedo y poco amigable para alguien que no conoce el sistema —
 	// en vez de eso, la mesa entera es el botón sobre el mapa; tocarla abre un panel con sus asientos
@@ -1327,7 +1362,8 @@ export class PublicEventComponent implements OnInit {
 			return;
 		}
 		if (!status.active) {
-			this.memberBlockReason.set('Este carnet no está activo — contactá a la organización.');
+			const fullName = [status.name, status.lastname].filter(Boolean).join(' ');
+			this.memberBlockReason.set(`Este carnet corresponde a ${fullName} y no está activo — favor pasar por administración.`);
 			return;
 		}
 		// Autocompleta con los datos reales del socio — sigue siendo editable por si algo cambió

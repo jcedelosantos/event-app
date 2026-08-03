@@ -142,6 +142,8 @@ export type SponsorStatus = { registered: boolean; used: number; max: number; bl
 // PROPIO socio que está comprando — a diferencia de SponsorStatus (que valida el carnet de otra
 // persona), acá sí vienen los datos de contacto para autocompletar el form. found:false = el
 // carnet no existe; active:false + found:true = existe pero está inactivo (mensajes distintos).
+// name/lastname vienen en ambos casos de found:true (activo o no) — el frontend los usa también
+// para el mensaje de bloqueo ("este carnet corresponde a Fulano"); email/phone solo si está activo.
 export type MemberStatus = {
 	found: boolean;
 	active: boolean;
