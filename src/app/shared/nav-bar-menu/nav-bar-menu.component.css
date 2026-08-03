@@ -59,4 +59,18 @@
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
+	display: flex;
+	align-items: center;
+}
+
+/* Reemplaza el ícono genérico bi-building por el logo real del club cuando existe (ver Settings) —
+   mismo lenguaje visual circular que el badge de organizador en la sala de espera pública. */
+.tenant-logo {
+	width: 22px;
+	height: 22px;
+	border-radius: 50%;
+	object-fit: cover;
+	background: #fff;
+	border: 1px solid rgba(255, 255, 255, 0.15);
+	flex-shrink: 0;
 }

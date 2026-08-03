@@ -20,9 +20,14 @@ import { PublicEventService, PublicOrg, PublicOrgEvent } from '../public-event/s
 				@default {
 					@if (org(); as o) {
 						<header class="org-header">
-							<div class="container py-4">
-								<h1 class="mb-1">{{ o.name }}</h1>
-								<p class="text-body-secondary mb-0">Próximos eventos</p>
+							<div class="container py-4 d-flex align-items-center gap-3">
+								@if (!logoBroken() && o.logoUrl; as logo) {
+									<img [src]="logo" alt="" class="org-logo" (error)="logoBroken.set(true)" />
+								}
+								<div>
+									<h1 class="mb-1">{{ o.name }}</h1>
+									<p class="text-body-secondary mb-0">Próximos eventos</p>
+								</div>
 							</div>
 						</header>
 
@@ -139,6 +144,15 @@ import { PublicEventService, PublicOrg, PublicOrgEvent } from '../public-event/s
 			}
 			.org-header h1 {
 				font-weight: 700;
+			}
+			.org-logo {
+				width: 64px;
+				height: 64px;
+				border-radius: 50%;
+				object-fit: cover;
+				background: #fff;
+				border: 1px solid rgba(255, 255, 255, 0.15);
+				flex-shrink: 0;
 			}
 			.search-input {
 				background: #16181d;
@@ -294,6 +308,7 @@ export class OrgLandingComponent implements OnInit {
 	step = signal<'loading' | 'not-found' | 'ready'>('loading');
 	org = signal<PublicOrg | null>(null);
 	searchText = signal('');
+	logoBroken = signal(false);
 
 	// Tickea cada minuto para que el conteo regresivo de eventos "Próximamente" (ver statusLabel) se
 	// vaya achicando solo mientras alguien tiene la portada abierta, sin necesitar un refresh manual.

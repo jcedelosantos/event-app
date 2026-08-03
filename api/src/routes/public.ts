@@ -89,6 +89,7 @@ publicRouter.get('/org/:slug', asyncHandler(async (req, res) => {
 		name: tenant.name,
 		slug: tenant.slug,
 		type: tenant.type,
+		logoUrl: tenant.logoUrl,
 		// soldOut/inactive/scheduled se calculan acá para no exponer tickets/precios en este listado
 		// público — la portada solo necesita saber si puede o no llevar al comprador a /e/:code, y con
 		// qué etiqueta. "scheduled" (Event.publishAt a futuro) a propósito NO excluye el evento del
@@ -111,7 +112,7 @@ publicRouter.get('/events/:code', asyncHandler(async (req, res) => {
 		include: {
 			map: { include: { areas: { include: { seats: true, tables: true } } } },
 			tickets: { where: { active: true } },
-			tenant: { select: { type: true } },
+			tenant: { select: { type: true, name: true, logoUrl: true } },
 		},
 	});
 	if (!event || !event.active) {
@@ -169,6 +170,10 @@ publicRouter.get('/events/:code', asyncHandler(async (req, res) => {
 		// El picker público lo usa para saber si tiene que pedir socio/invitado + carnet — ver
 		// lib/attendee.ts. Solo importa el tipo, no se expone nada más del tenant acá.
 		tenantType: event.tenant?.type ?? 'GENERAL',
+		// Branding del club en la página del evento (ver public-event.component.ts) — mismo patrón que
+		// waiting-room.ts, ningún otro dato del tenant se expone acá.
+		tenantName: event.tenant?.name ?? null,
+		tenantLogoUrl: event.tenant?.logoUrl ?? null,
 		hasMealOfTheDay: !!mealProduct,
 		payment,
 	});

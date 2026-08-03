@@ -145,6 +145,14 @@ const MAX_INVITADO_SEATS = 2;
 				@default {
 					@if (event(); as ev) {
 						<div class="container py-4" style="max-width: 900px;">
+							@if (ev.tenantName; as tenantName) {
+								<div class="event-org-badge">
+									@if (!eventOrgLogoBroken() && ev.tenantLogoUrl; as logo) {
+										<img [src]="logo" alt="" class="event-org-logo" (error)="eventOrgLogoBroken.set(true)" />
+									}
+									<span>{{ tenantName }}</span>
+								</div>
+							}
 							<h3>{{ ev.name }}</h3>
 							<p class="text-body-secondary">
 								{{ formatDate(ev.dateOn) }}
@@ -479,6 +487,28 @@ const MAX_INVITADO_SEATS = 2;
 				align-items: center;
 				justify-content: center;
 				text-align: center;
+			}
+			/* Branding del club sobre el nombre del evento (caso 'default') — mismo lenguaje visual
+			   circular que el badge de organizador en la sala de espera y en el sidebar del manager. */
+			.event-org-badge {
+				display: flex;
+				align-items: center;
+				gap: 0.5rem;
+				margin-bottom: 0.5rem;
+				font-size: 0.85rem;
+				font-weight: 600;
+				letter-spacing: 0.02em;
+				text-transform: uppercase;
+				color: #9aa0aa;
+			}
+			.event-org-logo {
+				width: 28px;
+				height: 28px;
+				border-radius: 50%;
+				object-fit: cover;
+				background: #fff;
+				border: 1px solid rgba(255, 255, 255, 0.15);
+				flex-shrink: 0;
 			}
 			.waiting-room {
 				min-height: 100vh;
@@ -841,6 +871,10 @@ export class PublicEventComponent implements OnInit {
 	// areaImgSrc()/onImageError() ya usan para el mapa de asientos).
 	waitingRoomCoverBroken = signal(false);
 	waitingRoomLogoBroken = signal(false);
+
+	// Mismo criterio de arriba, para el logo del club en el header de la página del evento (caso
+	// 'default', fuera de la sala de espera).
+	eventOrgLogoBroken = signal(false);
 
 	// --- Checkout con pago (Event.paymentMode) ---------------------------------------------------
 	checkingOut = signal(false);

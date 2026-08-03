@@ -80,6 +80,9 @@ export type PublicEvent = {
 	map: PublicMap;
 	// Si es CLUB, hay que pedir socio/invitado + carnet al reservar (ver AttendeeType más abajo).
 	tenantType: TenantType;
+	// Branding del club — ver public-event.component.ts, header sobre el nombre del evento.
+	tenantName: string | null;
+	tenantLogoUrl: string | null;
 	// Solo relevante en tenants CHURCH — habilita el checkbox "¿retira comida?" al registrar hijos.
 	hasMealOfTheDay: boolean;
 	payment: PublicEventPayment | null;
@@ -180,6 +183,7 @@ export type PublicOrg = {
 	name: string;
 	slug: string;
 	type: TenantType;
+	logoUrl: string | null;
 	events: PublicOrgEvent[];
 };
 
