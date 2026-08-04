@@ -257,13 +257,10 @@ publicRouter.get('/events/:code/member-status', asyncHandler(async (req, res) =>
 	res.json({
 		found: true,
 		active: member.active,
-		// name/lastname van siempre que se encuentre el carnet (activo o no) — el frontend los usa
-		// para el mensaje de bloqueo ("este carnet corresponde a Fulano y no está activo"), no solo
-		// para autocompletar. email/phone en cambio solo importan para el caso activo (autocompletar
-		// datos de contacto reales), así que se quedan afuera si está inactivo.
-		name: member.name,
-		lastname: member.lastname,
-		...(member.active ? { email: member.email, phone: member.phone } : {}),
+		// Solo se manda el resto de los datos si está activo — el mensaje de bloqueo para el caso
+		// inactivo usa el carnet, no el nombre del socio (decisión explícita del club por
+		// privacidad), así que no hay necesidad de exponer sus datos personales acá.
+		...(member.active ? { name: member.name, lastname: member.lastname, email: member.email, phone: member.phone } : {}),
 	});
 }));
 

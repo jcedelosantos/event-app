@@ -141,9 +141,9 @@ export type SponsorStatus = { registered: boolean; used: number; max: number; bl
 // Consulta la simulación de membresía del club (ver api/src/lib/club-members.ts) por el carnet del
 // PROPIO socio que está comprando — a diferencia de SponsorStatus (que valida el carnet de otra
 // persona), acá sí vienen los datos de contacto para autocompletar el form. found:false = el
-// carnet no existe; active:false + found:true = existe pero está inactivo (mensajes distintos).
-// name/lastname vienen en ambos casos de found:true (activo o no) — el frontend los usa también
-// para el mensaje de bloqueo ("este carnet corresponde a Fulano"); email/phone solo si está activo.
+// carnet no existe; active:false + found:true = existe pero está inactivo (mensajes distintos, ver
+// applyMemberStatus). name/lastname/email/phone solo vienen si está activo — el mensaje de bloqueo
+// para el caso inactivo usa el carnet, no el nombre (decisión del club por privacidad).
 export type MemberStatus = {
 	found: boolean;
 	active: boolean;

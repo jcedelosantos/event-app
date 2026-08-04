@@ -193,10 +193,14 @@ const MAX_INVITADO_SEATS = 2;
 													type="text"
 													class="form-control"
 													placeholder="Tu carnet de socio"
-													[class.is-invalid]="isInvalid('carnet')"
+													[class.is-invalid]="isInvalid('carnet') || !!memberBlockReason()"
 													formControlName="carnet"
 												/>
-												<div class="form-text">Autocompletamos tus datos si el carnet está activo.</div>
+												@if (memberBlockReason()) {
+													<div class="member-block-alert">{{ memberBlockReason() }}</div>
+												} @else {
+													<div class="form-text">Autocompletamos tus datos si el carnet está activo.</div>
+												}
 											</div>
 										} @else if (attendeeTypeValue() === 'INVITADO') {
 											<div class="col-md-6">
@@ -699,6 +703,15 @@ const MAX_INVITADO_SEATS = 2;
 			.seat-btn.seat-selected {
 				background: var(--app-accent);
 			}
+			/* Aviso de carnet inactivo/no encontrado — pegado al campo de carnet (no lejos, cerca del
+			   mapa de asientos, donde antes se mostraba y quedaba desconectado del campo al que se
+			   refiere) y con más peso visual que un .form-text común, para que no pase desapercibido. */
+			.member-block-alert {
+				margin-top: 0.35rem;
+				font-size: 0.85rem;
+				font-weight: 700;
+				color: var(--app-accent);
+			}
 			.seat-btn.seat-taken {
 				background: #2a2a2a;
 				border-color: #444;
@@ -1189,6 +1202,13 @@ export class PublicEventComponent implements OnInit {
 		this.registerForm.controls.carnet.valueChanges.subscribe(() => {
 			this.memberConfirmed.set(false);
 			this.memberBlockReason.set(null);
+			// Si ya se había autocompletado con un carnet anterior (ej. uno activo) y el socio lo
+			// cambia por otro (ej. uno inactivo), sin esto los datos del carnet VIEJO quedaban
+			// pisados en el form mientras el mensaje de bloqueo hablaba del carnet NUEVO — bug real
+			// reportado (mostraba "Carlos Ureña" autocompletado junto con "este carnet corresponde a
+			// Valeria Objío"). Se limpia apenas cambia el carnet, antes de que el debounce resuelva
+			// el nuevo, para que nunca quede data de un carnet distinto al que se está validando.
+			this.registerForm.patchValue({ name: '', lastname: '', email: '', phone: '' }, { emitEvent: false });
 		});
 
 		// `switchMap` en vez de un `.subscribe()` nuevo por cada tick del debounce — así una respuesta
@@ -1355,15 +1375,14 @@ export class PublicEventComponent implements OnInit {
 		);
 	}
 
-	private applyMemberStatus({ status }: { carnet: string; status: MemberStatus | null }): void {
+	private applyMemberStatus({ carnet, status }: { carnet: string; status: MemberStatus | null }): void {
 		if (!status) return;
 		if (!status.found) {
-			this.memberBlockReason.set('No encontramos ese carnet en la base de socios del club.');
+			this.memberBlockReason.set(`No encontramos el carnet (${carnet}) en la base de socios del club.`);
 			return;
 		}
 		if (!status.active) {
-			const fullName = [status.name, status.lastname].filter(Boolean).join(' ');
-			this.memberBlockReason.set(`Este carnet corresponde a ${fullName} y no está activo — favor pasar por administración.`);
+			this.memberBlockReason.set(`El socio con el carnet (${carnet}) se encuentra inactivo — favor pasar por administración.`);
 			return;
 		}
 		// Autocompleta con los datos reales del socio — sigue siendo editable por si algo cambió

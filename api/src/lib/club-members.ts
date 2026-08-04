@@ -15,12 +15,29 @@ export type MemberLookupResult = {
 // de esta query); ni el endpoint público (routes/public.ts) ni el frontend se enteran del cambio.
 // Devuelve null si el carnet no existe — nunca se distingue de "inactivo" hacia afuera (ver
 // public.ts), para no confirmarle a un desconocido si un carnet puntual es válido o no.
+//
+// Carnet dependiente (ej. "v3345-0" para cónyuge/hijo del socio titular "v3345", ver
+// CARNET_PATTERN en public-event.component.ts): normalmente no tiene registro propio en la base de
+// socios, comparte la membresía del titular. Si no se encuentra el carnet exacto y tiene sufijo
+// "-N", se resuelve recursivamente el carnet titular (sin el sufijo) — SOLO para heredar el
+// bloqueo: si el titular está inactivo, el dependiente también lo está. Si el titular está activo
+// pero el dependiente no tiene registro propio, no hay nada para autocompletar/bloquear acá — se
+// trata como carnet no encontrado, y esa persona completa sus datos a mano como cualquier socio.
 export async function lookupClubMember(tenantId: number, carnet: string): Promise<MemberLookupResult | null> {
+	const normalized = normalizeCarnet(carnet);
 	const member = await prisma.clubMember.findUnique({
-		where: { tenantId_carnet: { tenantId, carnet: normalizeCarnet(carnet) } },
+		where: { tenantId_carnet: { tenantId, carnet: normalized } },
 	});
-	if (!member) return null;
-	return { active: member.active, name: member.name, lastname: member.lastname, email: member.email, phone: member.phone };
+	if (member) return { active: member.active, name: member.name, lastname: member.lastname, email: member.email, phone: member.phone };
+
+	const dashIndex = normalized.indexOf('-');
+	if (dashIndex > 0) {
+		const principal = await lookupClubMember(tenantId, normalized.slice(0, dashIndex));
+		if (principal && !principal.active) {
+			return { ...principal };
+		}
+	}
+	return null;
 }
 
 // Fuente de verdad real para el picker público (no la venta manual del manager, ver abajo):
@@ -33,7 +50,7 @@ export async function assertActiveMember(tenantId: number, carnet: string | unde
 	const trimmed = carnet?.trim();
 	if (!trimmed) return null;
 	const member = await lookupClubMember(tenantId, trimmed);
-	if (!member) return `No encontramos el carnet ${trimmed} en la base de socios del club.`;
-	if (!member.active) return `El carnet ${trimmed} no está activo — contactá a la organización.`;
+	if (!member) return `No encontramos el carnet (${trimmed}) en la base de socios del club.`;
+	if (!member.active) return `El socio con el carnet (${trimmed}) se encuentra inactivo — favor pasar por administración.`;
 	return null;
 }
