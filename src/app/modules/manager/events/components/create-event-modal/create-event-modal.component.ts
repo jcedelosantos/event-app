@@ -165,6 +165,17 @@ function toDateTimeInputValue(date: Date): string {
 									</div>
 								}
 							</div>
+							<div class="col-md-6 mb-2">
+								<label for="maxCapacity" class="small mb-1">Aforo máximo <span class="text-muted">(opcional — cupo total compartido entre todos los tickets)</span></label>
+								<input type="number" id="maxCapacity" min="1" class="form-control form-control-sm" formControlName="maxCapacity" placeholder="Sin tope" />
+								<div class="form-text">Se suma vendidos de Socio + Invitado + cualquier otro ticket, no cada uno por separado.</div>
+							</div>
+							@if (isClubTenant()) {
+								<div class="col-md-6 mb-2">
+									<label for="maxGuestsPerSponsor" class="small mb-1">Máx. invitados por socio <span class="text-muted">(opcional)</span></label>
+									<input type="number" id="maxGuestsPerSponsor" min="0" class="form-control form-control-sm" formControlName="maxGuestsPerSponsor" placeholder="Por defecto: 2" />
+								</div>
+							}
 							<div class="col-md-12 mb-2">
 								<label for="paymentMode" class="small mb-1">Cobro <span class="text-muted">(pago online en el portal público, antes de reservar el asiento)</span></label>
 								<select class="form-select form-select-sm" formControlName="paymentMode">
@@ -307,6 +318,8 @@ export class CreateEventModalComponent {
 		publishAt: this.fb.control<string | null>(null),
 		waitingRoomEnabled: this.fb.control<boolean>(false),
 		waitingRoomBatchSize: this.fb.control<number | null>(null),
+		maxCapacity: this.fb.control<number | null>(null),
+		maxGuestsPerSponsor: this.fb.control<number | null>(null),
 	});
 
 	constructor() {
@@ -337,6 +350,8 @@ export class CreateEventModalComponent {
 					publishAt: current.publishAt ? toDateTimeInputValue(current.publishAt) : null,
 					waitingRoomEnabled: current.waitingRoomEnabled ?? false,
 					waitingRoomBatchSize: current.waitingRoomBatchSize ?? null,
+					maxCapacity: current.maxCapacity ?? null,
+					maxGuestsPerSponsor: current.maxGuestsPerSponsor ?? null,
 				});
 			} else {
 				this.originalLinkedEventId = null;
@@ -351,6 +366,8 @@ export class CreateEventModalComponent {
 					publishAt: null,
 					waitingRoomEnabled: false,
 					waitingRoomBatchSize: null,
+					maxCapacity: null,
+					maxGuestsPerSponsor: null,
 				});
 			}
 		});
@@ -375,6 +392,8 @@ export class CreateEventModalComponent {
 			publishAt: null,
 			waitingRoomEnabled: source.waitingRoomEnabled ?? false,
 			waitingRoomBatchSize: source.waitingRoomBatchSize ?? null,
+			maxCapacity: source.maxCapacity ?? null,
+			maxGuestsPerSponsor: source.maxGuestsPerSponsor ?? null,
 		});
 		this.eventForm.patchValue({
 			name: `${source.name} (copia)`,
@@ -451,6 +470,8 @@ export class CreateEventModalComponent {
 			publishAt: value.publishAt ? new Date(value.publishAt) : null,
 			waitingRoomEnabled: value.waitingRoomEnabled!,
 			waitingRoomBatchSize: value.waitingRoomBatchSize,
+			maxCapacity: value.maxCapacity,
+			maxGuestsPerSponsor: value.maxGuestsPerSponsor,
 		};
 		const request = current ? this.eventsService.updateEvent(current.id, payload) : this.eventsService.createEvent(payload);
 

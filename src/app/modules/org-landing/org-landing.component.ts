@@ -350,6 +350,9 @@ export class OrgLandingComponent implements OnInit {
 	statusLabel(event: PublicOrgEvent): string | null {
 		if (event.scheduled) return this.countdownLabel(event.publishAt);
 		if (event.inactive) return 'Inactivo';
+		// Distinto de soldOut: el aforo compartido del evento ya se llenó aunque algún tipo de ticket
+		// todavía tenga stock propio (ver Event.maxCapacity, lib/capacity.ts en la API).
+		if (event.capacityFull) return 'Aforo completo';
 		if (event.soldOut) return 'Agotado';
 		return null;
 	}

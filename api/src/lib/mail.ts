@@ -12,6 +12,11 @@ type SaleTicketForEmail = {
 	// reemplaza a `type` (VIP/Normal) en el ticket impreso/enviado, igual que ya se hace en las
 	// tarjetas de ticket/evento del manager.
 	ticket: { name: string; type: string; price: number; attendeeType?: string | null };
+	// Nombre del titular real de ESTE ticket puntual — quien recibe el correo (`clientName` en
+	// sendTicketEmail) puede ser un socio comprando para sí mismo Y sus invitados en una sola compra
+	// (ver public.ts /purchase, `guests`); cada tarjeta necesita decir a quién le corresponde para que
+	// el socio pueda repartir el QR/PDF correcto a cada persona en la puerta.
+	client: { name: string; lastname: string };
 };
 
 function ticketTypeLabel(ticket: { type: string; attendeeType?: string | null }): string {
@@ -76,7 +81,9 @@ function buildTicketPdf(event: EventModel, sale: SaleTicketForEmail, qrBuffer: B
 		doc.fontSize(18).fillColor('#000').text(event.name, { width: contentWidth });
 		doc.moveDown(0.2);
 		doc.fontSize(11).fillColor('#555').text(formatEventDateTime(event));
-		doc.moveDown(1);
+		doc.moveDown(0.4);
+		doc.fontSize(12).fillColor('#000').text(`Para: ${sale.client.name} ${sale.client.lastname}`);
+		doc.moveDown(0.8);
 
 		doc.fontSize(10).fillColor('#888').text('Área');
 		doc.fontSize(14).fillColor('#000').text(sale.seat.area.name);
@@ -153,6 +160,7 @@ async function ticketCardHtml(event: EventModel, sale: SaleTicketForEmail): Prom
 						<div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#dc3545;font-weight:bold;">${ticketTypeLabel(sale.ticket)}</div>
 						<div style="font-size:20px;font-weight:bold;margin:4px 0;">${event.name}</div>
 						<div style="font-size:13px;color:#aaa;margin-bottom:12px;">${formatEventDateTime(event)}</div>
+						<div style="font-size:14px;color:#fff;margin-bottom:12px;">Para: <strong>${sale.client.name} ${sale.client.lastname}</strong></div>
 						<table role="presentation" width="100%" cellpadding="0" cellspacing="0">
 							<tr>
 								<td style="vertical-align:top;">

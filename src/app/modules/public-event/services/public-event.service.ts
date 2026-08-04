@@ -86,6 +86,13 @@ export type PublicEvent = {
 	// Solo relevante en tenants CHURCH — habilita el checkbox "¿retira comida?" al registrar hijos.
 	hasMealOfTheDay: boolean;
 	payment: PublicEventPayment | null;
+	// Solo relevante en tenants CLUB — cuántos invitados puede cargar un socio (inline en su propia
+	// compra, o por auto-registro independiente vía sponsorCarnet, ver getSponsorStatus). Viene
+	// siempre seteado (fallback al default del backend), inofensivo si no se usa.
+	maxGuestsPerSponsor: number;
+	// Aforo compartido del evento ya lleno (Event.maxCapacity) — distinto de que un tipo de ticket
+	// puntual esté agotado, ver purchaseBlockedReason en public-event.component.ts.
+	capacityFull: boolean;
 };
 
 export type RegisterInput = { name: string; lastname: string; email: string; phone: string; carnet: string };
@@ -95,6 +102,11 @@ export type AttendeeType = 'SOCIO' | 'INVITADO';
 // Solo se manda en tenants CHURCH — ver public-event.component.ts, sección "¿Venís con hijos?".
 export type ChildDraftInput = { name: string; age?: number; wantsMeal?: boolean };
 
+// Solo se manda en tenants CLUB, dentro de la compra de un SOCIO (ver public-event.component.ts,
+// sección "¿Traés invitados?") — cada invitado termina con su propio registro/QR, en vez de que
+// todos los asientos elegidos queden a nombre del socio (ver api/src/routes/public.ts /purchase).
+export type GuestDraftInput = { name: string; lastname: string; phone: string; email?: string };
+
 export type PurchaseInput = {
 	eventCode: string;
 	ticketId: number;
@@ -103,6 +115,7 @@ export type PurchaseInput = {
 	attendeeType?: AttendeeType;
 	sponsorCarnet?: string;
 	children?: ChildDraftInput[];
+	guests?: GuestDraftInput[];
 };
 
 // Checkout con pago (ver Event.paymentMode) — sin `children`, a propósito: un evento con cobro
@@ -187,10 +200,13 @@ export type PublicOrgEvent = {
 	// tarjeta sin tener que exponer tickets/precios en este listado público. Son casos distintos:
 	// inactive = todavía no tiene tickets cargados (evento a futuro sin terminar de configurar);
 	// soldOut = sí tiene tickets, pero ya se vendieron todos; scheduled = Event.publishAt a futuro (el
-	// evento queda visible en el listado, solo no es elegible hasta esa fecha).
+	// evento queda visible en el listado, solo no es elegible hasta esa fecha); capacityFull = el
+	// aforo compartido del evento (Event.maxCapacity) ya se llenó, aunque algún tipo de ticket
+	// todavía tenga stock propio — ver lib/capacity.ts.
 	inactive: boolean;
 	soldOut: boolean;
 	scheduled: boolean;
+	capacityFull: boolean;
 };
 
 // Portada pública de una organización — lista sus próximos eventos activos (ver org-landing).

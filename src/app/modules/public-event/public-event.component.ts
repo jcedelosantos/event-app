@@ -202,6 +202,77 @@ const MAX_INVITADO_SEATS = 2;
 													<div class="form-text">Autocompletamos tus datos si el carnet está activo.</div>
 												}
 											</div>
+											@if (memberConfirmed()) {
+												<div class="col-12">
+													<label for="guest-count" class="small mb-1">¿Traés invitados?</label>
+													<select
+														id="guest-count"
+														class="form-select form-select-sm"
+														style="max-width: 220px"
+														[value]="guestDrafts().length"
+														(change)="setGuestCount($any($event.target).value)"
+													>
+														<option value="0">No traigo invitados</option>
+														@for (n of guestCountOptions(); track n) {
+															<option [value]="n">{{ n }} invitado(s)</option>
+														}
+													</select>
+													@if (sponsorRemainingSlots() === 0) {
+														<div class="form-text">Ya alcanzaste el máximo de invitados permitido para este evento.</div>
+													}
+													@for (guest of guestDrafts(); track $index) {
+														<div class="row g-2 mt-1">
+															<div class="col-md-3">
+																<label [for]="'guest-name-' + $index" class="visually-hidden">Nombre del invitado {{ $index + 1 }}</label>
+																<input
+																	[id]="'guest-name-' + $index"
+																	type="text"
+																	class="form-control form-control-sm"
+																	placeholder="Nombre invitado"
+																	[value]="guest.name"
+																	(input)="updateGuestDraft($index, { name: $any($event.target).value })"
+																/>
+															</div>
+															<div class="col-md-3">
+																<label [for]="'guest-lastname-' + $index" class="visually-hidden">Apellido del invitado {{ $index + 1 }}</label>
+																<input
+																	[id]="'guest-lastname-' + $index"
+																	type="text"
+																	class="form-control form-control-sm"
+																	placeholder="Apellido"
+																	[value]="guest.lastname"
+																	(input)="updateGuestDraft($index, { lastname: $any($event.target).value })"
+																/>
+															</div>
+															<div class="col-md-3">
+																<label [for]="'guest-phone-' + $index" class="visually-hidden">Teléfono del invitado {{ $index + 1 }}</label>
+																<input
+																	[id]="'guest-phone-' + $index"
+																	type="text"
+																	class="form-control form-control-sm"
+																	placeholder="Teléfono"
+																	[value]="guest.phone"
+																	(input)="updateGuestDraft($index, { phone: $any($event.target).value })"
+																/>
+															</div>
+															<div class="col-md-3">
+																<label [for]="'guest-email-' + $index" class="visually-hidden">Email del invitado {{ $index + 1 }} (opcional)</label>
+																<input
+																	[id]="'guest-email-' + $index"
+																	type="email"
+																	class="form-control form-control-sm"
+																	placeholder="Email (opcional)"
+																	[value]="guest.email"
+																	(input)="updateGuestDraft($index, { email: $any($event.target).value })"
+																/>
+															</div>
+														</div>
+													}
+													@if (guestDrafts().length) {
+														<div class="form-text">Vas a elegir {{ 1 + guestDrafts().length }} asientos: el tuyo y uno por cada invitado.</div>
+													}
+												</div>
+											}
 										} @else if (attendeeTypeValue() === 'INVITADO') {
 											<div class="col-md-6">
 												<label for="club-sponsor-carnet" class="visually-hidden">Carnet del socio que te invita</label>
@@ -937,6 +1008,11 @@ export class PublicEventComponent implements OnInit {
 		if (!ev.tickets.length) {
 			return 'Este evento todavía no está disponible para la venta — probá más adelante.';
 		}
+		// Distinto del chequeo de stock por tipo de ticket de abajo: el aforo compartido del evento
+		// (Event.maxCapacity) puede llenarse aunque algún tipo de ticket todavía tenga cupo propio.
+		if (ev.capacityFull) {
+			return 'Este evento alcanzó su aforo máximo — ya no hay más lugares disponibles.';
+		}
 		if (ev.tickets.every((t) => t.count <= 0)) {
 			return 'Este evento está agotado — ya no hay entradas disponibles.';
 		}
@@ -970,6 +1046,30 @@ export class PublicEventComponent implements OnInit {
 
 	updateChildDraft(index: number, patch: Partial<{ name: string; age: string; wantsMeal: boolean }>) {
 		this.childrenDraft.update((list) => list.map((c, i) => (i === index ? { ...c, ...patch } : c)));
+	}
+
+	// Borrador de invitados que un SOCIO carga con nombre propio dentro de su misma compra (ver
+	// "¿Traés invitados?") — mismo patrón plano que childrenDraft. A diferencia de los hijos, cada
+	// invitado SÍ necesita un asiento propio (ver effectiveMaxSeats), por eso la cantidad se fija de
+	// una con el select en vez de agregar de a uno.
+	guestDrafts = signal<{ name: string; lastname: string; phone: string; email: string }[]>([]);
+
+	// Cuántos invitados le quedan disponibles a ESTE socio en este evento — null hasta que se resuelve
+	// la consulta (ver checkMemberStatus$/applyMemberStatus), 0 si ya alcanzó el tope entre este camino
+	// y el auto-registro independiente de invitados (mismo pool, ver /sponsor-status).
+	sponsorRemainingSlots = signal<number | null>(null);
+	guestCountOptions = computed(() => {
+		const remaining = this.sponsorRemainingSlots() ?? 0;
+		return Array.from({ length: remaining }, (_, i) => i + 1);
+	});
+
+	setGuestCount(raw: string) {
+		const n = Number(raw) || 0;
+		this.guestDrafts.update((list) => Array.from({ length: n }, (_, i) => list[i] ?? { name: '', lastname: '', phone: '', email: '' }));
+	}
+
+	updateGuestDraft(index: number, patch: Partial<{ name: string; lastname: string; phone: string; email: string }>) {
+		this.guestDrafts.update((list) => list.map((g, i) => (i === index ? { ...g, ...patch } : g)));
 	}
 
 	// Espejo de registerForm.controls.attendeeType como signal — un FormControl no se puede leer
@@ -1008,11 +1108,17 @@ export class PublicEventComponent implements OnInit {
 	activeTicketId = computed(() => this.activeTicket()?.id ?? null);
 
 	// Un invitado no puede reservar más de MAX_INVITADO_SEATS asientos en una sola compra (ver
-	// constante arriba) — cualquier otro caso usa el tope general.
+	// constante arriba) — cualquier otro caso usa el tope general. Un SOCIO, en cambio, elige
+	// exactamente su propio asiento + uno por cada invitado que cargó con nombre propio (ver
+	// guestDrafts) — antes podía juntar hasta MAX_SEATS asientos bajo su único nombre, que es
+	// justo el problema de identidad que este tope resuelve.
 	effectiveMaxSeats = computed(() => {
 		const ev = this.event();
 		if (ev?.tenantType === 'CLUB' && this.attendeeTypeValue() === 'INVITADO') {
 			return MAX_INVITADO_SEATS;
+		}
+		if (ev?.tenantType === 'CLUB' && this.attendeeTypeValue() === 'SOCIO') {
+			return 1 + this.guestDrafts().length;
 		}
 		return MAX_SEATS;
 	});
@@ -1193,6 +1299,8 @@ export class PublicEventComponent implements OnInit {
 			this.memberBlockReason.set(null);
 			this.memberConfirmed.set(false);
 			this.attendeeError.set('');
+			this.guestDrafts.set([]);
+			this.sponsorRemainingSlots.set(null);
 		});
 
 		this.registerForm.controls.sponsorCarnet.valueChanges.subscribe(() => {
@@ -1202,6 +1310,8 @@ export class PublicEventComponent implements OnInit {
 		this.registerForm.controls.carnet.valueChanges.subscribe(() => {
 			this.memberConfirmed.set(false);
 			this.memberBlockReason.set(null);
+			this.guestDrafts.set([]);
+			this.sponsorRemainingSlots.set(null);
 			// Si ya se había autocompletado con un carnet anterior (ej. uno activo) y el socio lo
 			// cambia por otro (ej. uno inactivo), sin esto los datos del carnet VIEJO quedaban
 			// pisados en el form mientras el mensaje de bloqueo hablaba del carnet NUEVO — bug real
@@ -1389,6 +1499,21 @@ export class PublicEventComponent implements OnInit {
 		// (ej. nuevo teléfono) que la simulación todavía no tiene.
 		this.registerForm.patchValue({ name: status.name, lastname: status.lastname, email: status.email, phone: status.phone });
 		this.memberConfirmed.set(true);
+
+		// Mismo endpoint que usa un invitado para chequear a SU socio (getSponsorStatus) — acá se
+		// consulta con el carnet del PROPIO socio para saber cuántos invitados ya trajo (por este
+		// camino o por el auto-registro independiente de invitados, mismo pool) y cuántos le quedan
+		// para ofrecerle en el select "¿Traés invitados?".
+		const ev = this.event();
+		if (ev) {
+			this.publicEventService
+				.getSponsorStatus(ev.code, carnet)
+				.pipe(catchError(() => of(null)))
+				.subscribe((sponsorStatus) => {
+					if (!sponsorStatus) return;
+					this.sponsorRemainingSlots.set(Math.max(0, sponsorStatus.max - sponsorStatus.used));
+				});
+		}
 	}
 
 	private checkDuplicateEventStatus$() {
@@ -1598,6 +1723,16 @@ export class PublicEventComponent implements OnInit {
 				this.attendeeError.set('Ingresá el carnet del socio que te invita.');
 				return;
 			}
+			if (attendeeType === 'SOCIO' && this.guestDrafts().length) {
+				if (this.guestDrafts().some((g) => !g.name.trim() || !g.lastname.trim() || !g.phone.trim())) {
+					this.attendeeError.set('Completá nombre, apellido y teléfono de cada invitado (el email es opcional).');
+					return;
+				}
+				if (this.selectedSeatIds().size !== 1 + this.guestDrafts().length) {
+					this.errorMessage.set(`Elegí ${1 + this.guestDrafts().length} asientos: el tuyo y uno por cada invitado.`);
+					return;
+				}
+			}
 		}
 
 		if (event.tenantType === 'CHURCH' && this.childrenDraft().some((c) => !c.name.trim())) {
@@ -1613,6 +1748,16 @@ export class PublicEventComponent implements OnInit {
 				client: { name: name!, lastname: lastname!, email: email!, phone: phone!, carnet: carnet ?? '' },
 				seatIds: Array.from(this.selectedSeatIds()),
 				...(usesAttendeeType ? { attendeeType: attendeeType as AttendeeType, sponsorCarnet: sponsorCarnet ?? undefined } : {}),
+				...(usesAttendeeType && attendeeType === 'SOCIO' && this.guestDrafts().length
+					? {
+							guests: this.guestDrafts().map((g) => ({
+								name: g.name.trim(),
+								lastname: g.lastname.trim(),
+								phone: g.phone.trim(),
+								...(g.email.trim() ? { email: g.email.trim() } : {}),
+							})),
+						}
+					: {}),
 				...(event.tenantType === 'CHURCH' && this.childrenDraft().length
 					? {
 							children: this.childrenDraft().map((c) => ({

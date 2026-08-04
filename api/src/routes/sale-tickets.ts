@@ -14,11 +14,13 @@ import { checkDuplicateEventRegistration } from '../lib/duplicate-event-guard';
 import { validateHostGuestRule } from '../lib/host-guest';
 import { uniqueUsername } from '../lib/unique-username';
 import { finalizePaidSaleTickets } from '../lib/checkout';
+import { assertEventCapacity } from '../lib/capacity';
 
 export const saleTicketsRouter = Router();
 saleTicketsRouter.use(requireAuth, requireTenant);
 
 class InsufficientStockError extends Error {}
+class CapacityExceededError extends Error {}
 
 const saleTicketInputSchema = z.object({
 	eventId: z.number().int(),
@@ -82,6 +84,10 @@ saleTicketsRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res) 
 		return;
 	}
 
+	// Solo para leer el tope de aforo/invitados configurado (ver schema.prisma) — si el evento no
+	// existe, se deja pasar sin tope acá, el create de más abajo igual va a fallar con P2003.
+	const eventCaps = await prisma.event.findFirst({ where: { id: parsed.data.eventId, tenantId }, select: { maxCapacity: true, maxGuestsPerSponsor: true } });
+
 	const isClub = await isClubTenant(tenantId);
 	// Un club normalmente vende por socio/invitado, pero un ticket cargado desde un flyer por
 	// WhatsApp puede venir sin esa clasificación (ej. tickets por edad) — la regla socio/invitado
@@ -96,6 +102,7 @@ saleTicketsRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res) 
 				attendeeType: parsed.data.attendeeType,
 				sponsorCarnet: parsed.data.sponsorCarnet,
 				clientCarnet: client?.carnet,
+				maxGuestsOverride: eventCaps?.maxGuestsPerSponsor,
 			});
 			if (attendeeError) {
 				res.status(400).json({ error: attendeeError });
@@ -123,6 +130,10 @@ saleTicketsRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res) 
 
 	try {
 		const saleTicket = await prisma.$transaction(async (tx) => {
+			const capacityError = await assertEventCapacity(tx, { eventId: parsed.data.eventId, tenantId, maxCapacity: eventCaps?.maxCapacity ?? null, requestedSeats: 1 });
+			if (capacityError) {
+				throw new CapacityExceededError(capacityError);
+			}
 			// Mismo patrón atómico que sale-products.ts: el updateMany con `count: { gte: 1 }` en el
 			// where hace el chequeo-y-descuento en una sola operación, así dos ventas simultáneas no
 			// pueden llevarse el mismo cupo aunque ambas lean "hay stock" al mismo tiempo.
@@ -145,6 +156,10 @@ saleTicketsRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res) 
 		});
 		res.status(201).json(toPublicSaleTicket(saleTicket));
 	} catch (err: any) {
+		if (err instanceof CapacityExceededError) {
+			res.status(409).json({ error: err.message });
+			return;
+		}
 		if (err instanceof InsufficientStockError) {
 			res.status(409).json({ error: 'No hay stock disponible para este tipo de ticket.' });
 			return;

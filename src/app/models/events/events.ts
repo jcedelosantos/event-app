@@ -32,6 +32,12 @@ export interface Events {
 	// Sala de espera virtual del picker público (ver public-event.component.ts). false por defecto.
 	waitingRoomEnabled: boolean;
 	waitingRoomBatchSize?: number | null;
+	// Cupo total del evento, compartido entre todos los tipos de ticket — aplica a cualquier tenant.
+	// null = sin tope (ver lib/capacity.ts en la API).
+	maxCapacity?: number | null;
+	// Solo tiene sentido en tenants CLUB — cuántos invitados puede traer un socio a este evento. null
+	// = usa el default del código (MAX_INVITADOS_PER_SOCIO).
+	maxGuestsPerSponsor?: number | null;
 	map?: Map;
 	tickets: Array<Ticket>;
 	products: Array<Product>;

@@ -8,8 +8,9 @@ import { prisma, prismaUnscoped } from '../lib/prisma';
 import { toPublicUser } from '../lib/serialize';
 import { sendTicketEmail } from '../lib/mail';
 import { asyncHandler } from '../lib/async-handler';
-import { isClubTenant, validateAttendeeRule, normalizeCarnet, MAX_INVITADOS_PER_SOCIO } from '../lib/attendee';
+import { isClubTenant, validateAttendeeRule, principalCarnet, MAX_INVITADOS_PER_SOCIO } from '../lib/attendee';
 import { lookupClubMember, assertActiveMember } from '../lib/club-members';
+import { assertEventCapacity } from '../lib/capacity';
 import { uniqueUsername } from '../lib/unique-username';
 import { resolveFamilyCodeQR } from '../lib/family-code';
 import { checkDuplicateEventRegistration } from '../lib/duplicate-event-guard';
@@ -27,6 +28,10 @@ export const publicRouter = Router();
 
 class InsufficientStockError extends Error {}
 class NoMealConfiguredError extends Error {}
+// Mensaje ya armado (aforo del evento alcanzado, o tope de invitados del socio alcanzado) —
+// descubierto DENTRO de la transacción de compra, se relanza para que el catch de más abajo lo
+// devuelva tal cual en vez de un mensaje genérico.
+class TransactionValidationError extends Error {}
 
 const MAX_SEATS_PER_ORDER = 5;
 // Tiempo que un asiento queda "apartado" (SaleTicket en PENDING) mientras el comprador paga —
@@ -81,28 +86,46 @@ publicRouter.get('/org/:slug', asyncHandler(async (req, res) => {
 			dateOff: true,
 			startTime: true,
 			publishAt: true,
+			maxCapacity: true,
 			map: { select: { name: true } },
 			tickets: { where: { active: true }, select: { count: true } },
 		},
 	});
+
+	// Aforo: distinto de soldOut (stock por tipo de ticket agotado) — un evento puede tener stock de
+	// sobra en cada tipo de ticket y aun así estar lleno si ya alcanzó el cupo compartido (ver
+	// Event.maxCapacity, lib/capacity.ts). Solo se pega a la DB por el conteo de vendidos en los
+	// eventos que de verdad tienen un tope configurado.
+	const soldCountByEventId = new Map<number, number>();
+	const eventsWithCap = events.filter((e) => e.maxCapacity != null);
+	if (eventsWithCap.length) {
+		const counts = await prisma.saleTicket.groupBy({
+			by: ['eventId'],
+			where: { eventId: { in: eventsWithCap.map((e) => e.id) }, tenantId: tenant.id },
+			_count: { _all: true },
+		});
+		for (const c of counts) soldCountByEventId.set(c.eventId, c._count._all);
+	}
 
 	res.json({
 		name: tenant.name,
 		slug: tenant.slug,
 		type: tenant.type,
 		logoUrl: tenant.logoUrl,
-		// soldOut/inactive/scheduled se calculan acá para no exponer tickets/precios en este listado
-		// público — la portada solo necesita saber si puede o no llevar al comprador a /e/:code, y con
-		// qué etiqueta. "scheduled" (Event.publishAt a futuro) a propósito NO excluye el evento del
-		// listado (el manager pidió explícitamente que quede visible, solo no elegible hasta esa fecha)
-		// — la venta en sí se sigue bloqueando en el backend (ver /purchase, /checkout/hold). publishAt
-		// se manda tal cual (no solo el booleano `scheduled`) para que la portada pueda mostrar la
-		// fecha/hora exacta o un conteo regresivo en el badge (ver org-landing.component.ts).
-		events: events.map(({ tickets, ...event }) => ({
+		// soldOut/inactive/scheduled/capacityFull se calculan acá para no exponer tickets/precios en
+		// este listado público — la portada solo necesita saber si puede o no llevar al comprador a
+		// /e/:code, y con qué etiqueta. "scheduled" (Event.publishAt a futuro) a propósito NO excluye
+		// el evento del listado (el manager pidió explícitamente que quede visible, solo no elegible
+		// hasta esa fecha) — la venta en sí se sigue bloqueando en el backend (ver /purchase,
+		// /checkout/hold). publishAt se manda tal cual (no solo el booleano `scheduled`) para que la
+		// portada pueda mostrar la fecha/hora exacta o un conteo regresivo en el badge (ver
+		// org-landing.component.ts).
+		events: events.map(({ tickets, maxCapacity, ...event }) => ({
 			...event,
 			inactive: !tickets.length,
 			soldOut: tickets.length > 0 && tickets.every((t) => t.count <= 0),
 			scheduled: !!event.publishAt && event.publishAt > new Date(),
+			capacityFull: maxCapacity != null && (soldCountByEventId.get(event.id) ?? 0) >= maxCapacity,
 		})),
 	});
 }));
@@ -177,6 +200,16 @@ publicRouter.get('/events/:code', asyncHandler(async (req, res) => {
 		tenantLogoUrl: event.tenant?.logoUrl ?? null,
 		hasMealOfTheDay: !!mealProduct,
 		payment,
+		// Solo relevante en tenants CLUB (ver lib/attendee.ts) — cuántos invitados puede cargar un
+		// socio en su propia compra o por auto-registro independiente (mismo tope, mismo pool, ver
+		// /sponsor-status). Se manda igual para cualquier tenant, inofensivo si no se usa.
+		maxGuestsPerSponsor: event.maxGuestsPerSponsor ?? MAX_INVITADOS_PER_SOCIO,
+		// Aforo compartido entre todos los tickets (ver Event.maxCapacity, lib/capacity.ts) — distinto
+		// de que cada tipo de ticket tenga stock: el evento puede estar lleno igual. `soldSeats` ya se
+		// consultó arriba para marcar disponibilidad de asientos, se reusa el mismo conteo acá. El
+		// frontend lo usa para bloquear la compra ANTES de intentarla (ver purchaseBlockedReason en
+		// public-event.component.ts) — el bloqueo real de todas formas vive en el backend.
+		capacityFull: event.maxCapacity != null && soldSeats.length >= event.maxCapacity,
 	});
 }));
 
@@ -192,35 +225,37 @@ publicRouter.get('/events/:code/sponsor-status', asyncHandler(async (req, res) =
 		return;
 	}
 
-	const event = await prismaUnscoped.event.findUnique({ where: { code: req.params.code }, select: { id: true, tenantId: true } });
+	const event = await prismaUnscoped.event.findUnique({ where: { code: req.params.code }, select: { id: true, tenantId: true, maxGuestsPerSponsor: true } });
 	if (!event) {
 		res.status(404).json({ error: 'Evento no encontrado' });
 		return;
 	}
+	const max = event.maxGuestsPerSponsor ?? MAX_INVITADOS_PER_SOCIO;
 
 	if (!(await isClubTenant(event.tenantId))) {
-		res.json({ registered: true, used: 0, max: MAX_INVITADOS_PER_SOCIO, blocked: false });
+		res.json({ registered: true, used: 0, max, blocked: false });
 		return;
 	}
 
-	// Mismo criterio que validateAttendeeRule: el carnet se compara normalizado (case/espacios), no
-	// con `equals` de Prisma, para que "C6735" y "c6735" cuenten como el mismo socio.
-	const normalizedCarnet = normalizeCarnet(carnet);
+	// Mismo criterio que validateAttendeeRule: el carnet se compara por su titular (principalCarnet),
+	// no con `equals` de Prisma — así "C6735" y "c6735" cuentan como el mismo socio, y "v3345"/
+	// "v3345-0" (carnet dependiente) comparten el mismo pool de invitados.
+	const normalizedCarnet = principalCarnet(carnet);
 	const socioSales = await prisma.saleTicket.findMany({
 		where: { eventId: event.id, tenantId: event.tenantId, attendeeType: 'SOCIO' },
 		select: { client: { select: { carnet: true } } },
 	});
-	const sponsorRegistered = socioSales.some((s) => normalizeCarnet(s.client.carnet ?? '') === normalizedCarnet);
+	const sponsorRegistered = socioSales.some((s) => principalCarnet(s.client.carnet ?? '') === normalizedCarnet);
 	const invitadoSales = await prisma.saleTicket.findMany({
 		where: { eventId: event.id, tenantId: event.tenantId, attendeeType: 'INVITADO' },
 		select: { sponsorCarnet: true },
 	});
-	const used = invitadoSales.filter((s) => normalizeCarnet(s.sponsorCarnet ?? '') === normalizedCarnet).length;
+	const used = invitadoSales.filter((s) => principalCarnet(s.sponsorCarnet ?? '') === normalizedCarnet).length;
 	res.json({
 		registered: !!sponsorRegistered,
 		used,
-		max: MAX_INVITADOS_PER_SOCIO,
-		blocked: !sponsorRegistered || used >= MAX_INVITADOS_PER_SOCIO,
+		max,
+		blocked: !sponsorRegistered || used >= max,
 	});
 }));
 
@@ -341,6 +376,19 @@ const childInputSchema = z.object({
 	wantsMeal: z.boolean().optional().default(false),
 });
 
+// Solo tiene sentido en tenants CLUB (ver public-event.component.ts): un SOCIO puede cargar a sus
+// invitados con identidad propia dentro de su propia compra, en vez de que cada uno tenga que
+// entrar al link por su cuenta y auto-registrarse con el carnet del socio (ese camino sigue
+// existiendo por separado, ver /sponsor-status). Sin carnet propio — los invitados no tienen uno,
+// se identifican por nombre. Email opcional: si no lo dan, se genera un placeholder interno (ver
+// más abajo) solo para satisfacer el constraint de User, nunca se le envía nada.
+const guestInputSchema = z.object({
+	name: z.string().min(1),
+	lastname: z.string().min(1),
+	phone: z.string().min(1),
+	email: z.string().email().optional(),
+});
+
 const purchaseSchema = z.object({
 	eventCode: z.string().min(1),
 	ticketId: z.number().int(),
@@ -349,6 +397,7 @@ const purchaseSchema = z.object({
 	attendeeType: z.enum(['SOCIO', 'INVITADO']).optional(),
 	sponsorCarnet: z.string().optional(),
 	children: z.array(childInputSchema).optional().default([]),
+	guests: z.array(guestInputSchema).max(MAX_SEATS_PER_ORDER - 1).optional(),
 });
 
 publicRouter.post('/purchase', checkoutRateLimiter, asyncHandler(async (req, res) => {
@@ -357,7 +406,22 @@ publicRouter.post('/purchase', checkoutRateLimiter, asyncHandler(async (req, res
 		res.status(400).json({ error: parsed.error.flatten() });
 		return;
 	}
-	const { eventCode, ticketId, client: clientData, seatIds, attendeeType, sponsorCarnet, children } = parsed.data;
+	const { eventCode, ticketId, client: clientData, seatIds, attendeeType, sponsorCarnet, children, guests } = parsed.data;
+
+	// Los invitados con datos propios (nombre/apellido/teléfono) solo tienen sentido dentro de la
+	// compra de un SOCIO — necesitan un sponsor, y acá el sponsor es la propia persona que compra.
+	// Se valida temprano, antes de tocar la DB, junto con que la cantidad de asientos elegidos
+	// coincida exactamente con "el socio + cada invitado cargado" (no de más, no de menos).
+	if (guests?.length) {
+		if (attendeeType !== 'SOCIO') {
+			res.status(400).json({ error: 'Los invitados con datos propios solo se pueden cargar en la compra de un socio.' });
+			return;
+		}
+		if (seatIds.length !== 1 + guests.length) {
+			res.status(400).json({ error: 'La cantidad de asientos elegidos no coincide con tu asiento más el de cada invitado.' });
+			return;
+		}
+	}
 
 	const event = await prismaUnscoped.event.findUnique({ where: { code: eventCode } });
 	if (!event || !event.active) {
@@ -404,6 +468,7 @@ publicRouter.post('/purchase', checkoutRateLimiter, asyncHandler(async (req, res
 			sponsorCarnet,
 			clientCarnet: clientData.carnet,
 			newInviteCount: seatIds.length,
+			maxGuestsOverride: event.maxGuestsPerSponsor,
 		});
 		if (attendeeError) {
 			res.status(400).json({ error: attendeeError });
@@ -482,6 +547,10 @@ publicRouter.post('/purchase', checkoutRateLimiter, asyncHandler(async (req, res
 
 	try {
 		const { saleTickets, createdChildren } = await prisma.$transaction(async (tx) => {
+			const capacityError = await assertEventCapacity(tx, { eventId: event.id, tenantId, maxCapacity: event.maxCapacity, requestedSeats: seatIds.length });
+			if (capacityError) {
+				throw new TransactionValidationError(capacityError);
+			}
 			// Mismo chequeo-y-descuento atómico que la venta manual (sale-tickets.ts) — acá se
 			// descuenta de una sola vez la cantidad de asientos elegidos, así una compra de autoservicio
 			// nunca deja vender más tickets de un tipo que el cupo configurado.
@@ -492,26 +561,118 @@ publicRouter.post('/purchase', checkoutRateLimiter, asyncHandler(async (req, res
 			if (stockUpdate.count === 0) {
 				throw new InsufficientStockError();
 			}
-			const saleTickets = await Promise.all(
-				seatIds.map((seatId) =>
-					tx.saleTicket.create({
-						data: {
-							eventId: event.id,
-							seatId,
-							ticketId: ticket.id,
-							userId: rootUser.id,
-							clientId: client!.id,
-							paidType: 'Online',
-							description: 'Compra autoservicio',
-							codeQR: randomUUID(),
-							tenantId,
-							channel: 'PUBLIC',
-							...(attendeeType ? { attendeeType, sponsorCarnet: attendeeType === 'INVITADO' ? sponsorCarnet?.trim() : null } : {}),
-						},
-						include,
-					}),
-				),
-			);
+
+			let saleTickets;
+			if (guests?.length) {
+				// El socio carga a sus invitados con nombre propio en su misma compra — cada uno termina
+				// con su propio `client`/SaleTicket, en vez de que las 5 seats posibles del ticket "Socio"
+				// terminen todas bajo el nombre del socio (el problema real que esto resuelve, ver
+				// public-event.component.ts effectiveMaxSeats). seatIds[0] es siempre el asiento del
+				// socio; el resto, uno por invitado, en el mismo orden que `guests`.
+				const socioTicket = await tx.saleTicket.create({
+					data: {
+						eventId: event.id,
+						seatId: seatIds[0],
+						ticketId: ticket.id,
+						userId: rootUser.id,
+						clientId: client!.id,
+						paidType: 'Online',
+						description: 'Compra autoservicio',
+						codeQR: randomUUID(),
+						tenantId,
+						channel: 'PUBLIC',
+						attendeeType: 'SOCIO',
+					},
+					include,
+				});
+
+				// El socio ya quedó registrado (arriba, en esta misma tx) — validateAttendeeRule ahora lo
+				// encuentra sin depender de una compra previa, y cuenta juntos los invitados ya cargados
+				// por este camino o por el auto-registro independiente (mismo tope, mismo pool, ver
+				// principalCarnet en lib/attendee.ts para el pooling con carnets dependientes).
+				const guestCapError = await validateAttendeeRule({
+					tenantId,
+					eventId: event.id,
+					attendeeType: 'INVITADO',
+					sponsorCarnet: clientData.carnet,
+					clientCarnet: clientData.carnet,
+					newInviteCount: guests.length,
+					maxGuestsOverride: event.maxGuestsPerSponsor,
+					db: tx,
+				});
+				if (guestCapError) {
+					throw new TransactionValidationError(guestCapError);
+				}
+
+				const guestTickets = [];
+				for (let i = 0; i < guests.length; i++) {
+					const guestInput = guests[i];
+					// Sin email real, se genera un placeholder interno solo para satisfacer el
+					// @@unique([tenantId, email]) de User — el invitado nunca lo ve ni recibe nada ahí,
+					// el socio es quien recibe el único email con todos los QR (ver sendTicketEmail).
+					const guestEmail = guestInput.email ?? `invitado-${randomUUID()}@sin-email.invitado`;
+					let guestClient = await tx.user.findFirst({ where: { email: guestEmail, tenantId } });
+					if (!guestClient) {
+						const hashed = await bcrypt.hash(randomUUID(), 10);
+						guestClient = await tx.user.create({
+							data: {
+								username: await uniqueUsername(tx, guestEmail),
+								password: hashed,
+								name: guestInput.name,
+								lastname: guestInput.lastname,
+								email: guestEmail,
+								phone: guestInput.phone,
+								gender: '',
+								adress: '',
+								carnet: '',
+								typeId: clientType.id,
+								tenantId,
+							},
+						});
+					}
+					guestTickets.push(
+						await tx.saleTicket.create({
+							data: {
+								eventId: event.id,
+								seatId: seatIds[i + 1],
+								ticketId: ticket.id,
+								userId: rootUser.id,
+								clientId: guestClient.id,
+								paidType: 'Online',
+								description: `Invitado de ${clientData.name}`,
+								codeQR: randomUUID(),
+								tenantId,
+								channel: 'PUBLIC',
+								attendeeType: 'INVITADO',
+								sponsorCarnet: clientData.carnet.trim(),
+							},
+							include,
+						}),
+					);
+				}
+				saleTickets = [socioTicket, ...guestTickets];
+			} else {
+				saleTickets = await Promise.all(
+					seatIds.map((seatId) =>
+						tx.saleTicket.create({
+							data: {
+								eventId: event.id,
+								seatId,
+								ticketId: ticket.id,
+								userId: rootUser.id,
+								clientId: client!.id,
+								paidType: 'Online',
+								description: 'Compra autoservicio',
+								codeQR: randomUUID(),
+								tenantId,
+								channel: 'PUBLIC',
+								...(attendeeType ? { attendeeType, sponsorCarnet: attendeeType === 'INVITADO' ? sponsorCarnet?.trim() : null } : {}),
+							},
+							include,
+						}),
+					),
+				);
+			}
 
 			// Registro de hijos (solo aplica en tenants CHURCH — ver children.ts para el mismo patrón
 			// usado en la venta manual). Mismo chequeo-y-descuento atómico de stock que la comida del día.
@@ -569,6 +730,10 @@ publicRouter.post('/purchase', checkoutRateLimiter, asyncHandler(async (req, res
 			children: createdChildren.map((c) => ({ id: c.id, name: c.name, codeQR: c.codeQR })),
 		});
 	} catch (err: any) {
+		if (err instanceof TransactionValidationError) {
+			res.status(409).json({ error: err.message });
+			return;
+		}
 		if (err instanceof InsufficientStockError) {
 			res.status(409).json({ error: 'No hay suficiente stock disponible para este tipo de ticket.' });
 			return;
@@ -656,6 +821,7 @@ publicRouter.post('/checkout/hold', checkoutRateLimiter, asyncHandler(async (req
 			sponsorCarnet,
 			clientCarnet: clientData.carnet,
 			newInviteCount: seatIds.length,
+			maxGuestsOverride: event.maxGuestsPerSponsor,
 		});
 		if (attendeeError) {
 			res.status(400).json({ error: attendeeError });
@@ -727,6 +893,10 @@ publicRouter.post('/checkout/hold', checkoutRateLimiter, asyncHandler(async (req
 		// que reservó (ver comentario en schema.prisma sobre SaleTicket.holdToken).
 		const holdToken = randomUUID();
 		const saleTickets = await prisma.$transaction(async (tx) => {
+			const capacityError = await assertEventCapacity(tx, { eventId: event.id, tenantId, maxCapacity: event.maxCapacity, requestedSeats: seatIds.length });
+			if (capacityError) {
+				throw new TransactionValidationError(capacityError);
+			}
 			const stockUpdate = await tx.ticket.updateMany({
 				where: { id: ticket.id, count: { gte: seatIds.length }, tenantId },
 				data: { count: { decrement: seatIds.length } },
@@ -766,6 +936,10 @@ publicRouter.post('/checkout/hold', checkoutRateLimiter, asyncHandler(async (req
 			expiresAt,
 		});
 	} catch (err: any) {
+		if (err instanceof TransactionValidationError) {
+			res.status(409).json({ error: err.message });
+			return;
+		}
 		if (err instanceof InsufficientStockError) {
 			res.status(409).json({ error: 'No hay suficiente stock disponible para este tipo de ticket.' });
 			return;

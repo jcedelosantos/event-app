@@ -169,6 +169,17 @@ model Event {
   // default del código (DEFAULT_BATCH_SIZE, ver lib/waiting-room.ts).
   waitingRoomBatchSize Int?
 
+  // Cupo total del evento, compartido entre TODOS los tipos de ticket (a diferencia de
+  // Ticket.count, que es el stock de cada tipo por separado) — aplica a cualquier tenant. null =
+  // sin tope (default, retrocompatible). Se valida sumando los SaleTicket del evento en vivo, no es
+  // un contador que haya que mantener sincronizado (ver lib/capacity.ts).
+  maxCapacity Int?
+
+  // Solo tiene sentido en tenants tipo CLUB — cuántos invitados puede traer un socio a ESTE evento
+  // (el socio + N invitados). null = usa el default del código (MAX_INVITADOS_PER_SOCIO, ver
+  // lib/attendee.ts).
+  maxGuestsPerSponsor Int?
+
   tickets      Ticket[]
   products     Product[]
   saleProducts SaleProduct[]

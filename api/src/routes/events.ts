@@ -53,6 +53,12 @@ const eventInputSchema = z.object({
 	// por evento. batchSize null = usa el default del código.
 	waitingRoomEnabled: z.boolean().optional().default(false),
 	waitingRoomBatchSize: z.number().int().min(1).nullable().optional(),
+	// Cupo total del evento, compartido entre todos los tipos de ticket (ver lib/capacity.ts). null =
+	// sin tope, aplica a cualquier tenant.
+	maxCapacity: z.number().int().min(1).nullable().optional(),
+	// Solo tiene efecto en tenants CLUB — cuántos invitados puede traer un socio a este evento. null =
+	// usa el default del código (MAX_INVITADOS_PER_SOCIO, ver lib/attendee.ts).
+	maxGuestsPerSponsor: z.number().int().min(0).nullable().optional(),
 });
 
 const include = { map: { include: { areas: true } }, tickets: true, products: true };
@@ -74,11 +80,13 @@ eventsRouter.get('/:id', asyncHandler(async (req: AuthenticatedRequest, res) => 
 	res.json(event);
 }));
 
-// Cuántas personas hay ahora mismo en la fila/admitidas para este evento (ver lib/waiting-room.ts) —
-// solo tiene sentido si waitingRoomEnabled está prendido, pero no hace falta chequearlo acá: si nunca
-// hubo un join, getWaitingRoomStats devuelve 0/0 sin tocar la DB de nuevo (el estado vive 100% en
-// memoria, separado del registro del evento).
-eventsRouter.get('/:id/waiting-room/stats', asyncHandler(async (req: AuthenticatedRequest, res) => {
+// Estado en vivo de un evento en pleno pico de demanda: cuánta gente hay en la fila/admitida (ver
+// lib/waiting-room.ts, no hace falta chequear waitingRoomEnabled acá — si nunca hubo un join,
+// getWaitingRoomStats devuelve 0/0 sin tocar la DB) más cuántos asientos quedan disponibles del
+// total permitido — así el manager ve el cupo bajando en vivo mientras la fila se vacía. El
+// frontend solo pollea esto para eventos con waitingRoomEnabled (ver event-card.component.ts), así
+// que el costo de las dos queries extra acá no pega en el resto de los eventos.
+eventsRouter.get('/:id/live-stats', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const id = Number(req.params.id);
 	const tenantId = req.user!.tenantId!;
 	const event = await prisma.event.findUnique({ where: { id, tenantId }, select: { code: true } });
@@ -86,7 +94,10 @@ eventsRouter.get('/:id/waiting-room/stats', asyncHandler(async (req: Authenticat
 		res.status(404).json({ error: 'Evento no encontrado' });
 		return;
 	}
-	res.json(getWaitingRoomStats(event.code));
+	const tickets = await prisma.ticket.findMany({ where: { eventId: id, tenantId, active: true }, select: { count: true } });
+	const availableCount = tickets.reduce((sum, t) => sum + t.count, 0);
+	const soldCount = await prisma.saleTicket.count({ where: { eventId: id, tenantId } });
+	res.json({ ...getWaitingRoomStats(event.code), soldCount, availableCount, totalCapacity: availableCount + soldCount });
 }));
 
 eventsRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res) => {

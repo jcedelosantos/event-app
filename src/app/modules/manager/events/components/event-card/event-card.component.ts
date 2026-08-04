@@ -4,7 +4,7 @@ import { Events } from '../../../../../models/events/events';
 import { Ticket } from '../../../../../models/tickets/ticket';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../../../../core/services/auth.service';
-import { EventsService, WaitingRoomStats } from '../../services/events.service';
+import { EventsService, LiveEventStats } from '../../services/events.service';
 
 @Component({
 	selector: 'event-card',
@@ -34,10 +34,21 @@ import { EventsService, WaitingRoomStats } from '../../services/events.service';
 							<i class="bi bi-clock-history"></i> Programado
 						</span>
 					}
-					@if (waitingRoomStats(); as stats) {
+					@if (liveStats(); as stats) {
 						@if (stats.queueCount > 0 || stats.admittedCount > 0) {
 							<span class="badge text-bg-info" [title]="stats.admittedCount + ' admitido(s) ahora mismo'">
 								<i class="bi bi-hourglass-split"></i> {{ stats.queueCount }} en fila
+							</span>
+						}
+						@if (stats.totalCapacity > 0) {
+							<span
+								class="badge"
+								[class.text-bg-danger]="stats.availableCount === 0"
+								[class.text-bg-warning]="stats.availableCount > 0 && stats.availableCount <= stats.totalCapacity * 0.1"
+								[class.text-bg-secondary]="stats.availableCount > stats.totalCapacity * 0.1"
+								[title]="stats.soldCount + ' vendido(s) de ' + stats.totalCapacity"
+							>
+								<i class="bi bi-ticket-perforated"></i> {{ stats.availableCount }} disponibles
 							</span>
 						}
 					}
@@ -82,9 +93,9 @@ export class EventCardComponent implements OnInit, OnChanges {
 	duplicateEvent = output<Events>();
 	deleteEvent = output<Events>();
 
-	// null mientras no se cargó el primer poll (o si el evento no tiene sala de espera) — el badge del
-	// template solo aparece con datos reales, nunca parpadea un "0 en fila" de arranque.
-	waitingRoomStats = signal<WaitingRoomStats | null>(null);
+	// null mientras no se cargó el primer poll (o si el evento no tiene sala de espera) — los badges del
+	// template solo aparecen con datos reales, nunca parpadean un "0 en fila"/"0 disponibles" de arranque.
+	liveStats = signal<LiveEventStats | null>(null);
 	private waitingRoomPollIntervalId: ReturnType<typeof setInterval> | null = null;
 
 	ngOnInit(): void {
@@ -113,9 +124,9 @@ export class EventCardComponent implements OnInit, OnChanges {
 		if (this.event.waitingRoomEnabled) {
 			if (this.waitingRoomPollIntervalId != null) return;
 			const poll = () => {
-				this.eventsService.getWaitingRoomStats(this.event.id).subscribe({
-					next: (stats) => this.waitingRoomStats.set(stats),
-					// Un poll fallido no debe hacer parpadear el badge a "sin datos" — se reintenta solo.
+				this.eventsService.getLiveStats(this.event.id).subscribe({
+					next: (stats) => this.liveStats.set(stats),
+					// Un poll fallido no debe hacer parpadear los badges a "sin datos" — se reintenta solo.
 					error: () => {},
 				});
 			};
@@ -124,7 +135,7 @@ export class EventCardComponent implements OnInit, OnChanges {
 		} else if (this.waitingRoomPollIntervalId != null) {
 			clearInterval(this.waitingRoomPollIntervalId);
 			this.waitingRoomPollIntervalId = null;
-			this.waitingRoomStats.set(null);
+			this.liveStats.set(null);
 		}
 	}
 
