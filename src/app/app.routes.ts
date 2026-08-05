@@ -12,6 +12,14 @@ export const routes: Routes = [
 		loadChildren: () => import('./modules/login/login.module').then((m) => m.LoginModule),
 	},
 	{
+		path: 'signup',
+		loadComponent: () => import('./modules/signup/signup.component').then((m) => m.SignupComponent),
+	},
+	{
+		path: 'signup/confirmacion',
+		loadComponent: () => import('./modules/signup/signup-confirmation.component').then((m) => m.SignupConfirmationComponent),
+	},
+	{
 		path: 'manager',
 		canActivate: [authGuard],
 		loadChildren: () => import('./modules/manager/manager.module').then((m) => m.ManagerModule),

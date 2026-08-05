@@ -8,7 +8,7 @@ const PAYPAL_KEYS = ['payments.paypalClientId', 'payments.paypalSecret', 'paymen
 export class PayPalNotConfiguredError extends Error {}
 export class PayPalRequestError extends Error {}
 
-type PayPalConfig = { clientId: string; secret: string; mode: 'sandbox' | 'live'; webhookId: string | null };
+export type PayPalConfig = { clientId: string; secret: string; mode: 'sandbox' | 'live'; webhookId: string | null };
 
 const API_BASE: Record<PayPalConfig['mode'], string> = {
 	sandbox: 'https://api-m.sandbox.paypal.com',

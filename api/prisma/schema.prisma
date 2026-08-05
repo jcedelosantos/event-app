@@ -26,6 +26,16 @@ model Tenant {
   type      String   @default("GENERAL")
   createdAt DateTime @default(now())
 
+  // Espejo de Subscription.plan/status — el feature-gating (ver middleware/plan.ts) corre en casi
+  // cada request y no conviene un join extra a Subscription; el webhook de PayPal Billing es quien
+  // mantiene sincronizados estos dos campos con la fila real. plan null = tenant sin suscripción
+  // propia todavía (ej. dado de alta a mano por Super Admin antes de que existiera este sistema, o
+  // el tenant "seed" de desarrollo) — el feature-gating trata null como "sin restricción" para no
+  // romper retroactivamente cuentas existentes.
+  plan         String? // BASICO | INTERMEDIO | AVANZADO | PRO_MAX
+  planStatus   String? // ACTIVE | PAST_DUE | SUSPENDED | CANCELLED — null junto con plan null
+  subscription Subscription?
+
   users        User[]
   events       Event[]
   maps         Map[]
@@ -40,6 +50,43 @@ model Tenant {
   appSettings  AppSetting[]
   children     Child[]
   clubMembers  ClubMember[]
+}
+
+// La mensualidad que el TENANT le paga a la agencia (no confundir con SaleTicket, que es la venta
+// de UN ticket a UN asistente del club — acá el "comprador" es el club mismo, y el dinero va a la
+// cuenta PayPal de la agencia, no a la del tenant). Un tenant tiene a lo sumo una fila acá — el
+// historial de ciclos/renovaciones vive del lado de PayPal, no se duplica localmente en esta
+// primera vuelta (ver plan de "Alta pública + suscripción").
+model Subscription {
+  id       Int    @id @default(autoincrement())
+  tenantId Int    @unique
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+
+  plan   String // BASICO | INTERMEDIO | AVANZADO | PRO_MAX
+  status String @default("PENDING") // PENDING | ACTIVE | PAST_DUE | SUSPENDED | CANCELLED
+
+  paypalSubscriptionId String?   @unique
+  currentPeriodEnd     DateTime?
+  // Overage calculado (asistentes reales de un evento por encima del cupo del plan) todavía sin
+  // cobrar — PayPal Subscriptions no permite cobrar un monto variable arriba de una suscripción
+  // sin permisos de "Reference Transactions" (nivel partner). Se acumula acá y se factura aparte
+  // hasta que eso se resuelva; ver middleware/plan.ts para el cálculo.
+  pendingOverageUSD    Float     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Config de plataforma genuinamente global (sin tenantId) — hoy solo guarda el PayPal usado para
+// cobrar la suscripción recurrente (ver lib/paypal-billing.ts). Es su propio lugar, no un lookup
+// dinámico a ningún Tenant: se puebla una vez con `npm run copy:paypal-platform` (copiando, para
+// arrancar, las credenciales de prueba que ya están cargadas en el tenant del club) y de ahí en
+// más vive independiente — si el club cambia su propio PayPal de tickets más adelante, esto no se
+// entera ni se rompe.
+model PlatformSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
 }
 
 model UserType {
@@ -106,17 +153,17 @@ model AuditLog {
 }
 
 model Event {
-  id          Int      @id @default(autoincrement())
+  id          Int       @id @default(autoincrement())
   name        String
   img         String
-  code        String   @unique
+  code        String    @unique
   type        String
   description String
   dateSale    DateTime
   dateOn      DateTime
   dateOff     DateTime
   startTime   String?
-  active      Boolean  @default(true)
+  active      Boolean   @default(true)
   // Fecha/hora a partir de la cual el evento se vuelve visible/comprable en el portal público (ver
   // public.ts) — permite subir y configurar un evento con anticipación sin exponerlo todavía. null
   // (default para todo lo existente vía migración) = sin restricción, visible apenas se crea, igual
@@ -124,8 +171,8 @@ model Event {
   // hoy pero defaultea silenciosamente a `dateOn` para TODOS los eventos ya creados — usarlo como
   // gate rompería la visibilidad de cualquier evento vigente hasta el mismo día del evento.
   publishAt   DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   userId    Int
   createdBy User @relation("EventCreatedBy", fields: [userId], references: [id])
@@ -164,7 +211,7 @@ model Event {
   // virtual (ver lib/waiting-room.ts) antes de cargar la query pesada de GET /events/:code — para
   // eventos de alta demanda donde publishAt dispara mucha gente al mismo tiempo. false por defecto
   // (opt-in, cero cambio de comportamiento para el resto de los eventos).
-  waitingRoomEnabled Boolean @default(false)
+  waitingRoomEnabled   Boolean @default(false)
   // Cuántas personas se admiten a la vez cuando waitingRoomEnabled está prendido. null = usa el
   // default del código (DEFAULT_BATCH_SIZE, ver lib/waiting-room.ts).
   waitingRoomBatchSize Int?
@@ -422,10 +469,10 @@ model SaleTicket {
   // exclusivo del checkout público con pago (ver Event.paymentMode / public.ts): el asiento ya
   // queda tomado (protegido por el @@unique de abajo) pero el email con el QR no sale hasta que
   // pasa a PAID, ya sea por webhook/capture de PayPal o a mano desde el panel de QRs (Opción "Link").
-  paymentStatus String @default("PAID")
+  paymentStatus    String    @default("PAID")
   // PAYPAL | LINK | null — método usado en el checkout con pago; null para ventas manuales/sin cobro.
-  paymentProvider String?
-  paypalOrderId   String?
+  paymentProvider  String?
+  paypalOrderId    String?
   // Solo seteado mientras paymentStatus = PENDING — vencido este momento, el próximo intento de
   // reservar ESE asiento borra la fila vieja antes de crear la nueva (ver public.ts), sin necesitar
   // un cron aparte.
@@ -435,7 +482,7 @@ model SaleTicket {
   // de adivinar) y cualquiera podía crear una orden PayPal real contra la cuenta de OTRO comprador.
   // El frontend tiene que devolver este valor junto con los holdIds para poder avanzar el pago — solo
   // seteado mientras paymentStatus = PENDING, null en cualquier venta manual/sin cobro online.
-  holdToken String?
+  holdToken        String?
 
   // Un mismo asiento no se puede vender dos veces para el mismo evento.
   @@unique([eventId, seatId])
@@ -483,7 +530,7 @@ model Child {
 // termina en SaleTicket) — es la fuente de verdad externa que confirma si ESE carnet corresponde
 // a un socio vigente, antes de dejarlo comprar como tal.
 model ClubMember {
-  id       Int    @id @default(autoincrement())
+  id       Int     @id @default(autoincrement())
   carnet   String
   name     String
   lastname String

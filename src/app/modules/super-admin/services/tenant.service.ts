@@ -5,6 +5,18 @@ import { Tenant, TenantType } from '../../../models/tenants/tenant';
 import { User } from '../../../models/users/user';
 import { environment } from '../../../../environments/environment';
 
+export type SubscriptionInfo = {
+	id: number;
+	plan: string;
+	status: string;
+	paypalSubscriptionId: string | null;
+	currentPeriodEnd: string | null;
+} | null;
+
+export type EventOverage = { eventId: number; eventName: string; soldCount: number; included: number; overageCount: number; overageUSD: number };
+
+export type TenantSubscriptionDetail = { subscription: SubscriptionInfo; overage: { totalUSD: number; events: EventOverage[] } };
+
 export type CreateTenantInput = {
 	name: string;
 	type?: TenantType;
@@ -42,5 +54,15 @@ export class TenantService {
 
 	impersonate(id: number): Observable<{ token: string; user: User }> {
 		return this.httpClient.post<{ token: string; user: User }>(`${this.baseUrl}/${id}/impersonate`, {});
+	}
+
+	getSubscription(id: number): Observable<TenantSubscriptionDetail> {
+		return this.httpClient.get<TenantSubscriptionDetail>(`${this.baseUrl}/${id}/subscription`);
+	}
+
+	// El status local recién se actualiza cuando llega el webhook de PayPal (ver signup.ts en la
+	// API) — este endpoint solo dispara la cancelación del lado de PayPal.
+	cancelSubscription(id: number, reason?: string): Observable<{ ok: boolean }> {
+		return this.httpClient.post<{ ok: boolean }>(`${this.baseUrl}/${id}/subscription/cancel`, { reason });
 	}
 }

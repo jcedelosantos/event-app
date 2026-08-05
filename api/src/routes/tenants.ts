@@ -7,6 +7,9 @@ import { signToken } from '../lib/jwt';
 import { toPublicUser } from '../lib/serialize';
 import { logAudit } from '../lib/audit';
 import { asyncHandler } from '../lib/async-handler';
+import { uniqueTenantSlug } from '../lib/slug';
+import { computeTenantOverage } from '../lib/overage';
+import { cancelSubscription } from '../lib/paypal-billing';
 
 // Panel de Super Admin: alta de nuevos clientes (clubes/iglesias) y su primer usuario admin. Usa
 // prismaUnscoped a propósito — el tenant-guard exige tenantId en cada query de los modelos de
@@ -22,14 +25,6 @@ tenantsRouter.get('/', asyncHandler(async (_req, res) => {
 	});
 	res.json(tenants);
 }));
-
-const slugify = (name: string) =>
-	name
-		.toLowerCase()
-		.normalize('NFD')
-		.replace(/[̀-ͯ]/g, '')
-		.replace(/[^a-z0-9]+/g, '-')
-		.replace(/(^-|-$)/g, '');
 
 const tenantTypeSchema = z.enum(['GENERAL', 'CLUB', 'CHURCH']);
 
@@ -59,13 +54,7 @@ tenantsRouter.post('/', asyncHandler(async (req, res) => {
 		return;
 	}
 
-	const baseSlug = slugify(name) || 'org';
-	let slug = baseSlug;
-	let suffix = 1;
-	while (await prismaUnscoped.tenant.findUnique({ where: { slug } })) {
-		suffix += 1;
-		slug = `${baseSlug}-${suffix}`;
-	}
+	const slug = await uniqueTenantSlug(name);
 
 	try {
 		const hashed = await bcrypt.hash(admin.password, 10);
@@ -157,4 +146,29 @@ tenantsRouter.post('/:id/impersonate', asyncHandler(async (req: AuthenticatedReq
 	});
 
 	res.json({ token, user: toPublicUser(adminUser) });
+}));
+
+// Estado de la suscripción (plan/status/próxima renovación) + overage calculado del mes en curso
+// para este tenant — panel de solo lectura del Super Admin (ver signup.ts para cómo se activa).
+tenantsRouter.get('/:id/subscription', asyncHandler(async (req, res) => {
+	const id = Number(req.params.id);
+	const subscription = await prismaUnscoped.subscription.findUnique({ where: { tenantId: id } });
+	const overage = await computeTenantOverage(id);
+	res.json({ subscription, overage });
+}));
+
+const cancelSubscriptionSchema = z.object({ reason: z.string().min(1).optional().default('Cancelado por la agencia') });
+
+// Cancela contra PayPal — el status local se actualiza recién cuando llegue el webhook
+// BILLING.SUBSCRIPTION.CANCELLED (misma fuente de verdad que la activación), no acá.
+tenantsRouter.post('/:id/subscription/cancel', asyncHandler(async (req, res) => {
+	const id = Number(req.params.id);
+	const parsed = cancelSubscriptionSchema.safeParse(req.body ?? {});
+	const subscription = await prismaUnscoped.subscription.findUnique({ where: { tenantId: id } });
+	if (!subscription?.paypalSubscriptionId) {
+		res.status(404).json({ error: 'Este tenant no tiene una suscripción de PayPal activa' });
+		return;
+	}
+	await cancelSubscription(subscription.paypalSubscriptionId, parsed.success ? parsed.data.reason : 'Cancelado por la agencia');
+	res.json({ ok: true });
 }));

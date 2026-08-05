@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 import { TenantService } from './services/tenant.service';
 import { CreateTenantModalComponent } from './components/create-tenant-modal/create-tenant-modal.component';
 import { EditTenantModalComponent } from './components/edit-tenant-modal/edit-tenant-modal.component';
+import { SubscriptionModalComponent } from './components/subscription-modal/subscription-modal.component';
 import { AccountModalComponent } from '../../shared/account-modal/account-modal.component';
 import { Tenant } from '../../models/tenants/tenant';
 import { AuthService } from '../../core/services/auth.service';
@@ -13,7 +14,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 
 @Component({
 	selector: 'app-super-admin',
-	imports: [CreateTenantModalComponent, EditTenantModalComponent, AccountModalComponent, DatePipe],
+	imports: [CreateTenantModalComponent, EditTenantModalComponent, SubscriptionModalComponent, AccountModalComponent, DatePipe],
 	template: `
 		<div class="container-fluid py-4" data-bs-theme="dark">
 			<div class="d-flex justify-content-between align-items-center mb-4">
@@ -42,6 +43,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 						<th scope="col">Eventos</th>
 						<th scope="col">Creada</th>
 						<th scope="col">Estado</th>
+						<th scope="col">Plan</th>
 						<th scope="col"></th>
 					</tr>
 				</thead>
@@ -60,6 +62,23 @@ import { HttpErrorResponse } from '@angular/common/http';
 								<span class="badge" [class.text-bg-success]="tenant.active" [class.text-bg-secondary]="!tenant.active">
 									{{ tenant.active ? 'Activa' : 'Inactiva' }}
 								</span>
+							</td>
+							<td>
+								@if (tenant.plan) {
+									<button type="button" class="btn btn-sm btn-outline-light" data-bs-toggle="modal" data-bs-target="#subscriptionModal" (click)="selectedSubscriptionTenant.set(tenant)">
+										{{ tenant.plan }}
+										<span
+											class="badge ms-1"
+											[class.text-bg-success]="tenant.planStatus === 'ACTIVE'"
+											[class.text-bg-warning]="tenant.planStatus === 'PAST_DUE' || tenant.planStatus === 'PENDING'"
+											[class.text-bg-secondary]="tenant.planStatus === 'SUSPENDED' || tenant.planStatus === 'CANCELLED'"
+										>
+											{{ tenant.planStatus }}
+										</span>
+									</button>
+								} @else {
+									<span class="text-muted small">sin suscripción</span>
+								}
 							</td>
 							<td class="text-end text-nowrap">
 								<button type="button" class="btn btn-sm btn-outline-primary me-1" (click)="enterTenant(tenant)">
@@ -81,7 +100,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 						</tr>
 					} @empty {
 						<tr>
-							<td colspan="8" class="text-center text-muted py-4">Todavía no hay organizaciones creadas.</td>
+							<td colspan="9" class="text-center text-muted py-4">Todavía no hay organizaciones creadas.</td>
 						</tr>
 					}
 				</tbody>
@@ -89,6 +108,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 		</div>
 		<app-create-tenant-modal (tenantCreated)="loadTenants()" />
 		<app-edit-tenant-modal [(tenant)]="selectedTenant" (tenantUpdated)="loadTenants()" />
+		<app-subscription-modal [(tenant)]="selectedSubscriptionTenant" (subscriptionChanged)="loadTenants()" />
 		<app-account-modal />
 	`,
 	changeDetection: ChangeDetectionStrategy.OnPush,
@@ -100,6 +120,7 @@ export class SuperAdminComponent implements AfterViewInit {
 
 	tenants = signal<Tenant[]>([]);
 	selectedTenant = signal<Tenant | null>(null);
+	selectedSubscriptionTenant = signal<Tenant | null>(null);
 
 	ngAfterViewInit(): void {
 		// Los modales se abren con el data-API de Bootstrap (data-bs-toggle/data-bs-target), NO con

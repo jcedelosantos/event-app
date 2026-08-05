@@ -7,6 +7,7 @@ import { asyncHandler } from '../lib/async-handler';
 import { logAudit } from '../lib/audit';
 import { findDuplicateEventSlot } from '../lib/find-duplicate-event-slot';
 import { getWaitingRoomStats } from '../lib/waiting-room';
+import { getTenantPlanFeatures } from '../middleware/plan';
 
 export const eventsRouter = Router();
 eventsRouter.use(requireAuth, requireTenant);
@@ -63,6 +64,26 @@ const eventInputSchema = z.object({
 
 const include = { map: { include: { areas: true } }, tickets: true, products: true };
 
+// A diferencia de requirePlan (gatea una ruta entera), acá el plan solo importa si el payload
+// puntual prende una feature premium — un tenant Básico sigue pudiendo crear/editar eventos
+// normales, solo se lo bloquea si intenta prender cobro online o sala de espera/aforo.
+async function assertEventPlanFeatures(tenantId: number, data: Partial<z.infer<typeof eventInputSchema>>): Promise<string | null> {
+	const wantsOnlinePayment = data.paymentMode != null && data.paymentMode !== 'NONE';
+	const wantsWaitingRoomOrCapacity = data.waitingRoomEnabled === true || data.maxCapacity != null;
+	if (!wantsOnlinePayment && !wantsWaitingRoomOrCapacity) return null;
+
+	const result = await getTenantPlanFeatures(tenantId);
+	if (result.blocked) return result.reason;
+	if (!result.features) return null; // tenant sin plan asignado, sin restricción (ver comentario en schema.prisma)
+	if (wantsOnlinePayment && !result.features.onlinePayment) {
+		return 'El cobro online no está incluido en tu plan actual.';
+	}
+	if (wantsWaitingRoomOrCapacity && !result.features.waitingRoomAndCapacity) {
+		return 'La sala de espera y el aforo no están incluidos en tu plan actual.';
+	}
+	return null;
+}
+
 eventsRouter.get('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const tenantId = req.user!.tenantId!;
 	const events = await prisma.event.findMany({ where: { tenantId }, include, orderBy: { dateOn: 'asc' } });
@@ -112,6 +133,12 @@ eventsRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	// descarta si llega, no hay nada que vincular todavía.
 	const { dateSale, dateOff, code, linkedEventId: _linkedEventId, ...data } = parsed.data;
 
+	const planError = await assertEventPlanFeatures(tenantId, data);
+	if (planError) {
+		res.status(403).json({ error: planError });
+		return;
+	}
+
 	const duplicate = await findDuplicateEventSlot(tenantId, data.mapId, data.dateOn);
 	if (duplicate) {
 		res.status(409).json({ error: `Ya existe un evento ("${duplicate.name}") con esa misma fecha y mapa asignado.` });
@@ -149,6 +176,12 @@ eventsRouter.put('/:id', asyncHandler(async (req: AuthenticatedRequest, res) => 
 	}
 
 	const { linkedEventId, ...eventData } = parsed.data;
+
+	const planError = await assertEventPlanFeatures(tenantId, eventData);
+	if (planError) {
+		res.status(403).json({ error: planError });
+		return;
+	}
 
 	const current = await prisma.event.findUnique({ where: { id, tenantId }, select: { mapId: true, dateOn: true } });
 	if (!current) {

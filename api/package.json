@@ -10,7 +10,9 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "seed": "tsx prisma/seed.ts",
-    "seed:club-members": "tsx prisma/seed-club-members.ts"
+    "seed:club-members": "tsx prisma/seed-club-members.ts",
+    "setup:paypal-plans": "tsx prisma/setup-paypal-plans.ts",
+    "copy:paypal-platform": "tsx prisma/copy-club-paypal-to-platform.ts"
   },
   "dependencies": {
     "@prisma/client": "6.7.0",

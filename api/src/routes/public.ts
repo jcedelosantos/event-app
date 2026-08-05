@@ -18,6 +18,7 @@ import { createOrder as createPaypalOrder, captureOrder as capturePaypalOrder, v
 import { finalizePaidSaleTickets } from '../lib/checkout';
 import { findDuplicateEventSlot } from '../lib/find-duplicate-event-slot';
 import { extractEventFromImage, AnthropicNotConfiguredError, AnthropicRequestError } from '../lib/event-extraction';
+import { getTenantPlanFeatures } from '../middleware/plan';
 import { getTenantConfig as getWhatsAppConfig, verifySignature as verifyWhatsAppSignature, downloadMedia, sendTextMessage, WhatsAppNotConfiguredError } from '../lib/whatsapp';
 import { saveBuffer, uploadsDir } from '../lib/uploads';
 import { checkoutRateLimiter } from '../middleware/rate-limit';
@@ -69,6 +70,14 @@ async function releaseExpiredHolds(tenantId: number, eventId: number, seatIds: n
 publicRouter.get('/org/:slug', asyncHandler(async (req, res) => {
 	const tenant = await prismaUnscoped.tenant.findUnique({ where: { slug: req.params.slug } });
 	if (!tenant || !tenant.active) {
+		res.status(404).json({ error: 'Organización no encontrada' });
+		return;
+	}
+	// El portal público es una feature de Intermedio para arriba — un tenant Básico responde 404
+	// acá, igual que una organización que no existe, en vez de un mensaje de "necesitás upgrade" que
+	// le confirmaría a cualquiera que el slug SÍ corresponde a un tenant real.
+	const planCheck = await getTenantPlanFeatures(tenant.id);
+	if (planCheck.blocked || (planCheck.features && !planCheck.features.publicPortal)) {
 		res.status(404).json({ error: 'Organización no encontrada' });
 		return;
 	}
@@ -140,6 +149,13 @@ publicRouter.get('/events/:code', asyncHandler(async (req, res) => {
 		},
 	});
 	if (!event || !event.active) {
+		res.status(404).json({ error: 'Evento no encontrado' });
+		return;
+	}
+	// Mismo criterio que /org/:slug: portal público es feature de Intermedio para arriba, un tenant
+	// Básico responde 404 (no revela que el código sí corresponde a un evento real).
+	const planCheck = await getTenantPlanFeatures(event.tenantId);
+	if (planCheck.blocked || (planCheck.features && !planCheck.features.publicPortal)) {
 		res.status(404).json({ error: 'Evento no encontrado' });
 		return;
 	}
