@@ -101,6 +101,12 @@ export class SubscriptionComponent {
 	private pollTimer: ReturnType<typeof setInterval> | null = null;
 
 	constructor() {
+		// Esta pantalla es alcanzable con un link directo (ej. compartido, o guardado en favoritos) —
+		// no hay garantía de que algún otro componente ya haya disparado la hidratación de
+		// currentUser() desde /auth/me (ver AuthService), así que la pedimos acá explícitamente en
+		// vez de asumirla.
+		this.authService.ensureCurrentUser().subscribe();
+
 		// Volvimos de aprobar el cambio en PayPal (return_url = /manager/suscripcion?upgraded=1) — el
 		// plan local todavía tiene el valor VIEJO hasta que BILLING.SUBSCRIPTION.UPDATED confirme.
 		if (this.route.snapshot.queryParamMap.get('upgraded') === '1') {
