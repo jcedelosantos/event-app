@@ -32,6 +32,13 @@ process.on('unhandledRejection', (reason) => {
 
 const app = express();
 
+// Railway pone el tráfico detrás de su propio proxy — sin esto, Express no confía en el header
+// X-Forwarded-For, y express-rate-limit (checkoutRateLimiter, ver middleware/rate-limit.ts) no
+// puede identificar la IP real de cada request: todas las requests terminan agrupadas bajo la IP
+// del proxy, así que el límite por-IP deja de tener sentido (y loguea un ValidationError en cada
+// request a una ruta rate-limited). `1` = confiar en un solo hop de proxy (el de Railway).
+app.set('trust proxy', 1);
+
 app.use(cors());
 // El body crudo se guarda en req.rawBody además de parsearse — lo necesita el webhook de WhatsApp
 // para verificar la firma HMAC de Meta (ver lib/whatsapp.ts), que se calcula sobre los bytes
