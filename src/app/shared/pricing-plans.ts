@@ -13,6 +13,24 @@ export type PricingPlan = {
 	features: string[];
 };
 
+// Espejo de api/src/lib/plans.ts PlanDefinition['features'] — usado por el sidebar (nav-bar-menu)
+// para decidir qué secciones mostrar según el plan del tenant. Mismo comentario que arriba: hay que
+// mantenerlo a mano en sync con el backend.
+export type PlanFeatures = {
+	publicPortal: boolean;
+	advancedReporting: boolean;
+	onlinePayment: boolean;
+	waitingRoomAndCapacity: boolean;
+	productsModule: boolean;
+};
+
+export const PLAN_FEATURES: Record<PlanCode, PlanFeatures> = {
+	BASICO: { publicPortal: false, advancedReporting: false, onlinePayment: false, waitingRoomAndCapacity: false, productsModule: false },
+	INTERMEDIO: { publicPortal: true, advancedReporting: true, onlinePayment: false, waitingRoomAndCapacity: false, productsModule: true },
+	AVANZADO: { publicPortal: true, advancedReporting: true, onlinePayment: true, waitingRoomAndCapacity: true, productsModule: true },
+	PRO_MAX: { publicPortal: true, advancedReporting: true, onlinePayment: true, waitingRoomAndCapacity: true, productsModule: true },
+};
+
 export const PRICING_PLANS: PricingPlan[] = [
 	{
 		code: 'BASICO',
@@ -44,5 +62,9 @@ export const PRICING_PLANS: PricingPlan[] = [
 		features: ['Todo lo de Avanzado', 'Hasta 1,000 asistentes por evento', 'Integración con base de datos externa (setup aparte)'],
 	},
 ];
+
+// Lookup directo por código — usado por la pantalla de suscripción del manager (a diferencia de
+// PRICING_PLANS, pensado para recorrerse en orden en la página de marketing).
+export const PLANS_BY_CODE: Record<PlanCode, PricingPlan> = Object.fromEntries(PRICING_PLANS.map((p) => [p.code, p])) as Record<PlanCode, PricingPlan>;
 
 export const OVERAGE_FEE_PER_PERSON_USD = 0.6;

@@ -1,13 +1,14 @@
 import { Router } from 'express';
 import { prisma } from '../lib/prisma';
 import { requireAuth, requireTenant, AuthenticatedRequest } from '../middleware/auth';
+import { requireActiveSubscription } from '../middleware/plan';
 import { asyncHandler } from '../lib/async-handler';
 import { saleTicketInclude, toPublicSaleTicket } from './sale-tickets';
 import { saleProductInclude, toPublicSaleProduct } from './sale-products';
 import { childInclude, toPublicChild } from './children';
 
 export const scanRouter = Router();
-scanRouter.use(requireAuth, requireTenant);
+scanRouter.use(requireAuth, requireTenant, requireActiveSubscription);
 
 const CLUB_UTC_OFFSET_HOURS = 4; // República Dominicana, AST fijo todo el año (sin horario de verano)
 

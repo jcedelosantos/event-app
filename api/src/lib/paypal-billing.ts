@@ -113,7 +113,7 @@ export async function createSubscription(
 	return { paypalSubscriptionId: data.id, approveUrl };
 }
 
-export async function getSubscription(paypalSubscriptionId: string): Promise<{ status: PayPalSubscriptionStatus; nextBillingTime: string | null }> {
+export async function getSubscription(paypalSubscriptionId: string): Promise<{ status: PayPalSubscriptionStatus; nextBillingTime: string | null; planId: string | null }> {
 	const config = await getPlatformConfig();
 	const token = await getAccessToken(config);
 	const res = await fetch(`${API_BASE[config.mode]}/v1/billing/subscriptions/${paypalSubscriptionId}`, {
@@ -122,8 +122,46 @@ export async function getSubscription(paypalSubscriptionId: string): Promise<{ s
 	if (!res.ok) {
 		throw new PayPalBillingRequestError(`No se pudo consultar la suscripción de PayPal (${res.status})`);
 	}
-	const data = (await res.json()) as { status: PayPalSubscriptionStatus; billing_info?: { next_billing_time?: string } };
-	return { status: data.status, nextBillingTime: data.billing_info?.next_billing_time ?? null };
+	const data = (await res.json()) as { status: PayPalSubscriptionStatus; plan_id?: string; billing_info?: { next_billing_time?: string } };
+	return { status: data.status, nextBillingTime: data.billing_info?.next_billing_time ?? null, planId: data.plan_id ?? null };
+}
+
+// Cambia el plan de una suscripción YA existente y activa — a diferencia de createSubscription (alta
+// nueva), esto reusa la misma suscripción de PayPal, solo le cambia el plan_id. Igual que al crear,
+// PayPal puede requerir que el comprador re-apruebe (ej. si el nuevo precio es distinto): siempre se
+// devuelve el link de aprobación si viene, y quien llama decide si hace falta redirigir.
+export async function reviseSubscription(
+	paypalSubscriptionId: string,
+	plan: PlanCode,
+	returnUrl: string,
+	cancelUrl: string,
+): Promise<{ approveUrl: string | null }> {
+	const config = await getPlatformConfig();
+	const token = await getAccessToken(config);
+	const res = await fetch(`${API_BASE[config.mode]}/v1/billing/subscriptions/${paypalSubscriptionId}/revise`, {
+		method: 'POST',
+		headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+		body: JSON.stringify({
+			plan_id: getBillingPlanId(plan),
+			application_context: { brand_name: 'Seat App', return_url: returnUrl, cancel_url: cancelUrl },
+		}),
+	});
+	if (!res.ok) {
+		throw new PayPalBillingRequestError(`No se pudo actualizar la suscripción de PayPal (${res.status}): ${await res.text()}`);
+	}
+	const data = (await res.json()) as { links?: { rel: string; href: string }[] };
+	const approveUrl = data.links?.find((l) => l.rel === 'approve')?.href ?? null;
+	return { approveUrl };
+}
+
+// Reverso de PLAN_ID_ENV_KEY — el webhook BILLING.SUBSCRIPTION.UPDATED (ver routes/signup.ts) trae el
+// plan_id de PayPal, no el PlanCode interno; hay que mapear contra los 4 env vars conocidos para
+// saber a qué plan corresponde.
+export function planCodeForBillingPlanId(planId: string): PlanCode | null {
+	for (const code of Object.keys(PLAN_ID_ENV_KEY) as PlanCode[]) {
+		if (process.env[PLAN_ID_ENV_KEY[code]] === planId) return code;
+	}
+	return null;
 }
 
 export async function cancelSubscription(paypalSubscriptionId: string, reason: string): Promise<void> {

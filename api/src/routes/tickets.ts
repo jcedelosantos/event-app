@@ -2,10 +2,11 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
 import { requireAuth, requireTenant, AuthenticatedRequest } from '../middleware/auth';
+import { requireActiveSubscription } from '../middleware/plan';
 import { asyncHandler } from '../lib/async-handler';
 
 export const ticketsRouter = Router();
-ticketsRouter.use(requireAuth, requireTenant);
+ticketsRouter.use(requireAuth, requireTenant, requireActiveSubscription);
 
 const ticketInputSchema = z.object({
 	name: z.string().min(1),

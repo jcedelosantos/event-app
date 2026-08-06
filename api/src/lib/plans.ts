@@ -19,6 +19,7 @@ export type PlanDefinition = {
 		advancedReporting: boolean;
 		onlinePayment: boolean;
 		waitingRoomAndCapacity: boolean;
+		productsModule: boolean;
 	};
 };
 
@@ -30,28 +31,28 @@ export const PLANS: Record<PlanCode, PlanDefinition> = {
 		name: 'Básico',
 		priceUSD: 19,
 		attendeesPerEvent: 50,
-		features: { publicPortal: false, advancedReporting: false, onlinePayment: false, waitingRoomAndCapacity: false },
+		features: { publicPortal: false, advancedReporting: false, onlinePayment: false, waitingRoomAndCapacity: false, productsModule: false },
 	},
 	INTERMEDIO: {
 		code: 'INTERMEDIO',
 		name: 'Intermedio',
 		priceUSD: 49,
 		attendeesPerEvent: 150,
-		features: { publicPortal: true, advancedReporting: true, onlinePayment: false, waitingRoomAndCapacity: false },
+		features: { publicPortal: true, advancedReporting: true, onlinePayment: false, waitingRoomAndCapacity: false, productsModule: true },
 	},
 	AVANZADO: {
 		code: 'AVANZADO',
 		name: 'Avanzado',
 		priceUSD: 99,
 		attendeesPerEvent: 500,
-		features: { publicPortal: true, advancedReporting: true, onlinePayment: true, waitingRoomAndCapacity: true },
+		features: { publicPortal: true, advancedReporting: true, onlinePayment: true, waitingRoomAndCapacity: true, productsModule: true },
 	},
 	PRO_MAX: {
 		code: 'PRO_MAX',
 		name: 'Pro Max',
 		priceUSD: 149,
 		attendeesPerEvent: 1000,
-		features: { publicPortal: true, advancedReporting: true, onlinePayment: true, waitingRoomAndCapacity: true },
+		features: { publicPortal: true, advancedReporting: true, onlinePayment: true, waitingRoomAndCapacity: true, productsModule: true },
 	},
 };
 

@@ -3,13 +3,14 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
 import { requireAuth, requireTenant, AuthenticatedRequest } from '../middleware/auth';
+import { requireActiveSubscription } from '../middleware/plan';
 import { toPublicUser } from '../lib/serialize';
 import { sendProductEmail } from '../lib/mail';
 import { asyncHandler } from '../lib/async-handler';
 import { logAudit } from '../lib/audit';
 
 export const saleProductsRouter = Router();
-saleProductsRouter.use(requireAuth, requireTenant);
+saleProductsRouter.use(requireAuth, requireTenant, requireActiveSubscription);
 
 class InsufficientStockError extends Error {}
 

@@ -46,4 +46,26 @@ export function requirePlan(feature: PlanFeature) {
 	};
 }
 
+// Bloquea toda ESCRITURA (no GET) cuando la suscripción del tenant no está ACTIVE — a diferencia de
+// requirePlan (que gatea UNA feature premium puntual), esto es un bloqueo total de la operativa
+// normal: "cuenta con el pago pendiente = solo lectura", sin importar el plan contratado.
+export async function requireActiveSubscription(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+	if (req.method === 'GET') {
+		next();
+		return;
+	}
+	const tenantId = req.user?.tenantId;
+	if (tenantId == null) {
+		// Super Admin no pertenece a ningún tenant — nunca lo bloquea el plan de otro.
+		next();
+		return;
+	}
+	const result = await getTenantPlanFeatures(tenantId);
+	if (result.blocked) {
+		res.status(402).json({ error: result.reason });
+		return;
+	}
+	next();
+}
+
 export type { PlanCode, PlanFeature };

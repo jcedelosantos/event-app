@@ -7,10 +7,10 @@ import { asyncHandler } from '../lib/async-handler';
 import { logAudit } from '../lib/audit';
 import { findDuplicateEventSlot } from '../lib/find-duplicate-event-slot';
 import { getWaitingRoomStats } from '../lib/waiting-room';
-import { getTenantPlanFeatures } from '../middleware/plan';
+import { getTenantPlanFeatures, requireActiveSubscription } from '../middleware/plan';
 
 export const eventsRouter = Router();
-eventsRouter.use(requireAuth, requireTenant);
+eventsRouter.use(requireAuth, requireTenant, requireActiveSubscription);
 
 class LinkedEventNotFoundError extends Error {}
 class EventNotFoundError extends Error {}

@@ -3,12 +3,13 @@ import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
 import { requireAuth, requireTenant, AuthenticatedRequest } from '../middleware/auth';
+import { requireActiveSubscription } from '../middleware/plan';
 import { toPublicUser } from '../lib/serialize';
 import { asyncHandler } from '../lib/async-handler';
 import { logAudit } from '../lib/audit';
 
 export const usersRouter = Router();
-usersRouter.use(requireAuth, requireTenant);
+usersRouter.use(requireAuth, requireTenant, requireActiveSubscription);
 
 const USER_TYPE_CODES = ['ROOT', 'USER', 'CLIENT'] as const;
 

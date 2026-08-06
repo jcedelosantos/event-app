@@ -17,30 +17,43 @@ import { SalesComponent } from './sales/sales.component';
 import { EventDetailsComponent } from './events/event-details/event-details.component';
 import { QrScannerComponent } from './events/components/qr-scanner/qr-scanner.component';
 import { SettingsComponent } from './settings/settings.component';
+import { SubscriptionComponent } from './subscription/subscription.component';
+import { activeSubscriptionGuard } from '../../core/guards/active-subscription.guard';
 
 const routes: Routes = [
 	{
 		path: '',
 		component: LayoutPageComponent,
 		children: [
+			// Sin activeSubscriptionGuard a propósito: es la pantalla a la que el guard REDIRIGE cuando
+			// bloquea el resto — aplicarle el mismo guard crearía un loop de redirección.
+			{
+				path: 'suscripcion',
+				component: SubscriptionComponent,
+			},
 			{
 				path: 'dash-board',
 				component: DashBoardComponent,
+				canActivate: [activeSubscriptionGuard],
 			},
 			{
 				path: 'maps',
 				component: MapsComponent,
+				canActivate: [activeSubscriptionGuard],
 			},
 			{
 				path: 'maps/:id/areas',
 				component: AreasComponent,
+				canActivate: [activeSubscriptionGuard],
 			},
 			{
 				path: 'maps/:id_map/areas/:id_area',
 				component: SeatsComponent,
+				canActivate: [activeSubscriptionGuard],
 			},
 			{
 				path: 'events',
+				canActivate: [activeSubscriptionGuard],
 				children: [
 					{ path: '', component: EventsComponent },
 					{ path: 'qr-scanner', component: QrScannerComponent },
@@ -49,42 +62,52 @@ const routes: Routes = [
 			{
 				path: 'events/:id_event',
 				component: EventDetailsComponent,
+				canActivate: [activeSubscriptionGuard],
 			},
 			{
 				path: 'tickets',
 				component: TicketsComponent,
+				canActivate: [activeSubscriptionGuard],
 			},
 			{
 				path: 'users',
 				component: UsersComponent,
+				canActivate: [activeSubscriptionGuard],
 			},
 			{
 				path: 'reports',
 				component: ReportsComponent,
+				canActivate: [activeSubscriptionGuard],
 			},
 			{
 				path: 'history',
 				component: HistoryComponent,
+				canActivate: [activeSubscriptionGuard],
 			},
 			{
 				path: 'settings',
 				component: SettingsComponent,
+				canActivate: [activeSubscriptionGuard],
 			},
 			{
 				path: 'qrs',
 				component: QrsComponent,
+				canActivate: [activeSubscriptionGuard],
 			},
 			{
 				path: 'products',
 				component: ProductsComponent,
+				canActivate: [activeSubscriptionGuard],
 			},
 			{
 				path: 'sales',
 				component: SalesComponent,
+				canActivate: [activeSubscriptionGuard],
 			},
 			{
 				path: 'sales/:id_sale',
 				component: SalesComponent,
+				canActivate: [activeSubscriptionGuard],
 			},
 			// {
 			//     path: 'event/:id',

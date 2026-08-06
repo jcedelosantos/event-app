@@ -1,6 +1,6 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { inject, Injectable, signal } from '@angular/core';
-import { Observable, tap } from 'rxjs';
+import { Observable, of, tap } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { User } from '../../models/users/user';
 
@@ -78,6 +78,24 @@ export class AuthService {
 			return false;
 		}
 		return true;
+	}
+
+	// currentUser se hidrata de forma async en el constructor (ver comentario arriba) — un guard que
+	// lo lee de forma síncrona apenas carga la página puede llegar antes de que /auth/me responda.
+	// Este método cierra esa carrera: devuelve el signal ya poblado si existe, o espera la resolución
+	// real de /auth/me si todavía no llegó.
+	ensureCurrentUser(): Observable<User | null> {
+		const existing = this.currentUser();
+		if (existing) return of(existing);
+		if (!this.isAuthenticated()) return of(null);
+		return this.httpClient.get<User>(`${environment.apiUrl}/auth/me`).pipe(tap((user) => this.currentUser.set(user)));
+	}
+
+	// A diferencia de ensureCurrentUser, siempre pega contra /auth/me — lo usa la pantalla de
+	// suscripción mientras pollea la confirmación de un upgrade recién aprobado en PayPal, donde el
+	// signal ya está poblado (con el plan VIEJO) y por eso ensureCurrentUser no serviría.
+	refreshCurrentUser(): Observable<User> {
+		return this.httpClient.get<User>(`${environment.apiUrl}/auth/me`).pipe(tap((user) => this.currentUser.set(user)));
 	}
 
 	// El Super Admin "entra como" el admin de una organización sin volver a loguearse — se guarda

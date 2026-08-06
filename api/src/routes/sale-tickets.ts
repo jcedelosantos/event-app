@@ -4,6 +4,7 @@ import { z } from 'zod';
 import bcrypt from 'bcryptjs';
 import { prisma } from '../lib/prisma';
 import { requireAuth, requireTenant, AuthenticatedRequest } from '../middleware/auth';
+import { requireActiveSubscription } from '../middleware/plan';
 import { hasLicense } from '../middleware/license';
 import { toPublicUser } from '../lib/serialize';
 import { sendTicketEmail } from '../lib/mail';
@@ -17,7 +18,7 @@ import { finalizePaidSaleTickets } from '../lib/checkout';
 import { assertEventCapacity } from '../lib/capacity';
 
 export const saleTicketsRouter = Router();
-saleTicketsRouter.use(requireAuth, requireTenant);
+saleTicketsRouter.use(requireAuth, requireTenant, requireActiveSubscription);
 
 class InsufficientStockError extends Error {}
 class CapacityExceededError extends Error {}

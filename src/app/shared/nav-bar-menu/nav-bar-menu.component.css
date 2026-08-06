@@ -74,3 +74,20 @@
 	border: 1px solid rgba(255, 255, 255, 0.15);
 	flex-shrink: 0;
 }
+
+.plan-badge {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 0.25rem;
+	font-size: 0.72rem;
+}
+
+.upgrade-link {
+	color: var(--app-accent, #ff8a3d);
+	text-decoration: none;
+	white-space: nowrap;
+}
+.upgrade-link:hover {
+	text-decoration: underline;
+}

@@ -20,6 +20,7 @@ import { auditLogsRouter } from './routes/audit-logs';
 import { settingsRouter } from './routes/settings';
 import { tenantsRouter } from './routes/tenants';
 import { childrenRouter } from './routes/children';
+import { subscriptionRouter } from './routes/subscription';
 import { uploadsRouter } from './routes/uploads';
 import { uploadsDir } from './lib/uploads';
 
@@ -73,6 +74,7 @@ app.use('/audit-logs', auditLogsRouter);
 app.use('/settings', settingsRouter);
 app.use('/tenants', tenantsRouter);
 app.use('/children', childrenRouter);
+app.use('/subscription', subscriptionRouter);
 
 // En producción, este mismo proceso también sirve el build de Angular (single-service deploy:
 // sin CORS, sin necesidad de un dominio aparte para el frontend). En dev, el frontend corre

@@ -1,5 +1,6 @@
 import { UserType } from './user-type';
 import { TenantType } from '../tenants/tenant';
+import { PlanCode } from '../../shared/pricing-plans';
 
 export interface User {
 	id: number;
@@ -14,6 +15,16 @@ export interface User {
 	carnet: string;
 	adress: string;
 	phone: string | number;
-	// null solo para la cuenta de Super Admin — no pertenece a ninguna organización.
-	tenant?: { id: number; name: string; type: TenantType; slug: string; logoUrl?: string | null } | null;
+	// null solo para la cuenta de Super Admin — no pertenece a ninguna organización, y también para
+	// tenants dados de alta antes de que existiera el sistema de suscripciones (ver getTenantPlanFeatures
+	// en el backend: plan null = sin restricción).
+	tenant?: {
+		id: number;
+		name: string;
+		type: TenantType;
+		slug: string;
+		logoUrl?: string | null;
+		plan: PlanCode | null;
+		planStatus: 'PENDING' | 'ACTIVE' | 'PAST_DUE' | 'SUSPENDED' | 'CANCELLED' | null;
+	} | null;
 }

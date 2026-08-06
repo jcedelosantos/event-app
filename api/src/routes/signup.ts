@@ -6,7 +6,7 @@ import { asyncHandler } from '../lib/async-handler';
 import { checkoutRateLimiter } from '../middleware/rate-limit';
 import { uniqueTenantSlug } from '../lib/slug';
 import { isPlanCode } from '../lib/plans';
-import { createSubscription, getSubscription, verifyPlatformWebhookSignature, PayPalBillingRequestError } from '../lib/paypal-billing';
+import { createSubscription, getSubscription, verifyPlatformWebhookSignature, planCodeForBillingPlanId, PayPalBillingRequestError } from '../lib/paypal-billing';
 
 // Alta pública de una organización nueva — versión sin Super Admin de tenants.ts:post('/'), más la
 // suscripción recurrente (PayPal Billing) que ahí no existe porque un Super Admin activa el plan a
@@ -188,6 +188,28 @@ signupRouter.post(
 				});
 			} catch (err) {
 				console.error('No se pudo refrescar currentPeriodEnd tras el webhook:', err);
+			}
+		}
+
+		// A diferencia de los demás eventos (que solo tocan status), un upgrade/downgrade self-service
+		// (ver routes/subscription.ts POST /upgrade) cambia el PLAN de la suscripción — este evento es
+		// la única confirmación server-to-server de que PayPal realmente aplicó el cambio. El plan_id
+		// que trae el webhook es de PayPal, no nuestro PlanCode: hay que mapearlo contra los 4 env vars
+		// conocidos (ver planCodeForBillingPlanId).
+		if (eventType === 'BILLING.SUBSCRIPTION.UPDATED') {
+			try {
+				const info = await getSubscription(paypalSubscriptionId);
+				const newPlan = info.planId ? planCodeForBillingPlanId(info.planId) : null;
+				if (newPlan) {
+					await prismaUnscoped.$transaction([
+						prismaUnscoped.subscription.update({ where: { tenantId: subscription.tenantId }, data: { plan: newPlan } }),
+						prismaUnscoped.tenant.update({ where: { id: subscription.tenantId }, data: { plan: newPlan } }),
+					]);
+				} else {
+					console.error(`BILLING.SUBSCRIPTION.UPDATED: plan_id "${info.planId}" no coincide con ningún PAYPAL_PLAN_ID_* conocido.`);
+				}
+			} catch (err) {
+				console.error('No se pudo aplicar el cambio de plan tras el webhook:', err);
 			}
 		}
 

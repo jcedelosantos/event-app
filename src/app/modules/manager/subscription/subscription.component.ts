@@ -1,0 +1,176 @@
+import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, signal } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
+import { HttpErrorResponse } from '@angular/common/http';
+import { AuthService } from '../../../core/services/auth.service';
+import { SubscriptionService } from './subscription.service';
+import { PLANS_BY_CODE, PlanCode } from '../../../shared/pricing-plans';
+import { extractErrorMessage } from '../../../utils/api-error';
+
+const STATUS_LABEL: Record<string, string> = {
+	PENDING: 'Pendiente de pago',
+	ACTIVE: 'Activa',
+	PAST_DUE: 'Pago vencido',
+	SUSPENDED: 'Suspendida',
+	CANCELLED: 'Cancelada',
+};
+
+// Cuánto tiempo esperar a que BILLING.SUBSCRIPTION.UPDATED confirme el nuevo plan tras volver de
+// PayPal (ver ?upgraded=1 en la URL) antes de dejar de pollear — el webhook normalmente llega en
+// segundos, pero no hay garantía de un tiempo exacto.
+const POLL_INTERVAL_MS = 3000;
+const POLL_TIMEOUT_MS = 60000;
+
+@Component({
+	selector: 'app-subscription',
+	changeDetection: ChangeDetectionStrategy.OnPush,
+	template: `
+		<h2 class="section-title">Tu suscripción</h2>
+
+		@if (tenant(); as tenant) {
+			@if (tenant.planStatus !== 'ACTIVE') {
+				<div class="alert" [class.alert-warning]="tenant.planStatus === 'PENDING' || tenant.planStatus === 'PAST_DUE'" [class.alert-danger]="tenant.planStatus === 'SUSPENDED' || tenant.planStatus === 'CANCELLED'">
+					<strong>{{ statusLabel(tenant.planStatus) }}.</strong>
+					@if (tenant.planStatus === 'PENDING') {
+						Todavía no confirmamos tu primer pago — no vas a poder crear ni editar nada hasta que se
+						active. Si ya pagaste y seguís viendo esto, esperá unos segundos o contactanos.
+					} @else {
+						No vas a poder crear ni editar nada mientras tu cuenta esté en este estado. Actualizá tu
+						plan o método de pago abajo, o contactanos para regularizarla.
+					}
+				</div>
+			}
+
+			@if (upgradeConfirming()) {
+				<div class="alert alert-info d-flex align-items-center gap-2">
+					<span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+					Confirmando tu nuevo plan con PayPal...
+				</div>
+			}
+
+			<div class="card" style="max-width: 480px;">
+				<div class="card-body">
+					<div class="d-flex align-items-center gap-2 mb-1">
+						<span class="fw-semibold fs-5">{{ planName(tenant.plan) }}</span>
+						<span
+							class="badge"
+							[class.text-bg-success]="tenant.planStatus === 'ACTIVE'"
+							[class.text-bg-warning]="tenant.planStatus === 'PAST_DUE' || tenant.planStatus === 'PENDING'"
+							[class.text-bg-secondary]="tenant.planStatus === 'SUSPENDED' || tenant.planStatus === 'CANCELLED'"
+						>
+							{{ statusLabel(tenant.planStatus) }}
+						</span>
+					</div>
+					<p class="text-body-secondary small mb-3">USD {{ priceOf(tenant.plan) }}/mes — hasta {{ attendeesOf(tenant.plan) }} asistentes por evento.</p>
+
+					<hr />
+
+					<label class="form-label small text-body-secondary" for="plan-select">Cambiar a</label>
+					<select id="plan-select" class="form-select mb-3" [value]="selectedPlan()" (change)="onSelectPlan($event)">
+						@for (plan of otherPlans(tenant.plan); track plan.code) {
+							<option [value]="plan.code">{{ plan.name }} — USD {{ plan.priceUSD }}/mes</option>
+						}
+					</select>
+
+					<button type="button" class="btn btn-danger" [disabled]="upgrading() || upgradeConfirming()" (click)="upgrade()">
+						{{ upgrading() ? 'Redirigiendo a PayPal...' : 'Actualizar ahora' }}
+					</button>
+
+					@if (errorMessage()) {
+						<div class="text-danger small mt-2">{{ errorMessage() }}</div>
+					}
+					<p class="text-body-secondary small mt-3 mb-0">
+						PayPal puede pedirte que re-apruebes el nuevo monto — el cambio queda confirmado apenas lo hagas.
+					</p>
+				</div>
+			</div>
+		}
+	`,
+})
+export class SubscriptionComponent {
+	private readonly authService = inject(AuthService);
+	private readonly subscriptionService = inject(SubscriptionService);
+	private readonly route = inject(ActivatedRoute);
+	private readonly destroyRef = inject(DestroyRef);
+
+	tenant = computed(() => this.authService.currentUser()?.tenant ?? null);
+	selectedPlan = signal<PlanCode | null>(null);
+	upgrading = signal(false);
+	upgradeConfirming = signal(false);
+	errorMessage = signal<string | null>(null);
+
+	private pollTimer: ReturnType<typeof setInterval> | null = null;
+
+	constructor() {
+		// Volvimos de aprobar el cambio en PayPal (return_url = /manager/suscripcion?upgraded=1) — el
+		// plan local todavía tiene el valor VIEJO hasta que BILLING.SUBSCRIPTION.UPDATED confirme.
+		if (this.route.snapshot.queryParamMap.get('upgraded') === '1') {
+			this.pollForConfirmation();
+		}
+		this.destroyRef.onDestroy(() => this.stopPolling());
+	}
+
+	planName(code: PlanCode | null): string {
+		return code ? (PLANS_BY_CODE[code]?.name ?? code) : '';
+	}
+	priceOf(code: PlanCode | null): number {
+		return code ? (PLANS_BY_CODE[code]?.priceUSD ?? 0) : 0;
+	}
+	attendeesOf(code: PlanCode | null): number {
+		return code ? (PLANS_BY_CODE[code]?.attendeesPerEvent ?? 0) : 0;
+	}
+	statusLabel(status: string | null): string {
+		return status ? (STATUS_LABEL[status] ?? status) : '';
+	}
+	otherPlans(current: PlanCode | null) {
+		return Object.values(PLANS_BY_CODE).filter((p) => p.code !== current);
+	}
+
+	onSelectPlan(event: Event) {
+		this.selectedPlan.set((event.target as HTMLSelectElement).value as PlanCode);
+	}
+
+	upgrade() {
+		const current = this.tenant()?.plan ?? null;
+		const target = this.selectedPlan() ?? this.otherPlans(current)[0]?.code;
+		if (!target) return;
+
+		this.errorMessage.set(null);
+		this.upgrading.set(true);
+		this.subscriptionService.upgrade(target).subscribe({
+			next: ({ approveUrl }) => {
+				if (approveUrl) {
+					window.location.href = approveUrl;
+					return;
+				}
+				this.upgrading.set(false);
+				this.pollForConfirmation();
+			},
+			error: (err: HttpErrorResponse) => {
+				this.upgrading.set(false);
+				this.errorMessage.set(extractErrorMessage(err));
+			},
+		});
+	}
+
+	private pollForConfirmation() {
+		this.upgradeConfirming.set(true);
+		const startedAt = Date.now();
+		this.pollTimer = setInterval(() => {
+			if (Date.now() - startedAt > POLL_TIMEOUT_MS) {
+				this.stopPolling();
+				return;
+			}
+			this.authService.refreshCurrentUser().subscribe(() => {
+				if (this.tenant()?.plan === this.selectedPlan()) {
+					this.stopPolling();
+				}
+			});
+		}, POLL_INTERVAL_MS);
+	}
+
+	private stopPolling() {
+		if (this.pollTimer) clearInterval(this.pollTimer);
+		this.pollTimer = null;
+		this.upgradeConfirming.set(false);
+	}
+}

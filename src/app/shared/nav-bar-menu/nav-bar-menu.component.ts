@@ -3,8 +3,21 @@ import { NavigationEnd, Router, RouterLink } from '@angular/router';
 import * as bootstrap from "bootstrap";
 import { filter } from 'rxjs';
 import { AuthService } from '../../core/services/auth.service';
+import { PLAN_FEATURES, PlanCode, PlanFeatures } from '../pricing-plans';
 
 type MenuItem = { title: string; icon: string; url: string};
+
+// Secciones que no están incluidas en todos los planes — todo lo que NO aparece acá se considera
+// baseline (Dashboard, Events, Maps, Tickets, QRs, Users, Sale, Settings) y nunca se oculta, sin
+// importar el plan.
+const MENU_ITEM_FEATURE: Partial<Record<string, keyof PlanFeatures>> = {
+	Products: 'productsModule',
+	Reports: 'advancedReporting',
+	History: 'advancedReporting',
+};
+
+const PLAN_NAME: Record<PlanCode, string> = { BASICO: 'Básico', INTERMEDIO: 'Intermedio', AVANZADO: 'Avanzado', PRO_MAX: 'Pro Max' };
+const STATUS_LABEL: Record<string, string> = { PENDING: 'Pendiente de pago', ACTIVE: 'Activa', PAST_DUE: 'Pago vencido', SUSPENDED: 'Suspendida', CANCELLED: 'Cancelada' };
 
 // Por debajo de este ancho, un sidebar con nombres siempre visible le come la mitad de la
 // pantalla al contenido real — coincide con el breakpoint "md" de Bootstrap.
@@ -42,8 +55,30 @@ const SIDEBAR_COLLAPSED_KEY = 'seat-app-sidebar-collapsed';
 						}
 					</div>
 				}
+				@if (planBadge(); as badge) {
+					<div class="px-2 pb-2 plan-badge" [class.justify-content-center]="sidebarCollapsed()">
+						<span
+							class="badge"
+							[class.text-bg-success]="badge.status === 'ACTIVE'"
+							[class.text-bg-warning]="badge.status === 'PAST_DUE' || badge.status === 'PENDING'"
+							[class.text-bg-secondary]="badge.status === 'SUSPENDED' || badge.status === 'CANCELLED'"
+							[title]="badge.planName + ' — ' + badge.statusLabel"
+						>
+							{{ badge.planName }}
+						</span>
+						@if (!sidebarCollapsed()) {
+							<a routerLink="/manager/suscripcion" class="upgrade-link ms-1" title="Ver y actualizar plan">
+								<i class="bi bi-arrow-up-circle"></i> Actualizar
+							</a>
+						} @else {
+							<a routerLink="/manager/suscripcion" class="upgrade-link" title="Ver y actualizar plan">
+								<i class="bi bi-arrow-up-circle"></i>
+							</a>
+						}
+					</div>
+				}
 				<div class="d-flex flex-column flex-grow-1 px-2">
-					@for (item of menuList; track item.title) {
+					@for (item of visibleMenuList(); track item.title) {
 						<button
 							[class]="path().includes(item.url) ? 'btn btn-danger mb-1 nav-item-btn' : 'btn btn-dark mb-1 nav-item-btn'"
 							[routerLink]="item.url"
@@ -79,7 +114,7 @@ const SIDEBAR_COLLAPSED_KEY = 'seat-app-sidebar-collapsed';
 					</a>
 				</div>
 				<div class="p-1 d-flex justify-content-center  flex-column" style="height: 90%">
-					@for (item of menuList; track item.title) {
+					@for (item of visibleMenuList(); track item.title) {
 						<div class="mb-1">
 							<button [class]="path().includes(item.url) ? 'btn btn-danger mb-2' : 'btn btn-dark mb-2'" [routerLink]="item.url">
 								@if (item.icon) {
@@ -121,9 +156,24 @@ const SIDEBAR_COLLAPSED_KEY = 'seat-app-sidebar-collapsed';
 							<span class="ms-1">{{ name }}</span>
 						</div>
 					}
+					@if (planBadge(); as badge) {
+						<div class="px-3 pb-2 plan-badge">
+							<span
+								class="badge"
+								[class.text-bg-success]="badge.status === 'ACTIVE'"
+								[class.text-bg-warning]="badge.status === 'PAST_DUE' || badge.status === 'PENDING'"
+								[class.text-bg-secondary]="badge.status === 'SUSPENDED' || badge.status === 'CANCELLED'"
+							>
+								{{ badge.planName }}
+							</span>
+							<a routerLink="/manager/suscripcion" class="upgrade-link ms-1">
+								<i class="bi bi-arrow-up-circle"></i> Actualizar
+							</a>
+						</div>
+					}
 				</div>
 				<div class="d-flex flex-column" style="height: 90%">
-					@for (item of menuList; track item.title) {
+					@for (item of visibleMenuList(); track item.title) {
 						<button [class]="path().includes(item.url) ? 'btn btn-danger mb-2 nav-item-btn' : 'btn btn-dark mb-2 nav-item-btn'" [routerLink]="item.url">
 							@if (item.icon) {
 								<i [class]="item.icon"></i>
@@ -164,6 +214,30 @@ export class NavBarMenuComponent implements AfterViewInit, OnDestroy {
 	tenantName = computed(() => this.authService.currentUser()?.tenant?.name ?? null);
 	tenantLogoUrl = computed(() => this.authService.currentUser()?.tenant?.logoUrl ?? null);
 	tenantLogoBroken = signal(false);
+
+	// null cuando el tenant no tiene plan asignado (organizaciones dadas de alta antes de que
+	// existiera el sistema de suscripciones) — mismo criterio que getTenantPlanFeatures en el backend.
+	planBadge = computed(() => {
+		const tenant = this.authService.currentUser()?.tenant;
+		if (!tenant?.plan || !tenant?.planStatus) return null;
+		return {
+			planName: PLAN_NAME[tenant.plan],
+			status: tenant.planStatus,
+			statusLabel: STATUS_LABEL[tenant.planStatus] ?? tenant.planStatus,
+		};
+	});
+
+	// Oculta las secciones que el plan del tenant no incluye (Products/Reports/History según el
+	// plan) — sin plan asignado, no se restringe nada (mismo criterio que el backend).
+	visibleMenuList = computed(() => {
+		const tenant = this.authService.currentUser()?.tenant;
+		if (!tenant?.plan) return this.menuList;
+		const features = PLAN_FEATURES[tenant.plan];
+		return this.menuList.filter((item) => {
+			const required = MENU_ITEM_FEATURE[item.title];
+			return !required || features[required];
+		});
+	});
 
 	// Orden alineado al flujo real de trabajo: crear evento → asignar mapa → armar áreas/asientos →
 	// crear tickets → vender/generar QR → ver quién compró. "Sale" quedó como página muerta,
