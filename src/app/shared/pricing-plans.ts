@@ -11,6 +11,9 @@ export type PricingPlan = {
 	attendeesPerEvent: number;
 	highlighted?: boolean;
 	features: string[];
+	// Texto largo para el detalle expandido del plan en la portada (ver site-web.component.ts) — no
+	// se usa en la tarjeta chica, solo al hacer click para ampliar.
+	description: string;
 };
 
 // Espejo de api/src/lib/plans.ts PlanDefinition['features'] — usado por el sidebar (nav-bar-menu)
@@ -38,6 +41,7 @@ export const PRICING_PLANS: PricingPlan[] = [
 		priceUSD: 19,
 		attendeesPerEvent: 50,
 		features: ['Eventos ilimitados por mes', 'Hasta 50 asistentes por evento', 'Creación de eventos, mapas y asientos', 'Venta manual + scanner de check-in', 'Panel de QRs y correo automático'],
+		description: 'Ideal para clubes y organizaciones que recién empiezan a digitalizar sus eventos — todo lo esencial para vender entradas y controlar el acceso, sin complicarte.',
 	},
 	{
 		code: 'INTERMEDIO',
@@ -46,6 +50,7 @@ export const PRICING_PLANS: PricingPlan[] = [
 		attendeesPerEvent: 150,
 		highlighted: true,
 		features: ['Todo lo de Básico', 'Hasta 150 asistentes por evento', 'Portal público de auto-registro', 'Reportería y auditoría avanzada', 'Venta de productos / comida del día'],
+		description: 'Para organizaciones que ya venden entradas seguido y quieren que sus socios se registren solos, además de entender mejor qué está pasando con reportes y auditoría.',
 	},
 	{
 		code: 'AVANZADO',
@@ -53,6 +58,7 @@ export const PRICING_PLANS: PricingPlan[] = [
 		priceUSD: 99,
 		attendeesPerEvent: 500,
 		features: ['Todo lo de Intermedio', 'Hasta 500 asistentes por evento', 'Cobro online (PayPal / link de pago)', 'Sala de espera virtual', 'Aforo e invitados con nombre propio'],
+		description: 'Pensado para eventos grandes: cobro online, sala de espera virtual, y control fino de aforo e invitados con nombre propio.',
 	},
 	{
 		code: 'PRO_MAX',
@@ -60,6 +66,7 @@ export const PRICING_PLANS: PricingPlan[] = [
 		priceUSD: 149,
 		attendeesPerEvent: 1000,
 		features: ['Todo lo de Avanzado', 'Hasta 1,000 asistentes por evento', 'Integración con base de datos externa (setup aparte)'],
+		description: 'El techo de la plataforma — máxima capacidad de asistentes por evento e integración con tu propia base de datos externa.',
 	},
 ];
 
