@@ -11,6 +11,7 @@ import { uniqueTenantSlug } from '../lib/slug';
 import { computeTenantOverage } from '../lib/overage';
 import { cancelSubscription } from '../lib/paypal-billing';
 import { buildInvoicePdf } from '../lib/invoice-pdf';
+import { getInvoiceIssuerConfig, nextNcf } from '../lib/invoice-config';
 
 // Panel de Super Admin: alta de nuevos clientes (clubes/iglesias) y su primer usuario admin. Usa
 // prismaUnscoped a propósito — el tenant-guard exige tenantId en cada query de los modelos de
@@ -92,6 +93,11 @@ const updateTenantSchema = z.object({
 	name: z.string().min(1).optional(),
 	active: z.boolean().optional(),
 	type: tenantTypeSchema.optional(),
+	// Datos fiscales/de contacto para el bloque "Para" de la factura (ver lib/invoice-pdf.ts) —
+	// string vacío se guarda tal cual y el PDF simplemente omite la línea, no hace falta null.
+	rnc: z.string().max(50).optional(),
+	address: z.string().max(300).optional(),
+	phone: z.string().max(50).optional(),
 });
 
 tenantsRouter.put('/:id', asyncHandler(async (req, res) => {
@@ -170,11 +176,16 @@ tenantsRouter.get('/:id/invoice', asyncHandler(async (req, res) => {
 	const subscription = await prismaUnscoped.subscription.findUnique({ where: { tenantId: id } });
 	const overage = await computeTenantOverage(id);
 	const issuedAt = new Date();
+	const dueAt = new Date(issuedAt.getTime() + 7 * 24 * 60 * 60 * 1000);
 	const invoiceNumber = `INV-${String(id).padStart(4, '0')}-${issuedAt.getFullYear()}${String(issuedAt.getMonth() + 1).padStart(2, '0')}`;
+	const issuer = await getInvoiceIssuerConfig();
+	// Consume y avanza la secuencia real de DGII UNA sola vez por factura generada — null si el
+	// Super Admin todavía no cargó el próximo NCF en Configuración de facturación.
+	const ncf = await nextNcf();
 
-	const pdf = await buildInvoicePdf({ tenant, plan: tenant.plan, subscription, overage, invoiceNumber, issuedAt });
+	const pdf = await buildInvoicePdf({ tenant, plan: tenant.plan, subscription, overage, invoiceNumber, ncf, issuedAt, dueAt, issuer });
 	res.setHeader('Content-Type', 'application/pdf');
-	res.setHeader('Content-Disposition', `attachment; filename="${invoiceNumber}.pdf"`);
+	res.setHeader('Content-Disposition', `attachment; filename="${ncf ?? invoiceNumber}.pdf"`);
 	res.send(pdf);
 }));
 

@@ -1,0 +1,45 @@
+import { Router } from 'express';
+import { z } from 'zod';
+import { prisma } from '../lib/prisma';
+import { requireAuth, requireSuperAdmin } from '../middleware/auth';
+import { asyncHandler } from '../lib/async-handler';
+import { INVOICE_SETTING_KEYS, InvoiceSettingKey } from '../lib/invoice-config';
+
+// Configuración global de facturación (datos del emisor, banco y secuencia de NCF) — solo el
+// Super Admin la ve/edita, nunca un tenant. Mismo patrón clave/valor que settings.ts pero contra
+// PlatformSetting (sin tenantId) en vez de AppSetting.
+export const platformSettingsRouter = Router();
+platformSettingsRouter.use(requireAuth, requireSuperAdmin);
+
+platformSettingsRouter.get('/', asyncHandler(async (_req, res) => {
+	const rows = await prisma.platformSetting.findMany({ where: { key: { in: [...INVOICE_SETTING_KEYS] } } });
+	const result: Record<string, string> = {};
+	for (const key of INVOICE_SETTING_KEYS) result[key] = '';
+	for (const row of rows) result[row.key] = row.value;
+	res.json(result);
+}));
+
+const valueSchema = z.object({ value: z.string().max(500) });
+
+platformSettingsRouter.put('/:key', asyncHandler(async (req, res) => {
+	const key = req.params.key as InvoiceSettingKey;
+	if (!INVOICE_SETTING_KEYS.includes(key)) {
+		res.status(400).json({ error: 'Clave de configuración desconocida' });
+		return;
+	}
+	const parsed = valueSchema.safeParse(req.body);
+	if (!parsed.success) {
+		res.status(400).json({ error: parsed.error.flatten() });
+		return;
+	}
+	if (key === 'invoiceNcfNext' && parsed.data.value !== '' && !/^\d+$/.test(parsed.data.value)) {
+		res.status(400).json({ error: 'El próximo NCF debe ser un número' });
+		return;
+	}
+	await prisma.platformSetting.upsert({
+		where: { key },
+		update: { value: parsed.data.value },
+		create: { key, value: parsed.data.value },
+	});
+	res.json({ ok: true });
+}));

@@ -5,6 +5,7 @@ import { TenantService } from './services/tenant.service';
 import { CreateTenantModalComponent } from './components/create-tenant-modal/create-tenant-modal.component';
 import { EditTenantModalComponent } from './components/edit-tenant-modal/edit-tenant-modal.component';
 import { SubscriptionModalComponent } from './components/subscription-modal/subscription-modal.component';
+import { InvoiceSettingsModalComponent } from './components/invoice-settings-modal/invoice-settings-modal.component';
 import { AccountModalComponent } from '../../shared/account-modal/account-modal.component';
 import { Tenant } from '../../models/tenants/tenant';
 import { AuthService } from '../../core/services/auth.service';
@@ -14,7 +15,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 
 @Component({
 	selector: 'app-super-admin',
-	imports: [CreateTenantModalComponent, EditTenantModalComponent, SubscriptionModalComponent, AccountModalComponent, DatePipe],
+	imports: [CreateTenantModalComponent, EditTenantModalComponent, SubscriptionModalComponent, InvoiceSettingsModalComponent, AccountModalComponent, DatePipe],
 	template: `
 		<div class="container-fluid py-4" data-bs-theme="dark">
 			<div class="d-flex justify-content-between align-items-center mb-4">
@@ -25,6 +26,15 @@ import { HttpErrorResponse } from '@angular/common/http';
 				<div class="d-flex gap-2">
 					<button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createTenantModal">
 						<i class="bi bi-plus-lg"></i> Nueva organización
+					</button>
+					<button
+						type="button"
+						class="btn btn-outline-secondary"
+						data-bs-toggle="modal"
+						data-bs-target="#invoiceSettingsModal"
+						(click)="invoiceSettingsModal.onOpen()"
+					>
+						<i class="bi bi-receipt"></i> Facturación
 					</button>
 					<button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#accountModal">
 						<i class="bi bi-person-circle"></i> Mi cuenta
@@ -109,6 +119,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 		<app-create-tenant-modal (tenantCreated)="loadTenants()" />
 		<app-edit-tenant-modal [(tenant)]="selectedTenant" (tenantUpdated)="loadTenants()" />
 		<app-subscription-modal [(tenant)]="selectedSubscriptionTenant" (subscriptionChanged)="loadTenants()" />
+		<app-invoice-settings-modal #invoiceSettingsModal />
 		<app-account-modal />
 	`,
 	changeDetection: ChangeDetectionStrategy.OnPush,

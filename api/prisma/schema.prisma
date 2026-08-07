@@ -26,6 +26,12 @@ model Tenant {
   type      String   @default("GENERAL")
   createdAt DateTime @default(now())
 
+  // Datos fiscales/de contacto del cliente para el bloque "Para" de la factura (ver
+  // lib/invoice-pdf.ts) — opcionales porque no todo tenant existente los tiene cargados todavía.
+  rnc     String?
+  address String?
+  phone   String?
+
   // Espejo de Subscription.plan/status — el feature-gating (ver middleware/plan.ts) corre en casi
   // cada request y no conviene un join extra a Subscription; el webhook de PayPal Billing es quien
   // mantiene sincronizados estos dos campos con la fila real. plan null = tenant sin suscripción

@@ -39,6 +39,20 @@ import { closeModal } from '../../../../utils/modal';
 									Un club pide carnet de socio (o del socio que invita) al reservar un asiento, con máximo 2 invitados por socio por evento.
 								</div>
 							</div>
+							<hr />
+							<p class="text-muted small mb-2">Datos para el bloque "Para" de la factura (opcionales).</p>
+							<div class="mb-3">
+								<label for="editOrgRnc">RNC / Cédula</label>
+								<input type="text" class="form-control" id="editOrgRnc" formControlName="rnc" />
+							</div>
+							<div class="mb-3">
+								<label for="editOrgPhone">Teléfono</label>
+								<input type="text" class="form-control" id="editOrgPhone" formControlName="phone" />
+							</div>
+							<div class="mb-3">
+								<label for="editOrgAddress">Dirección</label>
+								<input type="text" class="form-control" id="editOrgAddress" formControlName="address" />
+							</div>
 							@if (errorMessage) {
 								<div class="text-danger">{{ errorMessage }}</div>
 							}
@@ -80,12 +94,22 @@ export class EditTenantModalComponent {
 	form = new FormGroup({
 		name: new FormControl<string>('', Validators.required),
 		type: new FormControl<TenantType>('GENERAL', { nonNullable: true }),
+		rnc: new FormControl<string>('', { nonNullable: true }),
+		phone: new FormControl<string>('', { nonNullable: true }),
+		address: new FormControl<string>('', { nonNullable: true }),
 	});
 
 	constructor() {
 		effect(() => {
 			this.errorMessage = '';
-			this.form.reset({ name: this.tenant()?.name ?? '', type: this.tenant()?.type ?? 'GENERAL' });
+			const t = this.tenant();
+			this.form.reset({
+				name: t?.name ?? '',
+				type: t?.type ?? 'GENERAL',
+				rnc: t?.rnc ?? '',
+				phone: t?.phone ?? '',
+				address: t?.address ?? '',
+			});
 		});
 	}
 
@@ -107,7 +131,7 @@ export class EditTenantModalComponent {
 		const value = this.form.getRawValue();
 		confirm('¿Guardar los cambios de esta organización?', {
 			onConfirm: () =>
-				this.tenantService.updateTenant(current.id, { name: value.name!, type: value.type }).subscribe({
+				this.tenantService.updateTenant(current.id, { name: value.name!, type: value.type, rnc: value.rnc, address: value.address, phone: value.phone }).subscribe({
 					next: () => {
 						this.tenantUpdated.emit();
 						closeModal('editTenantModal');

@@ -48,7 +48,7 @@ export class TenantService {
 		return this.httpClient.put<Tenant>(`${this.baseUrl}/${id}`, { active });
 	}
 
-	updateTenant(id: number, data: { name: string; type: TenantType }): Observable<Tenant> {
+	updateTenant(id: number, data: { name: string; type: TenantType; rnc?: string; address?: string; phone?: string }): Observable<Tenant> {
 		return this.httpClient.put<Tenant>(`${this.baseUrl}/${id}`, data);
 	}
 

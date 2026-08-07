@@ -19,6 +19,7 @@ import { signupRouter } from './routes/signup';
 import { auditLogsRouter } from './routes/audit-logs';
 import { settingsRouter } from './routes/settings';
 import { tenantsRouter } from './routes/tenants';
+import { platformSettingsRouter } from './routes/platform-settings';
 import { childrenRouter } from './routes/children';
 import { subscriptionRouter } from './routes/subscription';
 import { uploadsRouter } from './routes/uploads';
@@ -73,6 +74,7 @@ app.use('/public', signupRouter);
 app.use('/audit-logs', auditLogsRouter);
 app.use('/settings', settingsRouter);
 app.use('/tenants', tenantsRouter);
+app.use('/platform-settings', platformSettingsRouter);
 app.use('/children', childrenRouter);
 app.use('/subscription', subscriptionRouter);
 

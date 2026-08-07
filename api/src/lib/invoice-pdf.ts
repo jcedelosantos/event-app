@@ -1,22 +1,33 @@
 import PDFDocument from 'pdfkit';
 import { PLANS, isPlanCode } from './plans';
 import type { EventOverage } from './overage';
+import type { InvoiceIssuerConfig } from './invoice-config';
 
 export type InvoiceInput = {
-	tenant: { name: string; slug: string };
+	tenant: { name: string; slug: string; rnc: string | null; address: string | null; phone: string | null };
 	plan: string | null;
 	subscription: { currentPeriodEnd: Date | null } | null;
 	overage: { totalUSD: number; events: EventOverage[] };
-	invoiceNumber: string;
+	invoiceNumber: string; // referencia interna de seat-app — siempre existe
+	ncf: string | null; // comprobante fiscal real de DGII — null si el Super Admin no configuró el rango
 	issuedAt: Date;
+	dueAt: Date;
+	issuer: InvoiceIssuerConfig;
 };
 
+// ITBIS (impuesto a la transferencia de bienes industrializados y servicios) — IVA de República
+// Dominicana, 18% sobre el subtotal de servicios. Ver la factura modelo (CNaco_B0100000506.pdf)
+// que definió este formato.
+const ITBIS_RATE = 0.18;
+
 function formatUSD(amount: number): string {
-	return `USD ${amount.toFixed(2)}`;
+	return `USD ${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
+// timeZone explícito: el server (Railway) corre en UTC, así que sin esto una fecha generada de
+// noche en RD (UTC-4) puede mostrar el día siguiente — mismo gotcha de fechas UTC ya visto en jsPDF.
 function formatDate(date: Date): string {
-	return date.toLocaleDateString('es-DO', { year: 'numeric', month: 'long', day: 'numeric' });
+	return date.toLocaleDateString('es-DO', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'America/Santo_Domingo' });
 }
 
 // Factura modelo de la mensualidad + overage de un tenant — no hay cobro automático de esto (ver
@@ -38,28 +49,78 @@ export function buildInvoicePdf(input: InvoiceInput): Promise<Buffer> {
 		const right = doc.page.width - doc.page.margins.right;
 		const contentWidth = right - left;
 		const planDef = input.plan && isPlanCode(input.plan) ? PLANS[input.plan] : null;
+		const { issuer } = input;
 
-		doc.fontSize(20).fillColor('#000').text('Seat App', left, doc.y);
-		doc.fontSize(10).fillColor('#888').text('Factura de suscripción', left, doc.y);
-		doc.moveDown(1.2);
-
-		doc.fontSize(9).fillColor('#888').text('FACTURA N°', left, doc.y);
-		doc.fontSize(12).fillColor('#000').text(input.invoiceNumber, left, doc.y);
-		doc.moveDown(0.4);
-		doc.fontSize(9).fillColor('#888').text('FECHA DE EMISIÓN', left, doc.y);
-		doc.fontSize(12).fillColor('#000').text(formatDate(input.issuedAt), left, doc.y);
+		// --- Encabezado: título + datos del emisor, todo alineado a la derecha (mismo layout que la
+		// factura modelo) ---
+		doc.fontSize(26).fillColor('#000').text('Factura', left, doc.y, { width: contentWidth, align: 'right' });
+		doc.moveDown(0.3);
+		if (issuer.name) {
+			doc.font('Helvetica-Bold').fontSize(11).fillColor('#000').text(issuer.name, left, doc.y, { width: contentWidth, align: 'right' });
+			doc.font('Helvetica');
+		}
+		const issuerLines = [
+			issuer.rnc && `RNC: ${issuer.rnc}`,
+			issuer.email,
+			issuer.phone,
+			issuer.address,
+		].filter((line): line is string => Boolean(line));
+		doc.fontSize(9).fillColor('#555');
+		for (const line of issuerLines) {
+			doc.text(line, left, doc.y, { width: contentWidth, align: 'right' });
+		}
+		if (issuer.bankAccountNumber) {
+			const bankParts = [
+				issuer.bankAccountHolder && `Titular: ${issuer.bankAccountHolder}`,
+				`Cta: ${issuer.bankAccountNumber}`,
+				issuer.bankAccountType,
+				issuer.bankName,
+			].filter(Boolean);
+			doc.fontSize(8).fillColor('#888').text(bankParts.join(' · '), left, doc.y, { width: contentWidth, align: 'right' });
+		}
 		doc.moveDown(0.8);
-
-		doc.fontSize(9).fillColor('#888').text('FACTURAR A', left, doc.y);
-		doc.fontSize(14).fillColor('#000').text(input.tenant.name, left, doc.y);
-		doc.fontSize(10).fillColor('#555').text(input.tenant.slug, left, doc.y);
-		doc.moveDown(1.2);
 
 		doc.moveTo(left, doc.y).lineTo(right, doc.y).strokeColor('#ddd').stroke();
-		doc.moveDown(0.8);
+		doc.moveDown(0.6);
 
-		// 4 columnas: concepto (ancha, a la izquierda) + cantidad/unitario/total (angostas, a la
-		// derecha) — colX marca dónde EMPIEZA cada columna, colW cuánto mide.
+		// --- "Para" (cliente) + Comprobante/Fecha/Vencimiento, en dos columnas ---
+		const blockTop = doc.y;
+		const colLeftW = contentWidth * 0.55;
+		const colRightX = left + colLeftW;
+		const colRightW = contentWidth - colLeftW;
+
+		doc.font('Helvetica-Bold').fontSize(9).fillColor('#888').text('PARA', left, blockTop, { width: colLeftW });
+		doc.font('Helvetica-Bold').fontSize(13).fillColor('#000').text(input.tenant.name, left, doc.y, { width: colLeftW });
+		doc.font('Helvetica').fontSize(9).fillColor('#555');
+		const clientLines = [
+			input.tenant.rnc && `RNC: ${input.tenant.rnc}`,
+			input.tenant.phone,
+			input.tenant.address,
+		].filter((line): line is string => Boolean(line));
+		for (const line of clientLines) {
+			doc.text(line, left, doc.y, { width: colLeftW });
+		}
+		const leftBottom = doc.y;
+
+		function infoLine(label: string, value: string, y: number): number {
+			doc.font('Helvetica-Bold').fontSize(9).fillColor('#000').text(label, colRightX, y, { width: colRightW * 0.5 });
+			doc.font('Helvetica').fontSize(9).fillColor('#000').text(value, colRightX + colRightW * 0.5, y, { width: colRightW * 0.5, align: 'right' });
+			return y + 16;
+		}
+		let rightY = blockTop;
+		rightY = infoLine('Comprobante #', input.ncf ?? input.invoiceNumber, rightY);
+		rightY = infoLine('Fecha', formatDate(input.issuedAt), rightY);
+		rightY = infoLine('Vencimiento', formatDate(input.dueAt), rightY);
+		if (input.ncf) {
+			doc.fontSize(8).fillColor('#999').text(`Ref. interna: ${input.invoiceNumber}`, colRightX, rightY, { width: colRightW, align: 'right' });
+			rightY += 12;
+		}
+
+		doc.y = Math.max(leftBottom, rightY) + 10;
+		doc.moveTo(left, doc.y).lineTo(right, doc.y).strokeColor('#ddd').stroke();
+		doc.moveDown(0.6);
+
+		// --- Tabla de conceptos ---
 		const colConceptW = contentWidth * 0.5;
 		const colQtyX = left + colConceptW;
 		const colQtyW = contentWidth * 0.15;
@@ -67,29 +128,37 @@ export function buildInvoicePdf(input: InvoiceInput): Promise<Buffer> {
 		const colUnitW = contentWidth * 0.17;
 		const colTotalX = colUnitX + colUnitW;
 		const colTotalW = right - colTotalX;
+		const HEADER_BLUE = '#2f8fd1';
 
 		function tableHeader() {
 			const y = doc.y;
-			doc.fontSize(9).fillColor('#888');
-			doc.text('CONCEPTO', left, y, { width: colConceptW });
-			doc.text('CANT.', colQtyX, y, { width: colQtyW, align: 'right' });
-			doc.text('UNITARIO', colUnitX, y, { width: colUnitW, align: 'right' });
-			doc.text('TOTAL', colTotalX, y, { width: colTotalW, align: 'right' });
-			doc.y = y + 14;
-			doc.moveTo(left, doc.y).lineTo(right, doc.y).strokeColor('#ddd').stroke();
+			const headerHeight = 22;
+			doc.rect(left, y, contentWidth, headerHeight).fill(HEADER_BLUE);
+			doc.fillColor('#fff').fontSize(9);
+			doc.text('SERVICIO', left + 6, y + 6, { width: colConceptW - 6 });
+			doc.text('CANTIDAD', colQtyX, y + 6, { width: colQtyW, align: 'right' });
+			doc.text('PRECIO', colUnitX, y + 6, { width: colUnitW, align: 'right' });
+			doc.text('IMPORTE', colTotalX, y + 6, { width: colTotalW - 6, align: 'right' });
+			doc.y = y + headerHeight;
 			doc.moveDown(0.4);
 		}
 
-		function tableRow(concept: string, qty: string, unit: string, total: string) {
+		function tableRow(concept: string, note: string | null, qty: string, unit: string, total: string) {
 			const y = doc.y;
-			doc.fontSize(10).fillColor('#000');
+			doc.font('Helvetica-Bold').fontSize(10).fillColor('#000');
 			doc.text(concept, left, y, { width: colConceptW - 10 });
-			const conceptBottom = doc.y;
+			let conceptBottom = doc.y;
+			if (note) {
+				doc.font('Helvetica-Oblique').fontSize(9).fillColor('#888');
+				doc.text(note, left, conceptBottom + 2, { width: colConceptW - 10 });
+				conceptBottom = doc.y;
+			}
+			doc.font('Helvetica').fontSize(10).fillColor('#000');
 			doc.text(qty, colQtyX, y, { width: colQtyW, align: 'right' });
 			doc.text(unit, colUnitX, y, { width: colUnitW, align: 'right' });
 			doc.text(total, colTotalX, y, { width: colTotalW, align: 'right' });
 			doc.y = Math.max(conceptBottom, y + 14);
-			doc.moveDown(0.3);
+			doc.moveDown(0.4);
 		}
 
 		function totalsRow(label: string, value: string, opts: { bold?: boolean; big?: boolean } = {}) {
@@ -104,11 +173,24 @@ export function buildInvoicePdf(input: InvoiceInput): Promise<Buffer> {
 
 		tableHeader();
 		const planPrice = planDef?.priceUSD ?? 0;
-		tableRow(`Suscripción — Plan ${planDef?.name ?? input.plan ?? 'Sin plan'}`, '1', formatUSD(planPrice), formatUSD(planPrice));
+		const periodLabel = input.issuedAt.toLocaleDateString('es-DO', { month: 'long', year: 'numeric', timeZone: 'America/Santo_Domingo' });
+		tableRow(
+			`Suscripción — Plan ${planDef?.name ?? input.plan ?? 'Sin plan'}`,
+			`Corresponde a ${periodLabel}.`,
+			'1',
+			formatUSD(planPrice),
+			formatUSD(planPrice),
+		);
 
 		let overageTotal = 0;
 		for (const ev of input.overage.events) {
-			tableRow(`Exceso de aforo — ${ev.eventName} (${ev.overageCount} personas)`, String(ev.overageCount), formatUSD(0.6), formatUSD(ev.overageUSD));
+			tableRow(
+				`Exceso de aforo — ${ev.eventName}`,
+				`${ev.overageCount} persona(s) por encima del cupo del plan (${ev.included}).`,
+				String(ev.overageCount),
+				formatUSD(0.6),
+				formatUSD(ev.overageUSD),
+			);
 			overageTotal += ev.overageUSD;
 		}
 
@@ -116,14 +198,49 @@ export function buildInvoicePdf(input: InvoiceInput): Promise<Buffer> {
 		doc.moveTo(left, doc.y).lineTo(right, doc.y).strokeColor('#ddd').stroke();
 		doc.moveDown(0.5);
 
-		const total = planPrice + overageTotal;
-		totalsRow('Subtotal suscripción', formatUSD(planPrice));
-		totalsRow('Subtotal exceso de aforo', formatUSD(overageTotal));
-		doc.moveDown(0.2);
-		totalsRow('TOTAL', formatUSD(total), { bold: true, big: true });
+		// --- Instrucción de pago (izquierda) + totales con ITBIS (derecha) ---
+		const totalsTop = doc.y;
+		const payColW = contentWidth * 0.42;
+
+		doc.font('Helvetica-Bold').fontSize(10).fillColor('#000').text('Instrucción de pago', left, totalsTop, { width: payColW });
+		doc.font('Helvetica').fontSize(9).fillColor('#555');
+		const payLines = [
+			issuer.bankAccountNumber,
+			[issuer.bankName, issuer.bankAccountType].filter(Boolean).join(' '),
+			[issuer.rnc, issuer.bankAccountHolder || issuer.name].filter(Boolean).join(' — '),
+		].filter(Boolean);
+		for (const line of payLines) {
+			doc.text(line, left, doc.y, { width: payColW });
+		}
+		const payBottom = doc.y;
+
+		doc.y = totalsTop;
+		const subtotal = planPrice + overageTotal;
+		const itbis = Math.round(subtotal * ITBIS_RATE * 100) / 100;
+		const total = subtotal + itbis;
+		totalsRow('Subtotal', formatUSD(subtotal));
+		totalsRow(`ITBIS (${Math.round(ITBIS_RATE * 100)}%)`, formatUSD(itbis));
+		doc.moveDown(0.15);
+		totalsRow('Total', formatUSD(total), { bold: true });
+		const totalsBottom = doc.y;
+
+		doc.y = Math.max(payBottom, totalsBottom) + 10;
+		doc.moveTo(left, doc.y).lineTo(right, doc.y).strokeColor('#ddd').stroke();
+		doc.moveDown(0.5);
+
+		const saldoY = doc.y;
+		const saldoHeight = 28;
+		const saldoBoxX = left + contentWidth * 0.45;
+		const saldoBoxW = right - saldoBoxX;
+		const saldoLabelW = 110;
+		const saldoAmountX = saldoBoxX + 15 + saldoLabelW + 10;
+		doc.rect(saldoBoxX, saldoY, saldoBoxW, saldoHeight).fill('#f2f2f2');
+		doc.font('Helvetica-Bold').fontSize(11).fillColor('#333').text('Saldo deudor', saldoBoxX + 15, saldoY + 8, { width: saldoLabelW });
+		doc.font('Helvetica-Bold').fontSize(13).fillColor('#2e7d32').text(formatUSD(total), saldoAmountX, saldoY + 6, { width: saldoBoxX + saldoBoxW - saldoAmountX - 15, align: 'right' });
+		doc.y = saldoY + saldoHeight;
 
 		doc.moveDown(1.5);
-		doc.fontSize(8).fillColor('#999').text(
+		doc.font('Helvetica').fontSize(8).fillColor('#999').text(
 			'El exceso de aforo no se cobra automático dentro de la suscripción de PayPal — esta factura es el detalle de referencia para facturarlo aparte.',
 			left,
 			doc.y,

@@ -11,5 +11,9 @@ export interface Tenant {
 	// sistema) — ver middleware/plan.ts en la API.
 	plan: string | null;
 	planStatus: string | null;
+	// Datos fiscales/de contacto para el bloque "Para" de la factura (ver invoice-pdf.ts en la API).
+	rnc: string | null;
+	address: string | null;
+	phone: string | null;
 	_count?: { users: number; events: number };
 }
