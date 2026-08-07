@@ -16,12 +16,16 @@ import { validateHostGuestRule } from '../lib/host-guest';
 import { uniqueUsername } from '../lib/unique-username';
 import { finalizePaidSaleTickets } from '../lib/checkout';
 import { assertEventCapacity } from '../lib/capacity';
+import { serializableTransaction } from '../lib/serializable-tx';
 
 export const saleTicketsRouter = Router();
 saleTicketsRouter.use(requireAuth, requireTenant, requireActiveSubscription);
 
 class InsufficientStockError extends Error {}
 class CapacityExceededError extends Error {}
+class AttendeeRuleError extends Error {}
+class DuplicateRegistrationError extends Error {}
+class HostGuestRuleError extends Error {}
 
 // Tope defensivo para la vista "todos los eventos" del panel de QRs (sin eventId, ver
 // qr.service.ts getQRs()) — un club activo por años puede acumular miles de ventas, y sin esto
@@ -111,44 +115,40 @@ saleTicketsRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res) 
 	// Un club normalmente vende por socio/invitado, pero un ticket cargado desde un flyer por
 	// WhatsApp puede venir sin esa clasificación (ej. tickets por edad) — la regla socio/invitado
 	// solo tiene sentido si ESTE ticket puntual participa de ese modelo (mismo criterio que
-	// public-event.component.ts, eventUsesAttendeeTypeTickets).
-	if (isClub) {
-		const ticketForAttendeeCheck = await prisma.ticket.findFirst({ where: { id: parsed.data.ticketId, tenantId }, select: { attendeeType: true } });
-		if (ticketForAttendeeCheck?.attendeeType != null) {
-			const attendeeError = await validateAttendeeRule({
-				tenantId,
-				eventId: parsed.data.eventId,
-				attendeeType: parsed.data.attendeeType,
-				sponsorCarnet: parsed.data.sponsorCarnet,
-				clientCarnet: client?.carnet,
-				maxGuestsOverride: eventCaps?.maxGuestsPerSponsor,
-			});
-			if (attendeeError) {
-				res.status(400).json({ error: attendeeError });
-				return;
-			}
-		}
-
-		const duplicateError = await checkDuplicateEventRegistration({
-			tenantId,
-			eventId: parsed.data.eventId,
-			clientEmail: client?.email ?? '',
-			clientCarnet: client?.carnet,
-		});
-		if (duplicateError) {
-			res.status(409).json({ error: duplicateError });
-			return;
-		}
-	}
-
-	const hostGuestError = await validateHostGuestRule({ tenantId, eventId: parsed.data.eventId, isHostGuest: parsed.data.isHostGuest });
-	if (hostGuestError) {
-		res.status(400).json({ error: hostGuestError });
-		return;
-	}
+	// public-event.component.ts, eventUsesAttendeeTypeTickets). Esta lectura en sí no decide cupo,
+	// así que puede quedar afuera de la transacción — lo que sí importa (contar invitados/registros
+	// existentes) se valida más abajo, DENTRO de la transacción serializable.
+	const ticketForAttendeeCheck = isClub
+		? await prisma.ticket.findFirst({ where: { id: parsed.data.ticketId, tenantId }, select: { attendeeType: true } })
+		: null;
 
 	try {
-		const saleTicket = await prisma.$transaction(async (tx) => {
+		const saleTicket = await serializableTransaction(async (tx) => {
+			if (isClub && ticketForAttendeeCheck?.attendeeType != null) {
+				const attendeeError = await validateAttendeeRule(tx, {
+					tenantId,
+					eventId: parsed.data.eventId,
+					attendeeType: parsed.data.attendeeType,
+					sponsorCarnet: parsed.data.sponsorCarnet,
+					clientCarnet: client?.carnet,
+					maxGuestsOverride: eventCaps?.maxGuestsPerSponsor,
+				});
+				if (attendeeError) throw new AttendeeRuleError(attendeeError);
+			}
+
+			if (isClub) {
+				const duplicateError = await checkDuplicateEventRegistration(tx, {
+					tenantId,
+					eventId: parsed.data.eventId,
+					clientEmail: client?.email ?? '',
+					clientCarnet: client?.carnet,
+				});
+				if (duplicateError) throw new DuplicateRegistrationError(duplicateError);
+			}
+
+			const hostGuestError = await validateHostGuestRule(tx, { tenantId, eventId: parsed.data.eventId, isHostGuest: parsed.data.isHostGuest });
+			if (hostGuestError) throw new HostGuestRuleError(hostGuestError);
+
 			const capacityError = await assertEventCapacity(tx, { eventId: parsed.data.eventId, tenantId, maxCapacity: eventCaps?.maxCapacity ?? null, requestedSeats: 1 });
 			if (capacityError) {
 				throw new CapacityExceededError(capacityError);
@@ -181,6 +181,18 @@ saleTicketsRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res) 
 		}
 		if (err instanceof InsufficientStockError) {
 			res.status(409).json({ error: 'No hay stock disponible para este tipo de ticket.' });
+			return;
+		}
+		if (err instanceof AttendeeRuleError) {
+			res.status(400).json({ error: err.message });
+			return;
+		}
+		if (err instanceof DuplicateRegistrationError) {
+			res.status(409).json({ error: err.message });
+			return;
+		}
+		if (err instanceof HostGuestRuleError) {
+			res.status(400).json({ error: err.message });
 			return;
 		}
 		if (err.code === 'P2003') {

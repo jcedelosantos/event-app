@@ -28,32 +28,32 @@ export function principalCarnet(carnet: string): string {
 }
 
 // Estructural en vez de tipado contra PrismaClient/TransactionClient — mismo motivo que
-// lib/unique-username.ts: cuando esta regla se valida DENTRO de una transacción en progreso (ver
-// public.ts, invitados cargados por el propio socio), necesita ver filas recién creadas en esa
-// misma tx, no solo lo ya confirmado en la DB.
+// lib/capacity.ts. Sin default a `prisma` a propósito — se exige pasar el `tx` explícito para que
+// esta regla quede DENTRO de la transacción serializable que crea el SaleTicket, y de paso vea las
+// filas recién creadas en esa misma tx (ej. el socio que invita, creado unas líneas antes).
 type AttendeeCheckClient = { saleTicket: { findMany: (args: any) => Promise<{ client?: { carnet: string | null }; sponsorCarnet?: string | null }[]> } };
 
 // Devuelve un mensaje de error si la reserva no cumple la regla de socio/invitado, o null si está
 // OK. Un socio necesita su propio carnet; un invitado necesita el carnet del socio que lo invita, y
 // ese socio no puede acumular más de MAX_INVITADOS_PER_SOCIO (o el override del evento) invitados
 // en el mismo evento.
-export async function validateAttendeeRule(params: {
-	tenantId: number;
-	eventId: number;
-	attendeeType: AttendeeType | undefined;
-	sponsorCarnet: string | undefined;
-	clientCarnet: string | undefined;
-	// Cuántos invitados nuevos consumiría ESTA operación (una compra pública puede reservar varios
-	// asientos de una — todos bajo el mismo socio — en una sola llamada). Default 1 para el flujo
-	// manual del manager, que siempre crea una venta a la vez.
-	newInviteCount?: number;
-	// Tope de invitados configurado en Event.maxGuestsPerSponsor — null/undefined = usa
-	// MAX_INVITADOS_PER_SOCIO (comportamiento de siempre, eventos sin este campo configurado).
-	maxGuestsOverride?: number | null;
-	// Cliente de DB a usar para las queries — default el global `prisma`; pasar el `tx` de una
-	// transacción en progreso cuando el socio que invita se acaba de crear en esa misma transacción.
-	db?: AttendeeCheckClient;
-}): Promise<string | null> {
+export async function validateAttendeeRule(
+	db: AttendeeCheckClient,
+	params: {
+		tenantId: number;
+		eventId: number;
+		attendeeType: AttendeeType | undefined;
+		sponsorCarnet: string | undefined;
+		clientCarnet: string | undefined;
+		// Cuántos invitados nuevos consumiría ESTA operación (una compra pública puede reservar varios
+		// asientos de una — todos bajo el mismo socio — en una sola llamada). Default 1 para el flujo
+		// manual del manager, que siempre crea una venta a la vez.
+		newInviteCount?: number;
+		// Tope de invitados configurado en Event.maxGuestsPerSponsor — null/undefined = usa
+		// MAX_INVITADOS_PER_SOCIO (comportamiento de siempre, eventos sin este campo configurado).
+		maxGuestsOverride?: number | null;
+	},
+): Promise<string | null> {
 	if (!params.attendeeType) {
 		return 'Elegí si la reserva es de un socio o de un invitado.';
 	}
@@ -70,10 +70,6 @@ export async function validateAttendeeRule(params: {
 		return 'Ingresá el carnet del socio que invita.';
 	}
 	const normalizedSponsor = principalCarnet(sponsorCarnet);
-	// Anotado explícito (no inferido de `??`) — sin esto, TS unifica el tipo estructural angosto con
-	// el tipo real (y mucho más ancho) de `prisma`, y el `select` de las queries de abajo deja de
-	// angostar el resultado.
-	const db: AttendeeCheckClient = params.db ?? prisma;
 
 	// Un invitado no puede "entrar solo" al evento — el socio que lo invita tiene que tener su
 	// propia entrada ya comprada para este mismo evento (identificado por carnet, no por sesión, ya

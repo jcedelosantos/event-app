@@ -24,6 +24,7 @@ import { saveBuffer, uploadsDir } from '../lib/uploads';
 import { checkoutRateLimiter } from '../middleware/rate-limit';
 import { logAudit } from '../lib/audit';
 import { joinWaitingRoom, getWaitingRoomStatus } from '../lib/waiting-room';
+import { serializableTransaction } from '../lib/serializable-tx';
 
 export const publicRouter = Router();
 
@@ -43,15 +44,22 @@ const HOLD_MINUTES = 15;
 // Libera asientos cuyo hold (SaleTicket PENDING) ya venció, devolviendo el cupo al stock del
 // ticket — se llama al principio de /checkout/hold, ANTES de chequear disponibilidad, así un
 // comprador que abandonó el pago no deja el asiento bloqueado para siempre.
+//
+// La lectura de los holds vencidos vive DENTRO de la misma transacción serializable que los borra e
+// incrementa el stock — separada, dos requests concurrentes liberando el mismo evento podían leer el
+// mismo lote antes de que ninguna terminara de escribir, e incrementar `Ticket.count` dos veces por
+// el mismo hold (stock inflado por encima de la disponibilidad real).
 async function releaseExpiredHolds(tenantId: number, eventId: number, seatIds: number[]) {
-	const expired = await prisma.saleTicket.findMany({
-		where: { eventId, seatId: { in: seatIds }, tenantId, paymentStatus: 'PENDING', paymentExpiresAt: { lt: new Date() } },
+	await serializableTransaction(async (tx) => {
+		const expired = await tx.saleTicket.findMany({
+			where: { eventId, seatId: { in: seatIds }, tenantId, paymentStatus: 'PENDING', paymentExpiresAt: { lt: new Date() } },
+		});
+		if (!expired.length) return;
+		for (const s of expired) {
+			await tx.ticket.update({ where: { id: s.ticketId, tenantId }, data: { count: { increment: 1 } } });
+		}
+		await tx.saleTicket.deleteMany({ where: { id: { in: expired.map((s: { id: number }) => s.id) }, tenantId } });
 	});
-	if (!expired.length) return;
-	await prisma.$transaction([
-		...expired.map((s) => prisma.ticket.update({ where: { id: s.ticketId, tenantId }, data: { count: { increment: 1 } } })),
-		prisma.saleTicket.deleteMany({ where: { id: { in: expired.map((s) => s.id) }, tenantId } }),
-	]);
 }
 
 // Rutas sin auth: las usa el cliente final desde el link/QR del evento, no tiene cuenta de manager.
@@ -338,7 +346,13 @@ publicRouter.get('/events/:code/duplicate-check', asyncHandler(async (req, res) 
 		return;
 	}
 
-	const reason = await checkDuplicateEventRegistration({ tenantId: event.tenantId, eventId: event.id, clientEmail: email, clientCarnet: carnet });
+	// Chequeo informativo previo a la compra real (el picker lo usa para avisar temprano) — no crea
+	// nada, así que no necesita transacción; la aplicación real de la regla pasa por la transacción
+	// serializable de /purchase o /checkout/hold más abajo.
+	// `as any`: mismo motivo estructural documentado en lib/duplicate-event-guard.ts — el tipo
+	// generado del cliente extendido (tenant-guard) no encaja limpio contra el structural type
+	// mínimo, y acá (fuera de una transacción) no hay un `tx` ya tipado `any` de por medio.
+	const reason = await checkDuplicateEventRegistration(prisma as any, { tenantId: event.tenantId, eventId: event.id, clientEmail: email, clientCarnet: carnet });
 	res.json({ blocked: !!reason, reason });
 }));
 
@@ -475,43 +489,18 @@ publicRouter.post('/purchase', checkoutRateLimiter, asyncHandler(async (req, res
 	// Un club normalmente vende por socio/invitado, pero un ticket cargado desde un flyer por
 	// WhatsApp puede venir sin esa clasificación (ej. tickets por edad) — la regla socio/invitado
 	// solo tiene sentido si ESTE ticket puntual participa de ese modelo (mismo criterio que
-	// public-event.component.ts, eventUsesAttendeeTypeTickets).
-	if (isClub && ticket.attendeeType != null) {
-		const attendeeError = await validateAttendeeRule({
-			tenantId,
-			eventId: event.id,
-			attendeeType,
-			sponsorCarnet,
-			clientCarnet: clientData.carnet,
-			newInviteCount: seatIds.length,
-			maxGuestsOverride: event.maxGuestsPerSponsor,
-		});
-		if (attendeeError) {
-			res.status(400).json({ error: attendeeError });
-			return;
-		}
+	// public-event.component.ts, eventUsesAttendeeTypeTickets). Esta lectura en sí no decide cupo —
+	// lo que sí cuenta invitados/registros existentes (validateAttendeeRule,
+	// checkDuplicateEventRegistration) se valida más abajo, DENTRO de la transacción serializable,
+	// junto con la creación — así una carrera bajo Postgres no puede colar dos altas que individualmente
+	// pasarían el chequeo pero juntas superan el tope.
+	if (isClub && ticket.attendeeType != null && attendeeType === 'SOCIO') {
 		// Solo en el flujo self-service: un SOCIO tiene que existir y estar activo en la simulación
 		// de membresía del club (ver lib/club-members.ts) — el invitado no se valida acá, su regla
-		// (socio que lo invita ya registrado, tope de invitados) ya la cubrió validateAttendeeRule.
-		if (attendeeType === 'SOCIO') {
-			const memberError = await assertActiveMember(tenantId, clientData.carnet);
-			if (memberError) {
-				res.status(400).json({ error: memberError });
-				return;
-			}
-		}
-	}
-	// "Misma función, otra fecha" es independiente del modelo de tickets del evento — aplica a
-	// cualquier evento CLUB dentro de un grupo vinculado, tenga o no tickets socio/invitado.
-	if (isClub) {
-		const duplicateError = await checkDuplicateEventRegistration({
-			tenantId,
-			eventId: event.id,
-			clientEmail: clientData.email,
-			clientCarnet: clientData.carnet,
-		});
-		if (duplicateError) {
-			res.status(409).json({ error: duplicateError });
+		// (socio que lo invita ya registrado, tope de invitados) la cubre validateAttendeeRule.
+		const memberError = await assertActiveMember(tenantId, clientData.carnet);
+		if (memberError) {
+			res.status(400).json({ error: memberError });
 			return;
 		}
 	}
@@ -562,7 +551,34 @@ publicRouter.post('/purchase', checkoutRateLimiter, asyncHandler(async (req, res
 	};
 
 	try {
-		const { saleTickets, createdChildren } = await prisma.$transaction(async (tx) => {
+		const { saleTickets, createdChildren } = await serializableTransaction(async (tx) => {
+			// Un club normalmente vende por socio/invitado, pero un ticket cargado desde un flyer por
+			// WhatsApp puede venir sin esa clasificación — la regla solo aplica si ESTE ticket puntual
+			// participa de ese modelo (mismo criterio que public-event.component.ts).
+			if (isClub && ticket.attendeeType != null) {
+				const attendeeError = await validateAttendeeRule(tx, {
+					tenantId,
+					eventId: event.id,
+					attendeeType,
+					sponsorCarnet,
+					clientCarnet: clientData.carnet,
+					newInviteCount: seatIds.length,
+					maxGuestsOverride: event.maxGuestsPerSponsor,
+				});
+				if (attendeeError) throw new TransactionValidationError(attendeeError);
+			}
+			// "Misma función, otra fecha" es independiente del modelo de tickets del evento — aplica a
+			// cualquier evento CLUB dentro de un grupo vinculado, tenga o no tickets socio/invitado.
+			if (isClub) {
+				const duplicateError = await checkDuplicateEventRegistration(tx, {
+					tenantId,
+					eventId: event.id,
+					clientEmail: clientData.email,
+					clientCarnet: clientData.carnet,
+				});
+				if (duplicateError) throw new TransactionValidationError(duplicateError);
+			}
+
 			const capacityError = await assertEventCapacity(tx, { eventId: event.id, tenantId, maxCapacity: event.maxCapacity, requestedSeats: seatIds.length });
 			if (capacityError) {
 				throw new TransactionValidationError(capacityError);
@@ -606,7 +622,7 @@ publicRouter.post('/purchase', checkoutRateLimiter, asyncHandler(async (req, res
 				// encuentra sin depender de una compra previa, y cuenta juntos los invitados ya cargados
 				// por este camino o por el auto-registro independiente (mismo tope, mismo pool, ver
 				// principalCarnet en lib/attendee.ts para el pooling con carnets dependientes).
-				const guestCapError = await validateAttendeeRule({
+				const guestCapError = await validateAttendeeRule(tx, {
 					tenantId,
 					eventId: event.id,
 					attendeeType: 'INVITADO',
@@ -614,7 +630,6 @@ publicRouter.post('/purchase', checkoutRateLimiter, asyncHandler(async (req, res
 					clientCarnet: clientData.carnet,
 					newInviteCount: guests.length,
 					maxGuestsOverride: event.maxGuestsPerSponsor,
-					db: tx,
 				});
 				if (guestCapError) {
 					throw new TransactionValidationError(guestCapError);
@@ -828,43 +843,18 @@ publicRouter.post('/checkout/hold', checkoutRateLimiter, asyncHandler(async (req
 	// Un club normalmente vende por socio/invitado, pero un ticket cargado desde un flyer por
 	// WhatsApp puede venir sin esa clasificación (ej. tickets por edad) — la regla socio/invitado
 	// solo tiene sentido si ESTE ticket puntual participa de ese modelo (mismo criterio que
-	// public-event.component.ts, eventUsesAttendeeTypeTickets).
-	if (isClub && ticket.attendeeType != null) {
-		const attendeeError = await validateAttendeeRule({
-			tenantId,
-			eventId: event.id,
-			attendeeType,
-			sponsorCarnet,
-			clientCarnet: clientData.carnet,
-			newInviteCount: seatIds.length,
-			maxGuestsOverride: event.maxGuestsPerSponsor,
-		});
-		if (attendeeError) {
-			res.status(400).json({ error: attendeeError });
-			return;
-		}
+	// public-event.component.ts, eventUsesAttendeeTypeTickets). Esta lectura en sí no decide cupo —
+	// lo que sí cuenta invitados/registros existentes (validateAttendeeRule,
+	// checkDuplicateEventRegistration) se valida más abajo, DENTRO de la transacción serializable,
+	// junto con la creación — así una carrera bajo Postgres no puede colar dos altas que individualmente
+	// pasarían el chequeo pero juntas superan el tope.
+	if (isClub && ticket.attendeeType != null && attendeeType === 'SOCIO') {
 		// Solo en el flujo self-service: un SOCIO tiene que existir y estar activo en la simulación
 		// de membresía del club (ver lib/club-members.ts) — el invitado no se valida acá, su regla
-		// (socio que lo invita ya registrado, tope de invitados) ya la cubrió validateAttendeeRule.
-		if (attendeeType === 'SOCIO') {
-			const memberError = await assertActiveMember(tenantId, clientData.carnet);
-			if (memberError) {
-				res.status(400).json({ error: memberError });
-				return;
-			}
-		}
-	}
-	// "Misma función, otra fecha" es independiente del modelo de tickets del evento — aplica a
-	// cualquier evento CLUB dentro de un grupo vinculado, tenga o no tickets socio/invitado.
-	if (isClub) {
-		const duplicateError = await checkDuplicateEventRegistration({
-			tenantId,
-			eventId: event.id,
-			clientEmail: clientData.email,
-			clientCarnet: clientData.carnet,
-		});
-		if (duplicateError) {
-			res.status(409).json({ error: duplicateError });
+		// (socio que lo invita ya registrado, tope de invitados) la cubre validateAttendeeRule.
+		const memberError = await assertActiveMember(tenantId, clientData.carnet);
+		if (memberError) {
+			res.status(400).json({ error: memberError });
 			return;
 		}
 	}
@@ -908,7 +898,32 @@ publicRouter.post('/checkout/hold', checkoutRateLimiter, asyncHandler(async (req
 		// los holdIds y lo devuelve en /checkout/paypal/order como prueba de que es el mismo comprador
 		// que reservó (ver comentario en schema.prisma sobre SaleTicket.holdToken).
 		const holdToken = randomUUID();
-		const saleTickets = await prisma.$transaction(async (tx) => {
+		const saleTickets = await serializableTransaction(async (tx) => {
+			// Mismo motivo/orden que POST /purchase: estas dos reglas cuentan invitados/registros
+			// existentes, así que quedan DENTRO de la transacción serializable junto con el cupo y la
+			// creación del hold, no antes.
+			if (isClub && ticket.attendeeType != null) {
+				const attendeeError = await validateAttendeeRule(tx, {
+					tenantId,
+					eventId: event.id,
+					attendeeType,
+					sponsorCarnet,
+					clientCarnet: clientData.carnet,
+					newInviteCount: seatIds.length,
+					maxGuestsOverride: event.maxGuestsPerSponsor,
+				});
+				if (attendeeError) throw new TransactionValidationError(attendeeError);
+			}
+			if (isClub) {
+				const duplicateError = await checkDuplicateEventRegistration(tx, {
+					tenantId,
+					eventId: event.id,
+					clientEmail: clientData.email,
+					clientCarnet: clientData.carnet,
+				});
+				if (duplicateError) throw new TransactionValidationError(duplicateError);
+			}
+
 			const capacityError = await assertEventCapacity(tx, { eventId: event.id, tenantId, maxCapacity: event.maxCapacity, requestedSeats: seatIds.length });
 			if (capacityError) {
 				throw new TransactionValidationError(capacityError);
