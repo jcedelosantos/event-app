@@ -35,11 +35,13 @@ import { PRICING_PLANS, PricingPlan } from '../../shared/pricing-plans';
 								data-bs-target="#planDetailModal"
 							>
 								<div class="card-body d-flex flex-column">
-									@if (plan.highlighted) {
-										<span class="badge text-bg-danger align-self-start mb-2">Más elegido</span>
-									}
-									<h3 class="h5">{{ plan.name }}</h3>
-									<p class="mb-1"><span class="fs-3 fw-bold">USD {{ plan.priceUSD }}</span><span style="color: #b9b9b9;">/mes</span></p>
+									<div class="d-flex justify-content-between align-items-start">
+										<h3 class="h5 mb-0">{{ plan.name }}</h3>
+										@if (plan.highlighted) {
+											<span class="badge text-bg-danger ms-2">Más elegido</span>
+										}
+									</div>
+									<p class="mb-1 mt-2"><span class="fs-3 fw-bold">USD {{ plan.priceUSD }}</span><span style="color: #b9b9b9;">/mes</span></p>
 									<p class="small mb-3" style="color: #b9b9b9;">Hasta {{ plan.attendeesPerEvent }} asistentes por evento</p>
 									<ul class="list-unstyled small flex-grow-1">
 										@for (feature of plan.features; track feature) {
