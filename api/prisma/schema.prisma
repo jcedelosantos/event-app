@@ -156,6 +156,8 @@ model AuditLog {
 
   tenantId Int
   tenant   Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
 }
 
 model Event {
@@ -265,6 +267,8 @@ model Map {
 
   areas  Area[]
   events Event[]
+
+  @@index([tenantId])
 }
 
 model Area {
@@ -293,6 +297,8 @@ model Area {
   seats   Seat[]
   tables  Table[]
   tickets Ticket[]
+
+  @@index([tenantId])
 }
 
 model Table {
@@ -313,6 +319,8 @@ model Table {
   tenant   Tenant @relation(fields: [tenantId], references: [id])
 
   seats Seat[]
+
+  @@index([tenantId])
 }
 
 model Seat {
@@ -336,6 +344,8 @@ model Seat {
   tenant   Tenant @relation(fields: [tenantId], references: [id])
 
   saleTickets SaleTicket[]
+
+  @@index([tenantId])
 }
 
 model Ticket {
@@ -369,6 +379,8 @@ model Ticket {
   tenant   Tenant @relation(fields: [tenantId], references: [id])
 
   saleTickets SaleTicket[]
+
+  @@index([tenantId])
 }
 
 model Product {
@@ -395,6 +407,8 @@ model Product {
   isMealOfTheDay Boolean @default(false)
 
   saleProducts SaleProduct[]
+
+  @@index([tenantId])
 }
 
 model SaleProduct {
@@ -424,6 +438,8 @@ model SaleProduct {
   // Lado inverso de Child.saleProductId — presente solo si esta venta es la comida del día de un
   // hijo registrado (ver Child).
   child Child?
+
+  @@index([tenantId])
 }
 
 model SaleTicket {
@@ -492,6 +508,10 @@ model SaleTicket {
 
   // Un mismo asiento no se puede vender dos veces para el mismo evento.
   @@unique([eventId, seatId])
+  // Reportes/historial/auditoría por organización (ver routes/audit-logs.ts, reports del manager) —
+  // sin esto, cualquier consulta que filtre solo por tenantId (sin eventId) escanea la tabla entera,
+  // de TODOS los tenants juntos, cada vez que crece.
+  @@index([tenantId])
 }
 
 // Hijo de un participante, registrado junto con su ticket — solo tiene sentido en tenants tipo
@@ -526,6 +546,7 @@ model Child {
 
   @@index([codeQR])
   @@index([parentId, eventId])
+  @@index([tenantId])
 }
 
 // Simulación local del sistema de membresía real del club (todavía no existe un API real que

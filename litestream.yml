@@ -1,0 +1,11 @@
+dbs:
+  - path: /data/dev.db
+    replicas:
+      - type: s3
+        endpoint: ${LITESTREAM_ENDPOINT}
+        bucket: ${LITESTREAM_BUCKET}
+        access-key-id: ${LITESTREAM_ACCESS_KEY_ID}
+        secret-access-key: ${LITESTREAM_SECRET_ACCESS_KEY}
+        # replicación casi continua (streaming de la WAL) + retención — un backup viejo nunca
+        # queda huérfano en el bucket más allá de esta ventana.
+        retention: 72h
