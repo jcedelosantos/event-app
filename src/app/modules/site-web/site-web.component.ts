@@ -10,17 +10,17 @@ import { PRICING_PLANS, PricingPlan } from '../../shared/pricing-plans';
 	template: `
 		<app-nav-bar-init />
 		<div class="page" data-bs-theme="dark">
-			<div class="hero text-center py-5">
+			<div class="hero text-center py-2">
 				<div class="container">
-					<h1 class="display-5 fw-bold mb-3">Gestioná tus eventos de manera eficiente</h1>
-					<p class="lead" style="color: #b9b9b9;">Mapa de asientos, QR de entrada, portal público de auto-registro y cobro online — todo en un solo lugar.</p>
-					<a routerLink="/signup" class="btn btn-danger btn-lg px-4 mt-2">Empezar ahora</a>
+					<h1 class="display-6 fw-bold mb-1">Gestioná tus eventos de manera eficiente</h1>
+					<p class="lead small mb-2" style="color: #b9b9b9;">Mapa de asientos, QR de entrada, portal público de auto-registro y cobro online — todo en un solo lugar.</p>
+					<a routerLink="/signup" class="btn btn-danger px-4">Empezar ahora</a>
 				</div>
 			</div>
 
-			<div class="container py-5">
-				<h2 class="text-center mb-4">Planes</h2>
-				<div class="row g-3 justify-content-center">
+			<div class="container pt-2 pb-3">
+				<h2 class="text-center mb-2 h4">Planes</h2>
+				<div class="row g-2 justify-content-center">
 					@for (plan of plans; track plan.code) {
 						<div class="col-12 col-md-6 col-lg-3">
 							<div
@@ -34,21 +34,16 @@ import { PRICING_PLANS, PricingPlan } from '../../shared/pricing-plans';
 								data-bs-toggle="modal"
 								data-bs-target="#planDetailModal"
 							>
-								<div class="card-body d-flex flex-column">
+								<div class="card-body d-flex flex-column py-2">
 									<div class="d-flex justify-content-between align-items-start">
 										<h3 class="h5 mb-0">{{ plan.name }}</h3>
 										@if (plan.highlighted) {
 											<span class="badge text-bg-danger ms-2">Más elegido</span>
 										}
 									</div>
-									<p class="mb-1 mt-2"><span class="fs-3 fw-bold">USD {{ plan.priceUSD }}</span><span style="color: #b9b9b9;">/mes</span></p>
-									<p class="small mb-3" style="color: #b9b9b9;">Hasta {{ plan.attendeesPerEvent }} asistentes por evento</p>
-									<ul class="list-unstyled small flex-grow-1">
-										@for (feature of plan.features; track feature) {
-											<li class="mb-1"><i class="bi bi-check2 text-danger"></i> {{ feature }}</li>
-										}
-									</ul>
-									<span class="small text-danger mt-2">Ver detalle <i class="bi bi-arrow-right"></i></span>
+									<p class="mb-0 mt-1"><span class="fs-4 fw-bold">USD {{ plan.priceUSD }}</span><span style="color: #b9b9b9;">/mes</span></p>
+									<p class="small mb-0 flex-grow-1" style="color: #b9b9b9;">Hasta {{ plan.attendeesPerEvent }} asistentes por evento</p>
+									<span class="small text-danger mt-1">Ver detalle <i class="bi bi-arrow-right"></i></span>
 								</div>
 							</div>
 						</div>
