@@ -39,7 +39,7 @@ import { PRICING_PLANS, PricingPlan } from '../../shared/pricing-plans';
 										<span class="badge text-bg-danger align-self-start mb-2">Más elegido</span>
 									}
 									<h3 class="h5">{{ plan.name }}</h3>
-									<p class="mb-1"><span class="fs-3 fw-bold">\${{ plan.priceUSD }}</span><span style="color: #b9b9b9;">/mes</span></p>
+									<p class="mb-1"><span class="fs-3 fw-bold">USD {{ plan.priceUSD }}</span><span style="color: #b9b9b9;">/mes</span></p>
 									<p class="small mb-3" style="color: #b9b9b9;">Hasta {{ plan.attendeesPerEvent }} asistentes por evento</p>
 									<ul class="list-unstyled small flex-grow-1">
 										@for (feature of plan.features; track feature) {
@@ -69,7 +69,7 @@ import { PRICING_PLANS, PricingPlan } from '../../shared/pricing-plans';
 							<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
 						</div>
 						<div class="modal-body">
-							<p class="mb-1"><span class="fs-3 fw-bold">\${{ plan.priceUSD }}</span><span style="color: #b9b9b9;">/mes</span></p>
+							<p class="mb-1"><span class="fs-3 fw-bold">USD {{ plan.priceUSD }}</span><span style="color: #b9b9b9;">/mes</span></p>
 							<p class="small mb-3" style="color: #b9b9b9;">Hasta {{ plan.attendeesPerEvent }} asistentes por evento</p>
 							<p style="color: #d0d0d0;">{{ plan.description }}</p>
 							<ul class="list-unstyled small">

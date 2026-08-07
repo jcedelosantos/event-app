@@ -19,7 +19,7 @@ import { PRICING_PLANS, PlanCode } from '../../shared/pricing-plans';
 						<label class="form-label small">Plan</label>
 						<select class="form-select" formControlName="plan">
 							@for (plan of plans; track plan.code) {
-								<option [value]="plan.code">{{ plan.name }} — \${{ plan.priceUSD }}/mes (hasta {{ plan.attendeesPerEvent }} asistentes por evento)</option>
+								<option [value]="plan.code">{{ plan.name }} — USD {{ plan.priceUSD }}/mes (hasta {{ plan.attendeesPerEvent }} asistentes por evento)</option>
 							}
 						</select>
 					</div>
