@@ -41,7 +41,9 @@ const app = express();
 // request a una ruta rate-limited). `1` = confiar en un solo hop de proxy (el de Railway).
 app.set('trust proxy', 1);
 
-app.use(cors());
+// exposedHeaders: sin esto el navegador descarta X-Total-Count antes de que el frontend pueda
+// leerlo (ver sale-tickets.ts/sale-products.ts GET / — aviso de "historial truncado" en la UI).
+app.use(cors({ exposedHeaders: ['X-Total-Count'] }));
 // El body crudo se guarda en req.rawBody además de parsearse — lo necesita el webhook de WhatsApp
 // para verificar la firma HMAC de Meta (ver lib/whatsapp.ts), que se calcula sobre los bytes
 // exactos recibidos, no sobre el objeto ya parseado (que puede serializar distinto).

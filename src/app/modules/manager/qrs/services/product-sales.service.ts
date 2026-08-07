@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
-import { Observable } from 'rxjs';
+import { map, Observable } from 'rxjs';
 import { Events } from '../../../../models/events/events';
 import { Product } from '../../../../models/products/product';
 import { User } from '../../../../models/users/user';
@@ -39,8 +39,18 @@ export class ProductSalesService {
 	private readonly httpClient = inject(HttpClient);
 	private readonly baseUrl = `${environment.apiUrl}/sale-products`;
 
+	// Historial COMPLETO sin acotar — dashboard depende de esto para sumar ingresos totales
+	// correctos, no lo cambies a la vista acotada (ver getRecentSaleProducts()).
 	getSaleProducts(): Observable<SaleProduct[]> {
 		return this.httpClient.get<SaleProduct[]>(this.baseUrl);
+	}
+
+	// Vista acotada a las 500 ventas más recientes de TODOS los eventos (ver ?recent=1 en
+	// sale-products.ts), para la tabla navegable del panel de QRs.
+	getRecentSaleProducts(): Observable<{ items: SaleProduct[]; totalCount: number | null }> {
+		return this.httpClient
+			.get<SaleProduct[]>(this.baseUrl, { params: { recent: 1 }, observe: 'response' })
+			.pipe(map((res) => ({ items: res.body ?? [], totalCount: parseTotalCount(res.headers.get('X-Total-Count')) })));
 	}
 
 	getSaleProductsByEvent(eventId: number): Observable<SaleProduct[]> {
@@ -58,4 +68,10 @@ export class ProductSalesService {
 	resendSaleProduct(id: number): Observable<{ ok: boolean }> {
 		return this.httpClient.post<{ ok: boolean }>(`${this.baseUrl}/${id}/resend`, {});
 	}
+}
+
+function parseTotalCount(value: string | null): number | null {
+	if (value == null) return null;
+	const parsed = Number.parseInt(value, 10);
+	return Number.isFinite(parsed) ? parsed : null;
 }

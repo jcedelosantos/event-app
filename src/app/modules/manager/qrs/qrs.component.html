@@ -78,6 +78,11 @@
     </div>
 </div>
 
+@if (qrListTotalCount(); as total) {
+    <div class="alert alert-warning py-1 px-2 small mb-2">
+        Mostrando las {{ qrList().length }} ventas más recientes de {{ total }} en total. Filtrá por un evento puntual para ver el resto.
+    </div>
+}
 <div class="table-responsive">
 <table class="table table-striped table-hover table-sm qrs-table">
     <thead>
@@ -213,6 +218,11 @@
 </div>
 
 <h4 class="mt-4">Ventas de productos</h4>
+@if (productSaleListTotalCount(); as total) {
+    <div class="alert alert-warning py-1 px-2 small mb-2">
+        Mostrando las {{ productSaleList().length }} ventas más recientes de {{ total }} en total. Filtrá por un evento puntual para ver el resto.
+    </div>
+}
 <div class="table-responsive">
 <table class="table table-striped table-hover table-sm qrs-table">
     <thead>

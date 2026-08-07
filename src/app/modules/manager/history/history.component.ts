@@ -18,7 +18,12 @@ const ENTITY_LABELS: Record<string, string> = {
 	template: `
 		<h2 class="section-title">Auditoría</h2>
 		<p class="text-body-secondary small">
-			Registro de altas, ediciones y borrados de eventos, productos, usuarios y ventas. Se guardan los últimos 300 movimientos.
+			Registro de altas, ediciones y borrados de eventos, productos, usuarios y ventas.
+			@if (totalCount(); as total) {
+				Mostrando los {{ logs().length }} movimientos más recientes de {{ total }} en total.
+			} @else {
+				Se guardan los últimos 300 movimientos.
+			}
 		</p>
 
 		<div class="row my-3">
@@ -82,6 +87,9 @@ export class HistoryComponent implements OnInit {
 	loading = signal(true);
 	entityFilter = signal<string | null>(null);
 	searchText = signal('');
+	// null salvo que la respuesta esté realmente truncada (total > lo devuelto) — con un filtro de
+	// entidad activo el total ya casi nunca supera el límite de 300, así que el aviso desaparece solo.
+	totalCount = signal<number | null>(null);
 
 	filteredLogs = computed(() => {
 		const q = this.searchText().trim().toLowerCase();
@@ -103,8 +111,9 @@ export class HistoryComponent implements OnInit {
 
 	loadLogs() {
 		this.loading.set(true);
-		this.auditLogService.getAuditLogs(this.entityFilter() ?? undefined).subscribe((logs) => {
-			this.logs.set(logs);
+		this.auditLogService.getAuditLogs(this.entityFilter() ?? undefined).subscribe(({ items, totalCount }) => {
+			this.logs.set(items);
+			this.totalCount.set(totalCount != null && totalCount > items.length ? totalCount : null);
 			this.loading.set(false);
 		});
 	}

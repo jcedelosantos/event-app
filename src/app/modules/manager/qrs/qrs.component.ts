@@ -85,6 +85,12 @@ export class QrsComponent implements OnInit, AfterViewInit {
   selectedEventId = signal<number | null>(null);
   searchText = signal<string>('');
 
+  // Distinto de null solo cuando la vista "todos los eventos" viene truncada (ver
+  // ALL_EVENTS_LIST_LIMIT en sale-tickets.ts/sale-products.ts) — filtrar por un evento puntual
+  // siempre trae el total real, así que esto vuelve a null apenas se elige un evento.
+  qrListTotalCount = signal<number | null>(null);
+  productSaleListTotalCount = signal<number | null>(null);
+
   eventDetailModal: any;
   productSaleDetailModal: any;
 
@@ -278,14 +284,28 @@ export class QrsComponent implements OnInit, AfterViewInit {
 
   loadQRs() {
     const eventId = this.selectedEventId();
-    const request = eventId ? this.qrService.getQRsByEvent(eventId) : this.qrService.getQRs();
-    request.subscribe((qrs) => this.qrList.set(qrs));
+    if (eventId) {
+      this.qrListTotalCount.set(null);
+      this.qrService.getQRsByEvent(eventId).subscribe((qrs) => this.qrList.set(qrs));
+      return;
+    }
+    this.qrService.getRecentQRs().subscribe(({ items, totalCount }) => {
+      this.qrList.set(items);
+      this.qrListTotalCount.set(totalCount != null && totalCount > items.length ? totalCount : null);
+    });
   }
 
   loadProductSales() {
     const eventId = this.selectedEventId();
-    const request = eventId ? this.productSalesService.getSaleProductsByEvent(eventId) : this.productSalesService.getSaleProducts();
-    request.subscribe((sales) => this.productSaleList.set(sales));
+    if (eventId) {
+      this.productSaleListTotalCount.set(null);
+      this.productSalesService.getSaleProductsByEvent(eventId).subscribe((sales) => this.productSaleList.set(sales));
+      return;
+    }
+    this.productSalesService.getRecentSaleProducts().subscribe(({ items, totalCount }) => {
+      this.productSaleList.set(items);
+      this.productSaleListTotalCount.set(totalCount != null && totalCount > items.length ? totalCount : null);
+    });
   }
 
   loadChildren() {

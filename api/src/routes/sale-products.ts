@@ -14,6 +14,9 @@ saleProductsRouter.use(requireAuth, requireTenant, requireActiveSubscription);
 
 class InsufficientStockError extends Error {}
 
+// Mismo tope defensivo y mismo motivo que ALL_EVENTS_LIST_LIMIT en sale-tickets.ts.
+const ALL_EVENTS_LIST_LIMIT = 500;
+
 const saleProductInputSchema = z.object({
 	eventId: z.number().int(),
 	productId: z.number().int(),
@@ -39,7 +42,16 @@ export function toPublicSaleProduct(saleProduct: any) {
 saleProductsRouter.get('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const tenantId = req.user!.tenantId!;
 	const eventId = req.query.eventId ? Number(req.query.eventId) : undefined;
-	const saleProducts = await prisma.saleProduct.findMany({ where: eventId ? { eventId, tenantId } : { tenantId }, include, orderBy: { id: 'desc' } });
+	// ?recent=1 opt-in — ver el comentario equivalente en sale-tickets.ts GET /: dashboard depende
+	// del historial completo sin eventId para sumar ingresos totales, así que el tope solo aplica
+	// cuando la tabla "todos los eventos" del panel de QRs lo pide explícitamente.
+	const recent = !eventId && req.query.recent === '1';
+	const where = eventId ? { eventId, tenantId } : { tenantId };
+	const [saleProducts, totalCount] = await Promise.all([
+		prisma.saleProduct.findMany({ where, include, orderBy: { id: 'desc' }, take: recent ? ALL_EVENTS_LIST_LIMIT : undefined }),
+		recent ? prisma.saleProduct.count({ where }) : Promise.resolve(null),
+	]);
+	if (totalCount != null) res.setHeader('X-Total-Count', String(totalCount));
 	res.json(saleProducts.map(toPublicSaleProduct));
 }));
 

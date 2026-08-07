@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
-import { Observable } from 'rxjs';
+import { map, Observable } from 'rxjs';
 import { Events } from '../../../../models/events/events';
 import { Seat } from '../../../../models/maps/seat';
 import { Area } from '../../../../models/maps/area';
@@ -83,8 +83,19 @@ export class QRService {
 	private readonly httpClient = inject(HttpClient);
 	private readonly baseUrl = `${environment.apiUrl}/sale-tickets`;
 
+	// Historial COMPLETO sin acotar — dashboard y event-details dependen de esto para sumar
+	// ingresos totales correctos, no lo cambies a la vista acotada (ver getRecentQRs()).
 	getQRs(): Observable<SaleTicket[]> {
 		return this.httpClient.get<SaleTicket[]>(this.baseUrl);
+	}
+
+	// Vista acotada a las 500 ventas más recientes de TODOS los eventos (ver ?recent=1 en
+	// sale-tickets.ts), para la tabla navegable del panel de QRs — totalCount viene del header
+	// X-Total-Count para poder avisar en la UI cuando lo que se ve no es el historial completo.
+	getRecentQRs(): Observable<{ items: SaleTicket[]; totalCount: number | null }> {
+		return this.httpClient
+			.get<SaleTicket[]>(this.baseUrl, { params: { recent: 1 }, observe: 'response' })
+			.pipe(map((res) => ({ items: res.body ?? [], totalCount: parseTotalCount(res.headers.get('X-Total-Count')) })));
 	}
 
 	getQRsByEvent(eventId: number): Observable<SaleTicket[]> {
@@ -123,4 +134,10 @@ export class QRService {
 	bulkImport(input: BulkImportSaleTicketsInput): Observable<BulkImportResult> {
 		return this.httpClient.post<BulkImportResult>(`${this.baseUrl}/bulk-import`, input);
 	}
+}
+
+function parseTotalCount(value: string | null): number | null {
+	if (value == null) return null;
+	const parsed = Number.parseInt(value, 10);
+	return Number.isFinite(parsed) ? parsed : null;
 }

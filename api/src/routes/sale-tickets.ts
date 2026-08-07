@@ -23,6 +23,13 @@ saleTicketsRouter.use(requireAuth, requireTenant, requireActiveSubscription);
 class InsufficientStockError extends Error {}
 class CapacityExceededError extends Error {}
 
+// Tope defensivo para la vista "todos los eventos" del panel de QRs (sin eventId, ver
+// qr.service.ts getQRs()) — un club activo por años puede acumular miles de ventas, y sin esto
+// esa vista pediría TODO el historial de una sola vez cada vez que alguien la abre. Mismo patrón
+// que ya usa audit-logs.ts. Filtrado por un eventId puntual queda sin tope: el volumen de un solo
+// evento está naturalmente acotado por su aforo, nunca llega a ser un problema.
+const ALL_EVENTS_LIST_LIMIT = 500;
+
 const saleTicketInputSchema = z.object({
 	eventId: z.number().int(),
 	seatId: z.number().int(),
@@ -52,7 +59,18 @@ export function toPublicSaleTicket(saleTicket: any) {
 saleTicketsRouter.get('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const tenantId = req.user!.tenantId!;
 	const eventId = req.query.eventId ? Number(req.query.eventId) : undefined;
-	const saleTickets = await prisma.saleTicket.findMany({ where: eventId ? { eventId, tenantId } : { tenantId }, include, orderBy: { id: 'desc' } });
+	// ?recent=1 es opt-in a propósito: dashboard/event-details dependen de traer el historial
+	// COMPLETO sin eventId (calculan ingresos totales sumando en el cliente) — capar el default acá
+	// rompería esos números en silencio para cualquier tenant con más de ALL_EVENTS_LIST_LIMIT
+	// ventas. Solo la tabla "todos los eventos" del panel de QRs (que sí es navegable/paginable, no
+	// un total) pide explícitamente la vista acotada.
+	const recent = !eventId && req.query.recent === '1';
+	const where = eventId ? { eventId, tenantId } : { tenantId };
+	const [saleTickets, totalCount] = await Promise.all([
+		prisma.saleTicket.findMany({ where, include, orderBy: { id: 'desc' }, take: recent ? ALL_EVENTS_LIST_LIMIT : undefined }),
+		recent ? prisma.saleTicket.count({ where }) : Promise.resolve(null),
+	]);
+	if (totalCount != null) res.setHeader('X-Total-Count', String(totalCount));
 	res.json(saleTickets.map(toPublicSaleTicket));
 }));
 

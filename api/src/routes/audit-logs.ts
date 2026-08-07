@@ -15,12 +15,12 @@ const LIST_LIMIT = 300;
 auditLogsRouter.get('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const tenantId = req.user!.tenantId!;
 	const entity = typeof req.query.entity === 'string' ? req.query.entity : undefined;
-	const logs = await prisma.auditLog.findMany({
-		where: entity ? { entity, tenantId } : { tenantId },
-		include: { user: { include: { type: true } } },
-		orderBy: { id: 'desc' },
-		take: LIST_LIMIT,
-	});
+	const where = entity ? { entity, tenantId } : { tenantId };
+	const [logs, totalCount] = await Promise.all([
+		prisma.auditLog.findMany({ where, include: { user: { include: { type: true } } }, orderBy: { id: 'desc' }, take: LIST_LIMIT }),
+		prisma.auditLog.count({ where }),
+	]);
+	res.setHeader('X-Total-Count', String(totalCount));
 	res.json(
 		logs.map(({ user, ...log }) => ({
 			...log,
