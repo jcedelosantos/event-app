@@ -1,8 +1,13 @@
-/* data-bs-theme="dark" en el HTML redefine las variables --bs-* para el fondo/inputs, pero no
-   alcanza para el texto plano (h2, label, span sin clase) porque esos heredan su `color` desde
-   <body> — que está FUERA de este wrapper y nunca se enteró de que acá adentro es tema oscuro. Sin
-   este color explícito, los labels quedan casi negros sobre el fondo oscuro global (ilegibles). */
 :host {
 	display: block;
-	color: var(--bs-body-color);
+}
+
+/* data-bs-theme="dark" en el HTML redefine las variables --bs-* para el fondo/inputs, pero
+   var(--bs-body-color) puesto en :host resolvía CONTRA EL PADRE de este div (fuera del tema
+   oscuro), no contra la redefinición de acá adentro — el texto plano (h2, label, span sin clase)
+   terminaba heredando el gris oscuro pensado para fondo claro, casi invisible sobre el fondo negro
+   global. Puesto directo en el elemento que trae data-bs-theme, y un poco más claro que el gris
+   default de Bootstrap para que resalte bien. */
+[data-bs-theme='dark'] {
+	color: rgba(255, 255, 255, 0.92);
 }
