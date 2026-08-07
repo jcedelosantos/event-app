@@ -1,6 +1,6 @@
-FROM alpine:3.20
+FROM postgres:18-alpine
 
-RUN apk add --no-cache postgresql16-client aws-cli bash
+RUN apk add --no-cache aws-cli bash
 
 WORKDIR /app
 COPY backup.sh ./backup.sh
