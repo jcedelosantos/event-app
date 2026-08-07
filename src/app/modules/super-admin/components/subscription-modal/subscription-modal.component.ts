@@ -87,6 +87,11 @@ const STATUS_LABEL: Record<string, string> = {
 					</div>
 					<div class="modal-footer">
 						<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+						@if (detail()?.subscription) {
+							<button type="button" class="btn btn-outline-light" [disabled]="downloadingInvoice()" (click)="downloadInvoice()">
+								{{ downloadingInvoice() ? 'Generando...' : 'Descargar factura' }}
+							</button>
+						}
 						@if (detail()?.subscription?.paypalSubscriptionId) {
 							<button type="button" class="btn btn-outline-danger" (click)="cancel()">Cancelar suscripción</button>
 						}
@@ -103,6 +108,7 @@ export class SubscriptionModalComponent {
 	tenant = model.required<Tenant | null>();
 	subscriptionChanged = output<void>();
 	detail = signal<TenantSubscriptionDetail | null>(null);
+	downloadingInvoice = signal(false);
 
 	constructor() {
 		effect(() => {
@@ -115,6 +121,27 @@ export class SubscriptionModalComponent {
 
 	statusLabel(status: string): string {
 		return STATUS_LABEL[status] ?? status;
+	}
+
+	downloadInvoice() {
+		const current = this.tenant();
+		if (!current) return;
+		this.downloadingInvoice.set(true);
+		this.tenantService.downloadInvoice(current.id).subscribe({
+			next: (blob) => {
+				this.downloadingInvoice.set(false);
+				const url = URL.createObjectURL(blob);
+				const a = document.createElement('a');
+				a.href = url;
+				a.download = `factura-${current.slug}.pdf`;
+				a.click();
+				URL.revokeObjectURL(url);
+			},
+			error: (err: HttpErrorResponse) => {
+				this.downloadingInvoice.set(false);
+				showError(extractErrorMessage(err));
+			},
+		});
 	}
 
 	cancel() {

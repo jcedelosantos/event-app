@@ -65,4 +65,10 @@ export class TenantService {
 	cancelSubscription(id: number, reason?: string): Observable<{ ok: boolean }> {
 		return this.httpClient.post<{ ok: boolean }>(`${this.baseUrl}/${id}/subscription/cancel`, { reason });
 	}
+
+	// blob (no JSON): el interceptor de auth igual agrega el Bearer token, así que un <a href> plano
+	// no serviría acá (no manda el header) — hay que pedirlo por HttpClient y bajarlo a mano.
+	downloadInvoice(id: number): Observable<Blob> {
+		return this.httpClient.get(`${this.baseUrl}/${id}/invoice`, { responseType: 'blob' });
+	}
 }

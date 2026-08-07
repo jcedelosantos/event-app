@@ -10,6 +10,7 @@ import { asyncHandler } from '../lib/async-handler';
 import { uniqueTenantSlug } from '../lib/slug';
 import { computeTenantOverage } from '../lib/overage';
 import { cancelSubscription } from '../lib/paypal-billing';
+import { buildInvoicePdf } from '../lib/invoice-pdf';
 
 // Panel de Super Admin: alta de nuevos clientes (clubes/iglesias) y su primer usuario admin. Usa
 // prismaUnscoped a propósito — el tenant-guard exige tenantId en cada query de los modelos de
@@ -155,6 +156,26 @@ tenantsRouter.get('/:id/subscription', asyncHandler(async (req, res) => {
 	const subscription = await prismaUnscoped.subscription.findUnique({ where: { tenantId: id } });
 	const overage = await computeTenantOverage(id);
 	res.json({ subscription, overage });
+}));
+
+// Factura modelo (plan + overage del mes) para que la agencia le facture al club aparte — ver
+// lib/invoice-pdf.ts y el comentario en lib/overage.ts sobre por qué esto no se cobra automático.
+tenantsRouter.get('/:id/invoice', asyncHandler(async (req, res) => {
+	const id = Number(req.params.id);
+	const tenant = await prismaUnscoped.tenant.findUnique({ where: { id } });
+	if (!tenant) {
+		res.status(404).json({ error: 'Organización no encontrada' });
+		return;
+	}
+	const subscription = await prismaUnscoped.subscription.findUnique({ where: { tenantId: id } });
+	const overage = await computeTenantOverage(id);
+	const issuedAt = new Date();
+	const invoiceNumber = `INV-${String(id).padStart(4, '0')}-${issuedAt.getFullYear()}${String(issuedAt.getMonth() + 1).padStart(2, '0')}`;
+
+	const pdf = await buildInvoicePdf({ tenant, plan: tenant.plan, subscription, overage, invoiceNumber, issuedAt });
+	res.setHeader('Content-Type', 'application/pdf');
+	res.setHeader('Content-Disposition', `attachment; filename="${invoiceNumber}.pdf"`);
+	res.send(pdf);
 }));
 
 const cancelSubscriptionSchema = z.object({ reason: z.string().min(1).optional().default('Cancelado por la agencia') });
