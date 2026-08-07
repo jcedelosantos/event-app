@@ -10,6 +10,7 @@ export type InvoiceSettings = {
 	invoiceIssuerEmail: string;
 	invoiceIssuerPhone: string;
 	invoiceIssuerAddress: string;
+	invoiceIssuerLogoUrl: string;
 	invoiceBankName: string;
 	invoiceBankAccountType: string;
 	invoiceBankAccountNumber: string;
@@ -29,5 +30,11 @@ export class PlatformSettingsService {
 
 	setSetting(key: keyof InvoiceSettings, value: string): Observable<{ ok: boolean }> {
 		return this.httpClient.put<{ ok: boolean }>(`${this.baseUrl}/${key}`, { value });
+	}
+
+	uploadLogo(file: File): Observable<{ url: string }> {
+		const formData = new FormData();
+		formData.append('file', file);
+		return this.httpClient.post<{ url: string }>(`${this.baseUrl}/logo`, formData);
 	}
 }

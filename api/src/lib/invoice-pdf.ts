@@ -1,5 +1,8 @@
 import PDFDocument from 'pdfkit';
+import path from 'node:path';
+import fs from 'node:fs';
 import { PLANS, isPlanCode } from './plans';
+import { uploadsDir } from './uploads';
 import type { EventOverage } from './overage';
 import type { InvoiceIssuerConfig } from './invoice-config';
 
@@ -30,6 +33,16 @@ function formatDate(date: Date): string {
 	return date.toLocaleDateString('es-DO', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'America/Santo_Domingo' });
 }
 
+// logoUrl puede venir absoluta (http://.../uploads/x.png) o relativa (/uploads/x.png) — en ambos
+// casos el archivo real vive en uploadsDir con ese mismo nombre (ver lib/uploads.ts), así que solo
+// hace falta el basename para resolver la ruta local que pdfkit necesita.
+function resolveLogoPath(logoUrl: string | null): string | null {
+	if (!logoUrl) return null;
+	const filename = path.basename(logoUrl.split('?')[0]);
+	const filePath = path.join(uploadsDir, filename);
+	return fs.existsSync(filePath) ? filePath : null;
+}
+
 // Factura modelo de la mensualidad + overage de un tenant — no hay cobro automático de esto (ver
 // lib/overage.ts: PayPal Subscriptions no soporta montos variables sin permisos de Reference
 // Transactions), así que la agencia se apoya en este PDF para facturar el overage aparte cada mes.
@@ -51,8 +64,22 @@ export function buildInvoicePdf(input: InvoiceInput): Promise<Buffer> {
 		const planDef = input.plan && isPlanCode(input.plan) ? PLANS[input.plan] : null;
 		const { issuer } = input;
 
-		// --- Encabezado: título + datos del emisor, todo alineado a la derecha (mismo layout que la
-		// factura modelo) ---
+		// --- Encabezado: logo arriba a la izquierda + título/datos del emisor a la derecha (mismo
+		// layout que la factura modelo) ---
+		const headerTop = doc.y;
+		const logoPath = resolveLogoPath(issuer.logoUrl);
+		if (logoPath) {
+			// fit preserva el aspect ratio del logo — pdfkit solo soporta JPEG/PNG; si la imagen subida
+			// es de otro formato (ej. webp) esto tira, y no vale la pena romper la factura entera por
+			// eso, así que se omite el logo en silencio.
+			try {
+				doc.image(logoPath, left, headerTop, { fit: [140, 55] });
+			} catch {
+				// logo omitido — formato de imagen no soportado por pdfkit
+			}
+		}
+		doc.y = headerTop;
+
 		doc.fontSize(26).fillColor('#000').text('Factura', left, doc.y, { width: contentWidth, align: 'right' });
 		doc.moveDown(0.3);
 		if (issuer.name) {
@@ -79,6 +106,7 @@ export function buildInvoicePdf(input: InvoiceInput): Promise<Buffer> {
 			doc.fontSize(8).fillColor('#888').text(bankParts.join(' · '), left, doc.y, { width: contentWidth, align: 'right' });
 		}
 		doc.moveDown(0.8);
+		if (logoPath) doc.y = Math.max(doc.y, headerTop + 55 + 10);
 
 		doc.moveTo(left, doc.y).lineTo(right, doc.y).strokeColor('#ddd').stroke();
 		doc.moveDown(0.6);

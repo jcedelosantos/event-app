@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prisma } from '../lib/prisma';
 import { requireAuth, requireSuperAdmin } from '../middleware/auth';
 import { asyncHandler } from '../lib/async-handler';
+import { imageUpload } from '../lib/uploads';
 import { INVOICE_SETTING_KEYS, InvoiceSettingKey } from '../lib/invoice-config';
 
 // Configuración global de facturación (datos del emisor, banco y secuencia de NCF) — solo el
@@ -18,6 +19,32 @@ platformSettingsRouter.get('/', asyncHandler(async (_req, res) => {
 	for (const row of rows) result[row.key] = row.value;
 	res.json(result);
 }));
+
+// Logo del emisor para el encabezado de la factura (ver lib/invoice-pdf.ts) — endpoint propio en
+// vez de reusar POST /uploads porque ese exige requireTenant y el Super Admin no tiene tenantId.
+// Mismo wrapping por Promise que uploads.ts: multer usa un callback, no una promesa, así que
+// asyncHandler necesita este puente para no perder un error de subida.
+platformSettingsRouter.post(
+	'/logo',
+	asyncHandler((req, res) => {
+		return new Promise<void>((resolve) => {
+			imageUpload.single('file')(req, res, (err: unknown) => {
+				if (err) {
+					res.status(400).json({ error: err instanceof Error ? err.message : 'No se pudo subir la imagen' });
+					resolve();
+					return;
+				}
+				if (!req.file) {
+					res.status(400).json({ error: 'No se recibió ningún archivo' });
+					resolve();
+					return;
+				}
+				res.status(201).json({ url: `/uploads/${req.file.filename}` });
+				resolve();
+			});
+		});
+	}),
+);
 
 const valueSchema = z.object({ value: z.string().max(500) });
 

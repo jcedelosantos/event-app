@@ -10,6 +10,7 @@ export type InvoiceIssuerConfig = {
 	email: string;
 	phone: string;
 	address: string;
+	logoUrl: string | null;
 	bankName: string;
 	bankAccountType: string;
 	bankAccountNumber: string;
@@ -22,6 +23,7 @@ export const INVOICE_SETTING_KEYS = [
 	'invoiceIssuerEmail',
 	'invoiceIssuerPhone',
 	'invoiceIssuerAddress',
+	'invoiceIssuerLogoUrl',
 	'invoiceBankName',
 	'invoiceBankAccountType',
 	'invoiceBankAccountNumber',
@@ -41,6 +43,7 @@ export async function getInvoiceIssuerConfig(): Promise<InvoiceIssuerConfig> {
 		email: map.invoiceIssuerEmail ?? '',
 		phone: map.invoiceIssuerPhone ?? '',
 		address: map.invoiceIssuerAddress ?? '',
+		logoUrl: map.invoiceIssuerLogoUrl || null,
 		bankName: map.invoiceBankName ?? '',
 		bankAccountType: map.invoiceBankAccountType ?? '',
 		bankAccountNumber: map.invoiceBankAccountNumber ?? '',
