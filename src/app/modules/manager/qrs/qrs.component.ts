@@ -1,4 +1,4 @@
-import { AfterViewInit, ChangeDetectionStrategy, Component, computed, HostListener, inject, OnInit, signal } from '@angular/core';
+import { AfterViewInit, ChangeDetectionStrategy, Component, computed, HostListener, inject, OnDestroy, OnInit, signal } from '@angular/core';
 import { QRService, SaleTicket } from './services/qr.service';
 import { ProductSalesService, SaleProduct } from './services/product-sales.service';
 import { Child, ChildrenService } from './services/children.service';
@@ -47,6 +47,13 @@ function toDateInputValue(iso: string): string {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+// El staff en la puerta escanea desde OTRA pantalla (QR Scanner) mientras alguien más mira esta
+// lista — sin refresco automático, quien mira acá seguía viendo "—" en Hora de registro aunque el
+// check-in ya hubiera quedado guardado en el servidor. 5s, no cada escaneo puntual: no hay
+// WebSockets/SSE en la app todavía (ver roadmap), así que un poll corto es lo más simple que
+// resuelve el problema real sin construir infraestructura de tiempo real para esto.
+const LIVE_REFRESH_MS = 5_000;
+
 @Component({
   selector: 'app-qrs',
   imports: [DatePipe, FormsModule, RouterLink, EventDetailModalComponent, CreateQrModalComponent, ProductSaleDetailModalComponent, CreateProductQrModalComponent, ImportSalesModalComponent],
@@ -54,13 +61,14 @@ function toDateInputValue(iso: string): string {
   styleUrl: './qrs.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class QrsComponent implements OnInit, AfterViewInit {
+export class QrsComponent implements OnInit, AfterViewInit, OnDestroy {
   qrService = inject(QRService);
   productSalesService = inject(ProductSalesService);
   childrenService = inject(ChildrenService);
   private readonly eventsService = inject(EventsService);
   private readonly authService = inject(AuthService);
   private readonly route = inject(ActivatedRoute);
+  private refreshTimer: ReturnType<typeof setInterval> | null = null;
 
   isChurchTenant = computed(() => this.authService.currentUser()?.tenant?.type === 'CHURCH');
   childrenList = signal<Child[]>([]);
@@ -267,6 +275,18 @@ export class QrsComponent implements OnInit, AfterViewInit {
         this.loadChildren();
       }
     });
+
+    this.refreshTimer = setInterval(() => {
+      this.loadQRs();
+      this.loadProductSales();
+      if (this.isChurchTenant()) {
+        this.loadChildren();
+      }
+    }, LIVE_REFRESH_MS);
+  }
+
+  ngOnDestroy(): void {
+    if (this.refreshTimer) clearInterval(this.refreshTimer);
   }
 
   ngAfterViewInit(): void {
