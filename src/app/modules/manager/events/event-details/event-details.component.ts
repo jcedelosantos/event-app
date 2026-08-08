@@ -14,6 +14,9 @@ import { Product } from '../../../../models/products/product';
 import { UpdateGateModalComponent } from '../../access-points/components/update-gate-modal/update-gate-modal.component';
 import { AccessPointsService } from '../../access-points/services/access-points.service';
 import { AccessPoint } from '../../../../models/access-points/access-point';
+import { ScanConflictsService } from '../../qrs/services/scan-conflicts.service';
+import { ScanConflict } from '../../../../models/scan-conflicts/scan-conflict';
+import { DatePipe } from '@angular/common';
 
 import { QRCodeComponent } from 'angularx-qrcode';
 import { CardMapComponent } from '../../maps/components/card-map/card-map.component';
@@ -22,7 +25,7 @@ declare const bootstrap: any;
 
 @Component({
 	selector: 'app-event-details',
-	imports: [QRCodeComponent, CardMapComponent, FormsModule, RouterLink, UpdateTicketModalComponent, UpdateProductModalComponent, UpdateGateModalComponent],
+	imports: [QRCodeComponent, CardMapComponent, FormsModule, RouterLink, UpdateTicketModalComponent, UpdateProductModalComponent, UpdateGateModalComponent, DatePipe],
 	template: `
 		@if (event(); as ev) {
 			<h4 class="pb-2">
@@ -226,6 +229,43 @@ declare const bootstrap: any;
 				</div>
 			</div>
 
+			@if (scanConflicts().length) {
+				<hr />
+				<div class="col-12">
+					<h5>⚠ Conflictos de escaneo offline</h5>
+					<p class="text-body-secondary small">
+						Dos dispositivos sin conexión aprobaron el mismo QR antes de poder sincronizar — el sistema ya decidió cuál quedó como la entrada oficial (la más temprana). Esto es
+						para que revises manualmente los casos que quedaron marcados como intento perdedor.
+					</p>
+					<div class="card">
+						<div class="card-body">
+							<table class="table table-striped-columns">
+								<thead>
+									<tr>
+										<th scope="col">Quién</th>
+										<th scope="col">Puerta</th>
+										<th scope="col">Hora del intento</th>
+										<th scope="col"></th>
+									</tr>
+								</thead>
+								<tbody>
+									@for (conflict of scanConflicts(); track conflict.id) {
+										<tr>
+											<td>{{ conflict.summary }}</td>
+											<td>{{ conflict.accessPoint?.name ?? '—' }}</td>
+											<td>{{ conflict.attemptedAt | date: 'short' }}</td>
+											<td class="text-end">
+												<button type="button" class="btn btn-outline-secondary btn-sm" (click)="resolveConflict(conflict)">Marcar revisado</button>
+											</td>
+										</tr>
+									}
+								</tbody>
+							</table>
+						</div>
+					</div>
+				</div>
+			}
+
 			<app-update-ticket-modal [(ticket)]="ticketToEdit" [defaultEventId]="ev.id" (ticketSaved)="onTicketSaved()" />
 			<app-update-product-modal [(product)]="productToEdit" [defaultEventId]="ev.id" (productSaved)="onProductSaved()" />
 			<app-update-gate-modal [(gate)]="gateToEdit" [defaultEventId]="ev.id" [availableTickets]="ev.tickets" (gateSaved)="onGateSaved()" />
@@ -243,6 +283,7 @@ export class EventDetailsComponent implements OnInit {
 	private readonly mapsService = inject(MapsService);
 	private readonly qrService = inject(QRService);
 	private readonly accessPointsService = inject(AccessPointsService);
+	private readonly scanConflictsService = inject(ScanConflictsService);
 
 	event = signal<Events | null>(null);
 	maps = signal<Map[]>([]);
@@ -252,6 +293,7 @@ export class EventDetailsComponent implements OnInit {
 	productToEdit = signal<Product | null>(null);
 	accessPoints = signal<AccessPoint[]>([]);
 	gateToEdit = signal<AccessPoint | null>(null);
+	scanConflicts = signal<ScanConflict[]>([]);
 
 	sales = computed(() => {
 		const ev = this.event();
@@ -278,6 +320,7 @@ export class EventDetailsComponent implements OnInit {
 					this.event.set(event);
 					this.selectedMapId.set(event.map?.id ?? null);
 					this.loadAccessPoints(event.id);
+					this.loadScanConflicts(event.id);
 				},
 				error: () => this.router.navigate(['/manager/events']),
 			});
@@ -286,6 +329,14 @@ export class EventDetailsComponent implements OnInit {
 
 	loadAccessPoints(eventId: number) {
 		this.accessPointsService.getByEvent(eventId).subscribe((accessPoints) => this.accessPoints.set(accessPoints));
+	}
+
+	loadScanConflicts(eventId: number) {
+		this.scanConflictsService.getByEvent(eventId).subscribe((conflicts) => this.scanConflicts.set(conflicts));
+	}
+
+	resolveConflict(conflict: ScanConflict) {
+		this.scanConflictsService.resolve(conflict.id).subscribe(() => this.scanConflicts.update((list) => list.filter((c) => c.id !== conflict.id)));
 	}
 
 	publicEventUrl(code: string): string {

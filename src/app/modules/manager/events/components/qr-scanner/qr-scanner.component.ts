@@ -8,6 +8,8 @@ import { Child } from '../../../qrs/services/children.service';
 import { AuthService } from '../../../../../core/services/auth.service';
 import { AccessPointsService } from '../../../access-points/services/access-points.service';
 import { AccessPoint } from '../../../../../models/access-points/access-point';
+import { ConnectivityService } from '../../../../../core/services/connectivity.service';
+import { OfflineScanQueueService } from './services/offline-scan-queue.service';
 
 // Recuerda la última puerta elegida EN ESTE DISPOSITIVO — mismo idiom ad hoc que
 // sidebarCollapsed/token de auth en el resto de la app (no hay un helper de "signal persistido"
@@ -15,7 +17,7 @@ import { AccessPoint } from '../../../../../models/access-points/access-point';
 // tablet de VIP") normalmente escanea siempre desde la misma puerta, sea cual sea el evento del día.
 const GATE_SELECTION_KEY = 'seat-app:last-access-point-id';
 
-type ScanAction = { message: string; ok: boolean; time: Date };
+type ScanAction = { message: string; ok: boolean; pending?: boolean; time: Date };
 
 // El lector de cámara (fps:10) sigue decodificando el mismo QR mientras esté en cuadro — sin
 // pausa, la misma tarjeta se escanea varias veces por segundo apenas termina la request anterior,
@@ -35,6 +37,8 @@ export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
 	private readonly scanService = inject(ScanService);
 	private readonly authService = inject(AuthService);
 	private readonly accessPointsService = inject(AccessPointsService);
+	readonly connectivity = inject(ConnectivityService);
+	readonly offlineQueue = inject(OfflineScanQueueService);
 	isChurchTenant = computed(() => this.authService.currentUser()?.tenant?.type === 'CHURCH');
 	private scanner: Html5Qrcode | null = null;
 	private processing = false;
@@ -102,7 +106,7 @@ export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
 	handleScan(codeQR: string) {
 		if (this.processing || this.cooling()) return;
 		this.processing = true;
-		this.scan(codeQR).add(() => {
+		this.scan(codeQR, () => {
 			this.processing = false;
 			this.cooling.set(true);
 			this.cooldownTimer = setTimeout(() => this.cooling.set(false), SCAN_COOLDOWN_MS);
@@ -112,12 +116,36 @@ export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
 	onSubmit() {
 		const code = this.scannerForm.value.code;
 		if (!code) return;
-		this.scan(code);
+		this.scan(code, () => {});
 		this.scannerForm.reset();
 	}
 
-	private scan(codeQR: string) {
-		return this.scanService.scan(codeQR, this.childScanMode(), this.selectedAccessPointId()).subscribe({
+	syncNow() {
+		this.offlineQueue.trySync();
+	}
+
+	// Sin conexión (o si la request ni llega al servidor pese a lo que diga navigator.onLine, ej.
+	// portal cautivo), NUNCA se bloquea al operador en la puerta: se aprueba localmente y se encola
+	// para sincronizar después (ver OfflineScanQueueService). Sin descargar la base de invitados, así
+	// que no hay forma de mostrar nombre/asiento reales hasta que sincronice — el estado visual
+	// (`pending: true`) deja claro que todavía no es un check-in confirmado por el servidor.
+	private enqueueOffline(codeQR: string) {
+		if (this.offlineQueue.isQueued(codeQR)) {
+			this.pushAction(`⏳ Ya está en la cola local, pendiente de sincronizar`, true, true);
+			return;
+		}
+		this.offlineQueue.enqueue({ codeQR, accessPointId: this.selectedAccessPointId(), mode: this.childScanMode() });
+		this.lastResult.set(null);
+		this.pushAction(`✔ Registrado localmente — pendiente de sincronizar`, true, true);
+	}
+
+	private scan(codeQR: string, onSettled: () => void) {
+		if (!this.connectivity.online()) {
+			this.enqueueOffline(codeQR);
+			onSettled();
+			return;
+		}
+		this.scanService.scan(codeQR, this.childScanMode(), this.selectedAccessPointId()).subscribe({
 			next: (result) => {
 				this.lastResult.set(result);
 				if (result.type === 'ticket') {
@@ -130,8 +158,15 @@ export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
 					const verb = this.childScanMode() === 'meal' ? 'Comida entregada' : 'Retiro';
 					this.pushAction(`✔ ${verb}: ${this.familyLabel(result.children)}`, true);
 				}
+				onSettled();
 			},
 			error: (err: HttpErrorResponse) => {
+				if (err.status === 0) {
+					// La request ni llegó al servidor — mismo tratamiento que estar offline.
+					this.enqueueOffline(codeQR);
+					onSettled();
+					return;
+				}
 				const body = err.error as { error?: string; type?: 'ticket' | 'product' | 'child'; saleTicket?: any; saleProduct?: any; children?: any[] };
 				if (err.status === 403 && (body?.saleTicket || body?.saleProduct)) {
 					// Todavía no se abrió la ventana de entrada (1h antes del evento) — mismo shape que el 409
@@ -154,6 +189,7 @@ export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
 					this.lastResult.set(null);
 					this.pushAction(`✘ ${body?.error ?? 'Código no válido'}`, false);
 				}
+				onSettled();
 			},
 		});
 	}
@@ -168,7 +204,7 @@ export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
 		return `${parent.name} ${parent.lastname} — ${kids}`;
 	}
 
-	private pushAction(message: string, ok: boolean) {
-		this.lastActions.update((actions) => [{ message, ok, time: new Date() }, ...actions].slice(0, 30));
+	private pushAction(message: string, ok: boolean, pending = false) {
+		this.lastActions.update((actions) => [{ message, ok, pending, time: new Date() }, ...actions].slice(0, 30));
 	}
 }
