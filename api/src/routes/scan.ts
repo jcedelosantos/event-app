@@ -42,9 +42,22 @@ function entryWindowError(eventDateOn: Date, startTime: string | null, checkInWi
 // se prueba primero contra SaleTicket y si no aparece, contra SaleProduct. Se acota por tenantId del
 // staff que escanea — un QR real es imposible de adivinar entre tenants, pero así ningún lookup
 // queda sin el filtro que exige el tenant-guard.
+// Si la puerta indicada tiene algún AccessPointTicket configurado, el ticket escaneado tiene que
+// estar en ese allow-list — cero filas para esa puerta significa sin restricción (ver
+// AccessPoint/AccessPointTicket en schema.prisma), así que un evento que nunca configuró reglas de
+// puerta sigue dejando pasar todo, igual que antes de esta feature.
+async function accessPointDenialError(accessPointId: number | undefined, ticketId: number, tenantId: number): Promise<string | null> {
+	if (!accessPointId) return null;
+	const accessPoint = await prisma.accessPoint.findFirst({ where: { id: accessPointId, tenantId }, include: { allowedTickets: { select: { ticketId: true } } } });
+	if (!accessPoint || !accessPoint.allowedTickets.length) return null;
+	const allowed = accessPoint.allowedTickets.some((t) => t.ticketId === ticketId);
+	return allowed ? null : `Este ticket no tiene acceso por la puerta "${accessPoint.name}".`;
+}
+
 scanRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const tenantId = req.user!.tenantId!;
 	const codeQR = String(req.body?.codeQR ?? '');
+	const accessPointId = req.body?.accessPointId ? Number(req.body.accessPointId) : undefined;
 	if (!codeQR) {
 		res.status(400).json({ error: 'Falta el código QR' });
 		return;
@@ -61,7 +74,16 @@ scanRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
 			res.status(403).json({ type: 'ticket', error: windowError, saleTicket: toPublicSaleTicket(saleTicket) });
 			return;
 		}
-		const updated = await prisma.saleTicket.update({ where: { id: saleTicket.id, tenantId }, data: { checkedInAt: new Date() }, include: saleTicketInclude });
+		const gateError = await accessPointDenialError(accessPointId, saleTicket.ticketId, tenantId);
+		if (gateError) {
+			res.status(403).json({ type: 'ticket', error: gateError, saleTicket: toPublicSaleTicket(saleTicket) });
+			return;
+		}
+		const updated = await prisma.saleTicket.update({
+			where: { id: saleTicket.id, tenantId },
+			data: { checkedInAt: new Date(), accessPointId: accessPointId ?? undefined },
+			include: saleTicketInclude,
+		});
 		res.json({ type: 'ticket', ok: true, saleTicket: toPublicSaleTicket(updated) });
 		return;
 	}
@@ -115,7 +137,7 @@ scanRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
 				return;
 			}
 			for (const c of pending) {
-				await prisma.child.update({ where: { id: c.id, tenantId }, data: { checkedInAt: now } });
+				await prisma.child.update({ where: { id: c.id, tenantId }, data: { checkedInAt: now, accessPointId: accessPointId ?? undefined } });
 			}
 		}
 

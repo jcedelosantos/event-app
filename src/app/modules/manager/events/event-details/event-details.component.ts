@@ -11,6 +11,9 @@ import { UpdateTicketModalComponent } from '../../tickets/components/update-tick
 import { Ticket } from '../../../../models/tickets/ticket';
 import { UpdateProductModalComponent } from '../../products/components/update-product-modal/update-product-modal.component';
 import { Product } from '../../../../models/products/product';
+import { UpdateGateModalComponent } from '../../access-points/components/update-gate-modal/update-gate-modal.component';
+import { AccessPointsService } from '../../access-points/services/access-points.service';
+import { AccessPoint } from '../../../../models/access-points/access-point';
 
 import { QRCodeComponent } from 'angularx-qrcode';
 import { CardMapComponent } from '../../maps/components/card-map/card-map.component';
@@ -19,7 +22,7 @@ declare const bootstrap: any;
 
 @Component({
 	selector: 'app-event-details',
-	imports: [QRCodeComponent, CardMapComponent, FormsModule, RouterLink, UpdateTicketModalComponent, UpdateProductModalComponent],
+	imports: [QRCodeComponent, CardMapComponent, FormsModule, RouterLink, UpdateTicketModalComponent, UpdateProductModalComponent, UpdateGateModalComponent],
 	template: `
 		@if (event(); as ev) {
 			<h4 class="pb-2">
@@ -165,6 +168,22 @@ declare const bootstrap: any;
 									</div>
 								}
 							}
+							<hr />
+
+							<div class="d-flex flex-row mb-2 justify-content-between align-items-center">
+								<div class="p-1">Puertas:</div>
+								<button type="button" class="btn btn-outline-danger btn-sm" (click)="openCreateGateModal()"><i class="bi bi-plus-lg"></i> Puerta</button>
+							</div>
+							@if (!accessPoints().length) {
+								<p class="text-body-secondary small">Sin puertas configuradas — el check-in de este evento no distingue por dónde entra la gente.</p>
+							} @else {
+								@for (gate of accessPoints(); track gate.id) {
+									<div class="d-flex justify-content-between align-items-center">
+										<span>{{ gate.name }} @if (!gate.active) {(inactiva)}</span>
+										<button type="button" class="btn btn-link btn-sm p-0" (click)="openEditGateModal(gate)">Editar</button>
+									</div>
+								}
+							}
 						</div>
 					</div>
 				</div>
@@ -209,6 +228,7 @@ declare const bootstrap: any;
 
 			<app-update-ticket-modal [(ticket)]="ticketToEdit" [defaultEventId]="ev.id" (ticketSaved)="onTicketSaved()" />
 			<app-update-product-modal [(product)]="productToEdit" [defaultEventId]="ev.id" (productSaved)="onProductSaved()" />
+			<app-update-gate-modal [(gate)]="gateToEdit" [defaultEventId]="ev.id" [availableTickets]="ev.tickets" (gateSaved)="onGateSaved()" />
 		} @else {
 			<p>Cargando evento...</p>
 		}
@@ -222,6 +242,7 @@ export class EventDetailsComponent implements OnInit {
 	private readonly eventSrv = inject(EventsService);
 	private readonly mapsService = inject(MapsService);
 	private readonly qrService = inject(QRService);
+	private readonly accessPointsService = inject(AccessPointsService);
 
 	event = signal<Events | null>(null);
 	maps = signal<Map[]>([]);
@@ -229,6 +250,8 @@ export class EventDetailsComponent implements OnInit {
 	allSales = signal<SaleTicket[]>([]);
 	ticketToEdit = signal<Ticket | null>(null);
 	productToEdit = signal<Product | null>(null);
+	accessPoints = signal<AccessPoint[]>([]);
+	gateToEdit = signal<AccessPoint | null>(null);
 
 	sales = computed(() => {
 		const ev = this.event();
@@ -254,10 +277,15 @@ export class EventDetailsComponent implements OnInit {
 				next: (event) => {
 					this.event.set(event);
 					this.selectedMapId.set(event.map?.id ?? null);
+					this.loadAccessPoints(event.id);
 				},
 				error: () => this.router.navigate(['/manager/events']),
 			});
 		});
+	}
+
+	loadAccessPoints(eventId: number) {
+		this.accessPointsService.getByEvent(eventId).subscribe((accessPoints) => this.accessPoints.set(accessPoints));
 	}
 
 	publicEventUrl(code: string): string {
@@ -294,5 +322,27 @@ export class EventDetailsComponent implements OnInit {
 		const ev = this.event();
 		if (!ev) return;
 		this.eventSrv.getEvent(ev.id).subscribe((event) => this.event.set(event));
+	}
+
+	openCreateGateModal() {
+		this.gateToEdit.set(null);
+		const modalEl = document.getElementById('updateGateModal');
+		if (modalEl) {
+			bootstrap.Modal.getOrCreateInstance(modalEl).show();
+		}
+	}
+
+	openEditGateModal(gate: AccessPoint) {
+		this.gateToEdit.set(gate);
+		const modalEl = document.getElementById('updateGateModal');
+		if (modalEl) {
+			bootstrap.Modal.getOrCreateInstance(modalEl).show();
+		}
+	}
+
+	onGateSaved() {
+		const ev = this.event();
+		if (!ev) return;
+		this.loadAccessPoints(ev.id);
 	}
 }

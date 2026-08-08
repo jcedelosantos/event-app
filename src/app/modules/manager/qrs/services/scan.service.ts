@@ -22,8 +22,9 @@ export class ScanService {
 
 	// mode solo importa cuando el código escaneado resuelve a un talón familiar (Child) — retiro del
 	// niño y entrega de comida son acciones independientes (ver api/src/routes/scan.ts); se ignora
-	// para tickets/productos.
-	scan(codeQR: string, mode?: 'pickup' | 'meal'): Observable<ScanResult> {
-		return this.httpClient.post<ScanResult>(this.baseUrl, { codeQR, mode });
+	// para tickets/productos. accessPointId es opcional — sin puertas configuradas para el evento,
+	// el backend deja pasar cualquier ticket igual que siempre (ver AccessPoint en schema.prisma).
+	scan(codeQR: string, mode?: 'pickup' | 'meal', accessPointId?: number | null): Observable<ScanResult> {
+		return this.httpClient.post<ScanResult>(this.baseUrl, { codeQR, mode, accessPointId });
 	}
 }

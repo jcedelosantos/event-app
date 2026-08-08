@@ -56,6 +56,7 @@ model Tenant {
   appSettings  AppSetting[]
   children     Child[]
   clubMembers  ClubMember[]
+  accessPoints AccessPoint[]
 }
 
 // La mensualidad que el TENANT le paga a la agencia (no confundir con SaleTicket, que es la venta
@@ -240,8 +241,47 @@ model Event {
   saleProducts SaleProduct[]
   saleTickets  SaleTicket[]
   children     Child[]
+  accessPoints AccessPoint[]
 
   @@index([tenantId, duplicateGroupKey])
+}
+
+// Puerta física de entrada a un evento (Entrada Principal, VIP, Staff...) — puramente opt-in: un
+// evento sin ninguna fila acá se comporta exactamente igual que antes de esta feature (scan.ts sin
+// restricciones, dashboard sin panel de puertas). No se trackea hardware de scanner ni asignación
+// persistente operador↔puerta — el operador elige la puerta desde su propio dispositivo al escanear
+// (ver qr-scanner.component.ts), la elección se recuerda solo localmente (localStorage).
+model AccessPoint {
+  id        Int      @id @default(autoincrement())
+  name      String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  eventId Int
+  event   Event @relation(fields: [eventId], references: [id])
+
+  tenantId Int
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+
+  allowedTickets AccessPointTicket[]
+  saleTickets    SaleTicket[]
+  children       Child[]
+
+  @@index([tenantId])
+  @@index([eventId])
+}
+
+// Allow-list de qué Ticket puede entrar por cada AccessPoint. Cero filas para una AccessPoint
+// dada = sin restricción (deja pasar cualquier ticket) — decisión deliberada para que un club que
+// se olvide de configurar una puerta no termine bloqueando gente el día del evento (ver scan.ts).
+model AccessPointTicket {
+  accessPointId Int
+  accessPoint   AccessPoint @relation(fields: [accessPointId], references: [id], onDelete: Cascade)
+
+  ticketId Int
+  ticket   Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@id([accessPointId, ticketId])
 }
 
 model Map {
@@ -378,7 +418,8 @@ model Ticket {
   tenantId Int
   tenant   Tenant @relation(fields: [tenantId], references: [id])
 
-  saleTickets SaleTicket[]
+  saleTickets  SaleTicket[]
+  accessPoints AccessPointTicket[]
 
   @@index([tenantId])
 }
@@ -506,6 +547,13 @@ model SaleTicket {
   // seteado mientras paymentStatus = PENDING, null en cualquier venta manual/sin cobro online.
   holdToken        String?
 
+  // Qué puerta hizo el check-in (ver AccessPoint) — nullable porque la mayoría de los eventos no
+  // configura puertas (feature opt-in) y porque una venta empieza sin check-in hecho todavía.
+  // SetNull en vez de bloquear el borrado de la puerta: el historial de check-in ya hecho no se
+  // pierde aunque después se borre esa AccessPoint.
+  accessPointId Int?
+  accessPoint   AccessPoint? @relation(fields: [accessPointId], references: [id], onDelete: SetNull)
+
   // Un mismo asiento no se puede vender dos veces para el mismo evento.
   @@unique([eventId, seatId])
   // Reportes/historial/auditoría por organización (ver routes/audit-logs.ts, reports del manager) —
@@ -543,6 +591,10 @@ model Child {
   // (ver Product.isMealOfTheDay) — nullable porque no todos los hijos piden comida.
   saleProductId Int?         @unique
   saleProduct   SaleProduct? @relation(fields: [saleProductId], references: [id])
+
+  // Qué puerta hizo el retiro (ver AccessPoint / SaleTicket.accessPointId, mismo criterio).
+  accessPointId Int?
+  accessPoint   AccessPoint? @relation(fields: [accessPointId], references: [id], onDelete: SetNull)
 
   @@index([codeQR])
   @@index([parentId, eventId])

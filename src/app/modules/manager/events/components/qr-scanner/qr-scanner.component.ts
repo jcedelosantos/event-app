@@ -1,11 +1,19 @@
-import { AfterViewInit, ChangeDetectionStrategy, Component, computed, inject, OnDestroy, signal } from '@angular/core';
-import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { AfterViewInit, ChangeDetectionStrategy, Component, computed, inject, OnDestroy, OnInit, signal } from '@angular/core';
+import { FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Html5Qrcode } from 'html5-qrcode';
 import { ScanService, ScanResult } from '../../../qrs/services/scan.service';
 import { Child } from '../../../qrs/services/children.service';
 import { AuthService } from '../../../../../core/services/auth.service';
+import { AccessPointsService } from '../../../access-points/services/access-points.service';
+import { AccessPoint } from '../../../../../models/access-points/access-point';
+
+// Recuerda la última puerta elegida EN ESTE DISPOSITIVO — mismo idiom ad hoc que
+// sidebarCollapsed/token de auth en el resto de la app (no hay un helper de "signal persistido"
+// compartido todavía). No hace falta acotarla por evento: el operador de un puesto fijo (ej. "la
+// tablet de VIP") normalmente escanea siempre desde la misma puerta, sea cual sea el evento del día.
+const GATE_SELECTION_KEY = 'seat-app:last-access-point-id';
 
 type ScanAction = { message: string; ok: boolean; time: Date };
 
@@ -18,14 +26,15 @@ const SCAN_COOLDOWN_MS = 2500;
 
 @Component({
 	selector: 'app-qr-scanner',
-	imports: [ReactiveFormsModule, DatePipe],
+	imports: [ReactiveFormsModule, FormsModule, DatePipe],
 	templateUrl: './qr-scanner.component.html',
 	styleUrl: './qr-scanner.component.css',
 	changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class QrScannerComponent implements AfterViewInit, OnDestroy {
+export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
 	private readonly scanService = inject(ScanService);
 	private readonly authService = inject(AuthService);
+	private readonly accessPointsService = inject(AccessPointsService);
 	isChurchTenant = computed(() => this.authService.currentUser()?.tenant?.type === 'CHURCH');
 	private scanner: Html5Qrcode | null = null;
 	private processing = false;
@@ -43,6 +52,22 @@ export class QrScannerComponent implements AfterViewInit, OnDestroy {
 	// hace el próximo escaneo. Queda en memoria entre escaneos porque normalmente un mismo puesto
 	// (comida, o salida) escanea todo un rato en el mismo modo.
 	childScanMode = signal<'pickup' | 'meal'>('pickup');
+
+	accessPoints = signal<AccessPoint[]>([]);
+	selectedAccessPointId = signal<number | null>(typeof localStorage !== 'undefined' ? Number(localStorage.getItem(GATE_SELECTION_KEY)) || null : null);
+
+	ngOnInit(): void {
+		this.accessPointsService.getAll().subscribe((accessPoints) => this.accessPoints.set(accessPoints));
+	}
+
+	onGateChange(accessPointId: string) {
+		const id = accessPointId ? Number(accessPointId) : null;
+		this.selectedAccessPointId.set(id);
+		if (typeof localStorage !== 'undefined') {
+			if (id) localStorage.setItem(GATE_SELECTION_KEY, String(id));
+			else localStorage.removeItem(GATE_SELECTION_KEY);
+		}
+	}
 
 	async ngAfterViewInit(): Promise<void> {
 		try {
@@ -92,7 +117,7 @@ export class QrScannerComponent implements AfterViewInit, OnDestroy {
 	}
 
 	private scan(codeQR: string) {
-		return this.scanService.scan(codeQR, this.childScanMode()).subscribe({
+		return this.scanService.scan(codeQR, this.childScanMode(), this.selectedAccessPointId()).subscribe({
 			next: (result) => {
 				this.lastResult.set(result);
 				if (result.type === 'ticket') {

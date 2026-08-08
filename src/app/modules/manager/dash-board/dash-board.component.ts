@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, OnDestroy, OnInit, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { forkJoin } from 'rxjs';
+import { forkJoin, map } from 'rxjs';
 import { EventsService } from '../events/services/events.service';
 import { QRService, SaleTicket } from '../qrs/services/qr.service';
 import { ProductSalesService, SaleProduct } from '../qrs/services/product-sales.service';
@@ -9,6 +9,14 @@ import { User } from '../../../models/users/user';
 import { Events } from '../../../models/events/events';
 import { eventDateKey, todayKey } from '../../../utils/dates';
 import { MiniBarChartComponent, BarChartItem } from '../../../shared/mini-bar-chart/mini-bar-chart.component';
+import { AccessPointsService } from '../access-points/services/access-points.service';
+import { AccessPointStatsResponse } from '../../../models/access-points/access-point';
+
+// Una puerta "concentra" tráfico cuando se lleva más de este % de las entradas recientes del
+// evento — el umbral de "recientes" mínimas (ver GATE_ALERT_MIN_RECENT) evita que 1 de 1 escaneos
+// dispare la alerta apenas arranca un evento.
+const GATE_ALERT_CONCENTRATION_PCT = 50;
+const GATE_ALERT_MIN_RECENT = 5;
 
 // Refresco periódico solo de ventas (no eventos/usuarios) mientras el Dashboard está abierto, para
 // que la barra de "Eventos de hoy" refleje los check-ins que va haciendo el scanner en tiempo real
@@ -48,6 +56,33 @@ const LIVE_REFRESH_MS = 20_000;
 				}
 			</div>
 		</div>
+
+		@if (gatePanels().length) {
+			<div class="card mb-4">
+				<div class="card-header">
+					<span>Puertas — tráfico en vivo</span>
+				</div>
+				<div class="card-body">
+					@for (panel of gatePanels(); track panel.eventId) {
+						<div class="mb-3">
+							<div class="fw-semibold mb-2">{{ panel.eventName }} — {{ panel.eventTotal }} ingresados en total</div>
+							@if (panel.alert) {
+								<div class="alert alert-warning py-2 px-3 mb-2">⚠ {{ panel.alert }}</div>
+							}
+							@for (gate of panel.gates; track gate.id) {
+								<div class="d-flex justify-content-between align-items-center mb-1">
+									<span>{{ gate.name }} @if (!gate.active) {(inactiva)}</span>
+									<span class="small text-body-secondary">{{ gate.checkedIn }} ingresados · {{ gate.perMinute }}/min</span>
+								</div>
+								<div class="progress mb-2" style="height: 8px;">
+									<div class="progress-bar" [class.bg-danger]="gate.concentrated" [class.bg-secondary]="!gate.concentrated" [style.width.%]="gate.sharePct"></div>
+								</div>
+							}
+						</div>
+					}
+				</div>
+			</div>
+		}
 
 		<div class="row g-3 mb-4">
 			<div class="col-md-3 col-sm-6">
@@ -221,6 +256,7 @@ export class DashBoardComponent implements OnInit, OnDestroy {
 	private readonly qrService = inject(QRService);
 	private readonly productSalesService = inject(ProductSalesService);
 	private readonly userService = inject(UserService);
+	private readonly accessPointsService = inject(AccessPointsService);
 	private refreshTimer: ReturnType<typeof setInterval> | null = null;
 
 	loading = signal(true);
@@ -228,6 +264,7 @@ export class DashBoardComponent implements OnInit, OnDestroy {
 	saleTickets = signal<SaleTicket[]>([]);
 	saleProducts = signal<SaleProduct[]>([]);
 	users = signal<User[]>([]);
+	gateStatsByEvent = signal<Map<number, AccessPointStatsResponse>>(new Map());
 
 	clients = computed(() => this.users().filter((u) => u.type?.type === 'CLIENT'));
 
@@ -250,6 +287,31 @@ export class DashBoardComponent implements OnInit, OnDestroy {
 				const available = Math.max(capacity - sold, 0);
 				const occupancyPct = sold > 0 ? Math.round((checkedIn / sold) * 100) : 0;
 				return { event, capacity, sold, available, checkedIn, occupancyPct };
+			});
+	});
+
+	// Un panel por evento (de los eventos de HOY) que tiene al menos una puerta configurada — eventos
+	// sin puertas no aparecen acá, mismo criterio "opt-in" que el resto de la feature.
+	gatePanels = computed(() => {
+		const stats = this.gateStatsByEvent();
+		return this.todayEventStats()
+			.map(({ event }) => ({ event, stats: stats.get(event.id) }))
+			.filter((x): x is { event: Events; stats: AccessPointStatsResponse } => !!x.stats && x.stats.accessPoints.length > 0)
+			.map(({ event, stats }) => {
+				const recentTotal = stats.accessPoints.reduce((sum, g) => sum + g.recentCount, 0);
+				const gates = stats.accessPoints.map((g) => {
+					const sharePct = recentTotal > 0 ? Math.round((g.recentCount / recentTotal) * 100) : 0;
+					const concentrated = recentTotal >= GATE_ALERT_MIN_RECENT && sharePct > GATE_ALERT_CONCENTRATION_PCT;
+					return { ...g, perMinute: Math.round((g.recentCount / stats.windowMinutes) * 10) / 10, sharePct, concentrated };
+				});
+				const concentratedGate = gates.find((g) => g.concentrated);
+				return {
+					eventId: event.id,
+					eventName: event.name,
+					eventTotal: stats.eventTotal,
+					gates,
+					alert: concentratedGate ? `"${concentratedGate.name}" concentra el ${concentratedGate.sharePct}% del tráfico reciente — considerá mover personal ahí.` : null,
+				};
 			});
 	});
 
@@ -317,6 +379,7 @@ export class DashBoardComponent implements OnInit, OnDestroy {
 			this.saleProducts.set(saleProducts);
 			this.users.set(users);
 			this.loading.set(false);
+			this.loadGateStats(this.todayEventIds(events));
 		});
 
 		this.refreshTimer = setInterval(() => {
@@ -326,8 +389,24 @@ export class DashBoardComponent implements OnInit, OnDestroy {
 			}).subscribe(({ saleTickets, saleProducts }) => {
 				this.saleTickets.set(saleTickets);
 				this.saleProducts.set(saleProducts);
+				this.loadGateStats(this.todayEventIds(this.events()));
 			});
 		}, LIVE_REFRESH_MS);
+	}
+
+	private todayEventIds(events: Events[]): number[] {
+		const today = todayKey();
+		return events.filter((e) => eventDateKey(e.dateOn) === today).map((e) => e.id);
+	}
+
+	private loadGateStats(eventIds: number[]): void {
+		if (!eventIds.length) {
+			this.gateStatsByEvent.set(new Map());
+			return;
+		}
+		forkJoin(eventIds.map((id) => this.accessPointsService.getStats(id).pipe(map((stats) => [id, stats] as const)))).subscribe((entries) =>
+			this.gateStatsByEvent.set(new Map(entries)),
+		);
 	}
 
 	ngOnDestroy(): void {

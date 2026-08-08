@@ -15,6 +15,20 @@
 				Para talones de hijos: elegí qué acción hace este escaneo — son independientes, se puede entregar la comida sin retirar al niño/a todavía, o al revés.
 			</p>
 		}
+		@if (accessPoints().length) {
+			<div class="d-flex justify-content-center mb-3">
+				<div class="form-group" style="min-width: 260px;">
+					<label for="gateSelect" class="form-label small text-body-secondary mb-1">Puerta en la que estás</label>
+					<select id="gateSelect" class="form-select form-select-sm" [ngModel]="selectedAccessPointId()" (ngModelChange)="onGateChange($event)">
+						<option [ngValue]="null">Sin puerta específica</option>
+						@for (gate of accessPoints(); track gate.id) {
+							<option [ngValue]="gate.id">{{ gate.event?.name }} — {{ gate.name }}</option>
+						}
+					</select>
+				</div>
+			</div>
+		}
+
 		<div class="text-center mb-3">
 			<div id="qr-reader" class="qr-reader"></div>
 			@if (cameraError()) {
