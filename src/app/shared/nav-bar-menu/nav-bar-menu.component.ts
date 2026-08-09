@@ -16,7 +16,7 @@ const MENU_ITEM_FEATURE: Partial<Record<string, keyof PlanFeatures>> = {
 	History: 'advancedReporting',
 };
 
-const PLAN_NAME: Record<PlanCode, string> = { BASICO: 'Básico', INTERMEDIO: 'Intermedio', AVANZADO: 'Avanzado', PRO_MAX: 'Pro Max' };
+const PLAN_NAME: Record<PlanCode, string> = { BASICO: 'Básico', INTERMEDIO: 'Intermedio', AVANZADO: 'Avanzado', PRO_MAX: 'Pro Enterprise' };
 const STATUS_LABEL: Record<string, string> = { PENDING: 'Pendiente de pago', ACTIVE: 'Activa', PAST_DUE: 'Pago vencido', SUSPENDED: 'Suspendida', CANCELLED: 'Cancelada' };
 
 // Por debajo de este ancho, un sidebar con nombres siempre visible le come la mitad de la

@@ -29,28 +29,30 @@ export const PLANS: Record<PlanCode, PlanDefinition> = {
 	BASICO: {
 		code: 'BASICO',
 		name: 'Básico',
-		priceUSD: 19,
+		priceUSD: 24.99,
 		attendeesPerEvent: 50,
 		features: { publicPortal: false, advancedReporting: false, onlinePayment: false, waitingRoomAndCapacity: false, productsModule: false },
 	},
 	INTERMEDIO: {
 		code: 'INTERMEDIO',
 		name: 'Intermedio',
-		priceUSD: 49,
+		priceUSD: 64.99,
 		attendeesPerEvent: 150,
 		features: { publicPortal: true, advancedReporting: true, onlinePayment: false, waitingRoomAndCapacity: false, productsModule: true },
 	},
 	AVANZADO: {
 		code: 'AVANZADO',
 		name: 'Avanzado',
-		priceUSD: 99,
+		priceUSD: 149.99,
 		attendeesPerEvent: 500,
 		features: { publicPortal: true, advancedReporting: true, onlinePayment: true, waitingRoomAndCapacity: true, productsModule: true },
 	},
+	// Code queda PRO_MAX por retrocompatibilidad (webhooks/env vars de PayPal, filas ya guardadas en
+	// Tenant.plan/Subscription.plan lo referencian por este string) — solo cambia el nombre público.
 	PRO_MAX: {
 		code: 'PRO_MAX',
-		name: 'Pro Max',
-		priceUSD: 149,
+		name: 'Pro Enterprise',
+		priceUSD: 199.99,
 		attendeesPerEvent: 1000,
 		features: { publicPortal: true, advancedReporting: true, onlinePayment: true, waitingRoomAndCapacity: true, productsModule: true },
 	},

@@ -135,7 +135,7 @@ export const ADDON_PACKAGES: Record<AddOnPackageCode, AddOnPackageDefinition> = 
 	},
 	PRO_MAX: {
 		code: 'PRO_MAX',
-		name: 'Paquete Pro Max — Control de Acceso como Servicio',
+		name: 'Paquete Pro Enterprise — Control de Acceso como Servicio',
 		planCode: 'PRO_MAX',
 		items: [
 			{ catalogCode: 'SCANNER_RENTAL', quantity: 6 },
