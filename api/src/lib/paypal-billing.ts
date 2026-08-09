@@ -154,6 +154,33 @@ export async function reviseSubscription(
 	return { approveUrl };
 }
 
+// Cambia el precio de LISTA del Billing Plan en la cuenta de PayPal de la agencia — a diferencia
+// de reviseSubscription (mueve a UN suscriptor ya activo a otro plan), esto es sobre el Plan en
+// sí. Importante: PayPal NO recalcula retroactivamente lo que ya cobra a suscriptores activos —
+// cada suscripción activa conserva el pricing_scheme que tenía al momento de suscribirse. Esto
+// solo cambia lo que paga alguien que se suscriba a este plan DE ACÁ EN ADELANTE. Migrar a los
+// suscriptores actuales al precio nuevo requeriría reviseSubscription por cada uno (que sí les
+// pide re-aprobar en PayPal) — deliberadamente NO se hace acá, es una decisión de negocio aparte.
+export async function updatePlanPricing(plan: PlanCode, priceUSD: number): Promise<void> {
+	const config = await getPlatformConfig();
+	const token = await getAccessToken(config);
+	const res = await fetch(`${API_BASE[config.mode]}/v1/billing/plans/${getBillingPlanId(plan)}/update-pricing-schemes`, {
+		method: 'POST',
+		headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+		body: JSON.stringify({
+			pricing_schemes: [
+				{
+					billing_cycle_sequence: 1,
+					pricing_scheme: { fixed_price: { value: priceUSD.toFixed(2), currency_code: 'USD' } },
+				},
+			],
+		}),
+	});
+	if (!res.ok && res.status !== 204) {
+		throw new PayPalBillingRequestError(`No se pudo actualizar el precio del plan ${plan} en PayPal (${res.status}): ${await res.text()}`);
+	}
+}
+
 // Reverso de PLAN_ID_ENV_KEY — el webhook BILLING.SUBSCRIPTION.UPDATED (ver routes/signup.ts) trae el
 // plan_id de PayPal, no el PlanCode interno; hay que mapear contra los 4 env vars conocidos para
 // saber a qué plan corresponde.

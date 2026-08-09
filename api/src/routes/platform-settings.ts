@@ -5,6 +5,8 @@ import { requireAuth, requireSuperAdmin } from '../middleware/auth';
 import { asyncHandler } from '../lib/async-handler';
 import { imageUpload } from '../lib/uploads';
 import { INVOICE_SETTING_KEYS, InvoiceSettingKey } from '../lib/invoice-config';
+import { PLANS, PlanCode } from '../lib/plans';
+import { updatePlanPricing } from '../lib/paypal-billing';
 
 // Configuración global de facturación (datos del emisor, banco y secuencia de NCF) — solo el
 // Super Admin la ve/edita, nunca un tenant. Mismo patrón clave/valor que settings.ts pero contra
@@ -70,3 +72,23 @@ platformSettingsRouter.put('/:key', asyncHandler(async (req, res) => {
 	});
 	res.json({ ok: true });
 }));
+
+// Empuja los priceUSD de api/src/lib/plans.ts (fuente de verdad) a los Billing Plans YA CREADOS
+// en la cuenta real de PayPal — uno por uno, para poder reportar cuál falló sin que un error corte
+// a los demás. Deliberadamente NO toca las suscripciones activas (ver comentario en
+// updatePlanPricing): esto solo cambia lo que paga alguien que se suscriba de acá en adelante.
+platformSettingsRouter.post(
+	'/paypal/sync-pricing',
+	asyncHandler(async (_req, res) => {
+		const results: Record<PlanCode, { ok: boolean; error?: string }> = {} as any;
+		for (const code of Object.keys(PLANS) as PlanCode[]) {
+			try {
+				await updatePlanPricing(code, PLANS[code].priceUSD);
+				results[code] = { ok: true };
+			} catch (err) {
+				results[code] = { ok: false, error: err instanceof Error ? err.message : String(err) };
+			}
+		}
+		res.json(results);
+	}),
+);
