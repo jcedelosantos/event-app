@@ -108,3 +108,32 @@ justifica un ajuste al alza. Si hay una razón real para tocar los precios, tien
 otro lado (valor percibido, diferenciación de features entre planes, benchmarking contra
 competencia, o el costo variable de WhatsApp si su volumen crece) — no de unit economics de
 cómputo, que hoy sobran.
+
+## Validación a 60 tenants concurrentes (post-Fase 4)
+
+La proyección de arriba marcaba el cómputo a 100/500 tenants como "extrapolación razonada, no
+medición directa". Para reforzarla con datos reales, se generaron 60 tenants concurrentes
+(2.4x los 25 de la Fase 2) en `load-test` y se repitió `multi-tenant.js` (40 VUs, misma
+concurrencia que la corrida original de 25 tenants).
+
+**Resultado**: p(95) = 346.54ms, 0% de errores, 0 fugas entre tenants — igual de saludable que
+con 25 tenants (312-550ms según la corrida). 16,488 checks, 100% en verde.
+
+**CPU/memoria durante esta ventana**: promedio 3.87% vCPU / 181MB RAM, con un pico puntual de
+101% vCPU. Ese pico coincide con la ventana en la que también corrió el script de siembra de los
+60 tenants (creación secuencial de tenant+mapa+evento+tickets vía HTTP) justo antes del test de
+k6 — no es una medición limpia de "60 tenants en estado estable bajo carga", sino esa carga
+mezclada con la siembra. Se documenta así, sin filtrarlo, aunque complica la comparación directa
+contra los promedios más bajos de la Fase 2.
+
+**Conclusión honesta**: la señal más confiable de esta validación es la latencia/tasa de error
+bajo carga real (que se mantuvo idéntica de 25 a 60 tenants), no el promedio de CPU de la ventana
+(contaminado por la siembra). Confirma la premisa central del modelo — la cantidad de tenants
+*dormidos* en la base no es lo que consume recursos, es la tasa de requests concurrentes activos,
+que en esta prueba se mantuvo igual (40 VUs) independientemente de si había 25 o 60 tenants
+detrás. La proyección a 100/500 tenants sigue pareciendo razonable. Para una validación
+completamente limpia de CPU en estado estable (sin la siembra de por medio) haría falta repetir
+esto con los tenants ya sembrados de antemano y una pausa entre siembra y medición — queda como
+mejora de metodología para una vuelta futura, no como algo que cambie la conclusión de este
+informe.
+
