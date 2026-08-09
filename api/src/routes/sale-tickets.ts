@@ -60,6 +60,22 @@ export function toPublicSaleTicket(saleTicket: any) {
 	return { ...rest, client: toPublicUser(client), seller: toPublicUser(seller) };
 }
 
+// Shape liviana SOLO para la lista (GET /) — medido en load-tests/results/2026-08-09-dashboard-
+// polling.md: el include completo (seller entero + event/ticket/seat repetidos completos por fila)
+// pesaba 7.4MB para un evento de 3000 tickets, más de lo que conviene bajarle a un teléfono en la
+// puerta de un evento con wifi/datos débiles. Recortado a los campos que realmente lee el frontend
+// (grep exhaustivo contra qrs/event-details/dash-board antes de tocar esto — `seller` no se lee en
+// ningún lado hoy, `client.email` sí, lo usa el modal de detalle que recibe la fila tal cual sin
+// volver a pedirla). NO se toca `saleTicketInclude`/`toPublicSaleTicket` de arriba — los sigue
+// usando scan.ts y el resto de los endpoints de este archivo (POST/PUT/GET :id), volumen bajo, sin
+// motivo para arriesgar ese contrato.
+const listInclude = {
+	event: { select: { id: true, name: true } },
+	seat: { select: { name: true, area: { select: { name: true } } } },
+	ticket: { select: { name: true, price: true } },
+	client: { select: { id: true, name: true, lastname: true, carnet: true, email: true } },
+};
+
 saleTicketsRouter.get('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const tenantId = req.user!.tenantId!;
 	const eventId = req.query.eventId ? Number(req.query.eventId) : undefined;
@@ -71,11 +87,14 @@ saleTicketsRouter.get('/', asyncHandler(async (req: AuthenticatedRequest, res) =
 	const recent = !eventId && req.query.recent === '1';
 	const where = eventId ? { eventId, tenantId } : { tenantId };
 	const [saleTickets, totalCount] = await Promise.all([
-		prisma.saleTicket.findMany({ where, include, orderBy: { id: 'desc' }, take: recent ? ALL_EVENTS_LIST_LIMIT : undefined }),
+		prisma.saleTicket.findMany({ where, include: listInclude, orderBy: { id: 'desc' }, take: recent ? ALL_EVENTS_LIST_LIMIT : undefined }),
 		recent ? prisma.saleTicket.count({ where }) : Promise.resolve(null),
 	]);
 	if (totalCount != null) res.setHeader('X-Total-Count', String(totalCount));
-	res.json(saleTickets.map(toPublicSaleTicket));
+	// Sin toPublicSaleTicket acá a propósito: listInclude ya seleccionó explícitamente solo campos
+	// seguros de client (nunca password/type/tenant) y no trae seller — no hay nada que redactar, y
+	// toPublicUser() reventaría igual porque espera `type` presente en el objeto.
+	res.json(saleTickets);
 }));
 
 saleTicketsRouter.get('/:id', asyncHandler(async (req: AuthenticatedRequest, res) => {

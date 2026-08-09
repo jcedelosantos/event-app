@@ -11,6 +11,9 @@
 npm-debug.log
 yarn-error.log
 
+# Load testing fixtures (tokens + synthetic data generated against the load-test environment)
+/load-tests/.fixtures
+
 # IDEs and editors
 .idea/
 .project
