@@ -272,3 +272,50 @@ export async function sendTicketEmail(args: { to: string; clientName: string; ev
 		]),
 	});
 }
+
+// Aviso al Super Admin de una nueva solicitud de servicio adicional (ver routes/service-
+// requests.ts) — best-effort igual que el resto de esta librería: sin RESEND_API_KEY o sin
+// SUPER_ADMIN_NOTIFICATION_EMAIL configuradas, simplemente no se manda, el resto del flujo sigue
+// funcionando (la solicitud queda igual visible en el panel de Super Admin).
+export async function sendServiceRequestNotification(args: {
+	tenantName: string;
+	eventName: string | null;
+	notes: string;
+	totalDOP: number;
+	items: Array<{ nameSnapshot: string; quantity: number; unitPriceDOPSnapshot: number | null }>;
+}) {
+	const to = process.env.SUPER_ADMIN_NOTIFICATION_EMAIL;
+	if (!to) {
+		console.warn('[mail] SUPER_ADMIN_NOTIFICATION_EMAIL no configurada — no se avisa por correo (la solicitud sigue visible en el panel).');
+		return;
+	}
+	const resend = getResendClient();
+	if (!resend) return;
+
+	const itemsHtml = args.items
+		.map((item) => {
+			const subtotal = item.unitPriceDOPSnapshot != null ? `RD$${(item.unitPriceDOPSnapshot * item.quantity).toLocaleString('es-DO')}` : 'A cotizar';
+			return `<tr><td style="padding:6px 8px;color:#ccc;">${item.nameSnapshot} × ${item.quantity}</td><td style="padding:6px 8px;color:#fff;text-align:right;">${subtotal}</td></tr>`;
+		})
+		.join('');
+
+	const html = `
+		<div style="background:#000;padding:24px;font-family:Arial,Helvetica,sans-serif;">
+			<h2 style="color:#fff;">Nueva solicitud de servicio adicional</h2>
+			<p style="color:#ccc;"><strong style="color:#fff;">${args.tenantName}</strong>${args.eventName ? ` — evento: ${args.eventName}` : ''}</p>
+			<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#111;border-radius:8px;border:1px solid #2a2a2a;margin:12px 0;">
+				${itemsHtml}
+				<tr><td style="padding:8px;color:#fff;font-weight:bold;">Total estimado</td><td style="padding:8px;color:#fff;font-weight:bold;text-align:right;">RD$${args.totalDOP.toLocaleString('es-DO')}</td></tr>
+			</table>
+			${args.notes ? `<p style="color:#aaa;">Notas: ${args.notes}</p>` : ''}
+			<p style="color:#666;font-size:12px;">Revisala y cotizala desde el panel de Super Admin.</p>
+		</div>
+	`;
+
+	await resend.emails.send({
+		from: process.env.RESEND_FROM_EMAIL ?? 'onboarding@resend.dev',
+		to,
+		subject: `Nueva solicitud de servicio — ${args.tenantName}`,
+		html,
+	});
+}

@@ -1,21 +1,40 @@
 import { AfterViewInit, ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
-import { DatePipe } from '@angular/common';
+import { DatePipe, DecimalPipe } from '@angular/common';
 import { Router } from '@angular/router';
 import { TenantService } from './services/tenant.service';
+import { ServiceRequestsAdminService } from './services/service-requests-admin.service';
 import { CreateTenantModalComponent } from './components/create-tenant-modal/create-tenant-modal.component';
 import { EditTenantModalComponent } from './components/edit-tenant-modal/edit-tenant-modal.component';
 import { SubscriptionModalComponent } from './components/subscription-modal/subscription-modal.component';
 import { InvoiceSettingsModalComponent } from './components/invoice-settings-modal/invoice-settings-modal.component';
+import { ServiceRequestsAdminModalComponent } from './components/service-requests-admin-modal/service-requests-admin-modal.component';
 import { AccountModalComponent } from '../../shared/account-modal/account-modal.component';
 import { Tenant } from '../../models/tenants/tenant';
+import { ServiceRequest, ServiceRequestStatus } from '../../models/service-requests/service-request';
 import { AuthService } from '../../core/services/auth.service';
 import { confirm, error } from '../../utils/messages';
 import { extractErrorMessage } from '../../utils/api-error';
 import { HttpErrorResponse } from '@angular/common/http';
 
+const REQUEST_STATUS_LABEL: Record<ServiceRequestStatus, string> = {
+	PENDING: 'Pendiente',
+	QUOTED: 'Cotizado',
+	FULFILLED: 'Resuelto',
+	REJECTED: 'Rechazado',
+};
+
 @Component({
 	selector: 'app-super-admin',
-	imports: [CreateTenantModalComponent, EditTenantModalComponent, SubscriptionModalComponent, InvoiceSettingsModalComponent, AccountModalComponent, DatePipe],
+	imports: [
+		CreateTenantModalComponent,
+		EditTenantModalComponent,
+		SubscriptionModalComponent,
+		InvoiceSettingsModalComponent,
+		ServiceRequestsAdminModalComponent,
+		AccountModalComponent,
+		DatePipe,
+		DecimalPipe,
+	],
 	template: `
 		<div class="container-fluid py-4" data-bs-theme="dark">
 			<div class="d-flex justify-content-between align-items-center mb-4">
@@ -115,23 +134,97 @@ import { HttpErrorResponse } from '@angular/common/http';
 					}
 				</tbody>
 			</table>
+
+			<div class="d-flex justify-content-between align-items-center mb-3 mt-5">
+				<div>
+					<h2 class="section-title mb-0">Solicitudes de servicios adicionales</h2>
+					<p class="text-muted small mb-0">Renta de equipos, personal presencial y demás — cotizar/coordinar y marcar el estado acá.</p>
+				</div>
+			</div>
+			<table class="table table-hover align-middle">
+				<thead>
+					<tr>
+						<th scope="col">Organización</th>
+						<th scope="col">Evento</th>
+						<th scope="col">Servicios</th>
+						<th scope="col" class="text-end">Total estimado</th>
+						<th scope="col">Fecha</th>
+						<th scope="col">Estado</th>
+						<th scope="col"></th>
+					</tr>
+				</thead>
+				<tbody>
+					@for (r of serviceRequests(); track r.id) {
+						<tr>
+							<td>{{ r.tenant?.name }}</td>
+							<td class="text-muted">{{ r.event?.name ?? '—' }}</td>
+							<td>
+								@for (item of r.items; track item.id) {
+									<div class="small">{{ item.nameSnapshot }} × {{ item.quantity }}</div>
+								}
+							</td>
+							<td class="text-end">RD$ {{ r.totalDOP | number }}</td>
+							<td class="text-muted">{{ r.createdAt | date: 'short' }}</td>
+							<td>
+								<span
+									class="badge"
+									[class.text-bg-secondary]="r.status === 'PENDING'"
+									[class.text-bg-info]="r.status === 'QUOTED'"
+									[class.text-bg-success]="r.status === 'FULFILLED'"
+									[class.text-bg-danger]="r.status === 'REJECTED'"
+								>
+									{{ statusLabel(r.status) }}
+								</span>
+							</td>
+							<td class="text-end">
+								<button
+									type="button"
+									class="btn btn-sm btn-outline-light"
+									data-bs-toggle="modal"
+									data-bs-target="#serviceRequestsAdminModal"
+									(click)="selectedServiceRequest.set(r)"
+								>
+									<i class="bi bi-pencil"></i> Gestionar
+								</button>
+							</td>
+						</tr>
+					} @empty {
+						<tr>
+							<td colspan="7" class="text-center text-muted py-4">Todavía no hay solicitudes de servicios.</td>
+						</tr>
+					}
+				</tbody>
+			</table>
 		</div>
 		<app-create-tenant-modal (tenantCreated)="loadTenants()" />
 		<app-edit-tenant-modal [(tenant)]="selectedTenant" (tenantUpdated)="loadTenants()" />
 		<app-subscription-modal [(tenant)]="selectedSubscriptionTenant" (subscriptionChanged)="loadTenants()" />
 		<app-invoice-settings-modal #invoiceSettingsModal />
+		<app-service-requests-admin-modal [(request)]="selectedServiceRequest" (requestUpdated)="loadServiceRequests()" />
 		<app-account-modal />
 	`,
 	changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SuperAdminComponent implements AfterViewInit {
 	private readonly tenantService = inject(TenantService);
+	private readonly serviceRequestsAdminSrv = inject(ServiceRequestsAdminService);
 	private readonly authService = inject(AuthService);
 	private readonly router = inject(Router);
 
 	tenants = signal<Tenant[]>([]);
 	selectedTenant = signal<Tenant | null>(null);
 	selectedSubscriptionTenant = signal<Tenant | null>(null);
+
+	serviceRequests = signal<ServiceRequest[]>([]);
+	selectedServiceRequest = signal<ServiceRequest | null>(null);
+
+	statusLabel(status: ServiceRequestStatus): string {
+		return REQUEST_STATUS_LABEL[status];
+	}
+
+	loadServiceRequests() {
+		this.serviceRequestsAdminSrv.getAll().subscribe((requests) => this.serviceRequests.set(requests));
+	}
 
 	ngAfterViewInit(): void {
 		// Los modales se abren con el data-API de Bootstrap (data-bs-toggle/data-bs-target), NO con
@@ -144,6 +237,7 @@ export class SuperAdminComponent implements AfterViewInit {
 		// guardado sí funciona, solo que la ventana no se cierra). El data-API sí crea su instancia
 		// en el registro global, por eso funciona.
 		this.loadTenants();
+		this.loadServiceRequests();
 	}
 
 	loadTenants() {

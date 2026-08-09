@@ -18,6 +18,7 @@ import { EventDetailsComponent } from './events/event-details/event-details.comp
 import { QrScannerComponent } from './events/components/qr-scanner/qr-scanner.component';
 import { SettingsComponent } from './settings/settings.component';
 import { SubscriptionComponent } from './subscription/subscription.component';
+import { ServiceRequestsComponent } from './service-requests/service-requests.component';
 import { activeSubscriptionGuard } from '../../core/guards/active-subscription.guard';
 
 const routes: Routes = [
@@ -102,6 +103,11 @@ const routes: Routes = [
 			{
 				path: 'sales',
 				component: SalesComponent,
+				canActivate: [activeSubscriptionGuard],
+			},
+			{
+				path: 'solicitudes',
+				component: ServiceRequestsComponent,
 				canActivate: [activeSubscriptionGuard],
 			},
 			{

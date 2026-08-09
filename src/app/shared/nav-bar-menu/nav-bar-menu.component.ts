@@ -253,6 +253,9 @@ export class NavBarMenuComponent implements AfterViewInit, OnDestroy {
 		{ title: 'Products', icon: 'bi bi-calendar2-event-fill', url: '/manager/products' },
 		{ title: 'Reports', icon: 'bi bi-flag-fill', url: '/manager/reports' },
 		{ title: 'History', icon: 'bi bi-clock-history', url: '/manager/history' },
+		// Sin entrada en MENU_ITEM_FEATURE a propósito — visible en todos los planes, es un canal de
+		// upsell (renta de equipos, personal presencial, etc.), no una feature a restringir.
+		{ title: 'Solicitudes', icon: 'bi bi-headset', url: '/manager/solicitudes' },
 		{ title: 'Settings', icon: 'bi bi-palette', url: '/manager/settings' },
 	];
 

@@ -18,6 +18,7 @@ const TENANT_SCOPED_MODELS = new Set([
 	'AuditLog',
 	'AppSetting',
 	'ClubMember',
+	'ServiceRequest',
 ]);
 
 const READ_OR_TARGETED_WRITE_OPS = new Set([
