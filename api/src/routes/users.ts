@@ -18,7 +18,9 @@ const userInputSchema = z.object({
 	password: z.string().min(4).optional(),
 	name: z.string().min(1),
 	lastname: z.string().min(1),
-	gender: z.string().min(1),
+	// Sin .min(1): socios dados de alta por vía rápida o importados ya vienen sin este dato, y
+	// bloquear la edición de otros campos hasta completarlo es peor que aceptarlo vacío.
+	gender: z.string(),
 	email: z.string().email(),
 	// No todos los tenants usan carnet como identificador (solo CLUB lo exige de verdad, al
 	// vender un ticket vía validateAttendeeRule) — acá se acepta vacío para no bloquear la

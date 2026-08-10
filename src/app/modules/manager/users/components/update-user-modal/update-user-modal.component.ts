@@ -61,11 +61,8 @@ import { AuthService } from '../../../../../core/services/auth.service';
 							</div>
 
 							<div class="mb-3">
-								<label for="address">Adress *</label>
-								<input type="text" class="form-control" [class.is-invalid]="isInvalid('address')" placeholder="Apartment or suite" formControlName="address" />
-								@if (isInvalid('address')) {
-									<div class="invalid-feedback">La dirección es obligatoria.</div>
-								}
+								<label for="address">Adress</label>
+								<input type="text" class="form-control" placeholder="Apartment or suite" formControlName="address" />
 							</div>
 
 							<div class="row">
@@ -82,15 +79,12 @@ import { AuthService } from '../../../../../core/services/auth.service';
 									}
 								</div>
 								<div class="col-md-6 mb-3">
-									<label for="state">Gender *</label>
-									<select class="custom-select d-block w-100" [class.is-invalid]="isInvalid('gender')" formControlName="gender">
+									<label for="state">Gender</label>
+									<select class="custom-select d-block w-100" formControlName="gender">
 										<option value="">Choose...</option>
 										<option value="M">Man</option>
 										<option value="F">Woman</option>
 									</select>
-									@if (isInvalid('gender')) {
-										<div class="invalid-feedback">Elegí un género.</div>
-									}
 								</div>
 								<div class="col-md-6 mb-3">
 									<label for="zip">Carnet{{ isChurchTenant() ? ' (opcional)' : ' *' }}</label>
@@ -142,10 +136,15 @@ export class UpdateUserModalComponent {
 		userType: new FormControl<UserTypeCode | ''>('', Validators.required),
 		name: new FormControl<string>('', Validators.required),
 		lastName: new FormControl<string>('', Validators.required),
-		gender: new FormControl<string>('', Validators.required),
+		// Sin Validators.required: los socios dados de alta por vía rápida (venta de ticket, import
+		// CSV, o los datos de prueba ya cargados en producción) suelen tener estos dos vacíos — antes
+		// eso bloqueaba en silencio CUALQUIER edición del usuario (ni el email se podía cambiar) sin
+		// mostrar ningún error, porque el form ya nacía inválido y saveForm() cortaba antes de llamar
+		// al backend.
+		gender: new FormControl<string>(''),
 		email: new FormControl<string>('', [Validators.required, Validators.email]),
 		carnet: new FormControl<string>('', this.isChurchTenant() ? [] : [Validators.required]),
-		address: new FormControl<string>('', Validators.required),
+		address: new FormControl<string>(''),
 		phone: new FormControl<string>('', [Validators.required, Validators.pattern('^[- +()0-9]+$')]),
 	});
 
