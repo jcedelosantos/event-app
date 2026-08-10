@@ -29,30 +29,33 @@ export const PLANS: Record<PlanCode, PlanDefinition> = {
 	BASICO: {
 		code: 'BASICO',
 		name: 'Básico',
-		priceUSD: 24.99,
+		priceUSD: 49,
 		attendeesPerEvent: 50,
 		features: { publicPortal: false, advancedReporting: false, onlinePayment: false, waitingRoomAndCapacity: false, productsModule: false },
 	},
 	INTERMEDIO: {
 		code: 'INTERMEDIO',
 		name: 'Intermedio',
-		priceUSD: 64.99,
+		priceUSD: 99,
 		attendeesPerEvent: 150,
 		features: { publicPortal: true, advancedReporting: true, onlinePayment: false, waitingRoomAndCapacity: false, productsModule: true },
 	},
 	AVANZADO: {
 		code: 'AVANZADO',
 		name: 'Avanzado',
-		priceUSD: 149.99,
+		priceUSD: 199,
 		attendeesPerEvent: 500,
 		features: { publicPortal: true, advancedReporting: true, onlinePayment: true, waitingRoomAndCapacity: true, productsModule: true },
 	},
 	// Code queda PRO_MAX por retrocompatibilidad (webhooks/env vars de PayPal, filas ya guardadas en
 	// Tenant.plan/Subscription.plan lo referencian por este string) — solo cambia el nombre público.
+	// Precio = piso de la banda "Enterprise, cotización desde $650" del tarifario comercial — sigue
+	// siendo autoservicio a este precio, pero cualquier necesidad custom (multi-sede, API, SLA,
+	// white label completo) se negocia por encima de este piso, no es parte del checkout automático.
 	PRO_MAX: {
 		code: 'PRO_MAX',
 		name: 'Pro Enterprise',
-		priceUSD: 199.99,
+		priceUSD: 650,
 		attendeesPerEvent: 1000,
 		features: { publicPortal: true, advancedReporting: true, onlinePayment: true, waitingRoomAndCapacity: true, productsModule: true },
 	},

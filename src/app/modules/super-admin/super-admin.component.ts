@@ -163,7 +163,7 @@ const REQUEST_STATUS_LABEL: Record<ServiceRequestStatus, string> = {
 									<div class="small">{{ item.nameSnapshot }} × {{ item.quantity }}</div>
 								}
 							</td>
-							<td class="text-end">RD$ {{ r.totalDOP | number }}</td>
+							<td class="text-end">$ {{ r.totalDOP | number }}</td>
 							<td class="text-muted">{{ r.createdAt | date: 'short' }}</td>
 							<td>
 								<span

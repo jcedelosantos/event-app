@@ -32,7 +32,7 @@ const STATUS_OPTIONS: Array<{ value: ServiceRequestStatus; label: string }> = [
 								<li>{{ item.nameSnapshot }} × {{ item.quantity }}</li>
 							}
 						</ul>
-						<p class="fw-bold">Total estimado: RD$ {{ r.totalDOP | number }}</p>
+						<p class="fw-bold">Total estimado: $ {{ r.totalDOP | number }}</p>
 						@if (r.notes) {
 							<p class="small text-muted">Notas del cliente: {{ r.notes }}</p>
 						}

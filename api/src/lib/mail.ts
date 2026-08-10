@@ -294,7 +294,7 @@ export async function sendServiceRequestNotification(args: {
 
 	const itemsHtml = args.items
 		.map((item) => {
-			const subtotal = item.unitPriceDOPSnapshot != null ? `RD$${(item.unitPriceDOPSnapshot * item.quantity).toLocaleString('es-DO')}` : 'A cotizar';
+			const subtotal = item.unitPriceDOPSnapshot != null ? `$${(item.unitPriceDOPSnapshot * item.quantity).toLocaleString('es-DO')}` : 'A cotizar';
 			return `<tr><td style="padding:6px 8px;color:#ccc;">${item.nameSnapshot} × ${item.quantity}</td><td style="padding:6px 8px;color:#fff;text-align:right;">${subtotal}</td></tr>`;
 		})
 		.join('');
@@ -305,7 +305,7 @@ export async function sendServiceRequestNotification(args: {
 			<p style="color:#ccc;"><strong style="color:#fff;">${args.tenantName}</strong>${args.eventName ? ` — evento: ${args.eventName}` : ''}</p>
 			<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#111;border-radius:8px;border:1px solid #2a2a2a;margin:12px 0;">
 				${itemsHtml}
-				<tr><td style="padding:8px;color:#fff;font-weight:bold;">Total estimado</td><td style="padding:8px;color:#fff;font-weight:bold;text-align:right;">RD$${args.totalDOP.toLocaleString('es-DO')}</td></tr>
+				<tr><td style="padding:8px;color:#fff;font-weight:bold;">Total estimado</td><td style="padding:8px;color:#fff;font-weight:bold;text-align:right;">$${args.totalDOP.toLocaleString('es-DO')}</td></tr>
 			</table>
 			${args.notes ? `<p style="color:#aaa;">Notas: ${args.notes}</p>` : ''}
 			<p style="color:#666;font-size:12px;">Revisala y cotizala desde el panel de Super Admin.</p>

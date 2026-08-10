@@ -92,7 +92,7 @@ type SelectedItem = { catalogCode: AddOnServiceCode; quantity: number };
 								}
 							</tbody>
 						</table>
-						<div class="text-end fw-bold mb-3">Total estimado: RD$ {{ totalDOP() | number }}</div>
+						<div class="text-end fw-bold mb-3">Total estimado: $ {{ totalDOP() | number }}</div>
 						<p class="text-muted small">
 							Los servicios "a cotizar" o de rango no suman al total — se coordinan aparte con el equipo.
 						</p>
@@ -173,7 +173,7 @@ export class CreateServiceRequestModalComponent implements OnInit {
 	subtotalOf(item: SelectedItem): string {
 		const def = ADDON_SERVICES[item.catalogCode];
 		if (def.pricingType !== 'FIXED' || def.unitPriceDOP == null) return def.note ?? 'A cotizar';
-		return `RD$ ${(def.unitPriceDOP * item.quantity).toLocaleString('es-DO')}`;
+		return `$ ${(def.unitPriceDOP * item.quantity).toLocaleString('es-DO')}`;
 	}
 
 	applyPackage(code: AddOnPackageCode) {

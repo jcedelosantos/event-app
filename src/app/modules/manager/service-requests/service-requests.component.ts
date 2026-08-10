@@ -52,7 +52,7 @@ const STATUS_BADGE_CLASS: Record<ServiceRequestStatus, string> = {
 									<div class="small">{{ item.nameSnapshot }} × {{ item.quantity }}</div>
 								}
 							</td>
-							<td class="text-end">RD$ {{ r.totalDOP | number }}</td>
+							<td class="text-end">$ {{ r.totalDOP | number }}</td>
 							<td>
 								<span class="badge" [class]="statusBadgeClass(r.status)">{{ statusLabel(r.status) }}</span>
 								@if (r.resolutionNote) {

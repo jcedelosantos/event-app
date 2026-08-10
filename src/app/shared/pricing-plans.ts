@@ -38,7 +38,7 @@ export const PRICING_PLANS: PricingPlan[] = [
 	{
 		code: 'BASICO',
 		name: 'Básico',
-		priceUSD: 24.99,
+		priceUSD: 49,
 		attendeesPerEvent: 50,
 		features: ['Eventos ilimitados por mes', 'Hasta 50 asistentes por evento', 'Creación de eventos, mapas y asientos', 'Venta manual + scanner de check-in', 'Panel de QRs y correo automático'],
 		description: 'Ideal para clubes y organizaciones que recién empiezan a digitalizar sus eventos — todo lo esencial para vender entradas y controlar el acceso, sin complicarte.',
@@ -46,7 +46,7 @@ export const PRICING_PLANS: PricingPlan[] = [
 	{
 		code: 'INTERMEDIO',
 		name: 'Intermedio',
-		priceUSD: 64.99,
+		priceUSD: 99,
 		attendeesPerEvent: 150,
 		highlighted: true,
 		features: ['Todo lo de Básico', 'Hasta 150 asistentes por evento', 'Portal público de auto-registro', 'Reportería y auditoría avanzada', 'Venta de productos / comida del día'],
@@ -55,7 +55,7 @@ export const PRICING_PLANS: PricingPlan[] = [
 	{
 		code: 'AVANZADO',
 		name: 'Avanzado',
-		priceUSD: 149.99,
+		priceUSD: 199,
 		attendeesPerEvent: 500,
 		features: ['Todo lo de Intermedio', 'Hasta 500 asistentes por evento', 'Cobro online (PayPal / link de pago)', 'Sala de espera virtual', 'Aforo e invitados con nombre propio'],
 		description: 'Pensado para eventos grandes: cobro online, sala de espera virtual, y control fino de aforo e invitados con nombre propio.',
@@ -63,10 +63,10 @@ export const PRICING_PLANS: PricingPlan[] = [
 	{
 		code: 'PRO_MAX',
 		name: 'Pro Enterprise',
-		priceUSD: 199.99,
+		priceUSD: 650,
 		attendeesPerEvent: 1000,
-		features: ['Todo lo de Avanzado', 'Hasta 1,000 asistentes por evento', 'Integración con base de datos externa (setup aparte)'],
-		description: 'El techo de la plataforma — máxima capacidad de asistentes por evento e integración con tu propia base de datos externa.',
+		features: ['Todo lo de Avanzado', 'Hasta 1,000 asistentes por evento', 'Integración con base de datos externa (setup aparte)', 'Punto de partida para contratos a medida (multi-sede, API, white label, SLA)'],
+		description: 'El punto de entrada a Enterprise — máxima capacidad de autoservicio, y la puerta a un contrato a medida si tu operación necesita multi-sede, integración API, white label completo o SLA. Contactanos para cotizar tu caso.',
 	},
 ];
 
