@@ -7,7 +7,10 @@ import { RouterLink } from '@angular/router';
 	template: `
 		<nav class="navbar navbar-light bg-light">
 			<div class="container-fluid">
-				<a class="navbar-brand">{{ title }}</a>
+				<a class="navbar-brand">
+					{{ title }}
+					<small class="d-none d-sm-inline text-body-secondary fw-normal">— Infraestructura Tecnológica de Gestión de Eventos</small>
+				</a>
 				<div class="d-flex">
 					@for (item of menuList; track item.title) {
 						<a class="p-1 nav-link" routerLink="{{ item.url }}">{{ item.title }}</a>
@@ -20,6 +23,6 @@ import { RouterLink } from '@angular/router';
 	changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class NavBarInitComponent {
-	title: string = 'Sale App';
+	title: string = 'INTEG';
 	menuList: Array<{ title: string; icon: string; url: string }> = [{ title: 'Sign In', icon: '', url: '/login/sign-in' }];
 }

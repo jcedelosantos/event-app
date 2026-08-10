@@ -1,6 +1,6 @@
 {
-  "name": "seat-app",
-  "short_name": "seat-app",
+  "name": "INTEG — Infraestructura Tecnológica de Gestión de Eventos",
+  "short_name": "INTEG",
   "display": "standalone",
   "scope": "./",
   "start_url": "./",
