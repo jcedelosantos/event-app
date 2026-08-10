@@ -288,6 +288,58 @@ const PRESETS = [
 					}
 				</div>
 			</div>
+
+			<h2 class="section-title mt-4">Reportes periódicos</h2>
+			<p class="text-body-secondary small">
+				El reporte del mes o trimestre anterior (ingresos, tickets vendidos, check-ins y productos) se manda automáticamente por correo el día
+				que elijas.
+			</p>
+
+			<div class="card" style="max-width: 480px;">
+				<div class="card-body">
+					<div class="mb-3">
+						<label class="small mb-1">Frecuencia</label>
+						<select class="form-select form-select-sm" [value]="reportsFrequency()" (change)="reportsFrequency.set($any($event.target).value)">
+							<option value="">Desactivado</option>
+							<option value="MONTHLY">Mensual</option>
+							<option value="QUARTERLY">Trimestral</option>
+						</select>
+					</div>
+					<div class="mb-3">
+						<label class="small mb-1">Día del mes <span class="text-muted">(1-28, para que sea válido en todos los meses)</span></label>
+						<input
+							type="number"
+							min="1"
+							max="28"
+							class="form-control form-control-sm"
+							[value]="reportsDayOfMonth()"
+							(input)="reportsDayOfMonth.set($any($event.target).value)"
+						/>
+					</div>
+					<div class="mb-3">
+						<label class="small mb-1">Destinatarios <span class="text-muted">(emails separados por coma)</span></label>
+						<input
+							type="text"
+							class="form-control form-control-sm"
+							[value]="reportsRecipients()"
+							(input)="reportsRecipients.set($any($event.target).value)"
+							placeholder="director@club.com, presidente@club.com"
+						/>
+					</div>
+
+					<div class="d-flex gap-2 align-items-center">
+						<button type="button" class="btn btn-danger btn-sm" [disabled]="savingReports()" (click)="saveReports()">
+							{{ savingReports() ? 'Guardando...' : 'Guardar' }}
+						</button>
+						@if (reportsSaved()) {
+							<span class="text-success small"><i class="bi bi-check-circle" aria-hidden="true"></i> Guardado</span>
+						}
+					</div>
+					@if (reportsError()) {
+						<div class="text-danger small mt-2">{{ reportsError() }}</div>
+					}
+				</div>
+			</div>
 	`,
 	styleUrl: './settings.component.css',
 	changeDetection: ChangeDetectionStrategy.OnPush,
@@ -333,6 +385,13 @@ export class SettingsComponent implements OnInit {
 	whatsappSaved = signal(false);
 	whatsappError = signal('');
 	webhookUrlCopied = signal(false);
+
+	reportsFrequency = signal('');
+	reportsDayOfMonth = signal('');
+	reportsRecipients = signal('');
+	savingReports = signal(false);
+	reportsSaved = signal(false);
+	reportsError = signal('');
 
 	orgUrl = computed(() => {
 		const slug = this.authService.currentUser()?.tenant?.slug;
@@ -416,6 +475,9 @@ export class SettingsComponent implements OnInit {
 				this.whatsappVerifyTokenConfigured.set(settings['whatsapp.verifyTokenSecretConfigured'] === 'true');
 				this.whatsappAppSecretConfigured.set(settings['whatsapp.appSecretSecretConfigured'] === 'true');
 				this.whatsappAllowedSenders.set(settings['whatsapp.allowedSenders'] ?? '');
+				this.reportsFrequency.set(settings['reports.frequency'] ?? '');
+				this.reportsDayOfMonth.set(settings['reports.dayOfMonth'] ?? '');
+				this.reportsRecipients.set(settings['reports.recipients'] ?? '');
 			},
 			// Sin esto, un fallo de red dejaba todos los campos en blanco/default, indistinguible de
 			// "nunca configurado" — un admin podía terminar recargando credenciales de PayPal/WhatsApp
@@ -505,6 +567,45 @@ export class SettingsComponent implements OnInit {
 			error: (err: HttpErrorResponse) => {
 				this.savingWhatsapp.set(false);
 				this.whatsappError.set(extractErrorMessage(err));
+			},
+		});
+	}
+
+	// Igual que payments/whatsapp: PUT /settings/:key rechaza valores vacíos, así que "Desactivado"
+	// (frequency = '') simplemente no se manda — un tenant que nunca configuró esto no aparece en el
+	// sweep de runScheduledReportsCheck() y no recibe nada, que es el estado "apagado" real.
+	saveReports() {
+		this.savingReports.set(true);
+		this.reportsError.set('');
+		this.reportsSaved.set(false);
+		const frequencyToSave = this.reportsFrequency();
+		const dayOfMonthToSave = this.reportsDayOfMonth().trim();
+		const recipientsToSave = this.reportsRecipients().trim();
+
+		if (frequencyToSave && (!dayOfMonthToSave || !recipientsToSave)) {
+			this.savingReports.set(false);
+			this.reportsError.set('Elegí un día del mes y al menos un destinatario para activar el reporte.');
+			return;
+		}
+
+		const calls: Observable<unknown>[] = [];
+		if (frequencyToSave) calls.push(this.settingsService.setSetting('reports.frequency', frequencyToSave));
+		if (dayOfMonthToSave) calls.push(this.settingsService.setSetting('reports.dayOfMonth', dayOfMonthToSave));
+		if (recipientsToSave) calls.push(this.settingsService.setSetting('reports.recipients', recipientsToSave));
+
+		if (!calls.length) {
+			this.savingReports.set(false);
+			return;
+		}
+
+		forkJoin(calls).subscribe({
+			next: () => {
+				this.savingReports.set(false);
+				this.reportsSaved.set(true);
+			},
+			error: (err: HttpErrorResponse) => {
+				this.savingReports.set(false);
+				this.reportsError.set(extractErrorMessage(err));
 			},
 		});
 	}

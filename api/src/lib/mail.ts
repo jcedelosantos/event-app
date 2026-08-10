@@ -2,6 +2,7 @@ import QRCode from 'qrcode';
 import PDFDocument from 'pdfkit';
 import { Resend } from 'resend';
 import type { Event as EventModel } from '@prisma/client';
+import type { TenantReportStats } from './report-aggregation';
 
 type SaleTicketForEmail = {
 	id: number;
@@ -316,6 +317,57 @@ export async function sendServiceRequestNotification(args: {
 		from: process.env.RESEND_FROM_EMAIL ?? 'onboarding@resend.dev',
 		to,
 		subject: `Nueva solicitud de servicio — ${args.tenantName}`,
+		html,
+	});
+}
+
+// Reporte periódico (mensual/trimestral) programado por el propio tenant (ver
+// scheduled-reports.ts) — mismo patrón best-effort del resto de este archivo: sin
+// RESEND_API_KEY simplemente no se manda, el cron sigue corriendo igual el próximo período.
+export async function sendPeriodicReport(args: { to: string[]; tenantName: string; periodLabel: string; stats: TenantReportStats }) {
+	const resend = getResendClient();
+	if (!resend) return;
+
+	const { stats } = args;
+	const topRows = (items: Array<{ label: string; value: number }>) =>
+		items
+			.slice(0, 8)
+			.map(
+				(item) =>
+					`<tr><td style="padding:6px 8px;color:#ccc;">${item.label}</td><td style="padding:6px 8px;color:#fff;text-align:right;">${item.value.toLocaleString('es-DO')} USD</td></tr>`,
+			)
+			.join('');
+
+	const html = `
+		<div style="background:#000;padding:24px;font-family:Arial,Helvetica,sans-serif;">
+			<h2 style="color:#fff;">Reporte ${args.periodLabel}</h2>
+			<p style="color:#ccc;"><strong style="color:#fff;">${args.tenantName}</strong></p>
+			<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#111;border-radius:8px;border:1px solid #2a2a2a;margin:16px 0;">
+				<tr><td style="padding:10px 8px;color:#aaa;">Ingresos totales</td><td style="padding:10px 8px;color:#fff;font-weight:bold;text-align:right;">${stats.totalRevenue.toLocaleString('es-DO')} USD</td></tr>
+				<tr><td style="padding:10px 8px;color:#aaa;">Tickets vendidos</td><td style="padding:10px 8px;color:#fff;text-align:right;">${stats.totalTicketsSold.toLocaleString('es-DO')}</td></tr>
+				<tr><td style="padding:10px 8px;color:#aaa;">Check-ins registrados</td><td style="padding:10px 8px;color:#fff;text-align:right;">${stats.totalCheckIns.toLocaleString('es-DO')}</td></tr>
+				<tr><td style="padding:10px 8px;color:#aaa;">Productos vendidos</td><td style="padding:10px 8px;color:#fff;text-align:right;">${stats.totalProductsSold.toLocaleString('es-DO')}</td></tr>
+			</table>
+			${
+				stats.revenueByEvent.length
+					? `<h3 style="color:#fff;font-size:14px;">Ingresos por evento</h3>
+			<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#111;border-radius:8px;border:1px solid #2a2a2a;margin-bottom:16px;">${topRows(stats.revenueByEvent)}</table>`
+					: ''
+			}
+			${
+				stats.revenueByProduct.length
+					? `<h3 style="color:#fff;font-size:14px;">Ingresos por producto</h3>
+			<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#111;border-radius:8px;border:1px solid #2a2a2a;">${topRows(stats.revenueByProduct)}</table>`
+					: ''
+			}
+			<p style="color:#666;font-size:12px;margin-top:16px;">Reporte automático generado por Seat App. Podés cambiar la frecuencia o los destinatarios desde Configuración.</p>
+		</div>
+	`;
+
+	await resend.emails.send({
+		from: process.env.RESEND_FROM_EMAIL ?? 'onboarding@resend.dev',
+		to: args.to,
+		subject: `Reporte ${args.periodLabel} — ${args.tenantName}`,
 		html,
 	});
 }

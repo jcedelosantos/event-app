@@ -247,6 +247,36 @@ const LIVE_REFRESH_MS = 20_000;
 				</div>
 			</div>
 		</div>
+			<div class="row g-3 mt-1">
+				<div class="col-lg-6">
+					<div class="card h-100">
+						<div class="card-header">Tendencia mensual — Ingresos</div>
+						<div class="card-body">
+							@if (loading()) {
+								<p class="text-body-secondary">Cargando...</p>
+							} @else if (monthsWithSalesCount() < 2) {
+								<p class="text-body-secondary mb-0">Todavía no hay suficiente historial para ver tendencia.</p>
+							} @else {
+								<mini-bar-chart [data]="monthlyRevenueTrend()" suffix=" USD" />
+							}
+						</div>
+					</div>
+				</div>
+				<div class="col-lg-6">
+					<div class="card h-100">
+						<div class="card-header">Tendencia mensual — Tickets vendidos</div>
+						<div class="card-body">
+							@if (loading()) {
+								<p class="text-body-secondary">Cargando...</p>
+							} @else if (monthsWithSalesCount() < 2) {
+								<p class="text-body-secondary mb-0">Todavía no hay suficiente historial para ver tendencia.</p>
+							} @else {
+								<mini-bar-chart [data]="monthlyTicketsTrend()" />
+							}
+						</div>
+					</div>
+				</div>
+			</div>
 	`,
 	styleUrl: './dash-board.component.css',
 	changeDetection: ChangeDetectionStrategy.OnPush,
@@ -366,6 +396,37 @@ export class DashBoardComponent implements OnInit, OnDestroy {
 			.sort((a, b) => b.value - a.value)
 			.slice(0, 6);
 	});
+
+	private monthKey(date: Date): string {
+		return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+	}
+
+	// "Ago 2026" — clave interna en formato "YYYY-MM" para poder ordenar cronológicamente sin
+	// depender del orden de inserción del Map (las ventas no siempre llegan ordenadas por fecha).
+	private monthLabel(key: string): string {
+		const [year, month] = key.split('-').map(Number);
+		const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+		return `${months[month - 1]} ${year}`;
+	}
+
+	private monthlyTotals(reducer: (sale: SaleTicket) => number): BarChartItem[] {
+		const totals = new Map<string, number>();
+		for (const sale of this.saleTickets()) {
+			const key = this.monthKey(new Date(sale.dateSold));
+			totals.set(key, (totals.get(key) ?? 0) + reducer(sale));
+		}
+		return Array.from(totals, ([key, value]) => ({ key, label: this.monthLabel(key), value }))
+			.sort((a, b) => a.key.localeCompare(b.key))
+			.slice(-12)
+			.map(({ label, value }) => ({ label, value }));
+	}
+
+	// Tendencia mensual (últimos 12 meses con datos) — a diferencia de los gráficos de arriba, que
+	// ordenan por valor descendente, estos se ordenan cronológicamente a propósito: el objetivo es
+	// ver evolución en el tiempo, no un ranking.
+	monthlyRevenueTrend = computed<BarChartItem[]>(() => this.monthlyTotals((sale) => sale.ticket?.price ?? 0));
+	monthlyTicketsTrend = computed<BarChartItem[]>(() => this.monthlyTotals(() => 1));
+	monthsWithSalesCount = computed(() => new Set(this.saleTickets().map((s) => this.monthKey(new Date(s.dateSold)))).size);
 
 	ngOnInit(): void {
 		forkJoin({

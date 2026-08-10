@@ -2,6 +2,7 @@ import 'dotenv/config';
 import path from 'node:path';
 import express from 'express';
 import cors from 'cors';
+import cron from 'node-cron';
 import { authRouter } from './routes/auth';
 import { usersRouter } from './routes/users';
 import { eventsRouter } from './routes/events';
@@ -26,6 +27,7 @@ import { accessPointsRouter } from './routes/access-points';
 import { serviceRequestsRouter } from './routes/service-requests';
 import { uploadsRouter } from './routes/uploads';
 import { uploadsDir } from './lib/uploads';
+import { runScheduledReportsCheck } from './lib/scheduled-reports';
 
 // Red de seguridad: una promesa rechazada sin manejar en cualquier punto del proceso (no solo
 // dentro de una request) tumbaba el server entero en Node moderno. asyncHandler cubre las rutas,
@@ -102,6 +104,13 @@ app.get('*', (req, res, next) => {
 app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
 	console.error(err);
 	res.status(500).json({ error: 'Internal server error' });
+});
+
+// 13:00 UTC = 8:00am hora RD (UTC-4 fijo, sin horario de verano) — a propósito para que el
+// reporte llegue en horario laboral local y no de madrugada. Si algún día hay tenants fuera de
+// RD, esto tendría que volverse configurable por tenant; hoy todos los tenants reales son de RD.
+cron.schedule('0 13 * * *', () => {
+	runScheduledReportsCheck().catch((err) => console.error('[scheduled-reports] Falló el chequeo diario:', err));
 });
 
 const port = Number(process.env.PORT ?? 3001);
