@@ -78,7 +78,7 @@ import { PRICING_PLANS, PlanCode } from '../../shared/pricing-plans';
 					</div>
 				</form>
 				<div class="mt-3">
-					<a routerLink="/evento-unico" class="small" style="color: #b9b9b9;">¿Un solo evento? Pagá una vez, sin suscripción →</a>
+					<a routerLink="/evento-unico" class="small" style="color: #b9b9b9;">Gestionar sin Suscripción</a>
 				</div>
 			</div>
 		</div>
