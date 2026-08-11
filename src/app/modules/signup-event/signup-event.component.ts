@@ -3,9 +3,11 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { HttpErrorResponse } from '@angular/common/http';
-import { SignupEventService } from './services/signup-event.service';
+import { SignupEventService, BankInfo } from './services/signup-event.service';
 import { EVENT_PLANS, EVENT_OVERAGE_FEE_PER_PERSON_USD, EventPlanCode } from '../../shared/event-plans';
 import { extractErrorMessage } from '../../utils/api-error';
+
+type Step = 'form' | 'payment' | 'bank-transfer' | 'pending-review' | 'done';
 
 @Component({
 	selector: 'app-signup-event',
@@ -42,6 +44,37 @@ import { extractErrorMessage } from '../../utils/api-error';
 										</div>
 									}
 								</div>
+							</div>
+
+							<div class="col-12"><hr /></div>
+
+							<div class="col-12">
+								<label class="form-label small">Método de pago</label>
+								<div class="d-flex gap-2">
+									<button
+										type="button"
+										class="btn flex-fill"
+										[class.btn-danger]="form.controls.paymentMethod.value === 'PAYPAL'"
+										[class.btn-outline-secondary]="form.controls.paymentMethod.value !== 'PAYPAL'"
+										(click)="form.controls.paymentMethod.setValue('PAYPAL')"
+									>
+										PayPal
+									</button>
+									<button
+										type="button"
+										class="btn flex-fill"
+										[class.btn-danger]="form.controls.paymentMethod.value === 'BANK_TRANSFER'"
+										[class.btn-outline-secondary]="form.controls.paymentMethod.value !== 'BANK_TRANSFER'"
+										(click)="form.controls.paymentMethod.setValue('BANK_TRANSFER')"
+									>
+										Transferencia bancaria
+									</button>
+								</div>
+								@if (form.controls.paymentMethod.value === 'BANK_TRANSFER') {
+									<div class="form-text">
+										Con transferencia, tu cuenta queda activa una vez que confirmemos el pago a mano — no es automático como PayPal.
+									</div>
+								}
 							</div>
 
 							<div class="col-12"><hr /></div>
@@ -108,6 +141,55 @@ import { extractErrorMessage } from '../../utils/api-error';
 							<div class="alert alert-danger mt-3 mb-0">{{ errorMessage() }}</div>
 						}
 					}
+					@case ('bank-transfer') {
+						<h1 class="h3 mb-1">Transferí y subí tu comprobante</h1>
+						<p class="mb-4" style="color: #b9b9b9;">
+							Pago único de <strong>USD {{ selectedTierPrice() }}</strong>. Transferí a esta cuenta y subí una foto del comprobante —
+							activamos tu cuenta apenas lo confirmemos.
+						</p>
+
+						@if (bankInfo(); as bank) {
+							<div class="card bg-dark border-secondary mb-4">
+								<div class="card-body">
+									<dl class="row mb-0 small">
+										<dt class="col-5" style="color: #b9b9b9;">Banco</dt>
+										<dd class="col-7">{{ bank.bankName }}</dd>
+										<dt class="col-5" style="color: #b9b9b9;">Tipo de cuenta</dt>
+										<dd class="col-7">{{ bank.bankAccountType }}</dd>
+										<dt class="col-5" style="color: #b9b9b9;">Número de cuenta</dt>
+										<dd class="col-7">{{ bank.bankAccountNumber }}</dd>
+										<dt class="col-5" style="color: #b9b9b9;">Titular</dt>
+										<dd class="col-7 mb-0">{{ bank.bankAccountHolder }}</dd>
+									</dl>
+								</div>
+							</div>
+						} @else {
+							<p class="text-body-secondary small">Cargando los datos de la cuenta...</p>
+						}
+
+						<div class="mb-3">
+							<label class="form-label small">Foto del comprobante</label>
+							<input type="file" class="form-control" accept="image/*" (change)="onReceiptFileSelected($event)" />
+						</div>
+
+						@if (errorMessage()) {
+							<div class="alert alert-danger mb-3">{{ errorMessage() }}</div>
+						}
+
+						<button type="button" class="btn btn-danger" [disabled]="!selectedFile() || uploadingReceipt()" (click)="submitReceipt()">
+							@if (uploadingReceipt()) {
+								Subiendo...
+							} @else {
+								Ya transferí, subir comprobante
+							}
+						</button>
+					}
+					@case ('pending-review') {
+						<h1 class="h4 text-info">Recibimos tu comprobante</h1>
+						<p class="mb-4" style="color: #b9b9b9;">
+							Te confirmamos por correo apenas lo validemos — no hace falta que hagas nada más por ahora.
+						</p>
+					}
 					@case ('done') {
 						<h1 class="h4 text-success">¡Tu cuenta está lista!</h1>
 						<p class="mb-4" style="color: #b9b9b9;">El pago quedó confirmado. Ya podés iniciar sesión y crear tu evento.</p>
@@ -135,9 +217,13 @@ export class SignupEventComponent {
 
 	tiers = EVENT_PLANS;
 	overageFee = EVENT_OVERAGE_FEE_PER_PERSON_USD;
-	step = signal<'form' | 'payment' | 'done'>('form');
+	step = signal<Step>('form');
 	submitting = signal(false);
 	errorMessage = signal('');
+
+	bankInfo = signal<BankInfo | null>(null);
+	selectedFile = signal<File | null>(null);
+	uploadingReceipt = signal(false);
 
 	private tenantId: number | null = null;
 	private orderId: string | null = null;
@@ -145,6 +231,7 @@ export class SignupEventComponent {
 
 	form = this.fb.group({
 		eventPlanCode: this.fb.control<EventPlanCode>('EVENT_100', Validators.required),
+		paymentMethod: this.fb.control<'PAYPAL' | 'BANK_TRANSFER'>('PAYPAL', Validators.required),
 		orgName: this.fb.control('', Validators.required),
 		orgType: this.fb.control<'GENERAL' | 'CLUB' | 'CHURCH'>('GENERAL', Validators.required),
 		adminName: this.fb.control('', Validators.required),
@@ -165,19 +252,25 @@ export class SignupEventComponent {
 		}
 		this.errorMessage.set('');
 		this.submitting.set(true);
-		const { eventPlanCode, orgName, orgType, adminName, adminLastname, adminEmail, adminUsername, adminPassword } = this.form.getRawValue();
+		const { eventPlanCode, paymentMethod, orgName, orgType, adminName, adminLastname, adminEmail, adminUsername, adminPassword } = this.form.getRawValue();
 
 		this.signupEventService
 			.signup({
 				organization: { name: orgName!, type: orgType! },
 				admin: { username: adminUsername!, password: adminPassword!, name: adminName!, lastname: adminLastname!, email: adminEmail! },
 				eventPlanCode: eventPlanCode!,
+				paymentMethod: paymentMethod!,
 			})
 			.subscribe({
 				next: (result) => {
 					this.tenantId = result.tenantId;
-					this.orderId = result.orderId;
 					this.submitting.set(false);
+					if (paymentMethod === 'BANK_TRANSFER') {
+						this.step.set('bank-transfer');
+						this.loadBankInfo();
+						return;
+					}
+					this.orderId = result.orderId ?? null;
 					this.step.set('payment');
 					this.ensurePaypalButtons();
 				},
@@ -186,6 +279,44 @@ export class SignupEventComponent {
 					this.errorMessage.set(extractErrorMessage(err));
 				},
 			});
+	}
+
+	private loadBankInfo() {
+		this.signupEventService.getBankInfo().subscribe({
+			next: (bank) => this.bankInfo.set(bank),
+			error: () => this.errorMessage.set('No se pudieron cargar los datos de la cuenta — recargá la página.'),
+		});
+	}
+
+	onReceiptFileSelected(event: Event) {
+		const input = event.target as HTMLInputElement;
+		this.selectedFile.set(input.files?.[0] ?? null);
+	}
+
+	submitReceipt() {
+		const file = this.selectedFile();
+		if (!file || !this.tenantId) return;
+
+		this.errorMessage.set('');
+		this.uploadingReceipt.set(true);
+		this.signupEventService.uploadReceipt(file).subscribe({
+			next: ({ url }) => {
+				this.signupEventService.submitReceipt(this.tenantId!, url).subscribe({
+					next: () => {
+						this.uploadingReceipt.set(false);
+						this.step.set('pending-review');
+					},
+					error: (err: HttpErrorResponse) => {
+						this.uploadingReceipt.set(false);
+						this.errorMessage.set(extractErrorMessage(err));
+					},
+				});
+			},
+			error: (err: HttpErrorResponse) => {
+				this.uploadingReceipt.set(false);
+				this.errorMessage.set(extractErrorMessage(err));
+			},
+		});
 	}
 
 	// Mismo mecanismo de carga del SDK que public-event.component.ts (ensurePaypalButtons) — acá el

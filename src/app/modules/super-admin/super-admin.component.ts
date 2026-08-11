@@ -4,15 +4,18 @@ import { Router } from '@angular/router';
 import { TenantService } from './services/tenant.service';
 import { ServiceRequestsAdminService } from './services/service-requests-admin.service';
 import { EnterpriseLeadsAdminService } from './services/enterprise-leads-admin.service';
+import { SignupEventAdminService, PendingReceiptTenant } from './services/signup-event-admin.service';
 import { CreateTenantModalComponent } from './components/create-tenant-modal/create-tenant-modal.component';
 import { EditTenantModalComponent } from './components/edit-tenant-modal/edit-tenant-modal.component';
 import { SubscriptionModalComponent } from './components/subscription-modal/subscription-modal.component';
 import { InvoiceSettingsModalComponent } from './components/invoice-settings-modal/invoice-settings-modal.component';
 import { ServiceRequestsAdminModalComponent } from './components/service-requests-admin-modal/service-requests-admin-modal.component';
+import { BankTransferReviewModalComponent } from './components/bank-transfer-review-modal/bank-transfer-review-modal.component';
 import { AccountModalComponent } from '../../shared/account-modal/account-modal.component';
 import { Tenant } from '../../models/tenants/tenant';
 import { ServiceRequest, ServiceRequestStatus } from '../../models/service-requests/service-request';
 import { EnterpriseLead } from '../../models/enterprise-leads/enterprise-lead';
+import { EVENT_PLANS } from '../../shared/event-plans';
 import { AuthService } from '../../core/services/auth.service';
 import { confirm, error } from '../../utils/messages';
 import { extractErrorMessage } from '../../utils/api-error';
@@ -33,6 +36,7 @@ const REQUEST_STATUS_LABEL: Record<ServiceRequestStatus, string> = {
 		SubscriptionModalComponent,
 		InvoiceSettingsModalComponent,
 		ServiceRequestsAdminModalComponent,
+		BankTransferReviewModalComponent,
 		AccountModalComponent,
 		DatePipe,
 		DecimalPipe,
@@ -246,12 +250,56 @@ const REQUEST_STATUS_LABEL: Record<ServiceRequestStatus, string> = {
 					}
 				</tbody>
 			</table>
+
+			<div class="d-flex justify-content-between align-items-center mb-3 mt-5">
+				<div>
+					<h2 class="section-title mb-0">Comprobantes de transferencia pendientes</h2>
+					<p class="text-muted small mb-0">Evento único pagado por transferencia (ver /evento-unico) — confirmá el pago a mano para activar la cuenta.</p>
+				</div>
+			</div>
+			<table class="table table-hover align-middle">
+				<thead>
+					<tr>
+						<th scope="col">Organización</th>
+						<th scope="col">Tier</th>
+						<th scope="col" class="text-end">Monto</th>
+						<th scope="col">Fecha</th>
+						<th scope="col"></th>
+					</tr>
+				</thead>
+				<tbody>
+					@for (t of pendingReceipts(); track t.id) {
+						<tr>
+							<td>{{ t.name }}</td>
+							<td class="text-muted">{{ tierName(t.plan) }}</td>
+							<td class="text-end">USD {{ tierPrice(t.plan) }}</td>
+							<td class="text-muted">{{ t.createdAt | date: 'short' }}</td>
+							<td class="text-end">
+								<button
+									type="button"
+									class="btn btn-sm btn-outline-light"
+									data-bs-toggle="modal"
+									data-bs-target="#bankTransferReviewModal"
+									(click)="selectedReceiptTenant.set(t)"
+								>
+									<i class="bi bi-image"></i> Ver comprobante
+								</button>
+							</td>
+						</tr>
+					} @empty {
+						<tr>
+							<td colspan="5" class="text-center text-muted py-4">Todavía no hay comprobantes pendientes.</td>
+						</tr>
+					}
+				</tbody>
+			</table>
 		</div>
 		<app-create-tenant-modal (tenantCreated)="loadTenants()" />
 		<app-edit-tenant-modal [(tenant)]="selectedTenant" (tenantUpdated)="loadTenants()" />
 		<app-subscription-modal [(tenant)]="selectedSubscriptionTenant" (subscriptionChanged)="loadTenants()" />
 		<app-invoice-settings-modal #invoiceSettingsModal />
 		<app-service-requests-admin-modal [(request)]="selectedServiceRequest" (requestUpdated)="loadServiceRequests()" />
+		<app-bank-transfer-review-modal [(tenant)]="selectedReceiptTenant" (reviewed)="loadPendingReceipts()" />
 		<app-account-modal />
 	`,
 	changeDetection: ChangeDetectionStrategy.OnPush,
@@ -260,6 +308,7 @@ export class SuperAdminComponent implements AfterViewInit {
 	private readonly tenantService = inject(TenantService);
 	private readonly serviceRequestsAdminSrv = inject(ServiceRequestsAdminService);
 	private readonly enterpriseLeadsAdminSrv = inject(EnterpriseLeadsAdminService);
+	private readonly signupEventAdminSrv = inject(SignupEventAdminService);
 	private readonly authService = inject(AuthService);
 	private readonly router = inject(Router);
 
@@ -272,8 +321,19 @@ export class SuperAdminComponent implements AfterViewInit {
 
 	enterpriseLeads = signal<EnterpriseLead[]>([]);
 
+	pendingReceipts = signal<PendingReceiptTenant[]>([]);
+	selectedReceiptTenant = signal<PendingReceiptTenant | null>(null);
+
 	statusLabel(status: ServiceRequestStatus): string {
 		return REQUEST_STATUS_LABEL[status];
+	}
+
+	tierName(plan: string): string {
+		return EVENT_PLANS.find((t) => t.code === plan)?.name ?? plan;
+	}
+
+	tierPrice(plan: string): number {
+		return EVENT_PLANS.find((t) => t.code === plan)?.priceUSD ?? 0;
 	}
 
 	loadServiceRequests() {
@@ -291,6 +351,10 @@ export class SuperAdminComponent implements AfterViewInit {
 		});
 	}
 
+	loadPendingReceipts() {
+		this.signupEventAdminSrv.getAll().subscribe((tenants) => this.pendingReceipts.set(tenants));
+	}
+
 	ngAfterViewInit(): void {
 		// Los modales se abren con el data-API de Bootstrap (data-bs-toggle/data-bs-target), NO con
 		// .show() programático — así el botón "Guardar" de cada modal puede cerrarlo con la misma
@@ -304,6 +368,7 @@ export class SuperAdminComponent implements AfterViewInit {
 		this.loadTenants();
 		this.loadServiceRequests();
 		this.loadEnterpriseLeads();
+		this.loadPendingReceipts();
 	}
 
 	loadTenants() {

@@ -357,6 +357,39 @@ export async function sendEnterpriseLeadNotification(args: { orgName: string; co
 	});
 }
 
+// Aviso de un comprobante de transferencia recién subido (ver POST /signup-event/submit-receipt) —
+// mismo patrón best-effort que sendServiceRequestNotification, a SUPER_ADMIN_NOTIFICATION_EMAIL
+// (bandeja general de "hay que revisar algo a mano"), a diferencia del lead de Pro Enterprise que
+// va a un destinatario fijo aparte.
+export async function sendBankTransferReceiptNotification(args: { tenantName: string; tierName: string; amountUSD: number; receiptUrl: string }) {
+	const to = process.env.SUPER_ADMIN_NOTIFICATION_EMAIL;
+	if (!to) {
+		console.warn('[mail] SUPER_ADMIN_NOTIFICATION_EMAIL no configurada — no se avisa por correo (el comprobante sigue visible en el panel).');
+		return;
+	}
+	const resend = getResendClient();
+	if (!resend) return;
+
+	const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:4201';
+
+	const html = `
+		<div style="background:#000;padding:24px;font-family:Arial,Helvetica,sans-serif;">
+			<h2 style="color:#fff;">Nuevo comprobante de transferencia</h2>
+			<p style="color:#ccc;"><strong style="color:#fff;">${args.tenantName}</strong> — ${args.tierName}</p>
+			<p style="color:#ccc;">Monto esperado: <strong style="color:#fff;">USD ${args.amountUSD}</strong></p>
+			<p><a href="${frontendUrl}${args.receiptUrl}" style="color:#dc3545;">Ver comprobante</a></p>
+			<p style="color:#666;font-size:12px;">Revisalo y confirmá el pago desde el panel de Super Admin.</p>
+		</div>
+	`;
+
+	await resend.emails.send({
+		from: process.env.RESEND_FROM_EMAIL ?? 'onboarding@resend.dev',
+		to,
+		subject: `Nuevo comprobante de transferencia — ${args.tenantName}`,
+		html,
+	});
+}
+
 // Reporte periódico (mensual/trimestral) programado por el propio tenant (ver
 // scheduled-reports.ts) — mismo patrón best-effort del resto de este archivo: sin
 // RESEND_API_KEY simplemente no se manda, el cron sigue corriendo igual el próximo período.

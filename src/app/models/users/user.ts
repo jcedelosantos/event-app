@@ -29,7 +29,9 @@ export interface User {
 		// una vez, sin fila de Subscription.
 		plan: PlanCode | EventPlanCode | null;
 		// EVENT_ENDED es propio de un tenant de evento único: su evento ya pasó, quedó en modo de
-		// solo consulta (ver active-subscription.guard.ts).
-		planStatus: 'PENDING' | 'ACTIVE' | 'PAST_DUE' | 'SUSPENDED' | 'CANCELLED' | 'EVENT_ENDED' | null;
+		// solo consulta (ver active-subscription.guard.ts). PENDING_REVIEW es propio de un tenant de
+		// evento único que pagó por transferencia: subió el comprobante, espera revisión manual del
+		// Super Admin (ver routes/signup-event.ts).
+		planStatus: 'PENDING' | 'ACTIVE' | 'PAST_DUE' | 'SUSPENDED' | 'CANCELLED' | 'EVENT_ENDED' | 'PENDING_REVIEW' | null;
 	} | null;
 }

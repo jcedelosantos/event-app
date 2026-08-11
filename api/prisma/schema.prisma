@@ -32,6 +32,11 @@ model Tenant {
   address String?
   phone   String?
 
+  // Comprobante de transferencia bancaria subido en el checkout de evento único (ver
+  // routes/signup-event.ts) — solo se usa mientras planStatus === PENDING_REVIEW; queda guardado
+  // después de aprobar/rechazar como historial de lo que el Super Admin revisó.
+  paymentReceiptUrl String?
+
   // Espejo de Subscription.plan/status — el feature-gating (ver middleware/plan.ts) corre en casi
   // cada request y no conviene un join extra a Subscription; el webhook de PayPal Billing es quien
   // mantiene sincronizados estos dos campos con la fila real. plan null = tenant sin suscripción
@@ -46,7 +51,10 @@ model Tenant {
   // ACTIVE | PAST_DUE | SUSPENDED | CANCELLED — null junto con plan null. EVENT_ENDED es propio
   // de un tenant de evento único (ver arriba): su evento ya pasó y quedó en modo de solo consulta
   // (requireActiveSubscription, ver middleware/plan.ts, ya trata cualquier valor que no sea ACTIVE
-  // como "bloquear escrituras, permitir lecturas" — no necesita tratamiento especial).
+  // como "bloquear escrituras, permitir lecturas" — no necesita tratamiento especial). PENDING_REVIEW
+  // es propio de un tenant de evento único que eligió pagar por transferencia (ver
+  // routes/signup-event.ts): subió el comprobante, espera que un Super Admin lo confirme a mano —
+  // mismo gate de solo-lectura que EVENT_ENDED, sale gratis por el mismo motivo.
   planStatus String?
   subscription Subscription?
 

@@ -4,10 +4,14 @@ import { z } from 'zod';
 import { prismaUnscoped } from '../lib/prisma';
 import { asyncHandler } from '../lib/async-handler';
 import { checkoutRateLimiter } from '../middleware/rate-limit';
+import { requireAuth, requireSuperAdmin } from '../middleware/auth';
 import { uniqueTenantSlug } from '../lib/slug';
 import { isEventPlanCode, EVENT_PLANS } from '../lib/event-plans';
 import { createPlatformOrder, capturePlatformOrder, PayPalPlatformRequestError } from '../lib/paypal-platform-orders';
 import { getPlatformConfig } from '../lib/paypal-billing';
+import { getInvoiceIssuerConfig } from '../lib/invoice-config';
+import { imageUpload } from '../lib/uploads';
+import { sendBankTransferReceiptNotification } from '../lib/mail';
 
 // Alta pública de un tenant "evento único, sin suscripción" (Event-as-a-Service) — mismo patrón
 // de transacción que signup.ts, pero SIN fila de Subscription (es un pago único, no recurrente,
@@ -28,6 +32,9 @@ const signupEventSchema = z.object({
 		email: z.string().email(),
 	}),
 	eventPlanCode: z.string(),
+	// PayPal sigue siendo el default/automático de siempre; BANK_TRANSFER es la alternativa manual
+	// (ver POST /signup-event/submit-receipt más abajo) — el Super Admin confirma el pago a mano.
+	paymentMethod: z.enum(['PAYPAL', 'BANK_TRANSFER']).optional().default('PAYPAL'),
 });
 
 // El Client ID de PayPal no es un secreto (a diferencia del Secret, que nunca sale de acá) — lo
@@ -54,7 +61,7 @@ signupEventRouter.post(
 			res.status(400).json({ error: parsed.error.flatten() });
 			return;
 		}
-		const { organization, admin, eventPlanCode } = parsed.data;
+		const { organization, admin, eventPlanCode, paymentMethod } = parsed.data;
 		if (!isEventPlanCode(eventPlanCode)) {
 			res.status(400).json({ error: 'Plan de evento inválido' });
 			return;
@@ -101,6 +108,14 @@ signupEventRouter.post(
 				return;
 			}
 			throw err;
+		}
+
+		// Transferencia bancaria: el tenant queda PENDING igual que con PayPal, pero sin orden que
+		// crear — el frontend pasa directo al paso de mostrar los datos de cuenta y subir el
+		// comprobante (ver POST /signup-event/submit-receipt), sin tocar PayPal para nada.
+		if (paymentMethod === 'BANK_TRANSFER') {
+			res.status(201).json({ tenantId });
+			return;
 		}
 
 		// Se crea el tenant/admin ANTES de llamar a PayPal a propósito, igual que signup.ts — si esta
@@ -158,5 +173,126 @@ signupEventRouter.post(
 			}
 			throw err;
 		}
+	}),
+);
+
+// Datos de cuenta para transferir — la MISMA cuenta que ya carga el Super Admin para las facturas
+// (ver lib/invoice-config.ts, modal "Facturación") — se reutiliza tal cual, angosto a propósito:
+// solo los 4 campos de banco, nada de lo demás que trae ese config (NCF, RNC, etc. no son públicos).
+signupEventRouter.get(
+	'/signup-event/bank-info',
+	asyncHandler(async (_req, res) => {
+		const config = await getInvoiceIssuerConfig();
+		res.json({
+			bankName: config.bankName,
+			bankAccountType: config.bankAccountType,
+			bankAccountNumber: config.bankAccountNumber,
+			bankAccountHolder: config.bankAccountHolder,
+		});
+	}),
+);
+
+// Sube la foto del comprobante — mismo wrapping por Promise que platform-settings.ts POST /logo
+// (multer usa callback, no promesa) pero público + rate-limited en vez de Super-Admin-gated, ya que
+// quien paga acá todavía no tiene ninguna cuenta activa.
+signupEventRouter.post(
+	'/signup-event/upload-receipt',
+	checkoutRateLimiter,
+	asyncHandler((req, res) => {
+		return new Promise<void>((resolve) => {
+			imageUpload.single('file')(req, res, (err: unknown) => {
+				if (err) {
+					res.status(400).json({ error: err instanceof Error ? err.message : 'No se pudo subir la imagen' });
+					resolve();
+					return;
+				}
+				if (!req.file) {
+					res.status(400).json({ error: 'No se recibió ningún archivo' });
+					resolve();
+					return;
+				}
+				res.status(201).json({ url: `/uploads/${req.file.filename}` });
+				resolve();
+			});
+		});
+	}),
+);
+
+const submitReceiptSchema = z.object({ tenantId: z.number().int(), receiptUrl: z.string().min(1) });
+
+signupEventRouter.post(
+	'/signup-event/submit-receipt',
+	checkoutRateLimiter,
+	asyncHandler(async (req, res) => {
+		const parsed = submitReceiptSchema.safeParse(req.body);
+		if (!parsed.success) {
+			res.status(400).json({ error: parsed.error.flatten() });
+			return;
+		}
+		const { tenantId, receiptUrl } = parsed.data;
+
+		const tenant = await prismaUnscoped.tenant.findUnique({ where: { id: tenantId } });
+		// Solo desde PENDING — evita que alguien reenvíe un comprobante sobre un tenant ya activado o
+		// ya en revisión (ej. doble click, o pegar el mismo tenantId a mano contra la API).
+		if (!tenant || !isEventPlanCode(tenant.plan) || tenant.planStatus !== 'PENDING') {
+			res.status(409).json({ error: 'Esta organización no está esperando un comprobante de pago.' });
+			return;
+		}
+
+		await prismaUnscoped.tenant.update({ where: { id: tenantId }, data: { paymentReceiptUrl: receiptUrl, planStatus: 'PENDING_REVIEW' } });
+
+		sendBankTransferReceiptNotification({
+			tenantName: tenant.name,
+			tierName: EVENT_PLANS[tenant.plan].name,
+			amountUSD: EVENT_PLANS[tenant.plan].priceUSD,
+			receiptUrl,
+		}).catch((err) => console.error('[signup-event] No se pudo enviar el aviso de comprobante por correo:', err));
+
+		res.json({ tenantId, planStatus: 'PENDING_REVIEW' });
+	}),
+);
+
+// Cola de comprobantes a revisar — mismo patrón que GET /service-requests/admin.
+signupEventRouter.get(
+	'/signup-event/admin',
+	requireAuth,
+	requireSuperAdmin,
+	asyncHandler(async (_req, res) => {
+		const tenants = await prismaUnscoped.tenant.findMany({
+			where: { planStatus: 'PENDING_REVIEW' },
+			select: { id: true, name: true, slug: true, plan: true, paymentReceiptUrl: true, createdAt: true },
+			orderBy: { createdAt: 'desc' },
+		});
+		res.json(tenants);
+	}),
+);
+
+const reviewSchema = z.object({ approve: z.boolean() });
+
+signupEventRouter.put(
+	'/signup-event/:tenantId/review',
+	requireAuth,
+	requireSuperAdmin,
+	asyncHandler(async (req, res) => {
+		const tenantId = Number(req.params.tenantId);
+		const parsed = reviewSchema.safeParse(req.body);
+		if (!parsed.success) {
+			res.status(400).json({ error: parsed.error.flatten() });
+			return;
+		}
+
+		const tenant = await prismaUnscoped.tenant.findUnique({ where: { id: tenantId } });
+		if (!tenant || tenant.planStatus !== 'PENDING_REVIEW') {
+			res.status(409).json({ error: 'Esta organización no tiene un comprobante pendiente de revisión.' });
+			return;
+		}
+
+		// approve: true → mismo efecto que una captura de PayPal exitosa. approve: false → CANCELLED,
+		// mismo estado terminal ya usado para cancelaciones (sin valor nuevo para "rechazado").
+		const updated = await prismaUnscoped.tenant.update({
+			where: { id: tenantId },
+			data: { planStatus: parsed.data.approve ? 'ACTIVE' : 'CANCELLED' },
+		});
+		res.json({ tenantId: updated.id, planStatus: updated.planStatus });
 	}),
 );

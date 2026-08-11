@@ -27,6 +27,9 @@ const STATUS_LABEL: Record<string, string> = {
 	SUSPENDED: 'Suspendida',
 	CANCELLED: 'Cancelada',
 	EVENT_ENDED: 'Modo consulta',
+	// Propio de un tenant de evento único que pagó por transferencia — comprobante subido, espera
+	// revisión manual del Super Admin (ver routes/signup-event.ts).
+	PENDING_REVIEW: 'En revisión',
 };
 
 // Por debajo de este ancho, un sidebar con nombres siempre visible le come la mitad de la
@@ -72,7 +75,7 @@ const SIDEBAR_COLLAPSED_KEY = 'seat-app-sidebar-collapsed';
 							[class.text-bg-success]="badge.status === 'ACTIVE'"
 							[class.text-bg-warning]="badge.status === 'PAST_DUE' || badge.status === 'PENDING'"
 							[class.text-bg-secondary]="badge.status === 'SUSPENDED' || badge.status === 'CANCELLED'"
-							[class.text-bg-info]="badge.status === 'EVENT_ENDED'"
+							[class.text-bg-info]="badge.status === 'EVENT_ENDED' || badge.status === 'PENDING_REVIEW'"
 							[title]="badge.planName + ' — ' + badge.statusLabel"
 						>
 							{{ badge.planName }}
@@ -174,7 +177,7 @@ const SIDEBAR_COLLAPSED_KEY = 'seat-app-sidebar-collapsed';
 								[class.text-bg-success]="badge.status === 'ACTIVE'"
 								[class.text-bg-warning]="badge.status === 'PAST_DUE' || badge.status === 'PENDING'"
 								[class.text-bg-secondary]="badge.status === 'SUSPENDED' || badge.status === 'CANCELLED'"
-								[class.text-bg-info]="badge.status === 'EVENT_ENDED'"
+								[class.text-bg-info]="badge.status === 'EVENT_ENDED' || badge.status === 'PENDING_REVIEW'"
 							>
 								{{ badge.planName }}
 							</span>
