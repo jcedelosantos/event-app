@@ -1,4 +1,5 @@
 import { AfterViewInit, ChangeDetectionStrategy, Component, computed, inject, OnInit, signal, viewChild } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { CreateEventModalComponent } from './components/create-event-modal/create-event-modal.component';
 import { ScheduleComponent } from '../../../shared/schedule/schedule.component';
 import { Events } from '../../../models/events/events';
@@ -19,13 +20,16 @@ declare const bootstrap: any;
 
 @Component({
 	selector: 'app-events',
-	imports: [CreateEventModalComponent, ScheduleComponent, EventCardComponent, CreateMapModalComponent, EventQrModalComponent, QRCodeComponent],
+	imports: [RouterLink, CreateEventModalComponent, ScheduleComponent, EventCardComponent, CreateMapModalComponent, EventQrModalComponent, QRCodeComponent],
 	template: `
 			<h2 class="section-title">Events Manager</h2>
 			<nav class="navbar border-bottom border-body">
 				<div class="container-fluid">
 					<form class="d-flex align-items-center gap-2 flex-wrap" role="search" (submit)="$event.preventDefault(); searchText.set(searchInput.value)">
 						<button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#createEventModal">Create</button>
+						<a routerLink="/manager/events/wizard" class="btn btn-outline-light btn-sm" title="Creación guiada paso a paso: evento, mapa, tickets y productos">
+							<i class="bi bi-magic"></i> Crear con guía
+						</a>
 						<input
 							#searchInput
 							class="form-control form-control-sm"

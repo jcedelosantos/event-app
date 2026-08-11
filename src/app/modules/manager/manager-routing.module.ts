@@ -19,6 +19,7 @@ import { QrScannerComponent } from './events/components/qr-scanner/qr-scanner.co
 import { SettingsComponent } from './settings/settings.component';
 import { SubscriptionComponent } from './subscription/subscription.component';
 import { ServiceRequestsComponent } from './service-requests/service-requests.component';
+import { EventWizardComponent } from './events/components/event-wizard/event-wizard.component';
 import { activeSubscriptionGuard } from '../../core/guards/active-subscription.guard';
 
 const routes: Routes = [
@@ -57,6 +58,7 @@ const routes: Routes = [
 				canActivate: [activeSubscriptionGuard],
 				children: [
 					{ path: '', component: EventsComponent },
+					{ path: 'wizard', component: EventWizardComponent },
 					{ path: 'qr-scanner', component: QrScannerComponent },
 				]
 			},
