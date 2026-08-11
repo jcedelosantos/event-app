@@ -15,6 +15,9 @@ import { PRICING_PLANS, PricingPlan } from '../../shared/pricing-plans';
 					<h1 class="display-6 fw-bold mb-1">Gestioná tus eventos de manera eficiente</h1>
 					<p class="lead small mb-2" style="color: #b9b9b9;">Mapa de asientos, QR de entrada, portal público de auto-registro y cobro online — todo en un solo lugar.</p>
 					<a routerLink="/signup" class="btn btn-danger px-4">Empezar ahora</a>
+					<div class="mt-2">
+						<a routerLink="/evento-unico" class="small" style="color: #b9b9b9;">¿Un solo evento? Pagá una vez, sin suscripción →</a>
+					</div>
 				</div>
 			</div>
 
