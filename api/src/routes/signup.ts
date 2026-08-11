@@ -43,6 +43,13 @@ signupRouter.post(
 			res.status(400).json({ error: 'Plan inválido' });
 			return;
 		}
+		// Pro Enterprise ya no es autoservicio: se cotiza y lo activa un Super Admin a mano (ver
+		// comentario en lib/plans.ts) — bloqueado acá además de en el frontend por si alguien pega el
+		// código de plan directo contra la API.
+		if (plan === 'PRO_MAX') {
+			res.status(400).json({ error: 'El plan Pro Enterprise se cotiza y activa a medida — contactá a nuestro equipo.' });
+			return;
+		}
 
 		const adminType = await prismaUnscoped.userType.findFirst({ where: { type: 'ROOT' } });
 		if (!adminType) {

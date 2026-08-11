@@ -97,7 +97,9 @@ export class SignupComponent {
 	private readonly signupService = inject(SignupService);
 	private readonly route = inject(ActivatedRoute);
 
-	plans = PRICING_PLANS;
+	// Pro Enterprise no es autoservicio (ver PRICING_PLANS/pricing-plans.ts) — el backend igual lo
+	// rechaza si llegara a mandarse, esto evita que aparezca como opción en primer lugar.
+	plans = PRICING_PLANS.filter((p) => p.code !== 'PRO_MAX');
 	submitting = signal(false);
 	errorMessage = signal('');
 

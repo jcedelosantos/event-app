@@ -65,8 +65,11 @@ export const PRICING_PLANS: PricingPlan[] = [
 		name: 'Pro Enterprise',
 		priceUSD: 650,
 		attendeesPerEvent: 1000,
-		features: ['Todo lo de Avanzado', 'Hasta 1,000 asistentes por evento', 'Integración con base de datos externa (setup aparte)', 'Punto de partida para contratos a medida (multi-sede, API, white label, SLA)'],
-		description: 'El punto de entrada a Enterprise — máxima capacidad de autoservicio, y la puerta a un contrato a medida si tu operación necesita multi-sede, integración API, white label completo o SLA. Contactanos para cotizar tu caso.',
+		features: ['Todo lo de Avanzado', 'Hasta 1,000 asistentes por evento', 'Integración con base de datos externa (setup aparte)', 'Contratos a medida (multi-sede, API, white label, SLA)'],
+		// Sin autoservicio: la marketing page (site-web.component.ts) no muestra priceUSD para este
+		// tier y el signup público lo rechaza (ver POST /public/signup) — lo activa un Super Admin a
+		// mano tras cotizar. priceUSD queda como referencia interna, no se le da uso en la UI pública.
+		description: 'Para operaciones grandes con necesidades a medida — multi-sede, integración API, white label completo o SLA. Nuestro equipo cotiza y activa tu cuenta directamente.',
 	},
 ];
 

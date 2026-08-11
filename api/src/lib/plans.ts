@@ -49,9 +49,9 @@ export const PLANS: Record<PlanCode, PlanDefinition> = {
 	},
 	// Code queda PRO_MAX por retrocompatibilidad (webhooks/env vars de PayPal, filas ya guardadas en
 	// Tenant.plan/Subscription.plan lo referencian por este string) — solo cambia el nombre público.
-	// Precio = piso de la banda "Enterprise, cotización desde $650" del tarifario comercial — sigue
-	// siendo autoservicio a este precio, pero cualquier necesidad custom (multi-sede, API, SLA,
-	// white label completo) se negocia por encima de este piso, no es parte del checkout automático.
+	// priceUSD acá es solo de referencia interna (facturas manuales, Super Admin) — YA NO es
+	// autoservicio: POST /public/signup rechaza este plan (ver signup.ts), la marketing page no
+	// muestra precio para este tier, y el alta la hace un Super Admin a mano tras cotizar.
 	PRO_MAX: {
 		code: 'PRO_MAX',
 		name: 'Pro Enterprise',

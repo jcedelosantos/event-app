@@ -14,9 +14,9 @@ import { PRICING_PLANS, PricingPlan } from '../../shared/pricing-plans';
 				<div class="container">
 					<h1 class="display-6 fw-bold mb-1">Gestioná tus eventos de manera eficiente</h1>
 					<p class="lead small mb-2" style="color: #b9b9b9;">Mapa de asientos, QR de entrada, portal público de auto-registro y cobro online — todo en un solo lugar.</p>
-					<a routerLink="/signup" class="btn btn-danger px-4">Empezar ahora</a>
-					<div class="mt-2">
-						<a routerLink="/evento-unico" class="small" style="color: #b9b9b9;">Gestionar sin Suscripción</a>
+					<div class="d-flex justify-content-center gap-2 flex-wrap">
+						<a routerLink="/signup" class="btn btn-danger px-4">Empezar ahora</a>
+						<a routerLink="/evento-unico" class="btn btn-outline-light px-4">Gestionar sin Suscripción</a>
 					</div>
 				</div>
 			</div>
@@ -44,7 +44,11 @@ import { PRICING_PLANS, PricingPlan } from '../../shared/pricing-plans';
 											<span class="badge text-bg-danger ms-2">Más elegido</span>
 										}
 									</div>
-									<p class="mb-0 mt-1"><span class="fs-4 fw-bold">USD {{ plan.priceUSD }}</span><span style="color: #b9b9b9;">/mes</span></p>
+									@if (plan.code === 'PRO_MAX') {
+										<p class="mb-0 mt-1"><span class="fs-4 fw-bold">A cotizar</span></p>
+									} @else {
+										<p class="mb-0 mt-1"><span class="fs-4 fw-bold">USD {{ plan.priceUSD }}</span><span style="color: #b9b9b9;">/mes</span></p>
+									}
 									<p class="small mb-0 flex-grow-1" style="color: #b9b9b9;">Hasta {{ plan.attendeesPerEvent }} asistentes por evento</p>
 									<span class="small text-danger mt-1">Ver detalle <i class="bi bi-arrow-right"></i></span>
 								</div>
@@ -69,7 +73,11 @@ import { PRICING_PLANS, PricingPlan } from '../../shared/pricing-plans';
 							<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
 						</div>
 						<div class="modal-body">
-							<p class="mb-1"><span class="fs-3 fw-bold">USD {{ plan.priceUSD }}</span><span style="color: #b9b9b9;">/mes</span></p>
+							@if (plan.code === 'PRO_MAX') {
+								<p class="mb-1"><span class="fs-3 fw-bold">A cotizar</span></p>
+							} @else {
+								<p class="mb-1"><span class="fs-3 fw-bold">USD {{ plan.priceUSD }}</span><span style="color: #b9b9b9;">/mes</span></p>
+							}
 							<p class="small mb-3" style="color: #b9b9b9;">Hasta {{ plan.attendeesPerEvent }} asistentes por evento</p>
 							<p style="color: #d0d0d0;">{{ plan.description }}</p>
 							<ul class="list-unstyled small">
@@ -79,7 +87,13 @@ import { PRICING_PLANS, PricingPlan } from '../../shared/pricing-plans';
 							</ul>
 						</div>
 						<div class="modal-footer border-secondary-subtle">
-							<a [routerLink]="['/signup']" [queryParams]="{ plan: plan.code }" class="btn btn-danger w-100" data-bs-dismiss="modal">Comenzar con {{ plan.name }}</a>
+							@if (plan.code === 'PRO_MAX') {
+								<p class="small text-center mb-0 w-100" style="color: #b9b9b9;">
+									Este plan lo activa nuestro equipo a medida, después de cotizar tu caso — no tiene alta automática.
+								</p>
+							} @else {
+								<a [routerLink]="['/signup']" [queryParams]="{ plan: plan.code }" class="btn btn-danger w-100" data-bs-dismiss="modal">Comenzar con {{ plan.name }}</a>
+							}
 						</div>
 					}
 				</div>
