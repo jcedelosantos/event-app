@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, Input, model, OnInit, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, model, output, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Ticket } from '../../../../../models/tickets/ticket';
@@ -124,7 +124,7 @@ import { AuthService } from '../../../../../core/services/auth.service';
 	</div>`,
 	changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class UpdateTicketModalComponent implements OnInit {
+export class UpdateTicketModalComponent {
 	private readonly ticketsService = inject(TicketsService);
 	private readonly eventsService = inject(EventsService);
 	private readonly authService = inject(AuthService);
@@ -133,7 +133,7 @@ export class UpdateTicketModalComponent implements OnInit {
 	isClubTenant = computed(() => this.authService.currentUser()?.tenant?.type === 'CLUB');
 
 	ticket = model<Ticket | null>(null);
-	@Input() defaultEventId: number | null = null;
+	defaultEventId = input<number | null>(null);
 	ticketSaved = output<void>();
 	errorMessage = '';
 
@@ -168,16 +168,26 @@ export class UpdateTicketModalComponent implements OnInit {
 	private patchingFromTicket = false;
 
 	constructor() {
+		// defaultEventId es un signal input a propósito (no un @Input plano): en event-wizard pasa de
+		// null al id real recién creado DESPUÉS de que este modal ya está montado (queda oculto todo
+		// el wizard) — un @Input plano no re-dispara este effect ante ese cambio posterior, así que el
+		// form quedaría con "Choose..." para siempre. Leer defaultEventId() acá (siempre, no solo en
+		// el branch else) es lo que lo mantiene reactivo a ese caso.
 		effect(() => {
 			this.errorMessage = '';
 			const current = this.ticket();
+			const defaultEventId = this.defaultEventId();
+			// Mismo motivo: la lista de eventos se carga una sola vez en el constructor de este modal,
+			// que en el wizard ocurre ANTES de que exista el evento recién creado — sin este refetch acá,
+			// el evento nuevo nunca aparece en el <select>.
+			this.eventsService.getEvents().subscribe((events) => this.events.set(events));
 			this.patchingFromTicket = true;
 			if (current) {
 				this.form.patchValue({ ...current });
 				this.selectedEventId.set(current.eventId);
 			} else {
-				this.form.reset({ active: true, eventId: this.defaultEventId });
-				this.selectedEventId.set(this.defaultEventId);
+				this.form.reset({ active: true, eventId: defaultEventId });
+				this.selectedEventId.set(defaultEventId);
 			}
 			this.patchingFromTicket = false;
 		});
@@ -190,10 +200,6 @@ export class UpdateTicketModalComponent implements OnInit {
 				this.form.controls.areaId.setValue(null);
 			}
 		});
-	}
-
-	ngOnInit(): void {
-		this.eventsService.getEvents().subscribe((events) => this.events.set(events));
 	}
 
 	isInvalid(controlName: keyof typeof this.form.controls): boolean {

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, Input, model, OnInit, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, model, output, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Product } from '../../../../../models/products/product';
@@ -116,13 +116,13 @@ import { closeModal } from '../../../../../utils/modal';
 	</div>`,
 	changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class UpdateProductModalComponent implements OnInit {
+export class UpdateProductModalComponent {
 	private readonly productsService = inject(ProductsService);
 	private readonly eventsService = inject(EventsService);
 	private readonly authService = inject(AuthService);
 
 	product = model<Product | null>(null);
-	@Input() defaultEventId: number | null = null;
+	defaultEventId = input<number | null>(null);
 	productSaved = output<void>();
 	errorMessage = '';
 
@@ -149,19 +149,21 @@ export class UpdateProductModalComponent implements OnInit {
 	});
 
 	constructor() {
+		// Ver el comentario equivalente en update-ticket-modal.component.ts: defaultEventId es un
+		// signal input (no @Input plano) para que este effect SÍ reaccione cuando event-wizard lo
+		// cambia de null al id real ya con el modal montado, y se refetchean los eventos acá mismo
+		// porque el fetch inicial (antes en ngOnInit) corre antes de que exista el evento recién creado.
 		effect(() => {
 			this.errorMessage = '';
 			const current = this.product();
+			const defaultEventId = this.defaultEventId();
+			this.eventsService.getEvents().subscribe((events) => this.events.set(events));
 			if (current) {
 				this.form.patchValue({ ...current });
 			} else {
-				this.form.reset({ active: true, eventId: this.defaultEventId, isMealOfTheDay: false });
+				this.form.reset({ active: true, eventId: defaultEventId, isMealOfTheDay: false });
 			}
 		});
-	}
-
-	ngOnInit(): void {
-		this.eventsService.getEvents().subscribe((events) => this.events.set(events));
 	}
 
 	isInvalid(controlName: keyof typeof this.form.controls): boolean {
