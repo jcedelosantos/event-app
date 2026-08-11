@@ -253,10 +253,15 @@ export async function sendTicketEmail(args: { to: string; clientName: string; ev
 
 	const cards = await Promise.all(args.saleTickets.map((sale) => ticketCardHtml(args.event, sale)));
 
+	// "Reserva" en vez de "compra" cuando ningún ticket del lote tiene costo — no tiene sentido
+	// hablar de "compra" para un registro gratis (ej. tickets de evento CHURCH/CLUB sin cobro).
+	const isFree = args.saleTickets.every((sale) => sale.ticket.price <= 0);
+	const actionWord = isFree ? 'reserva' : 'compra';
+
 	const html = `
 		<div style="background:#000;padding:24px;font-family:Arial,Helvetica,sans-serif;">
 			<h2 style="color:#fff;">¡Hola ${args.clientName}!</h2>
-			<p style="color:#ccc;">Tu compra para <strong style="color:#fff;">${args.event.name}</strong> quedó confirmada. Presentá el código QR (o el PDF adjunto) de cada ticket en la entrada — cada uno es válido una sola vez.</p>
+			<p style="color:#ccc;">Tu ${actionWord} para <strong style="color:#fff;">${args.event.name}</strong> quedó confirmada. Presentá el código QR (o el PDF adjunto) de cada ticket en la entrada — cada uno es válido una sola vez.</p>
 			${cards.map((c) => c.html).join('')}
 			<p style="color:#666;font-size:12px;">Este correo fue generado automáticamente por Seat App.</p>
 		</div>
