@@ -1,12 +1,18 @@
-import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { HttpErrorResponse } from '@angular/common/http';
 import { NavBarInitComponent } from '../../shared/nav-bar-init/nav-bar-init.component';
 import { PRICING_PLANS, PricingPlan } from '../../shared/pricing-plans';
+import { EnterpriseLeadService } from './services/enterprise-lead.service';
+import { extractErrorMessage } from '../../utils/api-error';
+
+type LeadFormState = 'closed' | 'open' | 'success';
 
 @Component({
 	selector: 'app-site-web',
 	standalone: true,
-	imports: [NavBarInitComponent, RouterLink],
+	imports: [NavBarInitComponent, RouterLink, FormsModule],
 	template: `
 		<app-nav-bar-init />
 		<div class="page" data-bs-theme="dark">
@@ -14,16 +20,25 @@ import { PRICING_PLANS, PricingPlan } from '../../shared/pricing-plans';
 				<div class="container">
 					<h1 class="display-6 fw-bold mb-1">Gestioná tus eventos de manera eficiente</h1>
 					<p class="lead small mb-2" style="color: #b9b9b9;">Mapa de asientos, QR de entrada, portal público de auto-registro y cobro online — todo en un solo lugar.</p>
-					<div class="d-flex justify-content-center gap-2 flex-wrap">
-						<a routerLink="/signup" class="btn btn-danger px-4">Empezar ahora</a>
-						<a routerLink="/evento-unico" class="btn btn-outline-light px-4">Gestionar sin Suscripción</a>
-					</div>
+					<a routerLink="/signup" class="btn btn-danger px-4">Empezar ahora</a>
 				</div>
 			</div>
 
 			<div class="container pt-2 pb-3">
 				<h2 class="text-center mb-2 h4">Planes</h2>
 				<div class="row g-2 justify-content-center">
+					<div class="col-12 col-md-6 col-lg-3">
+						<a routerLink="/evento-unico" class="card h-100 bg-dark-subtle-card plan-card text-decoration-none text-white d-block">
+							<div class="card-body d-flex flex-column py-2">
+								<div class="d-flex justify-content-between align-items-start">
+									<h3 class="h5 mb-0">Sin Suscripción</h3>
+								</div>
+								<p class="mb-0 mt-1"><span class="fs-4 fw-bold">Pago único</span></p>
+								<p class="small mb-0 flex-grow-1" style="color: #b9b9b9;">Para un evento suelto, sin mensualidad — desde 100 hasta 5,000 asistentes.</p>
+								<span class="small text-danger mt-1">Ver planes <i class="bi bi-arrow-right"></i></span>
+							</div>
+						</a>
+					</div>
 					@for (plan of plans; track plan.code) {
 						<div class="col-12 col-md-6 col-lg-3">
 							<div
@@ -32,8 +47,8 @@ import { PRICING_PLANS, PricingPlan } from '../../shared/pricing-plans';
 								role="button"
 								tabindex="0"
 								[attr.aria-label]="'Ver detalle de ' + plan.name"
-								(click)="selectedPlan.set(plan)"
-								(keydown.enter)="selectedPlan.set(plan)"
+								(click)="openPlan(plan)"
+								(keydown.enter)="openPlan(plan)"
 								data-bs-toggle="modal"
 								data-bs-target="#planDetailModal"
 							>
@@ -45,7 +60,7 @@ import { PRICING_PLANS, PricingPlan } from '../../shared/pricing-plans';
 										}
 									</div>
 									@if (plan.code === 'PRO_MAX') {
-										<p class="mb-0 mt-1"><span class="fs-4 fw-bold">A cotizar</span></p>
+										<p class="mb-0 mt-1"><span class="fs-4 fw-bold">Integrado a tu Medida</span></p>
 									} @else {
 										<p class="mb-0 mt-1"><span class="fs-4 fw-bold">USD {{ plan.priceUSD }}</span><span style="color: #b9b9b9;">/mes</span></p>
 									}
@@ -72,29 +87,75 @@ import { PRICING_PLANS, PricingPlan } from '../../shared/pricing-plans';
 							</h3>
 							<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
 						</div>
-						<div class="modal-body">
-							@if (plan.code === 'PRO_MAX') {
-								<p class="mb-1"><span class="fs-3 fw-bold">A cotizar</span></p>
-							} @else {
-								<p class="mb-1"><span class="fs-3 fw-bold">USD {{ plan.priceUSD }}</span><span style="color: #b9b9b9;">/mes</span></p>
-							}
-							<p class="small mb-3" style="color: #b9b9b9;">Hasta {{ plan.attendeesPerEvent }} asistentes por evento</p>
-							<p style="color: #d0d0d0;">{{ plan.description }}</p>
-							<ul class="list-unstyled small">
-								@for (feature of plan.features; track feature) {
-									<li class="mb-2"><i class="bi bi-check2 text-danger"></i> {{ feature }}</li>
+
+						@if (plan.code === 'PRO_MAX' && leadFormState() !== 'closed') {
+							<div class="modal-body">
+								@if (leadFormState() === 'open') {
+									<p style="color: #d0d0d0;">Dejanos tus datos y te contactamos para armar tu plan a medida.</p>
+									<div class="mb-2">
+										<label class="form-label small">Organización *</label>
+										<input type="text" class="form-control" [(ngModel)]="leadForm.orgName" name="orgName" />
+									</div>
+									<div class="mb-2">
+										<label class="form-label small">Tu nombre *</label>
+										<input type="text" class="form-control" [(ngModel)]="leadForm.contactName" name="contactName" />
+									</div>
+									<div class="mb-2">
+										<label class="form-label small">Email *</label>
+										<input type="email" class="form-control" [(ngModel)]="leadForm.email" name="email" />
+									</div>
+									<div class="mb-2">
+										<label class="form-label small">Teléfono</label>
+										<input type="tel" class="form-control" [(ngModel)]="leadForm.phone" name="phone" />
+									</div>
+									<div class="mb-2">
+										<label class="form-label small">Contanos tu caso</label>
+										<textarea class="form-control" rows="2" [(ngModel)]="leadForm.message" name="message"></textarea>
+									</div>
+									@if (leadError()) {
+										<div class="alert alert-danger py-2 small mb-0">{{ leadError() }}</div>
+									}
+								} @else {
+									<p class="text-success mb-0"><i class="bi bi-check-circle"></i> ¡Listo! Recibimos tus datos, te contactamos a la brevedad.</p>
 								}
-							</ul>
-						</div>
-						<div class="modal-footer border-secondary-subtle">
-							@if (plan.code === 'PRO_MAX') {
-								<p class="small text-center mb-0 w-100" style="color: #b9b9b9;">
-									Este plan lo activa nuestro equipo a medida, después de cotizar tu caso — no tiene alta automática.
-								</p>
-							} @else {
-								<a [routerLink]="['/signup']" [queryParams]="{ plan: plan.code }" class="btn btn-danger w-100" data-bs-dismiss="modal">Comenzar con {{ plan.name }}</a>
-							}
-						</div>
+							</div>
+							<div class="modal-footer border-secondary-subtle">
+								@if (leadFormState() === 'open') {
+									<button type="button" class="btn btn-outline-light" (click)="leadFormState.set('closed')" [disabled]="leadSubmitting()">Volver</button>
+									<button type="button" class="btn btn-danger" (click)="submitLead()" [disabled]="leadSubmitting() || !leadForm.orgName || !leadForm.contactName || !leadForm.email">
+										@if (leadSubmitting()) {
+											Enviando...
+										} @else {
+											Enviar
+										}
+									</button>
+								} @else {
+									<button type="button" class="btn btn-danger w-100" data-bs-dismiss="modal">Cerrar</button>
+								}
+							</div>
+						} @else {
+							<div class="modal-body">
+								@if (plan.code === 'PRO_MAX') {
+									<p class="mb-1"><span class="fs-3 fw-bold">Integrado a tu Medida</span></p>
+								} @else {
+									<p class="mb-1"><span class="fs-3 fw-bold">USD {{ plan.priceUSD }}</span><span style="color: #b9b9b9;">/mes</span></p>
+								}
+								<p class="small mb-3" style="color: #b9b9b9;">Hasta {{ plan.attendeesPerEvent }} asistentes por evento</p>
+								<p style="color: #d0d0d0;">{{ plan.description }}</p>
+								<ul class="list-unstyled small">
+									@for (feature of plan.features; track feature) {
+										<li class="mb-2"><i class="bi bi-check2 text-danger"></i> {{ feature }}</li>
+									}
+								</ul>
+							</div>
+							<div class="modal-footer border-secondary-subtle">
+								@if (plan.code === 'PRO_MAX') {
+									<button type="button" class="btn btn-danger w-100" (click)="leadFormState.set('open')">Quiero que me contacten</button>
+								} @else {
+									<a [routerLink]="['/signup']" [queryParams]="{ plan: plan.code }" class="btn btn-danger w-100" data-bs-dismiss="modal">Comenzar con {{ plan.name }}</a>
+								}
+							</div>
+						}
 					}
 				</div>
 			</div>
@@ -123,6 +184,36 @@ import { PRICING_PLANS, PricingPlan } from '../../shared/pricing-plans';
 	changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SiteWebComponent {
+	private readonly enterpriseLeadService = inject(EnterpriseLeadService);
+
 	plans = PRICING_PLANS;
 	selectedPlan = signal<PricingPlan | null>(null);
+
+	leadFormState = signal<LeadFormState>('closed');
+	leadSubmitting = signal(false);
+	leadError = signal('');
+	leadForm = { orgName: '', contactName: '', email: '', phone: '', message: '' };
+
+	openPlan(plan: PricingPlan) {
+		this.selectedPlan.set(plan);
+		this.leadFormState.set('closed');
+		this.leadError.set('');
+	}
+
+	submitLead() {
+		if (!this.leadForm.orgName || !this.leadForm.contactName || !this.leadForm.email) return;
+		this.leadSubmitting.set(true);
+		this.leadError.set('');
+		this.enterpriseLeadService.submit({ ...this.leadForm }).subscribe({
+			next: () => {
+				this.leadSubmitting.set(false);
+				this.leadFormState.set('success');
+				this.leadForm = { orgName: '', contactName: '', email: '', phone: '', message: '' };
+			},
+			error: (err: HttpErrorResponse) => {
+				this.leadSubmitting.set(false);
+				this.leadError.set(extractErrorMessage(err));
+			},
+		});
+	}
 }

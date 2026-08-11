@@ -721,3 +721,19 @@ model ServiceRequestItem {
   serviceRequestId Int
   serviceRequest   ServiceRequest @relation(fields: [serviceRequestId], references: [id], onDelete: Cascade)
 }
+
+// Contacto de un prospecto para el plan Pro Enterprise (ver PLANS.PRO_MAX en lib/plans.ts) — ese
+// plan no tiene alta autoservicio, así que esto es el único canal de entrada: el formulario público
+// en site-web.component.ts lo crea, un Super Admin lo revisa/contacta a mano desde su panel y da de
+// alta el tenant vía el flujo normal de tenants.ts una vez que cierran el acuerdo. Sin tenantId a
+// propósito: el prospecto todavía no es cliente.
+model EnterpriseLead {
+  id          Int       @id @default(autoincrement())
+  orgName     String
+  contactName String
+  email       String
+  phone       String    @default("")
+  message     String    @default("")
+  createdAt   DateTime  @default(now())
+  contactedAt DateTime?
+}

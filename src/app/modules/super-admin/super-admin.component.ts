@@ -3,6 +3,7 @@ import { DatePipe, DecimalPipe } from '@angular/common';
 import { Router } from '@angular/router';
 import { TenantService } from './services/tenant.service';
 import { ServiceRequestsAdminService } from './services/service-requests-admin.service';
+import { EnterpriseLeadsAdminService } from './services/enterprise-leads-admin.service';
 import { CreateTenantModalComponent } from './components/create-tenant-modal/create-tenant-modal.component';
 import { EditTenantModalComponent } from './components/edit-tenant-modal/edit-tenant-modal.component';
 import { SubscriptionModalComponent } from './components/subscription-modal/subscription-modal.component';
@@ -11,6 +12,7 @@ import { ServiceRequestsAdminModalComponent } from './components/service-request
 import { AccountModalComponent } from '../../shared/account-modal/account-modal.component';
 import { Tenant } from '../../models/tenants/tenant';
 import { ServiceRequest, ServiceRequestStatus } from '../../models/service-requests/service-request';
+import { EnterpriseLead } from '../../models/enterprise-leads/enterprise-lead';
 import { AuthService } from '../../core/services/auth.service';
 import { confirm, error } from '../../utils/messages';
 import { extractErrorMessage } from '../../utils/api-error';
@@ -195,6 +197,55 @@ const REQUEST_STATUS_LABEL: Record<ServiceRequestStatus, string> = {
 					}
 				</tbody>
 			</table>
+
+			<div class="d-flex justify-content-between align-items-center mb-3 mt-5">
+				<div>
+					<h2 class="section-title mb-0">Contactos Pro Enterprise</h2>
+					<p class="text-muted small mb-0">Prospectos que pidieron que los contactemos desde la portada — sin alta automática, se cotiza y da de alta a mano.</p>
+				</div>
+			</div>
+			<table class="table table-hover align-middle">
+				<thead>
+					<tr>
+						<th scope="col">Organización</th>
+						<th scope="col">Contacto</th>
+						<th scope="col">Email</th>
+						<th scope="col">Teléfono</th>
+						<th scope="col">Mensaje</th>
+						<th scope="col">Fecha</th>
+						<th scope="col">Estado</th>
+						<th scope="col"></th>
+					</tr>
+				</thead>
+				<tbody>
+					@for (lead of enterpriseLeads(); track lead.id) {
+						<tr>
+							<td>{{ lead.orgName }}</td>
+							<td>{{ lead.contactName }}</td>
+							<td class="text-muted">{{ lead.email }}</td>
+							<td class="text-muted">{{ lead.phone || '—' }}</td>
+							<td class="text-muted small">{{ lead.message || '—' }}</td>
+							<td class="text-muted">{{ lead.createdAt | date: 'short' }}</td>
+							<td>
+								<span class="badge" [class.text-bg-success]="lead.contactedAt" [class.text-bg-secondary]="!lead.contactedAt">
+									{{ lead.contactedAt ? 'Contactado' : 'Pendiente' }}
+								</span>
+							</td>
+							<td class="text-end">
+								@if (!lead.contactedAt) {
+									<button type="button" class="btn btn-sm btn-outline-light" (click)="markLeadContacted(lead)">
+										<i class="bi bi-check-lg"></i> Marcar contactado
+									</button>
+								}
+							</td>
+						</tr>
+					} @empty {
+						<tr>
+							<td colspan="8" class="text-center text-muted py-4">Todavía no hay contactos de Pro Enterprise.</td>
+						</tr>
+					}
+				</tbody>
+			</table>
 		</div>
 		<app-create-tenant-modal (tenantCreated)="loadTenants()" />
 		<app-edit-tenant-modal [(tenant)]="selectedTenant" (tenantUpdated)="loadTenants()" />
@@ -208,6 +259,7 @@ const REQUEST_STATUS_LABEL: Record<ServiceRequestStatus, string> = {
 export class SuperAdminComponent implements AfterViewInit {
 	private readonly tenantService = inject(TenantService);
 	private readonly serviceRequestsAdminSrv = inject(ServiceRequestsAdminService);
+	private readonly enterpriseLeadsAdminSrv = inject(EnterpriseLeadsAdminService);
 	private readonly authService = inject(AuthService);
 	private readonly router = inject(Router);
 
@@ -218,12 +270,25 @@ export class SuperAdminComponent implements AfterViewInit {
 	serviceRequests = signal<ServiceRequest[]>([]);
 	selectedServiceRequest = signal<ServiceRequest | null>(null);
 
+	enterpriseLeads = signal<EnterpriseLead[]>([]);
+
 	statusLabel(status: ServiceRequestStatus): string {
 		return REQUEST_STATUS_LABEL[status];
 	}
 
 	loadServiceRequests() {
 		this.serviceRequestsAdminSrv.getAll().subscribe((requests) => this.serviceRequests.set(requests));
+	}
+
+	loadEnterpriseLeads() {
+		this.enterpriseLeadsAdminSrv.getAll().subscribe((leads) => this.enterpriseLeads.set(leads));
+	}
+
+	markLeadContacted(lead: EnterpriseLead) {
+		this.enterpriseLeadsAdminSrv.markContacted(lead.id).subscribe({
+			next: () => this.loadEnterpriseLeads(),
+			error: (err: HttpErrorResponse) => error(extractErrorMessage(err)),
+		});
 	}
 
 	ngAfterViewInit(): void {
@@ -238,6 +303,7 @@ export class SuperAdminComponent implements AfterViewInit {
 		// en el registro global, por eso funciona.
 		this.loadTenants();
 		this.loadServiceRequests();
+		this.loadEnterpriseLeads();
 	}
 
 	loadTenants() {

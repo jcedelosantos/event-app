@@ -326,6 +326,37 @@ export async function sendServiceRequestNotification(args: {
 	});
 }
 
+// Aviso de un nuevo lead de Pro Enterprise (ver routes/enterprise-leads.ts) — a propósito NO usa
+// SUPER_ADMIN_NOTIFICATION_EMAIL (esa es la bandeja general de solicitudes de servicio, con volumen
+// más alto); estos son prospectos comerciales grandes, van directo a un destinatario fijo pedido
+// explícitamente para este canal. Mismo best-effort del resto del archivo: sin RESEND_API_KEY, no
+// se manda, el lead sigue igual visible en el panel de Super Admin.
+export async function sendEnterpriseLeadNotification(args: { orgName: string; contactName: string; email: string; phone: string; message: string }) {
+	const resend = getResendClient();
+	if (!resend) return;
+
+	const html = `
+		<div style="background:#000;padding:24px;font-family:Arial,Helvetica,sans-serif;">
+			<h2 style="color:#fff;">Nuevo contacto — Pro Enterprise</h2>
+			<p style="color:#ccc;"><strong style="color:#fff;">${args.orgName}</strong></p>
+			<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#111;border-radius:8px;border:1px solid #2a2a2a;margin:12px 0;">
+				<tr><td style="padding:6px 8px;color:#aaa;">Contacto</td><td style="padding:6px 8px;color:#fff;">${args.contactName}</td></tr>
+				<tr><td style="padding:6px 8px;color:#aaa;">Email</td><td style="padding:6px 8px;color:#fff;">${args.email}</td></tr>
+				<tr><td style="padding:6px 8px;color:#aaa;">Teléfono</td><td style="padding:6px 8px;color:#fff;">${args.phone || '—'}</td></tr>
+			</table>
+			${args.message ? `<p style="color:#aaa;">Mensaje: ${args.message}</p>` : ''}
+			<p style="color:#666;font-size:12px;">Contactalo desde el panel de Super Admin.</p>
+		</div>
+	`;
+
+	await resend.emails.send({
+		from: process.env.RESEND_FROM_EMAIL ?? 'onboarding@resend.dev',
+		to: 'javis.cedano@cedanet.net',
+		subject: `Nuevo lead Pro Enterprise — ${args.orgName}`,
+		html,
+	});
+}
+
 // Reporte periódico (mensual/trimestral) programado por el propio tenant (ver
 // scheduled-reports.ts) — mismo patrón best-effort del resto de este archivo: sin
 // RESEND_API_KEY simplemente no se manda, el cron sigue corriendo igual el próximo período.
