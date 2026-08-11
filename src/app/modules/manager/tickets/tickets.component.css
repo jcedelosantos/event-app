@@ -6,30 +6,34 @@
    (antes col-xxl-3 dejaba solo 4 por fila). */
 .tickets-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  /* minmax(0, 1fr), no solo 1fr: el mínimo implícito de una columna de grid es "auto" (el ancho
+     mínimo del contenido, ej. el nombre del ticket o el código de barras) — con contenido angosto
+     eso empuja el grid más ancho que su contenedor y la 2da columna queda cortada a la mitad en
+     pantallas angostas, en vez de encogerse. */
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.75rem;
 }
 
 @media (min-width: 576px) {
   .tickets-grid {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
 @media (min-width: 768px) {
   .tickets-grid {
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
 
 @media (min-width: 1200px) {
   .tickets-grid {
-    grid-template-columns: repeat(6, 1fr);
+    grid-template-columns: repeat(6, minmax(0, 1fr));
   }
 }
 
 @media (min-width: 1400px) {
   .tickets-grid {
-    grid-template-columns: repeat(8, 1fr);
+    grid-template-columns: repeat(8, minmax(0, 1fr));
   }
 }
