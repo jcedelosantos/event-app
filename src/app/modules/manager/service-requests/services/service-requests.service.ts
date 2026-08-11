@@ -26,4 +26,10 @@ export class ServiceRequestsService {
 	create(input: CreateServiceRequestInput): Observable<ServiceRequest> {
 		return this.httpClient.post<ServiceRequest>(this.baseUrl, input);
 	}
+
+	// Solo válido mientras la solicitud sigue PENDING — el backend rechaza con 409 si ya fue
+	// cotizada/resuelta (ver comentario en service-requests.ts).
+	update(id: number, input: CreateServiceRequestInput): Observable<ServiceRequest> {
+		return this.httpClient.put<ServiceRequest>(`${this.baseUrl}/${id}`, input);
+	}
 }

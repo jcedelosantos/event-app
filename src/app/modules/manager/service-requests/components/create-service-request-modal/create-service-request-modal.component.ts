@@ -1,10 +1,11 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, model, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, effect, inject, model, output, signal } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
 import { FormControl, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Events } from '../../../../../models/events/events';
 import { EventsService } from '../../../events/services/events.service';
 import { AuthService } from '../../../../../core/services/auth.service';
+import { ServiceRequest } from '../../../../../models/service-requests/service-request';
 import { ServiceRequestsService } from '../../services/service-requests.service';
 import { ADDON_PACKAGES_LIST, ADDON_SERVICES, ADDON_SERVICES_LIST, AddOnPackageCode, AddOnServiceCode, computeFixedTotalDOP } from '../../services/addon-catalog';
 import { extractErrorMessage } from '../../../../../utils/api-error';
@@ -20,7 +21,7 @@ type SelectedItem = { catalogCode: AddOnServiceCode; quantity: number };
 		<div class="modal-dialog modal-lg">
 			<div class="modal-content">
 				<div class="modal-header">
-					<h1 class="modal-title fs-5" id="createServiceRequestModalLabel">Nueva solicitud de servicio</h1>
+					<h1 class="modal-title fs-5" id="createServiceRequestModalLabel">{{ request() ? 'Editar solicitud de servicio' : 'Nueva solicitud de servicio' }}</h1>
 					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
 				</div>
 				<div class="modal-body">
@@ -141,7 +142,7 @@ type SelectedItem = { catalogCode: AddOnServiceCode; quantity: number };
 				<div class="modal-footer">
 					<button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal"><i class="bi bi-x-lg"></i> Cancelar</button>
 					<button type="button" class="btn btn-primary btn-sm" (click)="save()" [disabled]="!selectedItems().length">
-						<i class="bi bi-send-fill" aria-hidden="true"></i> Enviar solicitud
+						<i class="bi bi-send-fill" aria-hidden="true"></i> {{ request() ? 'Guardar cambios' : 'Enviar solicitud' }}
 					</button>
 				</div>
 			</div>
@@ -156,6 +157,7 @@ export class CreateServiceRequestModalComponent implements OnInit {
 
 	requestSaved = output<void>();
 	visible = model<boolean>(false);
+	request = model<ServiceRequest | null>(null);
 	errorMessage = '';
 
 	// Separado del catálogo principal: los QUOTE no tienen precio de lista, así que mezclarlos con
@@ -178,6 +180,26 @@ export class CreateServiceRequestModalComponent implements OnInit {
 		eventId: new FormControl<number | null>(null),
 		notes: new FormControl<string>(''),
 	});
+
+	// Mismo modal sirve para crear y editar (ver "Editar" en service-requests.component.ts) — igual
+	// patrón que update-ticket-modal/update-product-modal: cuando `request` trae una solicitud, este
+	// effect precarga sus ítems/paquete/notas/evento; cuando vuelve a null ("Nueva solicitud"), limpia
+	// todo para no arrastrar el estado de una edición anterior.
+	constructor() {
+		effect(() => {
+			const current = this.request();
+			this.errorMessage = '';
+			if (current) {
+				this.appliedPackageCode = (current.packageCode as AddOnPackageCode) ?? null;
+				this.selectedItems.set(current.items.map((i) => ({ catalogCode: i.catalogCode, quantity: i.quantity })));
+				this.form.reset({ eventId: current.eventId, notes: current.notes });
+			} else {
+				this.appliedPackageCode = null;
+				this.selectedItems.set([]);
+				this.form.reset({ eventId: null, notes: '' });
+			}
+		});
+	}
 
 	ngOnInit(): void {
 		this.eventsService.getEvents().subscribe((events) => this.events.set(events));
@@ -240,26 +262,27 @@ export class CreateServiceRequestModalComponent implements OnInit {
 		if (!this.selectedItems().length) return;
 
 		const value = this.form.getRawValue();
-		this.serviceRequestsService
-			.create({
-				packageCode: this.appliedPackageCode ?? undefined,
-				notes: value.notes ?? '',
-				eventId: value.eventId ?? undefined,
-				items: this.selectedItems(),
-			})
-			.subscribe({
-				next: () => {
-					Toast.fire({ icon: 'success', title: 'Solicitud enviada' });
-					this.requestSaved.emit();
-					this.selectedItems.set([]);
-					this.appliedPackageCode = null;
-					this.form.reset({ eventId: null, notes: '' });
-					this.errorMessage = '';
-					closeModal('createServiceRequestModal');
-				},
-				error: (err: HttpErrorResponse) => {
-					this.errorMessage = extractErrorMessage(err);
-				},
-			});
+		const payload = {
+			packageCode: this.appliedPackageCode ?? undefined,
+			notes: value.notes ?? '',
+			eventId: value.eventId ?? undefined,
+			items: this.selectedItems(),
+		};
+
+		const current = this.request();
+		const request$ = current ? this.serviceRequestsService.update(current.id, payload) : this.serviceRequestsService.create(payload);
+
+		request$.subscribe({
+			next: () => {
+				Toast.fire({ icon: 'success', title: current ? 'Solicitud actualizada' : 'Solicitud enviada' });
+				this.requestSaved.emit();
+				this.request.set(null);
+				this.errorMessage = '';
+				closeModal('createServiceRequestModal');
+			},
+			error: (err: HttpErrorResponse) => {
+				this.errorMessage = extractErrorMessage(err);
+			},
+		});
 	}
 }

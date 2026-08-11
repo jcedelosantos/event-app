@@ -124,6 +124,83 @@ serviceRequestsRouter.get(
 	}),
 );
 
+// Solo mientras sigue PENDING — una vez que el Super Admin la cotizó/resolvió, editarla por debajo
+// invalidaría silenciosamente lo que ya se cotizó; si el tenant necesita cambiar algo después de eso,
+// se resuelve a mano igual que el resto de los flujos "a cotizar/confirmar" de este proyecto.
+serviceRequestsRouter.put(
+	'/:id',
+	requireAuth,
+	requireTenant,
+	requireActiveSubscription,
+	asyncHandler(async (req: AuthenticatedRequest, res) => {
+		const id = Number(req.params.id);
+		const tenantId = req.user!.tenantId!;
+		const parsed = createInputSchema.safeParse(req.body);
+		if (!parsed.success) {
+			res.status(400).json({ error: parsed.error.flatten() });
+			return;
+		}
+
+		const existing = await prisma.serviceRequest.findUnique({ where: { id } });
+		if (!existing || existing.tenantId !== tenantId) {
+			res.status(404).json({ error: 'Solicitud no encontrada' });
+			return;
+		}
+		if (existing.status !== 'PENDING') {
+			res.status(409).json({ error: 'Esta solicitud ya fue cotizada/resuelta — no se puede modificar.' });
+			return;
+		}
+
+		const { packageCode, notes, eventId, items } = parsed.data;
+		for (const item of items) {
+			if (!isAddOnServiceCode(item.catalogCode)) {
+				res.status(400).json({ error: `Servicio desconocido: ${item.catalogCode}` });
+				return;
+			}
+		}
+		if (eventId) {
+			const event = await prisma.event.findUnique({ where: { id: eventId, tenantId } });
+			if (!event) {
+				res.status(400).json({ error: 'Evento no encontrado' });
+				return;
+			}
+		}
+
+		const updated = await prisma.serviceRequest.update({
+			where: { id },
+			data: {
+				packageCode,
+				notes,
+				eventId,
+				items: {
+					deleteMany: {},
+					create: items.map((item) => {
+						const def = ADDON_SERVICES[item.catalogCode as keyof typeof ADDON_SERVICES];
+						return {
+							catalogCode: item.catalogCode,
+							nameSnapshot: def.name,
+							quantity: item.quantity,
+							unitPriceDOPSnapshot: def.pricingType === 'FIXED' ? def.unitPriceDOP : null,
+						};
+					}),
+				},
+			},
+			include,
+		});
+
+		await logAudit({
+			userId: req.user!.userId,
+			action: 'UPDATE',
+			entity: 'ServiceRequest',
+			entityId: updated.id,
+			summary: `Modificó su solicitud de servicio adicional`,
+			tenantId,
+		});
+
+		res.json(toPublic(updated));
+	}),
+);
+
 serviceRequestsRouter.get(
 	'/admin',
 	requireAuth,

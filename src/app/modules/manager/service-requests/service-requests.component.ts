@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, OnInit, signal } from '@angular/core';
+import { AfterViewInit, ChangeDetectionStrategy, Component, inject, OnInit, signal } from '@angular/core';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { ServiceRequest, ServiceRequestStatus } from '../../../models/service-requests/service-request';
 import { ServiceRequestsService } from './services/service-requests.service';
@@ -40,6 +40,7 @@ const STATUS_BADGE_CLASS: Record<ServiceRequestStatus, string> = {
 						<th>Servicios</th>
 						<th class="text-end">Total estimado</th>
 						<th>Estado</th>
+						<th></th>
 					</tr>
 				</thead>
 				<tbody>
@@ -59,6 +60,19 @@ const STATUS_BADGE_CLASS: Record<ServiceRequestStatus, string> = {
 									<div class="small text-muted mt-1">{{ r.resolutionNote }}</div>
 								}
 							</td>
+							<td>
+								@if (r.status === 'PENDING') {
+									<button
+										type="button"
+										class="btn btn-sm btn-outline-light"
+										data-bs-toggle="modal"
+										data-bs-target="#createServiceRequestModal"
+										(click)="requestToEdit.set(r)"
+									>
+										<i class="bi bi-pencil"></i> Editar
+									</button>
+								}
+							</td>
 						</tr>
 					}
 				</tbody>
@@ -67,17 +81,26 @@ const STATUS_BADGE_CLASS: Record<ServiceRequestStatus, string> = {
 			<p class="text-body-secondary">Todavía no enviaste ninguna solicitud.</p>
 		}
 
-		<app-create-service-request-modal (requestSaved)="loadRequests()" />
+		<app-create-service-request-modal [(request)]="requestToEdit" (requestSaved)="loadRequests()" />
 	`,
 	changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class ServiceRequestsComponent implements OnInit {
+export class ServiceRequestsComponent implements OnInit, AfterViewInit {
 	private readonly serviceRequestsSrv = inject(ServiceRequestsService);
 
 	requests = signal<ServiceRequest[]>([]);
+	requestToEdit = signal<ServiceRequest | null>(null);
 
 	ngOnInit(): void {
 		this.loadRequests();
+	}
+
+	// Solo el modal "Nueva solicitud" no pasa por (click)="requestToEdit.set(r)" — sin este listener,
+	// cerrar una edición y después abrir "Nueva solicitud" mostraría el modal todavía precargado con
+	// la solicitud anterior (mismo patrón que eventToEdit en events.component.ts).
+	ngAfterViewInit(): void {
+		const modalEl = document.getElementById('createServiceRequestModal');
+		modalEl?.addEventListener('hidden.bs.modal', () => this.requestToEdit.set(null));
 	}
 
 	loadRequests() {
