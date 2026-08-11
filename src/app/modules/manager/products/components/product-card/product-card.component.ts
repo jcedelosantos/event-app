@@ -10,6 +10,10 @@ import { Product } from '../../../../../models/products/product';
 			<div class="card text-white bg-dark mb-3 h-100 d-flex flex-column">
 				@if (product().img) {
 					<img [src]="product().img" class="product-photo" alt="" />
+				} @else {
+					<div class="product-photo product-photo-empty d-flex align-items-center justify-content-center">
+						<i class="bi bi-image text-body-secondary" style="font-size: 2.5rem;"></i>
+					</div>
 				}
 				<div class="card-header">
 					<div class="row">

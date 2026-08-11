@@ -33,11 +33,9 @@ import { closeModal } from '../../../../../utils/modal';
 							<input type="text" class="form-control" formControlName="description" />
 						</div>
 						<div class="mb-3">
-							<label for="img">Photo URL *</label>
-							<input type="text" class="form-control" [class.is-invalid]="isInvalid('img')" formControlName="img" placeholder="https://..." />
-							@if (isInvalid('img')) {
-								<div class="invalid-feedback">La foto es obligatoria.</div>
-							}
+							<label for="img">Photo URL <span class="text-muted">(opcional — pegá el link de una imagen online)</span></label>
+							<input type="text" class="form-control" formControlName="img" placeholder="https://..." />
+							<div class="form-text">Sin foto, se muestra una imagen genérica en la tarjeta del producto.</div>
 						</div>
 						<div class="mb-3">
 							<label for="event">Event *</label>
@@ -140,7 +138,7 @@ export class UpdateProductModalComponent implements OnInit {
 	form = new FormGroup({
 		name: new FormControl<string | null>(null, Validators.required),
 		description: new FormControl<string | null>(null),
-		img: new FormControl<string | null>(null, Validators.required),
+		img: new FormControl<string | null>(null),
 		eventId: new FormControl<number | null>(null, Validators.required),
 		type: new FormControl<string | null>(null, Validators.required),
 		variant: new FormControl<string | null>(null),

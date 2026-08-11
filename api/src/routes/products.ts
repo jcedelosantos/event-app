@@ -13,7 +13,10 @@ productsRouter.use(requireAuth, requireTenant, requireActiveSubscription, requir
 
 const productInputSchema = z.object({
 	name: z.string().min(1),
-	img: z.string().min(1),
+	// Sin .min(1): la tarjeta del producto ya cae a una imagen por default cuando está vacío (ver
+	// product-card.component.ts) — antes esto bloqueaba la creación de un producto hasta tener una
+	// URL de foto a mano.
+	img: z.string().optional().default(''),
 	description: z.string().optional().default(''),
 	type: z.string().min(1),
 	variant: z.string().optional().default(''),

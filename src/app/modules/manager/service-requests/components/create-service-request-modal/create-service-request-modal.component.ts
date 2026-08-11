@@ -61,6 +61,24 @@ type SelectedItem = { catalogCode: AddOnServiceCode; quantity: number };
 						</div>
 					</div>
 
+					<label class="mb-1">Servicios a cotizar <span class="text-muted">(sin precio de lista — marcá los que te interesen)</span></label>
+					<div class="mb-3">
+						@for (svc of quotableCatalog; track svc.code) {
+							<div class="form-check">
+								<input
+									type="checkbox"
+									class="form-check-input"
+									[id]="'quotable-' + svc.code"
+									[checked]="isQuotableSelected(svc.code)"
+									(change)="toggleQuotable(svc.code)"
+								/>
+								<label class="form-check-label" [for]="'quotable-' + svc.code">
+									{{ svc.name }} <span class="text-muted small">({{ svc.modality }}{{ svc.note ? ' — ' + svc.note : '' }})</span>
+								</label>
+							</div>
+						}
+					</div>
+
 					@if (selectedItems().length) {
 						<table class="table table-sm">
 							<thead>
@@ -140,7 +158,10 @@ export class CreateServiceRequestModalComponent implements OnInit {
 	visible = model<boolean>(false);
 	errorMessage = '';
 
-	catalog = ADDON_SERVICES_LIST;
+	// Separado del catálogo principal: los QUOTE no tienen precio de lista, así que mezclarlos con
+	// el selector de cantidad+subtotal confundía — acá se eligen aparte con un simple checkbox.
+	catalog = ADDON_SERVICES_LIST.filter((s) => s.pricingType !== 'QUOTE');
+	quotableCatalog = ADDON_SERVICES_LIST.filter((s) => s.pricingType === 'QUOTE');
 	packages = ADDON_PACKAGES_LIST;
 	myPlan = computed(() => this.authService.currentUser()?.tenant?.plan ?? null);
 
@@ -191,6 +212,17 @@ export class CreateServiceRequestModalComponent implements OnInit {
 			}
 			return [...items, { catalogCode: this.pickerCode, quantity: qty }];
 		});
+	}
+
+	isQuotableSelected(code: AddOnServiceCode): boolean {
+		return this.selectedItems().some((i) => i.catalogCode === code);
+	}
+
+	toggleQuotable(code: AddOnServiceCode) {
+		this.appliedPackageCode = null;
+		this.selectedItems.update((items) =>
+			items.some((i) => i.catalogCode === code) ? items.filter((i) => i.catalogCode !== code) : [...items, { catalogCode: code, quantity: 1 }],
+		);
 	}
 
 	updateQuantity(index: number, rawValue: string) {

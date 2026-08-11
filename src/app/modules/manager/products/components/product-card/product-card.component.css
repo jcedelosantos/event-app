@@ -11,3 +11,7 @@
 	height: 160px;
 	object-fit: cover;
 }
+
+.product-photo-empty {
+	background: rgba(255, 255, 255, 0.05);
+}
