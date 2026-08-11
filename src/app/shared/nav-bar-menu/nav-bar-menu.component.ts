@@ -4,6 +4,7 @@ import * as bootstrap from "bootstrap";
 import { filter } from 'rxjs';
 import { AuthService } from '../../core/services/auth.service';
 import { PLAN_FEATURES, PlanCode, PlanFeatures } from '../pricing-plans';
+import { EVENT_PLANS, isEventPlanCode } from '../event-plans';
 
 type MenuItem = { title: string; icon: string; url: string};
 
@@ -17,7 +18,16 @@ const MENU_ITEM_FEATURE: Partial<Record<string, keyof PlanFeatures>> = {
 };
 
 const PLAN_NAME: Record<PlanCode, string> = { BASICO: 'Básico', INTERMEDIO: 'Intermedio', AVANZADO: 'Avanzado', PRO_MAX: 'Pro Enterprise' };
-const STATUS_LABEL: Record<string, string> = { PENDING: 'Pendiente de pago', ACTIVE: 'Activa', PAST_DUE: 'Pago vencido', SUSPENDED: 'Suspendida', CANCELLED: 'Cancelada' };
+// EVENT_ENDED es propio de un tenant de evento único (ver shared/event-plans.ts) — su evento ya
+// pasó, quedó en modo de solo consulta (ver active-subscription.guard.ts).
+const STATUS_LABEL: Record<string, string> = {
+	PENDING: 'Pendiente de pago',
+	ACTIVE: 'Activa',
+	PAST_DUE: 'Pago vencido',
+	SUSPENDED: 'Suspendida',
+	CANCELLED: 'Cancelada',
+	EVENT_ENDED: 'Modo consulta',
+};
 
 // Por debajo de este ancho, un sidebar con nombres siempre visible le come la mitad de la
 // pantalla al contenido real — coincide con el breakpoint "md" de Bootstrap.
@@ -62,6 +72,7 @@ const SIDEBAR_COLLAPSED_KEY = 'seat-app-sidebar-collapsed';
 							[class.text-bg-success]="badge.status === 'ACTIVE'"
 							[class.text-bg-warning]="badge.status === 'PAST_DUE' || badge.status === 'PENDING'"
 							[class.text-bg-secondary]="badge.status === 'SUSPENDED' || badge.status === 'CANCELLED'"
+							[class.text-bg-info]="badge.status === 'EVENT_ENDED'"
 							[title]="badge.planName + ' — ' + badge.statusLabel"
 						>
 							{{ badge.planName }}
@@ -163,6 +174,7 @@ const SIDEBAR_COLLAPSED_KEY = 'seat-app-sidebar-collapsed';
 								[class.text-bg-success]="badge.status === 'ACTIVE'"
 								[class.text-bg-warning]="badge.status === 'PAST_DUE' || badge.status === 'PENDING'"
 								[class.text-bg-secondary]="badge.status === 'SUSPENDED' || badge.status === 'CANCELLED'"
+								[class.text-bg-info]="badge.status === 'EVENT_ENDED'"
 							>
 								{{ badge.planName }}
 							</span>
@@ -220,8 +232,11 @@ export class NavBarMenuComponent implements AfterViewInit, OnDestroy {
 	planBadge = computed(() => {
 		const tenant = this.authService.currentUser()?.tenant;
 		if (!tenant?.plan || !tenant?.planStatus) return null;
+		// Un tenant de evento único (ver shared/event-plans.ts) no tiene entrada en PLAN_NAME —
+		// se resuelve el nombre desde su propio catálogo de tiers en su lugar.
+		const planName = isEventPlanCode(tenant.plan) ? (EVENT_PLANS.find((t) => t.code === tenant.plan)?.name ?? tenant.plan) : PLAN_NAME[tenant.plan];
 		return {
-			planName: PLAN_NAME[tenant.plan],
+			planName,
 			status: tenant.planStatus,
 			statusLabel: STATUS_LABEL[tenant.planStatus] ?? tenant.planStatus,
 		};
@@ -231,7 +246,9 @@ export class NavBarMenuComponent implements AfterViewInit, OnDestroy {
 	// plan) — sin plan asignado, no se restringe nada (mismo criterio que el backend).
 	visibleMenuList = computed(() => {
 		const tenant = this.authService.currentUser()?.tenant;
-		if (!tenant?.plan) return this.menuList;
+		// Un tenant de evento único (ver shared/event-plans.ts) no tiene entrada en PLAN_FEATURES —
+		// mismo criterio que sin plan asignado, no se restringe nada.
+		if (!tenant?.plan || isEventPlanCode(tenant.plan)) return this.menuList;
 		const features = PLAN_FEATURES[tenant.plan];
 		return this.menuList.filter((item) => {
 			const required = MENU_ITEM_FEATURE[item.title];

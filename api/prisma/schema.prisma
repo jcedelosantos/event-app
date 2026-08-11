@@ -38,8 +38,16 @@ model Tenant {
   // propia todavía (ej. dado de alta a mano por Super Admin antes de que existiera este sistema, o
   // el tenant "seed" de desarrollo) — el feature-gating trata null como "sin restricción" para no
   // romper retroactivamente cuentas existentes.
-  plan         String? // BASICO | INTERMEDIO | AVANZADO | PRO_MAX
-  planStatus   String? // ACTIVE | PAST_DUE | SUSPENDED | CANCELLED — null junto con plan null
+  // BASICO | INTERMEDIO | AVANZADO | PRO_MAX (recurrente) — o, para un tenant "evento único, sin
+  // suscripción" (ver lib/event-plans.ts), un código con prefijo EVENT_ (EVENT_100 | EVENT_300 |
+  // EVENT_500 | EVENT_1000 | EVENT_2500 | EVENT_5000). Este último tipo paga una vez y no tiene
+  // fila de Subscription — el prefijo es lo único que lo distingue de un tenant recurrente.
+  plan       String?
+  // ACTIVE | PAST_DUE | SUSPENDED | CANCELLED — null junto con plan null. EVENT_ENDED es propio
+  // de un tenant de evento único (ver arriba): su evento ya pasó y quedó en modo de solo consulta
+  // (requireActiveSubscription, ver middleware/plan.ts, ya trata cualquier valor que no sea ACTIVE
+  // como "bloquear escrituras, permitir lecturas" — no necesita tratamiento especial).
+  planStatus String?
   subscription Subscription?
 
   users         User[]

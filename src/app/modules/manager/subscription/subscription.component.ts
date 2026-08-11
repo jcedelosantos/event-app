@@ -4,6 +4,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { AuthService } from '../../../core/services/auth.service';
 import { SubscriptionService } from './subscription.service';
 import { PLANS_BY_CODE, PlanCode } from '../../../shared/pricing-plans';
+import { EventPlanCode } from '../../../shared/event-plans';
 import { extractErrorMessage } from '../../../utils/api-error';
 
 const STATUS_LABEL: Record<string, string> = {
@@ -12,6 +13,9 @@ const STATUS_LABEL: Record<string, string> = {
 	PAST_DUE: 'Pago vencido',
 	SUSPENDED: 'Suspendida',
 	CANCELLED: 'Cancelada',
+	// Propio de un tenant de evento único (ver shared/event-plans.ts) — su evento ya pasó, quedó en
+	// modo de solo consulta (ver active-subscription.guard.ts).
+	EVENT_ENDED: 'Modo consulta',
 };
 
 // Cuánto tiempo esperar a que BILLING.SUBSCRIPTION.UPDATED confirme el nuevo plan tras volver de
@@ -28,11 +32,20 @@ const POLL_TIMEOUT_MS = 60000;
 
 		@if (tenant(); as tenant) {
 			@if (tenant.planStatus !== 'ACTIVE') {
-				<div class="alert" [class.alert-warning]="tenant.planStatus === 'PENDING' || tenant.planStatus === 'PAST_DUE'" [class.alert-danger]="tenant.planStatus === 'SUSPENDED' || tenant.planStatus === 'CANCELLED'">
+				<div
+					class="alert"
+					[class.alert-info]="tenant.planStatus === 'EVENT_ENDED'"
+					[class.alert-warning]="tenant.planStatus === 'PENDING' || tenant.planStatus === 'PAST_DUE'"
+					[class.alert-danger]="tenant.planStatus === 'SUSPENDED' || tenant.planStatus === 'CANCELLED'"
+				>
 					<strong>{{ statusLabel(tenant.planStatus) }}.</strong>
 					@if (tenant.planStatus === 'PENDING') {
 						Todavía no confirmamos tu primer pago — no vas a poder crear ni editar nada hasta que se
 						active. Si ya pagaste y seguís viendo esto, esperá unos segundos o contactanos.
+					} @else if (tenant.planStatus === 'EVENT_ENDED') {
+						Tu evento ya finalizó — podés seguir viendo tu dashboard, historial y reportes, pero no
+						crear ni vender nada nuevo. Actualizate a un plan recurrente abajo para seguir usando la
+						plataforma con normalidad.
 					} @else {
 						No vas a poder crear ni editar nada mientras tu cuenta esté en este estado. Actualizá tu
 						plan o método de pago abajo, o contactanos para regularizarla.
@@ -54,6 +67,7 @@ const POLL_TIMEOUT_MS = 60000;
 						<span
 							class="badge"
 							[class.text-bg-success]="tenant.planStatus === 'ACTIVE'"
+							[class.text-bg-info]="tenant.planStatus === 'EVENT_ENDED'"
 							[class.text-bg-warning]="tenant.planStatus === 'PAST_DUE' || tenant.planStatus === 'PENDING'"
 							[class.text-bg-secondary]="tenant.planStatus === 'SUSPENDED' || tenant.planStatus === 'CANCELLED'"
 						>
@@ -115,19 +129,24 @@ export class SubscriptionComponent {
 		this.destroyRef.onDestroy(() => this.stopPolling());
 	}
 
-	planName(code: PlanCode | null): string {
-		return code ? (PLANS_BY_CODE[code]?.name ?? code) : '';
+	// PlanCode | EventPlanCode: un tenant de evento único (ver shared/event-plans.ts) también pasa
+	// por acá al llegar a esta pantalla — PLANS_BY_CODE no tiene su código, así que cae al fallback
+	// (nombre/0), y otherPlans() de abajo termina mostrando los 4 planes recurrentes como opciones
+	// (ninguno coincide con un código EVENT_*), que es exactamente lo que se necesita para poder
+	// "actualizar" a uno.
+	planName(code: PlanCode | EventPlanCode | null): string {
+		return code ? (PLANS_BY_CODE[code as PlanCode]?.name ?? code) : '';
 	}
-	priceOf(code: PlanCode | null): number {
-		return code ? (PLANS_BY_CODE[code]?.priceUSD ?? 0) : 0;
+	priceOf(code: PlanCode | EventPlanCode | null): number {
+		return code ? (PLANS_BY_CODE[code as PlanCode]?.priceUSD ?? 0) : 0;
 	}
-	attendeesOf(code: PlanCode | null): number {
-		return code ? (PLANS_BY_CODE[code]?.attendeesPerEvent ?? 0) : 0;
+	attendeesOf(code: PlanCode | EventPlanCode | null): number {
+		return code ? (PLANS_BY_CODE[code as PlanCode]?.attendeesPerEvent ?? 0) : 0;
 	}
 	statusLabel(status: string | null): string {
 		return status ? (STATUS_LABEL[status] ?? status) : '';
 	}
-	otherPlans(current: PlanCode | null) {
+	otherPlans(current: PlanCode | EventPlanCode | null) {
 		return Object.values(PLANS_BY_CODE).filter((p) => p.code !== current);
 	}
 

@@ -1,0 +1,32 @@
+import { HttpClient } from '@angular/common/http';
+import { inject, Injectable } from '@angular/core';
+import { Observable } from 'rxjs';
+import { environment } from '../../../../environments/environment';
+import { EventPlanCode } from '../../../shared/event-plans';
+
+export type SignupEventInput = {
+	organization: { name: string; type: 'GENERAL' | 'CLUB' | 'CHURCH' };
+	admin: { username: string; password: string; name: string; lastname: string; email: string };
+	eventPlanCode: EventPlanCode;
+};
+
+export type SignupEventResult = { tenantId: number; orderId: string };
+export type CaptureResult = { tenantId: number; planStatus: string };
+
+@Injectable({ providedIn: 'root' })
+export class SignupEventService {
+	private readonly httpClient = inject(HttpClient);
+	private readonly baseUrl = `${environment.apiUrl}/public`;
+
+	getPaypalClientId(): Observable<{ clientId: string }> {
+		return this.httpClient.get<{ clientId: string }>(`${this.baseUrl}/signup-event/paypal-client-id`);
+	}
+
+	signup(input: SignupEventInput): Observable<SignupEventResult> {
+		return this.httpClient.post<SignupEventResult>(`${this.baseUrl}/signup-event`, input);
+	}
+
+	capture(tenantId: number, orderId: string): Observable<CaptureResult> {
+		return this.httpClient.post<CaptureResult>(`${this.baseUrl}/signup-event/capture`, { tenantId, orderId });
+	}
+}

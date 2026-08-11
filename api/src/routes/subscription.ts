@@ -4,7 +4,7 @@ import { prisma } from '../lib/prisma';
 import { requireAuth, requireTenant, AuthenticatedRequest } from '../middleware/auth';
 import { asyncHandler } from '../lib/async-handler';
 import { isPlanCode } from '../lib/plans';
-import { reviseSubscription, PayPalBillingRequestError } from '../lib/paypal-billing';
+import { createSubscription, reviseSubscription, PayPalBillingRequestError } from '../lib/paypal-billing';
 
 // Self-service: el propio tenant cambia su plan sin pasar por el Super Admin — distinto de
 // tenants.ts (que es exclusivamente para el panel de Super Admin sobre CUALQUIER tenant). No lleva
@@ -31,7 +31,31 @@ subscriptionRouter.post(
 
 		const subscription = await prisma.subscription.findUnique({ where: { tenantId } });
 		if (!subscription?.paypalSubscriptionId) {
-			res.status(409).json({ error: 'Esta organización todavía no tiene una suscripción de PayPal activa — contactanos para regularizarla.' });
+			// Sin suscripción de PayPal previa — caso normal de un tenant de evento único (ver
+			// lib/event-plans.ts) que quiere pasarse a un plan recurrente, o de cualquier tenant sin
+			// Subscription todavía. Se crea una por primera vez, mismo flujo que signup.ts pero
+			// disparado desde el panel en vez del alta pública.
+			const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:4201';
+			try {
+				const { paypalSubscriptionId, approveUrl } = await createSubscription(
+					parsed.data.plan,
+					tenantId,
+					`${frontendUrl}/manager/suscripcion?upgraded=1`,
+					`${frontendUrl}/manager/suscripcion`,
+				);
+				await prisma.$transaction([
+					prisma.tenant.update({ where: { id: tenantId }, data: { plan: parsed.data.plan, planStatus: 'PENDING' } }),
+					prisma.subscription.upsert({
+						where: { tenantId },
+						update: { plan: parsed.data.plan, status: 'PENDING', paypalSubscriptionId },
+						create: { tenantId, plan: parsed.data.plan, status: 'PENDING', paypalSubscriptionId },
+					}),
+				]);
+				res.json({ approveUrl });
+			} catch (err) {
+				const message = err instanceof PayPalBillingRequestError ? err.message : 'No se pudo iniciar la suscripción.';
+				res.status(502).json({ error: message });
+			}
 			return;
 		}
 		if (subscription.plan === parsed.data.plan) {

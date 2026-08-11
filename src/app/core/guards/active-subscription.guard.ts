@@ -14,7 +14,10 @@ export const activeSubscriptionGuard: CanActivateFn = () => {
 	return authService.ensureCurrentUser().pipe(
 		map((user) => {
 			const tenant = user?.tenant;
-			if (!tenant?.plan || tenant.planStatus === 'ACTIVE') {
+			// EVENT_ENDED (ver lib/event-plans.ts en el backend) = tenant de evento único cuyo evento
+			// ya pasó — modo de solo consulta: navega igual que uno ACTIVE, cualquier escritura la
+			// bloquea el 402 de requireActiveSubscription en el backend (ver Toast en cada acción).
+			if (!tenant?.plan || tenant.planStatus === 'ACTIVE' || tenant.planStatus === 'EVENT_ENDED') {
 				return true;
 			}
 			return router.createUrlTree(['/manager/suscripcion']);

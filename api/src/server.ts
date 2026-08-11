@@ -17,6 +17,7 @@ import { saleProductsRouter } from './routes/sale-products';
 import { scanRouter } from './routes/scan';
 import { publicRouter } from './routes/public';
 import { signupRouter } from './routes/signup';
+import { signupEventRouter } from './routes/signup-event';
 import { auditLogsRouter } from './routes/audit-logs';
 import { settingsRouter } from './routes/settings';
 import { tenantsRouter } from './routes/tenants';
@@ -28,6 +29,7 @@ import { serviceRequestsRouter } from './routes/service-requests';
 import { uploadsRouter } from './routes/uploads';
 import { uploadsDir } from './lib/uploads';
 import { runScheduledReportsCheck } from './lib/scheduled-reports';
+import { runEventPlanExpiryCheck } from './lib/event-plan-expiry';
 
 // Red de seguridad: una promesa rechazada sin manejar en cualquier punto del proceso (no solo
 // dentro de una request) tumbaba el server entero en Node moderno. asyncHandler cubre las rutas,
@@ -77,6 +79,7 @@ app.use('/sale-products', saleProductsRouter);
 app.use('/scan', scanRouter);
 app.use('/public', publicRouter);
 app.use('/public', signupRouter);
+app.use('/public', signupEventRouter);
 app.use('/audit-logs', auditLogsRouter);
 app.use('/settings', settingsRouter);
 app.use('/tenants', tenantsRouter);
@@ -111,6 +114,13 @@ app.use((err: unknown, _req: express.Request, res: express.Response, _next: expr
 // RD, esto tendría que volverse configurable por tenant; hoy todos los tenants reales son de RD.
 cron.schedule('0 13 * * *', () => {
 	runScheduledReportsCheck().catch((err) => console.error('[scheduled-reports] Falló el chequeo diario:', err));
+});
+
+// Mismo horario UTC de referencia que el cron de arriba, corrido media hora después para no
+// competir por el mismo tick — pasa a modo consulta a los tenants de evento único cuyo evento ya
+// terminó (ver lib/event-plan-expiry.ts).
+cron.schedule('30 13 * * *', () => {
+	runEventPlanExpiryCheck().catch((err) => console.error('[event-plan-expiry] Falló el chequeo diario:', err));
 });
 
 const port = Number(process.env.PORT ?? 3001);

@@ -30,7 +30,10 @@ const PLAN_ID_ENV_KEY: Record<PlanCode, string> = {
 
 const PLATFORM_KEYS = ['paypalClientId', 'paypalSecret', 'paypalMode'] as const;
 
-async function getPlatformConfig(): Promise<PayPalConfig> {
+// Exportada para lib/paypal-platform-orders.ts (pago único cobrado por la plataforma, ej. el
+// checkout de un tenant de evento único) — mismas credenciales de PlatformSetting, sin duplicar
+// el lookup.
+export async function getPlatformConfig(): Promise<PayPalConfig> {
 	const rows = await prisma.platformSetting.findMany({ where: { key: { in: [...PLATFORM_KEYS] } } });
 	const map = Object.fromEntries(rows.map((r) => [r.key, r.value]));
 	const clientId = map['paypalClientId'];

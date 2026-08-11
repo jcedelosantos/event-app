@@ -30,9 +30,13 @@ export type AddOnServiceCode =
 	| 'POST_EVENT_REPORT'
 	| 'SPECIAL_INTEGRATION'
 	| 'STAFF_TRAINING'
-	| 'TRANSPORT_INSTALL';
+	| 'TRANSPORT_INSTALL'
+	| 'SOUND_EQUIPMENT_RENTAL'
+	| 'SCREEN_RENTAL'
+	| 'CCTV_SERVICE'
+	| 'CATERING_SERVICE';
 
-export type AddOnServiceCategory = 'EQUIPO' | 'PERSONAL' | 'CONFIGURACION_SOPORTE' | 'CONECTIVIDAD' | 'COMUNICACION' | 'PERSONALIZACION';
+export type AddOnServiceCategory = 'EQUIPO' | 'PERSONAL' | 'CONFIGURACION_SOPORTE' | 'CONECTIVIDAD' | 'COMUNICACION' | 'PERSONALIZACION' | 'PRODUCCION_EVENTO';
 
 export type AddOnPricingType = 'FIXED' | 'RANGE' | 'QUOTE';
 
@@ -88,6 +92,13 @@ export const ADDON_SERVICES: Record<AddOnServiceCode, AddOnServiceDefinition> = 
 	SPECIAL_INTEGRATION: { code: 'SPECIAL_INTEGRATION', name: 'Integraciones especiales/API', category: 'CONFIGURACION_SOPORTE', modality: 'Por proyecto', pricingType: 'QUOTE' },
 	STAFF_TRAINING: { code: 'STAFF_TRAINING', name: 'Capacitación al personal del cliente', category: 'PERSONAL', modality: 'Por sesión', pricingType: 'FIXED', unitPriceDOP: 130 },
 	TRANSPORT_INSTALL: { code: 'TRANSPORT_INSTALL', name: 'Transporte e instalación de equipos', category: 'CONFIGURACION_SOPORTE', modality: 'Por evento', pricingType: 'FIXED', unitPriceDOP: 45 },
+	// Servicios de producción del evento en sí (no de control de acceso/check-in) — se coordinan con
+	// proveedores externos según el evento, por eso son QUOTE sin precio de lista, a diferencia del
+	// resto del catálogo que sí lo tiene.
+	SOUND_EQUIPMENT_RENTAL: { code: 'SOUND_EQUIPMENT_RENTAL', name: 'Renta de equipo de sonido', category: 'PRODUCCION_EVENTO', modality: 'Por evento', pricingType: 'QUOTE', note: 'Según tamaño del evento y equipo requerido' },
+	SCREEN_RENTAL: { code: 'SCREEN_RENTAL', name: 'Renta de pantallas', category: 'PRODUCCION_EVENTO', modality: 'Por evento', pricingType: 'QUOTE', note: 'Según cantidad y tamaño de pantallas' },
+	CCTV_SERVICE: { code: 'CCTV_SERVICE', name: 'Servicio de circuito cerrado (CCTV)', category: 'PRODUCCION_EVENTO', modality: 'Por evento', pricingType: 'QUOTE', note: 'Según cantidad de cámaras y cobertura del venue' },
+	CATERING_SERVICE: { code: 'CATERING_SERVICE', name: 'Servicio de catering', category: 'PRODUCCION_EVENTO', modality: 'Por evento', pricingType: 'QUOTE', note: 'Según cantidad de asistentes y menú' },
 };
 
 export const ADDON_SERVICES_LIST: AddOnServiceDefinition[] = Object.values(ADDON_SERVICES);

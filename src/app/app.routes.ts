@@ -20,6 +20,10 @@ export const routes: Routes = [
 		loadComponent: () => import('./modules/signup/signup-confirmation.component').then((m) => m.SignupConfirmationComponent),
 	},
 	{
+		path: 'evento-unico',
+		loadComponent: () => import('./modules/signup-event/signup-event.component').then((m) => m.SignupEventComponent),
+	},
+	{
 		path: 'manager',
 		canActivate: [authGuard],
 		loadChildren: () => import('./modules/manager/manager.module').then((m) => m.ManagerModule),

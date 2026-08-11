@@ -1,6 +1,7 @@
 import { UserType } from './user-type';
 import { TenantType } from '../tenants/tenant';
 import { PlanCode } from '../../shared/pricing-plans';
+import { EventPlanCode } from '../../shared/event-plans';
 
 export interface User {
 	id: number;
@@ -24,7 +25,11 @@ export interface User {
 		type: TenantType;
 		slug: string;
 		logoUrl?: string | null;
-		plan: PlanCode | null;
-		planStatus: 'PENDING' | 'ACTIVE' | 'PAST_DUE' | 'SUSPENDED' | 'CANCELLED' | null;
+		// EventPlanCode = tenant "evento único, sin suscripción" (ver shared/event-plans.ts) — paga
+		// una vez, sin fila de Subscription.
+		plan: PlanCode | EventPlanCode | null;
+		// EVENT_ENDED es propio de un tenant de evento único: su evento ya pasó, quedó en modo de
+		// solo consulta (ver active-subscription.guard.ts).
+		planStatus: 'PENDING' | 'ACTIVE' | 'PAST_DUE' | 'SUSPENDED' | 'CANCELLED' | 'EVENT_ENDED' | null;
 	} | null;
 }
