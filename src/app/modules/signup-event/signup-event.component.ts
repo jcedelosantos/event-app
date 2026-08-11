@@ -4,7 +4,7 @@ import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { HttpErrorResponse } from '@angular/common/http';
 import { SignupEventService } from './services/signup-event.service';
-import { EVENT_PLANS, EventPlanCode } from '../../shared/event-plans';
+import { EVENT_PLANS, EVENT_OVERAGE_FEE_PER_PERSON_USD, EventPlanCode } from '../../shared/event-plans';
 import { extractErrorMessage } from '../../utils/api-error';
 
 @Component({
@@ -19,7 +19,8 @@ import { extractErrorMessage } from '../../utils/api-error';
 						<h1 class="h3 mb-1">Tu evento, sin suscripción</h1>
 						<p class="mb-4" style="color: #b9b9b9;">
 							Pagás una sola vez, montás y corrés tu evento con acceso completo. Después del evento tu cuenta queda en modo de
-							consulta — podés actualizarte a un plan recurrente cuando quieras.
+							consulta — podés actualizarte a un plan recurrente cuando quieras. Si vendés más asistentes de los que pagaste acá,
+							no te bloqueamos la venta — se factura aparte a USD {{ overageFee }} por persona adicional.
 						</p>
 
 						<form [formGroup]="form" (ngSubmit)="submit()" class="row g-3">
@@ -133,6 +134,7 @@ export class SignupEventComponent {
 	private readonly signupEventService = inject(SignupEventService);
 
 	tiers = EVENT_PLANS;
+	overageFee = EVENT_OVERAGE_FEE_PER_PERSON_USD;
 	step = signal<'form' | 'payment' | 'done'>('form');
 	submitting = signal(false);
 	errorMessage = signal('');

@@ -18,11 +18,20 @@ export function isEventPlanCode(value: string | null | undefined): value is Even
 	return value != null && (EVENT_PLAN_CODES as string[]).includes(value);
 }
 
+// USD 1 por asistente incluido — si el tenant vende por encima del tope no se bloquea, se cobra
+// overage a EVENT_OVERAGE_FEE_PER_PERSON_USD por persona (ver api/src/lib/overage.ts).
+const PRICE_PER_ATTENDEE_USD = 1;
+export const EVENT_OVERAGE_FEE_PER_PERSON_USD = 1.25;
+
+function definePlan(code: EventPlanCode, maxAttendees: number): EventPlanDefinition {
+	return { code, name: `Hasta ${maxAttendees.toLocaleString('es-DO')} asistentes`, maxAttendees, priceUSD: maxAttendees * PRICE_PER_ATTENDEE_USD };
+}
+
 export const EVENT_PLANS: EventPlanDefinition[] = [
-	{ code: 'EVENT_100', name: 'Hasta 100 asistentes', maxAttendees: 100, priceUSD: 79 },
-	{ code: 'EVENT_300', name: 'Hasta 300 asistentes', maxAttendees: 300, priceUSD: 149 },
-	{ code: 'EVENT_500', name: 'Hasta 500 asistentes', maxAttendees: 500, priceUSD: 249 },
-	{ code: 'EVENT_1000', name: 'Hasta 1,000 asistentes', maxAttendees: 1000, priceUSD: 399 },
-	{ code: 'EVENT_2500', name: 'Hasta 2,500 asistentes', maxAttendees: 2500, priceUSD: 699 },
-	{ code: 'EVENT_5000', name: 'Hasta 5,000 asistentes', maxAttendees: 5000, priceUSD: 1200 },
+	definePlan('EVENT_100', 100),
+	definePlan('EVENT_300', 300),
+	definePlan('EVENT_500', 500),
+	definePlan('EVENT_1000', 1000),
+	definePlan('EVENT_2500', 2500),
+	definePlan('EVENT_5000', 5000),
 ];

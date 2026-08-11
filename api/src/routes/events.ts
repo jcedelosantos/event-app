@@ -8,7 +8,7 @@ import { logAudit } from '../lib/audit';
 import { findDuplicateEventSlot } from '../lib/find-duplicate-event-slot';
 import { getWaitingRoomStats } from '../lib/waiting-room';
 import { getTenantPlanFeatures, requireActiveSubscription } from '../middleware/plan';
-import { isEventPlanCode, EVENT_PLANS } from '../lib/event-plans';
+import { isEventPlanCode } from '../lib/event-plans';
 
 export const eventsRouter = Router();
 eventsRouter.use(requireAuth, requireTenant, requireActiveSubscription);
@@ -85,23 +85,18 @@ async function assertEventPlanFeatures(tenantId: number, data: Partial<z.infer<t
 	return null;
 }
 
-// Un tenant "evento único" (ver lib/event-plans.ts) pagó por UN evento hasta cierto aforo, no por
-// una suscripción — a diferencia de assertEventPlanFeatures (que gatea features premium), esto
-// aplica siempre que el tenant sea de este tipo, sin depender de qué campos vengan en el payload.
-async function assertEventOncePlanCap(tenantId: number, data: { maxCapacity?: number | null }, isCreate: boolean): Promise<string | null> {
+// Un tenant "evento único" (ver lib/event-plans.ts) pagó por UN evento — a diferencia de
+// assertEventPlanFeatures (que gatea features premium), esto aplica siempre que el tenant sea de
+// este tipo, sin depender de qué campos vengan en el payload. Solo limita CANTIDAD de eventos (1);
+// NO limita el aforo — vender por encima de los asistentes incluidos en el tier no se bloquea acá,
+// se cobra como overage (ver lib/overage.ts), mismo criterio que los planes recurrentes.
+async function assertEventOncePlanCap(tenantId: number): Promise<string | null> {
 	const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { plan: true } });
 	if (!tenant || !isEventPlanCode(tenant.plan)) return null;
 
-	if (isCreate) {
-		const existingCount = await prisma.event.count({ where: { tenantId } });
-		if (existingCount >= 1) {
-			return 'Tu plan de evento único incluye un solo evento. Actualizá a un plan recurrente desde Suscripción para crear más.';
-		}
-	}
-
-	const cap = EVENT_PLANS[tenant.plan].maxAttendees;
-	if (data.maxCapacity != null && data.maxCapacity > cap) {
-		return `Tu plan de evento único cubre hasta ${cap} asistentes.`;
+	const existingCount = await prisma.event.count({ where: { tenantId } });
+	if (existingCount >= 1) {
+		return 'Tu plan de evento único incluye un solo evento. Actualizá a un plan recurrente desde Suscripción para crear más.';
 	}
 	return null;
 }
@@ -160,7 +155,7 @@ eventsRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
 		res.status(403).json({ error: planError });
 		return;
 	}
-	const onceCapError = await assertEventOncePlanCap(tenantId, data, true);
+	const onceCapError = await assertEventOncePlanCap(tenantId);
 	if (onceCapError) {
 		res.status(409).json({ error: onceCapError });
 		return;
@@ -207,11 +202,6 @@ eventsRouter.put('/:id', asyncHandler(async (req: AuthenticatedRequest, res) => 
 	const planError = await assertEventPlanFeatures(tenantId, eventData);
 	if (planError) {
 		res.status(403).json({ error: planError });
-		return;
-	}
-	const onceCapError = await assertEventOncePlanCap(tenantId, eventData, false);
-	if (onceCapError) {
-		res.status(409).json({ error: onceCapError });
 		return;
 	}
 

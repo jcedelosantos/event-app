@@ -3,9 +3,10 @@
 // código es lo que distingue a un tenant de este tipo de uno recurrente (BASICO/INTERMEDIO/
 // AVANZADO/PRO_MAX) en cualquier chequeo del resto del backend — ver isEventPlanCode().
 //
-// Precios en USD, pago único (no recurrente) — son ancla sin validar contra clientes reales,
-// mismo criterio ya usado para el catálogo de servicios adicionales (lib/addon-services.ts): se
-// ajustan después sin fricción, viven en un solo archivo.
+// Precio base: USD 1 por asistente incluido en el tier (pago único, no recurrente). Si el tenant
+// vende por encima de ese tope, NO se bloquea la venta — se cobra overage a
+// EVENT_OVERAGE_FEE_PER_PERSON_USD por persona, mismo mecanismo ya usado para los planes
+// recurrentes (ver lib/overage.ts), facturado a mano por el Super Admin.
 
 export type EventPlanCode = 'EVENT_100' | 'EVENT_300' | 'EVENT_500' | 'EVENT_1000' | 'EVENT_2500' | 'EVENT_5000';
 
@@ -16,13 +17,20 @@ export type EventPlanDefinition = {
 	priceUSD: number;
 };
 
+const PRICE_PER_ATTENDEE_USD = 1;
+export const EVENT_OVERAGE_FEE_PER_PERSON_USD = 1.25;
+
+function definePlan(code: EventPlanCode, maxAttendees: number): EventPlanDefinition {
+	return { code, name: `Evento único — hasta ${maxAttendees.toLocaleString('es-DO')} asistentes`, maxAttendees, priceUSD: maxAttendees * PRICE_PER_ATTENDEE_USD };
+}
+
 export const EVENT_PLANS: Record<EventPlanCode, EventPlanDefinition> = {
-	EVENT_100: { code: 'EVENT_100', name: 'Evento único — hasta 100 asistentes', maxAttendees: 100, priceUSD: 79 },
-	EVENT_300: { code: 'EVENT_300', name: 'Evento único — hasta 300 asistentes', maxAttendees: 300, priceUSD: 149 },
-	EVENT_500: { code: 'EVENT_500', name: 'Evento único — hasta 500 asistentes', maxAttendees: 500, priceUSD: 249 },
-	EVENT_1000: { code: 'EVENT_1000', name: 'Evento único — hasta 1,000 asistentes', maxAttendees: 1000, priceUSD: 399 },
-	EVENT_2500: { code: 'EVENT_2500', name: 'Evento único — hasta 2,500 asistentes', maxAttendees: 2500, priceUSD: 699 },
-	EVENT_5000: { code: 'EVENT_5000', name: 'Evento único — hasta 5,000 asistentes', maxAttendees: 5000, priceUSD: 1200 },
+	EVENT_100: definePlan('EVENT_100', 100),
+	EVENT_300: definePlan('EVENT_300', 300),
+	EVENT_500: definePlan('EVENT_500', 500),
+	EVENT_1000: definePlan('EVENT_1000', 1000),
+	EVENT_2500: definePlan('EVENT_2500', 2500),
+	EVENT_5000: definePlan('EVENT_5000', 5000),
 };
 
 export const EVENT_PLAN_CODES = Object.keys(EVENT_PLANS) as EventPlanCode[];
