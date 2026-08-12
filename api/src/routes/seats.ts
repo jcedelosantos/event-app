@@ -144,7 +144,7 @@ seatsRouter.put('/bulk-update-position', asyncHandler(async (req: AuthenticatedR
 		return;
 	}
 
-	const seats = await prisma.$transaction(parsed.data.seats.map((s) => prisma.seat.update({ where: { id: s.id }, data: { x: s.x, y: s.y, size: s.size } })));
+	const seats = await prisma.$transaction(parsed.data.seats.map((s) => prisma.seat.update({ where: { id: s.id, tenantId }, data: { x: s.x, y: s.y, size: s.size } })));
 	res.json(seats);
 }));
 
