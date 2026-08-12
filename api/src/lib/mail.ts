@@ -3,6 +3,8 @@ import PDFDocument from 'pdfkit';
 import { Resend } from 'resend';
 import type { Event as EventModel } from '@prisma/client';
 import type { TenantReportStats } from './report-aggregation';
+import { prisma } from './prisma';
+import { hasRealLocation, googleMapsLink } from './map-location';
 
 type SaleTicketForEmail = {
 	id: number;
@@ -258,10 +260,19 @@ export async function sendTicketEmail(args: { to: string; clientName: string; ev
 	const isFree = args.saleTickets.every((sale) => sale.ticket.price <= 0);
 	const actionWord = isFree ? 'reserva' : 'compra';
 
+	// Link "Cómo llegar" solo si el manager de verdad reubicó el pin del mapa (ver hasRealLocation) —
+	// un mapa que nunca se tocó sigue en el centro por defecto de Santo Domingo, y mandarle eso al
+	// comprador sería peor que no mostrar nada.
+	const map = args.event.mapId ? await prisma.map.findUnique({ where: { id: args.event.mapId }, select: { x: true, y: true, name: true } }) : null;
+	const locationHtml = hasRealLocation(map)
+		? `<p style="color:#ccc;">📍 <a href="${googleMapsLink(map.x, map.y)}" style="color:#fff;">Cómo llegar${map.name ? ` a ${map.name}` : ''}</a></p>`
+		: '';
+
 	const html = `
 		<div style="background:#000;padding:24px;font-family:Arial,Helvetica,sans-serif;">
 			<h2 style="color:#fff;">¡Hola ${args.clientName}!</h2>
 			<p style="color:#ccc;">Tu ${actionWord} para <strong style="color:#fff;">${args.event.name}</strong> quedó confirmada. Presentá el código QR (o el PDF adjunto) de cada ticket en la entrada — cada uno es válido una sola vez.</p>
+			${locationHtml}
 			${cards.map((c) => c.html).join('')}
 			<p style="color:#666;font-size:12px;">Este correo fue generado automáticamente por Seat App.</p>
 		</div>

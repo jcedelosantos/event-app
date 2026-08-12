@@ -37,6 +37,11 @@ export type PublicArea = {
 export type PublicMap = {
 	id: number;
 	name: string;
+	// Ubicación real (lat/lng) elegida con el picker de Google Maps al crear el mapa — puede seguir
+	// siendo el pin por defecto si el manager nunca lo reubicó, ver hasRealMapLocation() en
+	// public-event.component.ts antes de mostrar cualquier link "Cómo llegar" con esto.
+	x: number;
+	y: number;
 	areas: PublicArea[];
 } | null;
 

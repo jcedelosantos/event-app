@@ -91,6 +91,9 @@ const MAX_INVITADO_SEATS = 2;
 						<p class="text-body-secondary">
 							Guardá estos códigos QR — cada uno es tu entrada para un asiento. También te los enviamos a {{ registerForm.controls.email.value }} si el correo está configurado.
 						</p>
+						@if (mapLocationLink(); as link) {
+							<p><a [href]="link" target="_blank" rel="noopener">📍 Cómo llegar{{ event()?.map?.name ? ' a ' + event()?.map?.name : '' }}</a></p>
+						}
 						@for (sale of purchasedTickets(); track sale.id) {
 							<div class="card mb-3">
 								<div class="card-body d-flex justify-content-between align-items-center">
@@ -1023,6 +1026,19 @@ export class PublicEventComponent implements OnInit {
 			return 'Este evento está agotado — ya no hay entradas disponibles.';
 		}
 		return null;
+	});
+
+	// Link "Cómo llegar" para la pantalla de confirmación — solo si el mapa tiene una ubicación real
+	// puesta (mismo criterio y mismos valores que hasRealLocation en api/src/lib/map-location.ts,
+	// duplicado acá porque no hay código compartido entre frontend y backend en este proyecto).
+	mapLocationLink = computed<string | null>(() => {
+		const map = this.event()?.map;
+		if (!map) return null;
+		const DEFAULT_LAT = 18.4628068;
+		const DEFAULT_LNG = -70.0412847;
+		const EPSILON = 0.0005;
+		if (Math.abs(map.x - DEFAULT_LAT) <= EPSILON && Math.abs(map.y - DEFAULT_LNG) <= EPSILON) return null;
+		return `https://www.google.com/maps?q=${map.x},${map.y}`;
 	});
 	// Elegido a mano por el comprador en tenants no-CLUB (botones de ticket, paso 1) — en tenants
 	// CLUB el ticket activo sale solo de attendeeTypeValue (ver activeTicket más abajo), este signal
