@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { prisma } from '../lib/prisma';
 import { requireAuth, requireSuperAdmin } from '../middleware/auth';
 import { asyncHandler } from '../lib/async-handler';
-import { imageUpload } from '../lib/uploads';
+import { formatUploadError, imageUpload } from '../lib/uploads';
 import { INVOICE_SETTING_KEYS, InvoiceSettingKey } from '../lib/invoice-config';
 import { PLANS, PlanCode } from '../lib/plans';
 import { updatePlanPricing } from '../lib/paypal-billing';
@@ -32,7 +32,7 @@ platformSettingsRouter.post(
 		return new Promise<void>((resolve) => {
 			imageUpload.single('file')(req, res, (err: unknown) => {
 				if (err) {
-					res.status(400).json({ error: err instanceof Error ? err.message : 'No se pudo subir la imagen' });
+					res.status(400).json({ error: formatUploadError(err) });
 					resolve();
 					return;
 				}

@@ -1,6 +1,7 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { DecimalPipe } from '@angular/common';
 import { firstValueFrom } from 'rxjs';
 import { HttpErrorResponse } from '@angular/common/http';
 import { SignupEventService, BankInfo } from './services/signup-event.service';
@@ -12,7 +13,7 @@ type Step = 'form' | 'payment' | 'bank-transfer' | 'pending-review' | 'done';
 @Component({
 	selector: 'app-signup-event',
 	standalone: true,
-	imports: [ReactiveFormsModule, RouterLink],
+	imports: [ReactiveFormsModule, RouterLink, DecimalPipe],
 	template: `
 		<div class="page" data-bs-theme="dark">
 			<div class="container py-5" style="max-width: 640px;">
@@ -143,10 +144,17 @@ type Step = 'form' | 'payment' | 'bank-transfer' | 'pending-review' | 'done';
 					}
 					@case ('bank-transfer') {
 						<h1 class="h3 mb-1">Transferí y subí tu comprobante</h1>
-						<p class="mb-4" style="color: #b9b9b9;">
+						<p class="mb-1" style="color: #b9b9b9;">
 							Pago único de <strong>USD {{ selectedTierPrice() }}</strong>. Transferí a esta cuenta y subí una foto del comprobante —
 							activamos tu cuenta apenas lo confirmemos.
 						</p>
+						@if (dopAmount(); as dop) {
+							<p class="mb-4 small" style="color: #b9b9b9;">
+								≈ RD$ {{ dop.amount | number: '1.0-0' }} al tipo de cambio de hoy (1 USD = RD$ {{ dop.rate | number: '1.2-2' }})
+							</p>
+						} @else {
+							<div class="mb-4"></div>
+						}
 
 						@if (bankInfo(); as bank) {
 							<div class="card bg-dark border-secondary mb-4">
@@ -244,6 +252,12 @@ export class SignupEventComponent {
 	selectedTierPrice(): number {
 		return this.tiers.find((t) => t.code === this.form.controls.eventPlanCode.value)?.priceUSD ?? 0;
 	}
+
+	dopAmount = computed(() => {
+		const rate = this.bankInfo()?.usdToDopRate;
+		if (!rate) return null;
+		return { rate, amount: this.selectedTierPrice() * rate };
+	});
 
 	submit() {
 		if (this.form.invalid) {

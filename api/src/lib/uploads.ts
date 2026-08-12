@@ -17,9 +17,11 @@ const storage = multer.diskStorage({
 	},
 });
 
+const MAX_UPLOAD_BYTES = 15 * 1024 * 1024;
+
 export const imageUpload = multer({
 	storage,
-	limits: { fileSize: 5 * 1024 * 1024 },
+	limits: { fileSize: MAX_UPLOAD_BYTES },
 	fileFilter: (_req, file, cb) => {
 		if (!file.mimetype.startsWith('image/')) {
 			cb(new Error('Solo se permiten imágenes'));
@@ -28,6 +30,20 @@ export const imageUpload = multer({
 		cb(null, true);
 	},
 });
+
+// Cuando el archivo excede `limits.fileSize`, busboy no siempre emite el MulterError tipado
+// (`LIMIT_FILE_SIZE`) — a veces corta el stream a mitad de archivo y el parser multipart termina
+// tirando el mensaje crudo "Unexpected end of form" (ver https://github.com/expressjs/multer/issues/1104).
+// Sin este mapeo, ese mensaje llegaba tal cual al usuario final, indistinguible de un error real.
+export function formatUploadError(err: unknown): string {
+	if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
+		return `La imagen es demasiado grande (máx. ${MAX_UPLOAD_BYTES / (1024 * 1024)}MB).`;
+	}
+	if (err instanceof Error && err.message === 'Unexpected end of form') {
+		return `La imagen es demasiado grande (máx. ${MAX_UPLOAD_BYTES / (1024 * 1024)}MB).`;
+	}
+	return err instanceof Error ? err.message : 'No se pudo subir la imagen';
+}
 
 const EXT_BY_MIME: Record<string, string> = { 'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp' };
 

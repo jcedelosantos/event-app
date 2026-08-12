@@ -15,7 +15,13 @@ export type SignupEventInput = {
 // routes/signup-event.ts).
 export type SignupEventResult = { tenantId: number; orderId?: string };
 export type CaptureResult = { tenantId: number; planStatus: string };
-export type BankInfo = { bankName: string; bankAccountType: string; bankAccountNumber: string; bankAccountHolder: string };
+export type BankInfo = {
+	bankName: string;
+	bankAccountType: string;
+	bankAccountNumber: string;
+	bankAccountHolder: string;
+	usdToDopRate: number | null;
+};
 
 @Injectable({ providedIn: 'root' })
 export class SignupEventService {

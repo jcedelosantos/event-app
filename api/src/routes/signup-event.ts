@@ -10,8 +10,9 @@ import { isEventPlanCode, EVENT_PLANS } from '../lib/event-plans';
 import { createPlatformOrder, capturePlatformOrder, PayPalPlatformRequestError } from '../lib/paypal-platform-orders';
 import { getPlatformConfig } from '../lib/paypal-billing';
 import { getInvoiceIssuerConfig } from '../lib/invoice-config';
-import { imageUpload } from '../lib/uploads';
+import { formatUploadError, imageUpload } from '../lib/uploads';
 import { sendBankTransferReceiptNotification } from '../lib/mail';
+import { getUsdToDopRate } from '../lib/exchange-rate';
 
 // Alta pública de un tenant "evento único, sin suscripción" (Event-as-a-Service) — mismo patrón
 // de transacción que signup.ts, pero SIN fila de Subscription (es un pago único, no recurrente,
@@ -182,12 +183,13 @@ signupEventRouter.post(
 signupEventRouter.get(
 	'/signup-event/bank-info',
 	asyncHandler(async (_req, res) => {
-		const config = await getInvoiceIssuerConfig();
+		const [config, usdToDopRate] = await Promise.all([getInvoiceIssuerConfig(), getUsdToDopRate()]);
 		res.json({
 			bankName: config.bankName,
 			bankAccountType: config.bankAccountType,
 			bankAccountNumber: config.bankAccountNumber,
 			bankAccountHolder: config.bankAccountHolder,
+			usdToDopRate,
 		});
 	}),
 );
@@ -202,7 +204,7 @@ signupEventRouter.post(
 		return new Promise<void>((resolve) => {
 			imageUpload.single('file')(req, res, (err: unknown) => {
 				if (err) {
-					res.status(400).json({ error: err instanceof Error ? err.message : 'No se pudo subir la imagen' });
+					res.status(400).json({ error: formatUploadError(err) });
 					resolve();
 					return;
 				}

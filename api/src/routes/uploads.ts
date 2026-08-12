@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { requireAuth, requireTenant } from '../middleware/auth';
 import { requireActiveSubscription } from '../middleware/plan';
-import { imageUpload } from '../lib/uploads';
+import { formatUploadError, imageUpload } from '../lib/uploads';
 import { asyncHandler } from '../lib/async-handler';
 
 export const uploadsRouter = Router();
@@ -17,7 +17,7 @@ uploadsRouter.post(
 		return new Promise<void>((resolve, reject) => {
 			imageUpload.single('file')(req, res, (err: unknown) => {
 				if (err) {
-					res.status(400).json({ error: err instanceof Error ? err.message : 'No se pudo subir la imagen' });
+					res.status(400).json({ error: formatUploadError(err) });
 					resolve();
 					return;
 				}
