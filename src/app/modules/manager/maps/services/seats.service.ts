@@ -44,6 +44,13 @@ export class SeatsService {
 		return this.httpClient.put<Seat[]>(`${this.baseUrl}/bulk-resize`, { ids, size });
 	}
 
+	// Cada asiento con su propio x/y nuevo (no un tamaño uniforme) — ver bulk-edit-tables-modal:
+	// cuando cambia el tamaño de una mesa, el anillo de asientos alrededor tiene que achicarse o
+	// agrandarse en la misma proporción, no quedarse a la distancia original.
+	bulkUpdateSeatPositions(seats: Array<{ id: number; x: number; y: number; size: number }>): Observable<Seat[]> {
+		return this.httpClient.put<Seat[]>(`${this.baseUrl}/bulk-update-position`, { seats });
+	}
+
 	deleteSeat(id: number): Observable<void> {
 		return this.httpClient.delete<void>(`${this.baseUrl}/${id}`);
 	}

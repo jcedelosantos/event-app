@@ -177,7 +177,21 @@ export class BulkEditTablesModalComponent implements OnChanges {
 		const { tableSize, seatSize, tableColor } = this.form.getRawValue();
 		const targetTables = this.tables.filter((t) => this.selected().has(t.id));
 		const tableIds = targetTables.map((t) => t.id);
-		const seatIds = targetTables.flatMap((t) => t.seats.map((s) => s.id));
+
+		// El anillo de asientos se recalcula proporcional al cambio de tamaño de CADA mesa (no todas
+		// las seleccionadas necesariamente arrancan del mismo tamaño) — conserva el ángulo real de
+		// cada asiento respecto al centro de su mesa (por si alguno se arrastró a mano y no queda en
+		// un anillo perfecto) y solo escala la distancia, así una mesa más chica no deja los asientos
+		// "flotando" lejos como si siguiera siendo grande.
+		const seatPositions = targetTables.flatMap((table) => {
+			const scale = table.size > 0 ? tableSize! / table.size : 1;
+			return table.seats.map((seat) => ({
+				id: seat.id,
+				x: table.x + (seat.x - table.x) * scale,
+				y: table.y + (seat.y - table.y) * scale,
+				size: seatSize ?? seat.size,
+			}));
+		});
 
 		// Una request por lote (mesas, después asientos) en vez de un PUT por fila — con áreas de 50+
 		// mesas eso eran cientos de requests simultáneas, que saturaban el navegador y disparaban una
@@ -186,8 +200,8 @@ export class BulkEditTablesModalComponent implements OnChanges {
 		this.tablesService.bulkResizeTables(tableIds, tableSize!, this.colorEnabled() ? tableColor! : undefined).subscribe({
 			next: (updatedTables) => {
 				this.tablesUpdated.emit(updatedTables);
-				if (seatSize && seatIds.length) {
-					this.seatsService.bulkResizeSeats(seatIds, seatSize).subscribe({
+				if (seatPositions.length) {
+					this.seatsService.bulkUpdateSeatPositions(seatPositions).subscribe({
 						next: (updatedSeats) => {
 							this.seatsUpdated.emit(updatedSeats);
 							this.finish();

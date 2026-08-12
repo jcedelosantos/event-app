@@ -111,6 +111,43 @@ seatsRouter.post('/bulk', asyncHandler(async (req: AuthenticatedRequest, res) =>
 	res.status(201).json(seats);
 }));
 
+const bulkUpdatePositionSchema = z.object({
+	seats: z
+		.array(
+			z.object({
+				id: z.number().int(),
+				x: z.coerce.number(),
+				y: z.coerce.number(),
+				size: z.coerce.number(),
+			}),
+		)
+		.min(1),
+});
+
+// Registrado ANTES de PUT /:id, mismo motivo que bulk-resize. Reposiciona cada asiento a mano (no
+// updateMany, cada uno tiene su propio x/y/size nuevo) dentro de una sola transacción — el cliente
+// ya calculó las coordenadas nuevas (ver bulk-edit-tables-modal.component.ts: reduce/agranda el
+// anillo de asientos proporcional al cambio de tamaño de su mesa), acá solo se persisten y se
+// valida que todos pertenezcan al tenant antes de tocar nada.
+seatsRouter.put('/bulk-update-position', asyncHandler(async (req: AuthenticatedRequest, res) => {
+	const parsed = bulkUpdatePositionSchema.safeParse(req.body);
+	if (!parsed.success) {
+		res.status(400).json({ error: parsed.error.flatten() });
+		return;
+	}
+
+	const tenantId = req.user!.tenantId!;
+	const ids = parsed.data.seats.map((s) => s.id);
+	const count = await prisma.seat.count({ where: { id: { in: ids }, tenantId } });
+	if (count !== ids.length) {
+		res.status(400).json({ error: 'Alguno de los asientos indicados no existe' });
+		return;
+	}
+
+	const seats = await prisma.$transaction(parsed.data.seats.map((s) => prisma.seat.update({ where: { id: s.id }, data: { x: s.x, y: s.y, size: s.size } })));
+	res.json(seats);
+}));
+
 const bulkResizeSchema = z.object({
 	ids: z.array(z.number().int()).min(1),
 	size: z.coerce.number(),
