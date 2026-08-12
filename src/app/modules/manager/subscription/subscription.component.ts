@@ -27,6 +27,13 @@ const STATUS_LABEL: Record<string, string> = {
 const POLL_INTERVAL_MS = 3000;
 const POLL_TIMEOUT_MS = 60000;
 
+// Comprobante de transferencia: el Super Admin lo confirma a mano desde /super-admin, sin ningún
+// webhook que avise al frontend — sin este poll, un tenant que se queda en esta pantalla ve el
+// estado PENDING_REVIEW viejo hasta que recargue la página a mano (reportado tras probar el flujo
+// real). Intervalo más largo y sin timeout: a diferencia del upgrade de PayPal (segundos), una
+// revisión manual puede tardar minutos u horas, y no tiene sentido pedir /auth/me cada 3s por eso.
+const REVIEW_POLL_INTERVAL_MS = 10000;
+
 @Component({
 	selector: 'app-subscription',
 	changeDetection: ChangeDetectionStrategy.OnPush,
@@ -125,7 +132,11 @@ export class SubscriptionComponent {
 		// no hay garantía de que algún otro componente ya haya disparado la hidratación de
 		// currentUser() desde /auth/me (ver AuthService), así que la pedimos acá explícitamente en
 		// vez de asumirla.
-		this.authService.ensureCurrentUser().subscribe();
+		this.authService.ensureCurrentUser().subscribe(() => {
+			if (this.tenant()?.planStatus === 'PENDING_REVIEW') {
+				this.pollForReviewOutcome();
+			}
+		});
 
 		// Volvimos de aprobar el cambio en PayPal (return_url = /manager/suscripcion?upgraded=1) — el
 		// plan local todavía tiene el valor VIEJO hasta que BILLING.SUBSCRIPTION.UPDATED confirme.
@@ -197,6 +208,16 @@ export class SubscriptionComponent {
 				}
 			});
 		}, POLL_INTERVAL_MS);
+	}
+
+	private pollForReviewOutcome() {
+		this.pollTimer = setInterval(() => {
+			this.authService.refreshCurrentUser().subscribe(() => {
+				if (this.tenant()?.planStatus !== 'PENDING_REVIEW') {
+					this.stopPolling();
+				}
+			});
+		}, REVIEW_POLL_INTERVAL_MS);
 	}
 
 	private stopPolling() {
