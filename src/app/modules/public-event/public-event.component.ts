@@ -998,6 +998,12 @@ export class PublicEventComponent implements OnInit {
 	purchaseBlockedReason = computed<string | null>(() => {
 		const ev = this.event();
 		if (!ev) return null;
+		if (ev.status === 'CANCELLED') {
+			return 'Este evento fue cancelado.';
+		}
+		if (ev.status === 'POSTPONED') {
+			return 'Este evento fue pospuesto — todavía no hay una nueva fecha confirmada.';
+		}
 		if (new Date() > new Date(ev.dateOff)) {
 			return 'Las ventas para este evento ya cerraron.';
 		}

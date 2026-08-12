@@ -192,6 +192,12 @@ model Event {
   dateOff     DateTime
   startTime   String?
   active      Boolean   @default(true)
+  // ACTIVE | CANCELLED | POSTPONED — distinto de `active` (que oculta el evento del todo, ej. un
+  // borrador o un duplicado de prueba). Un evento CANCELLED/POSTPONED sigue siendo `active` y
+  // sigue apareciendo en el portal público (ver public.ts), pero deshabilitado para compra y con
+  // una etiqueta visible — el manager quiere que la gente SEPA que se canceló/pospuso, no que
+  // desaparezca sin explicación.
+  status      String    @default("ACTIVE")
   // Fecha/hora a partir de la cual el evento se vuelve visible/comprable en el portal público (ver
   // public.ts) — permite subir y configurar un evento con anticipación sin exponerlo todavía. null
   // (default para todo lo existente vía migración) = sin restricción, visible apenas se crea, igual

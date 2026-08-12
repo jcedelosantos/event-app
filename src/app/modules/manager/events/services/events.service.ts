@@ -15,6 +15,7 @@ export type EventInput = {
 	dateOff?: string | Date;
 	startTime?: string;
 	active?: boolean;
+	status?: 'ACTIVE' | 'CANCELLED' | 'POSTPONED';
 	mapId?: number | null;
 	hostName?: string | null;
 	maxHostGuests?: number | null;

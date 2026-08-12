@@ -1,0 +1,6 @@
+/* Menos aire entre secciones del panel "Information" — antes cada separador usaba el margen default
+   de Bootstrap (1rem arriba y abajo), que sumado a 5+ separadores hacía scrollear mucho en mobile
+   para llegar a Tickets/Productos/Puertas. */
+hr {
+	margin: 0.6rem 0;
+}

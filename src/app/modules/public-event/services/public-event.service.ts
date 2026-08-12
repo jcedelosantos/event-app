@@ -93,6 +93,8 @@ export type PublicEvent = {
 	// Aforo compartido del evento ya lleno (Event.maxCapacity) — distinto de que un tipo de ticket
 	// puntual esté agotado, ver purchaseBlockedReason en public-event.component.ts.
 	capacityFull: boolean;
+	// ACTIVE | CANCELLED | POSTPONED — ver purchaseBlockedReason en public-event.component.ts.
+	status: 'ACTIVE' | 'CANCELLED' | 'POSTPONED';
 };
 
 export type RegisterInput = { name: string; lastname: string; email: string; phone: string; carnet: string };
@@ -207,6 +209,7 @@ export type PublicOrgEvent = {
 	soldOut: boolean;
 	scheduled: boolean;
 	capacityFull: boolean;
+	status: 'ACTIVE' | 'CANCELLED' | 'POSTPONED';
 };
 
 // Portada pública de una organización — lista sus próximos eventos activos (ver org-landing).

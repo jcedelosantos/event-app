@@ -30,6 +30,10 @@ const eventInputSchema = z.object({
 		.regex(/^\d{2}:\d{2}$/)
 		.optional(),
 	active: z.boolean().optional().default(true),
+	// ACTIVE (default) | CANCELLED | POSTPONED — ver comentario en schema.prisma. Distinto de
+	// `active`: un evento cancelado/pospuesto sigue siendo `active` (sigue listado en el portal
+	// público), solo cambia cómo se muestra y bloquea la compra.
+	status: z.enum(['ACTIVE', 'CANCELLED', 'POSTPONED']).optional().default('ACTIVE'),
 	mapId: z.number().int().nullable().optional(),
 	// Solo tiene efecto en tenants CHURCH — habilita la venta manual "invitado del anfitrión" con
 	// tope (ver lib/host-guest.ts). Ambos deben venir juntos o ninguno; no hay gate por tipo de

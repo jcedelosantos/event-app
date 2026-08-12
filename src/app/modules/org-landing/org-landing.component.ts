@@ -2,6 +2,19 @@ import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, computed, injec
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { PublicEventService, PublicOrg, PublicOrgEvent } from '../public-event/services/public-event.service';
 
+type FilterCategory = 'proximos' | 'vencidos' | 'cancelados' | 'pospuestos' | 'inactivos' | 'programados';
+
+const FILTER_LABEL: Record<FilterCategory, string> = {
+	proximos: 'Próximos',
+	vencidos: 'Vencidos',
+	cancelados: 'Cancelados',
+	pospuestos: 'Pospuestos',
+	inactivos: 'Inactivo',
+	programados: 'Programado',
+};
+const FILTER_ORDER: FilterCategory[] = ['proximos', 'programados', 'vencidos', 'pospuestos', 'cancelados', 'inactivos'];
+const DEFAULT_VISIBLE_FILTERS: FilterCategory[] = ['proximos', 'programados'];
+
 @Component({
 	selector: 'app-org-landing',
 	imports: [RouterLink],
@@ -34,11 +47,19 @@ import { PublicEventService, PublicOrg, PublicOrgEvent } from '../public-event/s
 						<div class="container py-4">
 							<input
 								type="search"
-								class="form-control form-control-lg search-input mb-4"
+								class="form-control form-control-lg search-input mb-3"
 								placeholder="Buscar por nombre del evento o lugar..."
 								[value]="searchText()"
 								(input)="searchText.set($any($event.target).value)"
 							/>
+
+							<div class="filter-chips mb-4">
+								@for (cat of filterOrder; track cat) {
+									<button type="button" class="chip" [class.chip-active]="activeFilters().has(cat)" (click)="toggleFilter(cat)">
+										{{ filterLabel[cat] }}
+									</button>
+								}
+							</div>
 
 							@if (!filteredEvents().length) {
 								<p class="text-body-secondary text-center py-5">
@@ -167,6 +188,33 @@ import { PublicEventService, PublicOrg, PublicOrgEvent } from '../public-event/s
 				color: #fff;
 				border-color: var(--app-accent);
 				box-shadow: 0 0 0 0.25rem rgba(var(--app-accent-rgb, 220, 53, 69), 0.25);
+			}
+			.filter-chips {
+				display: flex;
+				flex-wrap: wrap;
+				gap: 0.5rem;
+			}
+			.chip {
+				background: #16181d;
+				border: 1px solid #2a2d34;
+				color: #9aa0aa;
+				font-size: 0.8rem;
+				font-weight: 600;
+				padding: 0.35rem 0.85rem;
+				border-radius: 999px;
+				transition:
+					background 0.15s ease,
+					color 0.15s ease,
+					border-color 0.15s ease;
+			}
+			.chip:hover {
+				border-color: var(--app-accent);
+				color: #fff;
+			}
+			.chip-active {
+				background: var(--app-accent);
+				border-color: var(--app-accent);
+				color: #fff;
 			}
 			.event-grid {
 				display: grid;
@@ -310,6 +358,13 @@ export class OrgLandingComponent implements OnInit {
 	searchText = signal('');
 	logoBroken = signal(false);
 
+	filterOrder = FILTER_ORDER;
+	filterLabel = FILTER_LABEL;
+	// Próximos + Programados visibles por default — el resto (vencidos, cancelados, pospuestos,
+	// inactivos) queda oculto hasta que el visitante lo pida a propósito con un chip, para que la
+	// portada no se llene de eventos que ya no importan para alguien que llega por primera vez.
+	activeFilters = signal<Set<FilterCategory>>(new Set(DEFAULT_VISIBLE_FILTERS));
+
 	// Tickea cada minuto para que el conteo regresivo de eventos "Próximamente" (ver statusLabel) se
 	// vaya achicando solo mientras alguien tiene la portada abierta, sin necesitar un refresh manual.
 	// Cada minuto alcanza de sobra acá — no es un cronómetro, es un badge en una tarjeta.
@@ -322,10 +377,23 @@ export class OrgLandingComponent implements OnInit {
 
 	filteredEvents = computed(() => {
 		const term = this.searchText().trim().toLowerCase();
+		const filters = this.activeFilters();
 		const events = this.org()?.events ?? [];
-		if (!term) return events;
-		return events.filter((e: PublicOrgEvent) => `${e.name} ${e.map?.name ?? ''}`.toLowerCase().includes(term));
+		return events.filter((e: PublicOrgEvent) => {
+			if (!filters.has(this.eventCategory(e))) return false;
+			if (!term) return true;
+			return `${e.name} ${e.map?.name ?? ''}`.toLowerCase().includes(term);
+		});
 	});
+
+	toggleFilter(cat: FilterCategory) {
+		this.activeFilters.update((current) => {
+			const next = new Set(current);
+			if (next.has(cat)) next.delete(cat);
+			else next.add(cat);
+			return next;
+		});
+	}
 
 	ngOnInit(): void {
 		const slug = this.route.snapshot.paramMap.get('slug');
@@ -348,6 +416,8 @@ export class OrgLandingComponent implements OnInit {
 	// "Inactivo" (sin tickets cargados todavía) se distingue de "Agotado" (sí tuvo, se vendieron todos)
 	// para no confundir un evento a futuro sin terminar de configurar con uno que de verdad se agotó.
 	statusLabel(event: PublicOrgEvent): string | null {
+		if (event.status === 'CANCELLED') return 'Cancelado';
+		if (event.status === 'POSTPONED') return 'Pospuesto';
 		if (event.scheduled) return this.countdownLabel(event.publishAt);
 		if (event.inactive) return 'Inactivo';
 		// Distinto de soldOut: el aforo compartido del evento ya se llenó aunque algún tipo de ticket
@@ -355,6 +425,20 @@ export class OrgLandingComponent implements OnInit {
 		if (event.capacityFull) return 'Aforo completo';
 		if (event.soldOut) return 'Agotado';
 		return null;
+	}
+
+	// Un evento cae en exactamente un balde para el filtro de la portada — mismo orden de prioridad
+	// que statusLabel() (cancelado/pospuesto pesa más que cualquier otra cosa), salvo que acá
+	// "vencido" (ya pasó dateOff) también cuenta como balde propio en vez de perderse dentro de
+	// "próximos". "Inactivo" (sin tickets cargados) y "programado" (publishAt a futuro) son los mismos
+	// casos que ya calcula el backend.
+	eventCategory(event: PublicOrgEvent): FilterCategory {
+		if (event.status === 'CANCELLED') return 'cancelados';
+		if (event.status === 'POSTPONED') return 'pospuestos';
+		if (event.scheduled) return 'programados';
+		if (event.inactive) return 'inactivos';
+		if (new Date(event.dateOff) < this.now()) return 'vencidos';
+		return 'proximos';
 	}
 
 	// Lee `now()` a propósito — al tickear (ver constructor) esto se recalcula solo en cada render, sin

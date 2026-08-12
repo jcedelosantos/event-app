@@ -100,32 +100,51 @@ declare const bootstrap: any;
 							<h5>Information</h5>
 							<hr />
 
-							<div class="d-flex flex-row mb-3 justify-content-between">
-								<div class="p-1">Created</div>
-								<div class="p-1">{{ ev.dateSale.toISOString() }}</div>
-							</div>
-							<div class="d-flex flex-row mb-3 justify-content-between">
-								<div class="p-1">Start</div>
-								<div class="p-1">{{ ev.dateOn.toISOString() }}</div>
-							</div>
-							<div class="d-flex flex-row mb-3 justify-content-between">
-								<div class="p-1">End</div>
-								<div class="p-1">{{ ev.dateOff.toISOString() }}</div>
+							<div class="row row-cols-2 g-2 kv-grid">
+								<div class="col">
+									<div class="text-body-secondary small">Creado</div>
+									<div>{{ ev.dateSale | date: 'medium' }}</div>
+								</div>
+								<div class="col">
+									<div class="text-body-secondary small">Visible</div>
+									<div>{{ ev.active ? 'Sí' : 'No' }}</div>
+								</div>
+								<div class="col">
+									<div class="text-body-secondary small">Inicio</div>
+									<div>{{ ev.dateOn | date: 'mediumDate' : 'UTC' }}</div>
+								</div>
+								<div class="col">
+									<div class="text-body-secondary small">Fin</div>
+									<div>{{ ev.dateOff | date: 'mediumDate' : 'UTC' }}</div>
+								</div>
+								<div class="col">
+									<div class="text-body-secondary small">Tipo</div>
+									<div>{{ ev.type }}</div>
+								</div>
 							</div>
 							<hr />
 
-							<div class="d-flex flex-row mb-3 justify-content-between">
-								<div class="p-2">Status</div>
-								<div class="p-2">{{ ev.active }}</div>
+							<div class="d-flex flex-row mb-2 justify-content-between align-items-center">
+								<div class="p-1">Estado del evento:</div>
+								<div class="p-1 d-flex gap-2 align-items-center">
+									<select class="form-select form-select-sm" [ngModel]="selectedStatus()" (ngModelChange)="selectedStatus.set($event)">
+										<option value="ACTIVE">Activo</option>
+										<option value="CANCELLED">Cancelado</option>
+										<option value="POSTPONED">Pospuesto</option>
+									</select>
+									@if (selectedStatus() !== ev.status) {
+										<button type="button" class="btn btn-danger btn-sm" (click)="saveStatus(ev.id)">Save</button>
+									}
+								</div>
 							</div>
+							@if (ev.status !== 'ACTIVE') {
+								<p class="text-body-secondary small mb-2">
+									Este evento sigue visible en el portal público, pero con la etiqueta correspondiente y sin poder comprarse.
+								</p>
+							}
 							<hr />
 
-							<div class="d-flex flex-row mb-3 justify-content-between">
-								<div class="p-1">Type</div>
-								<div class="p-1">{{ ev.type }}</div>
-							</div>
-
-							<div class="d-flex flex-row mb-3 justify-content-between align-items-center">
+							<div class="d-flex flex-row mb-2 justify-content-between align-items-center">
 								<div class="p-1">Map:</div>
 								<div class="p-1 d-flex gap-2 align-items-center">
 									<select class="form-select form-select-sm" [ngModel]="selectedMapId()" (ngModelChange)="selectedMapId.set($event)">
@@ -288,6 +307,7 @@ export class EventDetailsComponent implements OnInit {
 	event = signal<Events | null>(null);
 	maps = signal<Map[]>([]);
 	selectedMapId = signal<number | null>(null);
+	selectedStatus = signal<'ACTIVE' | 'CANCELLED' | 'POSTPONED'>('ACTIVE');
 	allSales = signal<SaleTicket[]>([]);
 	ticketToEdit = signal<Ticket | null>(null);
 	productToEdit = signal<Product | null>(null);
@@ -319,6 +339,7 @@ export class EventDetailsComponent implements OnInit {
 				next: (event) => {
 					this.event.set(event);
 					this.selectedMapId.set(event.map?.id ?? null);
+					this.selectedStatus.set(event.status);
 					this.loadAccessPoints(event.id);
 					this.loadScanConflicts(event.id);
 				},
@@ -345,6 +366,13 @@ export class EventDetailsComponent implements OnInit {
 
 	saveMap(eventId: number) {
 		this.eventSrv.updateEvent(eventId, { mapId: this.selectedMapId() }).subscribe((event) => this.event.set(event));
+	}
+
+	saveStatus(eventId: number) {
+		this.eventSrv.updateEvent(eventId, { status: this.selectedStatus() }).subscribe((event) => {
+			this.event.set(event);
+			this.selectedStatus.set(event.status);
+		});
 	}
 
 	openCreateTicketModal() {

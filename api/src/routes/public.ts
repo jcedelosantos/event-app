@@ -90,9 +90,15 @@ publicRouter.get('/org/:slug', asyncHandler(async (req, res) => {
 		return;
 	}
 
+	// Sin filtro de dateOff acá a propósito — el filtro de "próximos vs. vencidos" ahora lo aplica el
+	// frontend (ver org-landing.component.ts), que necesita poder mostrar los vencidos bajo demanda
+	// cuando el visitante activa ese chip. `take` es la red de seguridad para no traer un histórico
+	// sin límite en un tenant con muchos años de eventos — 300 eventos alcanza de sobra para
+	// cualquier club real y evita un query sin acotar en un endpoint público.
 	const events = await prisma.event.findMany({
-		where: { tenantId: tenant.id, active: true, dateOff: { gte: new Date() } },
-		orderBy: { dateOn: 'asc' },
+		where: { tenantId: tenant.id, active: true },
+		orderBy: { dateOn: 'desc' },
+		take: 300,
 		select: {
 			id: true,
 			name: true,
@@ -104,6 +110,7 @@ publicRouter.get('/org/:slug', asyncHandler(async (req, res) => {
 			startTime: true,
 			publishAt: true,
 			maxCapacity: true,
+			status: true,
 			map: { select: { name: true } },
 			tickets: { where: { active: true }, select: { count: true } },
 		},
@@ -234,6 +241,9 @@ publicRouter.get('/events/:code', asyncHandler(async (req, res) => {
 		// frontend lo usa para bloquear la compra ANTES de intentarla (ver purchaseBlockedReason en
 		// public-event.component.ts) — el bloqueo real de todas formas vive en el backend.
 		capacityFull: event.maxCapacity != null && soldSeats.length >= event.maxCapacity,
+		// ACTIVE | CANCELLED | POSTPONED — el frontend lo usa para mostrar un aviso claro y bloquear el
+		// botón de compra ANTES de intentarla (el bloqueo real vive en /purchase y /checkout/hold).
+		status: event.status,
 	});
 }));
 
@@ -456,6 +466,10 @@ publicRouter.post('/purchase', checkoutRateLimiter, asyncHandler(async (req, res
 	const event = await prismaUnscoped.event.findUnique({ where: { code: eventCode } });
 	if (!event || !event.active) {
 		res.status(404).json({ error: 'Evento no encontrado' });
+		return;
+	}
+	if (event.status !== 'ACTIVE') {
+		res.status(409).json({ error: event.status === 'CANCELLED' ? 'Este evento fue cancelado.' : 'Este evento fue pospuesto — todavía no hay una nueva fecha confirmada para comprar.' });
 		return;
 	}
 	// Repite acá el mismo gate que ya aplica el frontend (ver public-event.component.ts) — sin esto,
@@ -809,6 +823,10 @@ publicRouter.post('/checkout/hold', checkoutRateLimiter, asyncHandler(async (req
 	const event = await prismaUnscoped.event.findUnique({ where: { code: eventCode } });
 	if (!event || !event.active) {
 		res.status(404).json({ error: 'Evento no encontrado' });
+		return;
+	}
+	if (event.status !== 'ACTIVE') {
+		res.status(409).json({ error: event.status === 'CANCELLED' ? 'Este evento fue cancelado.' : 'Este evento fue pospuesto — todavía no hay una nueva fecha confirmada para comprar.' });
 		return;
 	}
 	if (event.paymentMode === 'NONE' || (provider === 'PAYPAL' && event.paymentMode === 'LINK') || (provider === 'LINK' && event.paymentMode === 'PAYPAL')) {

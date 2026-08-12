@@ -15,6 +15,10 @@ export interface Events {
 	dateOff: Date;
 	startTime: string | null;
 	active: boolean;
+	// ACTIVE (default) | CANCELLED | POSTPONED — distinto de `active` (ver create-event-modal /
+	// event-details): un evento cancelado/pospuesto sigue siendo `active` y sigue en el portal
+	// público, solo cambia la etiqueta y se bloquea la compra.
+	status: 'ACTIVE' | 'CANCELLED' | 'POSTPONED';
 	hostName?: string | null;
 	maxHostGuests?: number | null;
 	// Solo tiene sentido en tenants CLUB — eventos que comparten este valor son "misma función,
