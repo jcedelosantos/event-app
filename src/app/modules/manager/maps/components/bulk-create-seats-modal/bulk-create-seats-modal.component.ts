@@ -139,6 +139,12 @@ export class BulkCreateSeatsModalComponent {
 	// que ya existían).
 	@Input() existingTableNames: string[] = [];
 	@Input() existingFlatSeatNames: string[] = [];
+	// Posiciones reales (no solo cantidad/nombres) de lo que ya existe en el área — se usan para
+	// anclar la tanda nueva DEBAJO de lo más bajo que ya hay, en vez de calcular la fila a partir de
+	// cantidad÷columnas (ver generateTables/generateFlatSeats más abajo: esa cuenta se rompía si la
+	// tanda anterior se generó con una cantidad de columnas distinta a la de ahora).
+	@Input() existingTables: Table[] = [];
+	@Input() existingFlatSeats: Seat[] = [];
 	seatsCreated = output<Seat[]>();
 	tablesCreated = output<Table[]>();
 	errorMessage = '';
@@ -203,17 +209,17 @@ export class BulkCreateSeatsModalComponent {
 		const spacing = 60;
 		const margin = 40;
 		const startNumber = this.nextNumber(this.existingFlatSeatNames, prefix, '');
-		// Mismo offset que generateTables — sin esto, una segunda tanda de asientos sueltos se pinta
-		// encima de los primeros en vez de seguir después.
-		const gridOffset = this.existingFlatSeatNames.length;
+		// Ancla la tanda nueva debajo del asiento existente más bajo (por posición Y real, no por
+		// cantidad÷columnas) — así nunca se pisan aunque esta tanda use una cantidad de columnas
+		// distinta a la que se usó para los asientos ya puestos.
+		const startY = this.existingFlatSeats.length ? Math.max(...this.existingFlatSeats.map((s) => s.y)) + spacing : margin;
 		const seatInputs: SeatInput[] = Array.from({ length: count }, (_, i) => {
-			const gridIndex = gridOffset + i;
-			const col = gridIndex % cols;
-			const row = Math.floor(gridIndex / cols);
+			const col = i % cols;
+			const row = Math.floor(i / cols);
 			return {
 				name: `${prefix}${startNumber + i}`,
 				x: col * spacing + margin,
-				y: row * spacing + margin,
+				y: startY + row * spacing,
 				size: 12,
 				color: '#000000',
 				icon: '',
@@ -246,19 +252,22 @@ export class BulkCreateSeatsModalComponent {
 		// pegadas arriba, casi saliéndose del plano).
 		const margin = ringRadius + 55;
 		const startNumber = this.nextNumber(this.existingTableNames, prefix, ' ');
-		// El grid de posiciones tiene que arrancar DESPUÉS de las mesas que ya existen en el área — sin
-		// este offset, cada tanda nueva volvía a arrancar en col=0/row=0 y terminaba pintada arriba de
-		// las primeras mesas ya puestas (reportado: "Mesa 11 y 12 se montó en posición 1 y 2").
-		const gridOffset = this.existingTableNames.length;
+		// Ancla la tanda nueva debajo de la mesa existente más baja (por posición Y real, no por
+		// cantidad÷columnas) — así nunca se pisan sin importar qué cantidad de columnas se usó para
+		// las tandas anteriores. Antes esto se calculaba como cantidad÷columnas asumiendo que TODAS
+		// las tandas usaron el mismo número de columnas — si esta tanda usa un valor de columnas
+		// distinto al de antes, esa cuenta se desalinea y las mesas nuevas terminan mucho más abajo
+		// de lo esperado, fuera del plano visible (reportado con "Mesa 11 y 12" dos veces: primero
+		// superpuestas, después perdidas fuera del mapa).
+		const startY = this.existingTables.length ? Math.max(...this.existingTables.map((t) => t.y)) + tableSpacing : margin;
 		const tableInputs: TableInput[] = Array.from({ length: tableCount }, (_, i) => {
-			const gridIndex = gridOffset + i;
-			const col = gridIndex % cols;
-			const row = Math.floor(gridIndex / cols);
+			const col = i % cols;
+			const row = Math.floor(i / cols);
 			return {
 				name: `${prefix} ${startNumber + i}`,
 				icon: tableIcon,
 				x: col * tableSpacing + margin,
-				y: row * tableSpacing + margin,
+				y: startY + row * tableSpacing,
 				size: 30,
 				color: '#dc3545',
 				areaId: this.areaId!,

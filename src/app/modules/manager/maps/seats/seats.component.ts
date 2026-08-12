@@ -166,6 +166,8 @@ declare const bootstrap: any;
 				[areaId]="area()?.id"
 				[existingTableNames]="tableNames()"
 				[existingFlatSeatNames]="ungroupedSeatNames()"
+				[existingTables]="tables()"
+				[existingFlatSeats]="ungroupedSeats()"
 				(seatsCreated)="onSeatsBulkCreated($event)"
 				(tablesCreated)="onTablesBulkCreated($event)"
 			/>
