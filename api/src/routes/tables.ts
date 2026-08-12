@@ -89,6 +89,12 @@ tablesRouter.post('/bulk', asyncHandler(async (req: AuthenticatedRequest, res) =
 const bulkResizeSchema = z.object({
 	ids: z.array(z.number().int()).min(1),
 	size: z.coerce.number(),
+	// Opcional a propósito — el form de "Editar mesas" siempre manda size (obligatorio ahí), pero
+	// solo manda color si el usuario lo tocó, igual criterio que seatSize en ese mismo modal.
+	color: z
+		.string()
+		.regex(/^#[0-9a-fA-F]{6}$/)
+		.optional(),
 });
 
 // Registrada ANTES de PUT /:id — Express probaría "bulk-resize" como si fuera un :id si el orden
@@ -104,7 +110,10 @@ tablesRouter.put('/bulk-resize', asyncHandler(async (req: AuthenticatedRequest, 
 	}
 
 	const tenantId = req.user!.tenantId!;
-	await prisma.table.updateMany({ where: { id: { in: parsed.data.ids }, tenantId }, data: { size: parsed.data.size } });
+	await prisma.table.updateMany({
+		where: { id: { in: parsed.data.ids }, tenantId },
+		data: { size: parsed.data.size, ...(parsed.data.color ? { color: parsed.data.color } : {}) },
+	});
 	const tables = await prisma.table.findMany({ where: { id: { in: parsed.data.ids }, tenantId }, include: { seats: true } });
 	res.json(tables);
 }));

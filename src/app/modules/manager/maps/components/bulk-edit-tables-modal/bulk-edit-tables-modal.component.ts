@@ -16,7 +16,7 @@ import { closeModal } from '../../../../../utils/modal';
 			<div class="modal-dialog">
 				<div class="modal-content">
 					<div class="modal-header">
-						<h1 class="modal-title fs-5" id="bulkEditTablesModalLabel">Editar tamaño de mesas</h1>
+						<h1 class="modal-title fs-5" id="bulkEditTablesModalLabel">Editar mesas</h1>
 						<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
 					</div>
 					<div class="modal-body">
@@ -37,6 +37,15 @@ import { closeModal } from '../../../../../utils/modal';
 									}
 									<div class="form-text">Se ajusta solo con el tamaño de mesa (misma proporción que usa "Generar varios") — cambialo a mano si querés otra relación.</div>
 								</div>
+							</div>
+							<div class="mb-3">
+								<label class="d-flex align-items-center gap-2">
+									<input type="checkbox" class="form-check-input" [checked]="colorEnabled()" (change)="toggleColorEnabled()" />
+									Cambiar color de mesa
+								</label>
+								@if (colorEnabled()) {
+									<input type="color" class="form-control form-control-color mt-1" formControlName="tableColor" />
+								}
 							</div>
 							<div class="d-flex justify-content-between align-items-center mb-2">
 								<label class="mb-0">Mesas a editar ({{ selected().size }} de {{ tables.length }})</label>
@@ -90,13 +99,22 @@ export class BulkEditTablesModalComponent implements OnChanges {
 	seatsUpdated = output<Seat[]>();
 
 	selected = signal<Set<number>>(new Set());
+	// El color arranca deshabilitado a propósito — a diferencia del tamaño (siempre se manda), el
+	// color es la excepción: la mayoría de las veces que se abre este modal es solo para el tamaño,
+	// y no tiene sentido pisar el color de todas las mesas seleccionadas sin que el usuario lo pida.
+	colorEnabled = signal(false);
 	errorMessage = '';
 	applying = false;
 
 	form = this.fb.group({
 		tableSize: this.fb.control<number | null>(null, [Validators.required, Validators.min(8), Validators.max(200)]),
 		seatSize: this.fb.control<number | null>(null, [Validators.min(4), Validators.max(100)]),
+		tableColor: this.fb.control('#dc3545'),
 	});
+
+	toggleColorEnabled() {
+		this.colorEnabled.update((v) => !v);
+	}
 
 	// Mientras el usuario no toque el campo de asientos a mano, seatSize sigue a tableSize (misma
 	// proporción 3:1 que "Generar varios" usa al crear mesas nuevas — tableSize 30, seatSize 10) para
@@ -156,7 +174,7 @@ export class BulkEditTablesModalComponent implements OnChanges {
 			return;
 		}
 
-		const { tableSize, seatSize } = this.form.getRawValue();
+		const { tableSize, seatSize, tableColor } = this.form.getRawValue();
 		const targetTables = this.tables.filter((t) => this.selected().has(t.id));
 		const tableIds = targetTables.map((t) => t.id);
 		const seatIds = targetTables.flatMap((t) => t.seats.map((s) => s.id));
@@ -165,7 +183,7 @@ export class BulkEditTablesModalComponent implements OnChanges {
 		// mesas eso eran cientos de requests simultáneas, que saturaban el navegador y disparaban una
 		// tanda de change-detection por cada respuesta: exactamente lo que se sentía como "se congela".
 		this.applying = true;
-		this.tablesService.bulkResizeTables(tableIds, tableSize!).subscribe({
+		this.tablesService.bulkResizeTables(tableIds, tableSize!, this.colorEnabled() ? tableColor! : undefined).subscribe({
 			next: (updatedTables) => {
 				this.tablesUpdated.emit(updatedTables);
 				if (seatSize && seatIds.length) {
@@ -188,6 +206,7 @@ export class BulkEditTablesModalComponent implements OnChanges {
 		this.applying = false;
 		this.errorMessage = '';
 		this.seatSizeManuallySet = false;
+		this.colorEnabled.set(false);
 		closeModal('bulkEditTablesModal');
 	}
 

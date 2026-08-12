@@ -203,9 +203,13 @@ export class BulkCreateSeatsModalComponent {
 		const spacing = 60;
 		const margin = 40;
 		const startNumber = this.nextNumber(this.existingFlatSeatNames, prefix, '');
+		// Mismo offset que generateTables — sin esto, una segunda tanda de asientos sueltos se pinta
+		// encima de los primeros en vez de seguir después.
+		const gridOffset = this.existingFlatSeatNames.length;
 		const seatInputs: SeatInput[] = Array.from({ length: count }, (_, i) => {
-			const col = i % cols;
-			const row = Math.floor(i / cols);
+			const gridIndex = gridOffset + i;
+			const col = gridIndex % cols;
+			const row = Math.floor(gridIndex / cols);
 			return {
 				name: `${prefix}${startNumber + i}`,
 				x: col * spacing + margin,
@@ -242,9 +246,14 @@ export class BulkCreateSeatsModalComponent {
 		// pegadas arriba, casi saliéndose del plano).
 		const margin = ringRadius + 55;
 		const startNumber = this.nextNumber(this.existingTableNames, prefix, ' ');
+		// El grid de posiciones tiene que arrancar DESPUÉS de las mesas que ya existen en el área — sin
+		// este offset, cada tanda nueva volvía a arrancar en col=0/row=0 y terminaba pintada arriba de
+		// las primeras mesas ya puestas (reportado: "Mesa 11 y 12 se montó en posición 1 y 2").
+		const gridOffset = this.existingTableNames.length;
 		const tableInputs: TableInput[] = Array.from({ length: tableCount }, (_, i) => {
-			const col = i % cols;
-			const row = Math.floor(i / cols);
+			const gridIndex = gridOffset + i;
+			const col = gridIndex % cols;
+			const row = Math.floor(gridIndex / cols);
 			return {
 				name: `${prefix} ${startNumber + i}`,
 				icon: tableIcon,
