@@ -64,15 +64,15 @@ import { closeModal } from '../../../../../utils/modal';
 									<p class="text-muted small">Esta área todavía no tiene mesas.</p>
 								}
 							</div>
-							@if (errorMessage) {
-								<div class="text-danger mt-2">{{ errorMessage }}</div>
+							@if (errorMessage()) {
+								<div class="text-danger mt-2">{{ errorMessage() }}</div>
 							}
 						</form>
 					</div>
 					<div class="modal-footer">
 						<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-						<button type="button" class="btn btn-danger" [disabled]="applying || !selected().size" (click)="submit()">
-							{{ applying ? 'Aplicando...' : 'Aplicar' }}
+						<button type="button" class="btn btn-danger" [disabled]="applying() || !selected().size" (click)="submit()">
+							{{ applying() ? 'Aplicando...' : 'Aplicar' }}
 						</button>
 					</div>
 				</div>
@@ -103,8 +103,11 @@ export class BulkEditTablesModalComponent implements OnChanges, AfterViewInit {
 	// color es la excepción: la mayoría de las veces que se abre este modal es solo para el tamaño,
 	// y no tiene sentido pisar el color de todas las mesas seleccionadas sin que el usuario lo pida.
 	colorEnabled = signal(false);
-	errorMessage = '';
-	applying = false;
+	// Signals (no campos planos): el componente es OnPush y estos se asignan desde un callback de
+	// HTTP — un campo plano mutado ahí no repinta la vista sola (mismo motivo documentado en
+	// create-qr-modal.component.ts), y era justo lo que dejaba el botón trabado en "Aplicando...".
+	errorMessage = signal('');
+	applying = signal(false);
 
 	form = this.fb.group({
 		tableSize: this.fb.control<number | null>(null, [Validators.required, Validators.min(8), Validators.max(200)]),
@@ -150,7 +153,7 @@ export class BulkEditTablesModalComponent implements OnChanges, AfterViewInit {
 		this.form.reset({ tableSize: null, seatSize: null, tableColor: '#dc3545' });
 		this.seatSizeManuallySet = false;
 		this.colorEnabled.set(false);
-		this.errorMessage = '';
+		this.errorMessage.set('');
 	}
 
 	// Cada vez que cambia la lista de mesas del área (se abre el modal sobre una nueva área, o se
@@ -212,7 +215,7 @@ export class BulkEditTablesModalComponent implements OnChanges, AfterViewInit {
 		// Una request por lote (mesas, después asientos) en vez de un PUT por fila — con áreas de 50+
 		// mesas eso eran cientos de requests simultáneas, que saturaban el navegador y disparaban una
 		// tanda de change-detection por cada respuesta: exactamente lo que se sentía como "se congela".
-		this.applying = true;
+		this.applying.set(true);
 		this.tablesService.bulkResizeTables(tableIds, tableSize!, this.colorEnabled() ? tableColor! : undefined).subscribe({
 			next: (updatedTables) => {
 				this.tablesUpdated.emit(updatedTables);
@@ -233,14 +236,14 @@ export class BulkEditTablesModalComponent implements OnChanges, AfterViewInit {
 	}
 
 	private finish() {
-		this.applying = false;
+		this.applying.set(false);
 		// El reset de tableSize/seatSize/tableColor/colorEnabled pasa por resetForm(), disparado por
 		// el 'hidden.bs.modal' que cierra closeModal() acá abajo — ver ngAfterViewInit.
 		closeModal('bulkEditTablesModal');
 	}
 
 	private fail(err: HttpErrorResponse) {
-		this.applying = false;
-		this.errorMessage = extractErrorMessage(err);
+		this.applying.set(false);
+		this.errorMessage.set(extractErrorMessage(err));
 	}
 }
