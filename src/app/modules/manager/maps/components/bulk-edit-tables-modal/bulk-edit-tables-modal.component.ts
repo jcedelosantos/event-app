@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, Input, OnChanges, SimpleChanges, output, signal } from '@angular/core';
+import { AfterViewInit, ChangeDetectionStrategy, Component, inject, Input, OnChanges, SimpleChanges, output, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Table } from '../../../../../models/maps/table';
@@ -89,7 +89,7 @@ import { closeModal } from '../../../../../utils/modal';
 	],
 	changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class BulkEditTablesModalComponent implements OnChanges {
+export class BulkEditTablesModalComponent implements OnChanges, AfterViewInit {
 	private readonly fb = inject(FormBuilder);
 	private readonly tablesService = inject(TablesService);
 	private readonly seatsService = inject(SeatsService);
@@ -135,6 +135,22 @@ export class BulkEditTablesModalComponent implements OnChanges {
 
 	private suggestedSeatSize(tableSize: number): number {
 		return Math.max(4, Math.min(100, Math.round(tableSize / 3)));
+	}
+
+	// Sin esto, el tamaño ingresado la última vez quedaba pegado en el formulario — al reabrir el
+	// modal (para las mismas mesas u otras) el campo ya venía con un valor "válido" y se reaplicaba
+	// solo con tocar "Aplicar", sin que el usuario lo hubiera vuelto a escribir. Se escucha el
+	// 'hidden.bs.modal' del propio modal (se cierre por Aplicar, por "Close" o por click afuera) en
+	// vez de depender de que el [tables] del padre cambie de referencia, que no pasa si no hubo edición.
+	ngAfterViewInit() {
+		document.getElementById('bulkEditTablesModal')?.addEventListener('hidden.bs.modal', () => this.resetForm());
+	}
+
+	private resetForm() {
+		this.form.reset({ tableSize: null, seatSize: null, tableColor: '#dc3545' });
+		this.seatSizeManuallySet = false;
+		this.colorEnabled.set(false);
+		this.errorMessage = '';
 	}
 
 	// Cada vez que cambia la lista de mesas del área (se abre el modal sobre una nueva área, o se
@@ -218,9 +234,8 @@ export class BulkEditTablesModalComponent implements OnChanges {
 
 	private finish() {
 		this.applying = false;
-		this.errorMessage = '';
-		this.seatSizeManuallySet = false;
-		this.colorEnabled.set(false);
+		// El reset de tableSize/seatSize/tableColor/colorEnabled pasa por resetForm(), disparado por
+		// el 'hidden.bs.modal' que cierra closeModal() acá abajo — ver ngAfterViewInit.
 		closeModal('bulkEditTablesModal');
 	}
 
