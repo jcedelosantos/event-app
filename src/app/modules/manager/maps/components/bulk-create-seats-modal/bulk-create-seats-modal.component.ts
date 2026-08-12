@@ -268,8 +268,8 @@ export class BulkCreateSeatsModalComponent {
 				icon: tableIcon,
 				x: col * tableSpacing + margin,
 				y: startY + row * tableSpacing,
-				size: 30,
-				color: '#dc3545',
+				size: 16,
+				color: '#1e3a8a',
 				areaId: this.areaId!,
 			};
 		});

@@ -412,7 +412,10 @@ const MAX_INVITADO_SEATS = 2;
 							@if (expandedTableSeats(); as info) {
 								<div class="table-overlay-backdrop">
 									<div class="table-overlay-panel">
-										<h6 class="mb-3">{{ info.table.name }}</h6>
+										<div class="d-flex justify-content-between align-items-center mb-3">
+											<h6 class="mb-0">{{ info.table.name }}</h6>
+											<button type="button" class="btn-close" aria-label="Cerrar" (click)="expandedTableId.set(null)"></button>
+										</div>
 										<div class="d-flex flex-wrap gap-2 mb-3">
 											@for (seat of info.seats; track seat.id) {
 												<button
