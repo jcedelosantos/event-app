@@ -1,4 +1,4 @@
-import { AfterViewInit, ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { AfterViewInit, ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { Router } from '@angular/router';
 import { TenantService } from './services/tenant.service';
@@ -45,7 +45,12 @@ const REQUEST_STATUS_LABEL: Record<ServiceRequestStatus, string> = {
 		<div class="container-fluid py-4" data-bs-theme="dark">
 			<div class="d-flex justify-content-between align-items-center mb-4">
 				<div>
-					<h2 class="section-title mb-0">Organizaciones</h2>
+					<h2 class="section-title mb-0">
+						Organizaciones
+						@if (totalPendingReviewCount() > 0) {
+							<span class="badge text-bg-warning ms-2"><i class="bi bi-bell-fill"></i> {{ totalPendingReviewCount() }} pendiente{{ totalPendingReviewCount() === 1 ? '' : 's' }} de revisar</span>
+						}
+					</h2>
 					<p class="text-muted small mb-0">Panel de Super Admin — alta de clubes/iglesias que usan la plataforma.</p>
 				</div>
 				<div class="d-flex gap-2">
@@ -143,7 +148,12 @@ const REQUEST_STATUS_LABEL: Record<ServiceRequestStatus, string> = {
 
 			<div class="d-flex justify-content-between align-items-center mb-3 mt-5">
 				<div>
-					<h2 class="section-title mb-0">Solicitudes de servicios adicionales</h2>
+					<h2 class="section-title mb-0">
+						Solicitudes de servicios adicionales
+						@if (pendingServiceRequestsCount() > 0) {
+							<span class="badge text-bg-warning ms-2">{{ pendingServiceRequestsCount() }} sin revisar</span>
+						}
+					</h2>
 					<p class="text-muted small mb-0">Renta de equipos, personal presencial y demás — cotizar/coordinar y marcar el estado acá.</p>
 				</div>
 			</div>
@@ -204,7 +214,12 @@ const REQUEST_STATUS_LABEL: Record<ServiceRequestStatus, string> = {
 
 			<div class="d-flex justify-content-between align-items-center mb-3 mt-5">
 				<div>
-					<h2 class="section-title mb-0">Contactos Pro Enterprise</h2>
+					<h2 class="section-title mb-0">
+						Contactos Pro Enterprise
+						@if (pendingEnterpriseLeadsCount() > 0) {
+							<span class="badge text-bg-warning ms-2">{{ pendingEnterpriseLeadsCount() }} sin revisar</span>
+						}
+					</h2>
 					<p class="text-muted small mb-0">Prospectos que pidieron que los contactemos desde la portada — sin alta automática, se cotiza y da de alta a mano.</p>
 				</div>
 			</div>
@@ -253,7 +268,12 @@ const REQUEST_STATUS_LABEL: Record<ServiceRequestStatus, string> = {
 
 			<div class="d-flex justify-content-between align-items-center mb-3 mt-5">
 				<div>
-					<h2 class="section-title mb-0">Comprobantes de transferencia pendientes</h2>
+					<h2 class="section-title mb-0">
+						Comprobantes de transferencia pendientes
+						@if (pendingReceipts().length > 0) {
+							<span class="badge text-bg-warning ms-2">{{ pendingReceipts().length }} sin revisar</span>
+						}
+					</h2>
 					<p class="text-muted small mb-0">Evento único pagado por transferencia (ver /evento-unico) — confirmá el pago a mano para activar la cuenta.</p>
 				</div>
 			</div>
@@ -323,6 +343,12 @@ export class SuperAdminComponent implements AfterViewInit {
 
 	pendingReceipts = signal<PendingReceiptTenant[]>([]);
 	selectedReceiptTenant = signal<PendingReceiptTenant | null>(null);
+
+	// Suma de las 3 colas que requieren acción del Super Admin — se usa tanto para el badge general
+	// del encabezado como, cada una por separado, para el badge de su propia sección.
+	pendingServiceRequestsCount = computed(() => this.serviceRequests().filter((r) => r.status === 'PENDING').length);
+	pendingEnterpriseLeadsCount = computed(() => this.enterpriseLeads().filter((l) => !l.contactedAt).length);
+	totalPendingReviewCount = computed(() => this.pendingServiceRequestsCount() + this.pendingEnterpriseLeadsCount() + this.pendingReceipts().length);
 
 	statusLabel(status: ServiceRequestStatus): string {
 		return REQUEST_STATUS_LABEL[status];
