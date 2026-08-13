@@ -242,8 +242,8 @@ function toDateTimeInputValue(date: Date): string {
 								</div>
 							}
 						</div>
-						@if (errorMessage) {
-							<div class="text-danger mt-2">{{ errorMessage }}</div>
+						@if (errorMessage()) {
+							<div class="text-danger mt-2">{{ errorMessage() }}</div>
 						}
 					</form>
 				</div>
@@ -281,7 +281,11 @@ export class CreateEventModalComponent {
 	event = model<Events | null>(null);
 	eventCreated = output<Events>();
 	eventUpdated = output<Events>();
-	errorMessage = '';
+	// Signal (no campo plano): el componente es OnPush y esto se asigna desde un callback de HTTP —
+	// un campo plano mutado ahí no repinta la vista sola (mismo motivo documentado en
+	// create-qr-modal.component.ts) — antes era la única excepción plana en este archivo, el resto
+	// de este mismo estado (uploading/uploadError/submitting) ya eran signals.
+	errorMessage = signal('');
 	uploading = signal(false);
 	uploadError = signal('');
 	// Sin esto, un doble-click en "Create" (algo tan simple como un click impaciente mientras la
@@ -325,7 +329,7 @@ export class CreateEventModalComponent {
 	constructor() {
 		effect(() => {
 			const current = this.event();
-			this.errorMessage = '';
+			this.errorMessage.set('');
 			this.uploadError.set('');
 			if (current) {
 				this.originalLinkedEventId = current.duplicateGroupKey
@@ -379,7 +383,7 @@ export class CreateEventModalComponent {
 	// para que tenga sentido como para no chocar con la validación de fecha+mapa duplicados.
 	prefillForDuplicate(source: Events) {
 		this.event.set(null);
-		this.errorMessage = '';
+		this.errorMessage.set('');
 		this.uploadError.set('');
 		this.eventForm.reset({
 			active: true,
@@ -485,12 +489,12 @@ export class CreateEventModalComponent {
 					this.eventCreated.emit(event);
 				}
 				this.event.set(null);
-				this.errorMessage = '';
+				this.errorMessage.set('');
 				closeModal('createEventModal');
 			},
 			error: (err: HttpErrorResponse) => {
 				this.submitting.set(false);
-				this.errorMessage = extractErrorMessage(err);
+				this.errorMessage.set(extractErrorMessage(err));
 			},
 		});
 	}

@@ -108,8 +108,8 @@ import { AuthService } from '../../../../../core/services/auth.service';
 								</select>
 							</div>
 						</div>
-						@if (errorMessage) {
-							<div class="text-danger">{{ errorMessage }}</div>
+						@if (errorMessage()) {
+							<div class="text-danger">{{ errorMessage() }}</div>
 						}
 					</form>
 				</div>
@@ -135,7 +135,10 @@ export class UpdateTicketModalComponent {
 	ticket = model<Ticket | null>(null);
 	defaultEventId = input<number | null>(null);
 	ticketSaved = output<void>();
-	errorMessage = '';
+	// Signal (no campo plano): el componente es OnPush y esto se asigna desde un callback de HTTP —
+	// un campo plano mutado ahí no repinta la vista sola (mismo motivo documentado en
+	// create-qr-modal.component.ts).
+	errorMessage = signal('');
 
 	events = signal<Events[]>([]);
 
@@ -174,7 +177,7 @@ export class UpdateTicketModalComponent {
 		// form quedaría con "Choose..." para siempre. Leer defaultEventId() acá (siempre, no solo en
 		// el branch else) es lo que lo mantiene reactivo a ese caso.
 		effect(() => {
-			this.errorMessage = '';
+			this.errorMessage.set('');
 			const current = this.ticket();
 			const defaultEventId = this.defaultEventId();
 			// Mismo motivo: la lista de eventos se carga una sola vez en el constructor de este modal,
@@ -233,11 +236,11 @@ export class UpdateTicketModalComponent {
 			next: () => {
 				this.ticketSaved.emit();
 				this.ticket.set(null);
-				this.errorMessage = '';
+				this.errorMessage.set('');
 				closeModal('updateTicketModal');
 			},
 			error: (err: HttpErrorResponse) => {
-				this.errorMessage = extractErrorMessage(err);
+				this.errorMessage.set(extractErrorMessage(err));
 			},
 		});
 	}

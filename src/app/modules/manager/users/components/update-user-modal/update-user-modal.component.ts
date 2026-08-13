@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, model, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, model, output, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { User } from '../../../../../models/users/user';
 import { UserService, UserTypeCode } from '../../services/user.service';
@@ -101,8 +101,8 @@ import { AuthService } from '../../../../../core/services/auth.service';
 									}
 								</div>
 							</div>
-							@if (errorMessage) {
-								<div class="text-danger">{{ errorMessage }}</div>
+							@if (errorMessage()) {
+								<div class="text-danger">{{ errorMessage() }}</div>
 							}
 						</form>
 					</div>
@@ -124,7 +124,10 @@ export class UpdateUserModalComponent {
 
 	user = model.required<User | null>();
 	userSaved = output<void>();
-	errorMessage = '';
+	// Signal (no campo plano): el componente es OnPush y esto se asigna desde un callback de HTTP —
+	// un campo plano mutado ahí no repinta la vista sola (mismo motivo documentado en
+	// create-qr-modal.component.ts).
+	errorMessage = signal('');
 
 	// Solo CLUB depende del carnet para identificar socios al vender un ticket (validateAttendeeRule)
 	// — en el resto de los tenants es un dato de referencia, no algo que deba bloquear el alta.
@@ -150,7 +153,7 @@ export class UpdateUserModalComponent {
 
 	constructor() {
 		effect(() => {
-			this.errorMessage = '';
+			this.errorMessage.set('');
 			const current = this.user();
 			if (current) {
 				this.form.patchValue({
@@ -186,7 +189,7 @@ export class UpdateUserModalComponent {
 		const isCreate = this.user() === null;
 
 		if (isCreate && !value.password) {
-			this.errorMessage = 'La contraseña es requerida para crear un usuario';
+			this.errorMessage.set('La contraseña es requerida para crear un usuario');
 			return;
 		}
 
@@ -211,14 +214,14 @@ export class UpdateUserModalComponent {
 	private createUser(payload: Parameters<UserService['createUser']>[0]) {
 		this.userService.createUser(payload).subscribe({
 			next: () => this.onSaved(),
-			error: (err: HttpErrorResponse) => (this.errorMessage = extractErrorMessage(err)),
+			error: (err: HttpErrorResponse) => this.errorMessage.set(extractErrorMessage(err)),
 		});
 	}
 
 	private updateUser(id: number, payload: Parameters<UserService['updateUser']>[1]) {
 		this.userService.updateUser(id, payload).subscribe({
 			next: () => this.onSaved(),
-			error: (err: HttpErrorResponse) => (this.errorMessage = extractErrorMessage(err)),
+			error: (err: HttpErrorResponse) => this.errorMessage.set(extractErrorMessage(err)),
 		});
 	}
 

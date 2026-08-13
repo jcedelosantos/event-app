@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, Input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, Input, output, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Seat } from '../../../../../models/maps/seat';
@@ -80,14 +80,14 @@ import { closeModal } from '../../../../../utils/modal';
 									posición exacta.
 								</div>
 							}
-							@if (errorMessage) {
-								<div class="text-danger mt-2">{{ errorMessage }}</div>
+							@if (errorMessage()) {
+								<div class="text-danger mt-2">{{ errorMessage() }}</div>
 							}
 						</form>
 					</div>
 					<div class="modal-footer">
 						<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-						<button type="button" class="btn btn-danger" [disabled]="creating" (click)="submit()">Generar</button>
+						<button type="button" class="btn btn-danger" [disabled]="creating()" (click)="submit()">Generar</button>
 					</div>
 				</div>
 			</div>
@@ -147,8 +147,11 @@ export class BulkCreateSeatsModalComponent {
 	@Input() existingFlatSeats: Seat[] = [];
 	seatsCreated = output<Seat[]>();
 	tablesCreated = output<Table[]>();
-	errorMessage = '';
-	creating = false;
+	// Signals (no campos planos): el componente es OnPush y estos se asignan desde un callback de
+	// HTTP — un campo plano mutado ahí no repinta la vista sola (mismo motivo documentado en
+	// create-qr-modal.component.ts).
+	errorMessage = signal('');
+	creating = signal(false);
 
 	form = this.fb.group({
 		count: this.fb.control<number | null>(null, [Validators.required, Validators.min(1), Validators.max(200)]),
@@ -230,7 +233,7 @@ export class BulkCreateSeatsModalComponent {
 		// Un solo POST con todos los asientos en vez de uno por fila — con 200 asientos eso eran 200
 		// requests simultáneas vía forkJoin, que en producción (latencia real, no localhost) se sentía
 		// como que la página se congelaba (mismo problema ya resuelto para el resize, ver bulk-resize).
-		this.creating = true;
+		this.creating.set(true);
 		this.seatsService.bulkCreateSeats(seatInputs).subscribe({
 			next: (seats) => {
 				this.seatsCreated.emit(seats);
@@ -277,7 +280,7 @@ export class BulkCreateSeatsModalComponent {
 		// Un solo POST para todas las mesas y otro para todos sus asientos, en vez de un POST por mesa
 		// y otro por asiento vía forkJoin anidado — con 20 mesas x 10 asientos eso eran ~220 requests
 		// simultáneas (mismo anti-patrón ya resuelto para el resize, ver tables.ts/seats.ts POST /bulk).
-		this.creating = true;
+		this.creating.set(true);
 		this.tablesService.bulkCreateTables(tableInputs).subscribe({
 			next: (tables) => {
 				const seatInputs: SeatInput[] = tables.flatMap((table) =>
@@ -309,14 +312,14 @@ export class BulkCreateSeatsModalComponent {
 	}
 
 	private finish() {
-		this.creating = false;
+		this.creating.set(false);
 		this.form.reset({ count: null, prefix: '', columns: 10, seatsPerTable: null, tableIcon: 'bi-circle-fill' });
-		this.errorMessage = '';
+		this.errorMessage.set('');
 		closeModal('bulkCreateSeatsModal');
 	}
 
 	private fail(err: HttpErrorResponse) {
-		this.creating = false;
-		this.errorMessage = extractErrorMessage(err);
+		this.creating.set(false);
+		this.errorMessage.set(extractErrorMessage(err));
 	}
 }
