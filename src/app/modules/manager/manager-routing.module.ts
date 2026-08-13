@@ -13,7 +13,7 @@ import { ReportsComponent } from './reports/reports.component';
 import { HistoryComponent } from './history/history.component';
 import { QrsComponent } from './qrs/qrs.component';
 import { ProductsComponent } from './products/products.component';
-import { SalesComponent } from './sales/sales.component';
+import { InvoicesComponent } from './invoices/invoices.component';
 import { EventDetailsComponent } from './events/event-details/event-details.component';
 import { QrScannerComponent } from './events/components/qr-scanner/qr-scanner.component';
 import { SettingsComponent } from './settings/settings.component';
@@ -103,18 +103,13 @@ const routes: Routes = [
 				canActivate: [activeSubscriptionGuard],
 			},
 			{
-				path: 'sales',
-				component: SalesComponent,
+				path: 'invoices',
+				component: InvoicesComponent,
 				canActivate: [activeSubscriptionGuard],
 			},
 			{
 				path: 'solicitudes',
 				component: ServiceRequestsComponent,
-				canActivate: [activeSubscriptionGuard],
-			},
-			{
-				path: 'sales/:id_sale',
-				component: SalesComponent,
 				canActivate: [activeSubscriptionGuard],
 			},
 			// {

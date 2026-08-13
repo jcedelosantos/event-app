@@ -75,6 +75,7 @@ model Tenant {
   accessPoints  AccessPoint[]
   scanConflicts ScanConflict[]
   serviceRequests ServiceRequest[]
+  invoices      Invoice[]
 }
 
 // La mensualidad que el TENANT le paga a la agencia (no confundir con SaleTicket, que es la venta
@@ -100,6 +101,32 @@ model Subscription {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// Registro persistente de cada factura generada (ver lib/invoice-generation.ts) — antes de este
+// modelo, la factura se armaba en memoria y se descartaba al enviarla, sin dejar ningún historial
+// consultable. El PDF en sí NO se guarda en la fila (se re-escribe a uploadsDir, mismo mecanismo
+// que logos/comprobantes) — pdfUrl apunta a ese archivo. Los montos quedan congelados al momento
+// de emitir (no recalculados después), igual que una factura real: si el plan del tenant cambia
+// más adelante, las facturas viejas no deben mostrar el precio nuevo.
+model Invoice {
+  id            Int      @id @default(autoincrement())
+  tenantId      Int
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+
+  invoiceNumber String // referencia interna (INV-<tenantId>-<yyyymm>) — siempre existe
+  ncf           String? // comprobante fiscal de DGII — null si el Super Admin no configuró el rango al momento de emitir
+  billingPeriod String // "2026-08", el mes que factura (no necesariamente el mes en que se generó)
+  planCode      String?
+  planPriceUSD  Float
+  overageUSD    Float    @default(0)
+  totalUSD      Float // planPriceUSD + overageUSD + ITBIS
+  pdfUrl        String
+  // MANUAL (Super Admin la generó a mano) | AUTO (cron mensual, ver lib/invoice-cron.ts)
+  generatedBy   String
+  createdAt     DateTime @default(now())
+
+  @@index([tenantId])
 }
 
 // Config de plataforma genuinamente global (sin tenantId) — hoy solo guarda el PayPal usado para

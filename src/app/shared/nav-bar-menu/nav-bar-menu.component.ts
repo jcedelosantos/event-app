@@ -260,8 +260,9 @@ export class NavBarMenuComponent implements AfterViewInit, OnDestroy {
 	});
 
 	// Orden alineado al flujo real de trabajo: crear evento → asignar mapa → armar áreas/asientos →
-	// crear tickets → vender/generar QR → ver quién compró. "Sale" quedó como página muerta,
-	// superada por QRs (que ya cubre venta de tickets y productos).
+	// crear tickets → vender/generar QR → ver quién compró. "Sale" (página muerta, sin construir)
+	// se repurposeó como "Invoices" — historial de facturas de la propia organización (ver
+	// api/src/lib/invoice-generation.ts), no ventas de tickets/productos (eso lo cubre QRs).
 	menuList: Array<MenuItem> = [
 		{ title: 'Dash Board', icon: 'bi bi-speedometer', url: '/manager/dash-board' },
 		{ title: 'Events', icon: 'bi bi-calendar-event', url: '/manager/events' },
@@ -269,7 +270,7 @@ export class NavBarMenuComponent implements AfterViewInit, OnDestroy {
 		{ title: 'Tickets', icon: 'bi bi-ticket-fill', url: '/manager/tickets' },
 		{ title: 'QRs', icon: 'bi bi-qr-code', url: '/manager/qrs' },
 		{ title: 'Users', icon: 'bi bi-people-fill', url: '/manager/users' },
-		{ title: 'Sale', icon: 'bi bi-receipt', url: '/manager/sales' },
+		{ title: 'Invoices', icon: 'bi bi-receipt', url: '/manager/invoices' },
 		{ title: 'Products', icon: 'bi bi-calendar2-event-fill', url: '/manager/products' },
 		{ title: 'Reports', icon: 'bi bi-flag-fill', url: '/manager/reports' },
 		{ title: 'History', icon: 'bi bi-clock-history', url: '/manager/history' },

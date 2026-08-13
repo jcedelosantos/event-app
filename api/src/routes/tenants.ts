@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
-import { prismaUnscoped } from '../lib/prisma';
+import { prisma, prismaUnscoped } from '../lib/prisma';
 import { requireAuth, requireSuperAdmin, AuthenticatedRequest } from '../middleware/auth';
 import { signToken } from '../lib/jwt';
 import { toPublicUser } from '../lib/serialize';
@@ -10,8 +10,7 @@ import { asyncHandler } from '../lib/async-handler';
 import { uniqueTenantSlug } from '../lib/slug';
 import { computeTenantOverage } from '../lib/overage';
 import { cancelSubscription } from '../lib/paypal-billing';
-import { buildInvoicePdf } from '../lib/invoice-pdf';
-import { getInvoiceIssuerConfig, nextNcf } from '../lib/invoice-config';
+import { generateAndStoreInvoice } from '../lib/invoice-generation';
 
 // Panel de Super Admin: alta de nuevos clientes (clubes/iglesias) y su primer usuario admin. Usa
 // prismaUnscoped a propósito — el tenant-guard exige tenantId en cada query de los modelos de
@@ -165,7 +164,9 @@ tenantsRouter.get('/:id/subscription', asyncHandler(async (req, res) => {
 }));
 
 // Factura modelo (plan + overage del mes) para que la agencia le facture al club aparte — ver
-// lib/invoice-pdf.ts y el comentario en lib/overage.ts sobre por qué esto no se cobra automático.
+// lib/invoice-generation.ts y el comentario en lib/overage.ts sobre por qué esto no se cobra
+// automático. Cada descarga QUEDA REGISTRADA (ver modelo Invoice) — antes se armaba en memoria y
+// se descartaba, sin dejar historial; ver también GET /:id/invoices para consultarlo.
 tenantsRouter.get('/:id/invoice', asyncHandler(async (req, res) => {
 	const id = Number(req.params.id);
 	const tenant = await prismaUnscoped.tenant.findUnique({ where: { id } });
@@ -173,20 +174,19 @@ tenantsRouter.get('/:id/invoice', asyncHandler(async (req, res) => {
 		res.status(404).json({ error: 'Organización no encontrada' });
 		return;
 	}
-	const subscription = await prismaUnscoped.subscription.findUnique({ where: { tenantId: id } });
-	const overage = await computeTenantOverage(id);
-	const issuedAt = new Date();
-	const dueAt = new Date(issuedAt.getTime() + 7 * 24 * 60 * 60 * 1000);
-	const invoiceNumber = `INV-${String(id).padStart(4, '0')}-${issuedAt.getFullYear()}${String(issuedAt.getMonth() + 1).padStart(2, '0')}`;
-	const issuer = await getInvoiceIssuerConfig();
-	// Consume y avanza la secuencia real de DGII UNA sola vez por factura generada — null si el
-	// Super Admin todavía no cargó el próximo NCF en Configuración de facturación.
-	const ncf = await nextNcf();
 
-	const pdf = await buildInvoicePdf({ tenant, plan: tenant.plan, subscription, overage, invoiceNumber, ncf, issuedAt, dueAt, issuer });
+	const { invoice, pdf } = await generateAndStoreInvoice(id, 'MANUAL');
 	res.setHeader('Content-Type', 'application/pdf');
-	res.setHeader('Content-Disposition', `attachment; filename="${ncf ?? invoiceNumber}.pdf"`);
+	res.setHeader('Content-Disposition', `attachment; filename="${invoice.ncf ?? invoice.invoiceNumber}.pdf"`);
 	res.send(pdf);
+}));
+
+// Historial de facturas ya generadas para este tenant — de solo lectura, no dispara una emisión
+// nueva (eso es GET /:id/invoice de arriba).
+tenantsRouter.get('/:id/invoices', asyncHandler(async (req, res) => {
+	const tenantId = Number(req.params.id);
+	const invoices = await prisma.invoice.findMany({ where: { tenantId }, orderBy: { createdAt: 'desc' } });
+	res.json(invoices);
 }));
 
 const cancelSubscriptionSchema = z.object({ reason: z.string().min(1).optional().default('Cancelado por la agencia') });

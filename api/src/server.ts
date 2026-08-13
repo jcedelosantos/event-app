@@ -28,9 +28,11 @@ import { accessPointsRouter } from './routes/access-points';
 import { serviceRequestsRouter } from './routes/service-requests';
 import { enterpriseLeadsRouter } from './routes/enterprise-leads';
 import { uploadsRouter } from './routes/uploads';
+import { invoicesRouter } from './routes/invoices';
 import { uploadsDir } from './lib/uploads';
 import { runScheduledReportsCheck } from './lib/scheduled-reports';
 import { runEventPlanExpiryCheck } from './lib/event-plan-expiry';
+import { runMonthlyInvoiceGeneration } from './lib/invoice-cron';
 
 // Red de seguridad: una promesa rechazada sin manejar en cualquier punto del proceso (no solo
 // dentro de una request) tumbaba el server entero en Node moderno. asyncHandler cubre las rutas,
@@ -90,6 +92,7 @@ app.use('/subscription', subscriptionRouter);
 app.use('/access-points', accessPointsRouter);
 app.use('/service-requests', serviceRequestsRouter);
 app.use('/enterprise-leads', enterpriseLeadsRouter);
+app.use('/invoices', invoicesRouter);
 
 // En producción, este mismo proceso también sirve el build de Angular (single-service deploy:
 // sin CORS, sin necesidad de un dominio aparte para el frontend). En dev, el frontend corre
@@ -123,6 +126,12 @@ cron.schedule('0 13 * * *', () => {
 // terminó (ver lib/event-plan-expiry.ts).
 cron.schedule('30 13 * * *', () => {
 	runEventPlanExpiryCheck().catch((err) => console.error('[event-plan-expiry] Falló el chequeo diario:', err));
+});
+
+// Mismo horario UTC de referencia, corrido una hora después del cron de reportes — el "1" en el
+// campo de día del mes lo limita a correr una sola vez por mes (ver invoice-cron.ts).
+cron.schedule('0 14 1 * *', () => {
+	runMonthlyInvoiceGeneration().catch((err) => console.error('[invoice-cron] Falló la generación mensual:', err));
 });
 
 const port = Number(process.env.PORT ?? 3001);
