@@ -263,7 +263,9 @@ export async function sendTicketEmail(args: { to: string; clientName: string; ev
 	// Link "Cómo llegar" solo si el manager de verdad reubicó el pin del mapa (ver hasRealLocation) —
 	// un mapa que nunca se tocó sigue en el centro por defecto de Santo Domingo, y mandarle eso al
 	// comprador sería peor que no mostrar nada.
-	const map = args.event.mapId ? await prisma.map.findUnique({ where: { id: args.event.mapId }, select: { x: true, y: true, name: true } }) : null;
+	const map = args.event.mapId
+		? await prisma.map.findUnique({ where: { id: args.event.mapId, tenantId: args.event.tenantId }, select: { x: true, y: true, name: true } })
+		: null;
 	const locationHtml = hasRealLocation(map)
 		? `<p style="color:#ccc;">📍 <a href="${googleMapsLink(map.x, map.y)}" style="color:#fff;">Cómo llegar${map.name ? ` a ${map.name}` : ''}</a></p>`
 		: '';
