@@ -12,7 +12,7 @@ import { InvoiceSettingsModalComponent } from './components/invoice-settings-mod
 import { ServiceRequestsAdminModalComponent } from './components/service-requests-admin-modal/service-requests-admin-modal.component';
 import { BankTransferReviewModalComponent } from './components/bank-transfer-review-modal/bank-transfer-review-modal.component';
 import { AccountModalComponent } from '../../shared/account-modal/account-modal.component';
-import { Tenant } from '../../models/tenants/tenant';
+import { Tenant, TENANT_TYPE_LABELS } from '../../models/tenants/tenant';
 import { ServiceRequest, ServiceRequestStatus } from '../../models/service-requests/service-request';
 import { EnterpriseLead } from '../../models/enterprise-leads/enterprise-lead';
 import { EVENT_PLANS } from '../../shared/event-plans';
@@ -93,7 +93,7 @@ const REQUEST_STATUS_LABEL: Record<ServiceRequestStatus, string> = {
 						<tr>
 							<td>{{ tenant.name }}</td>
 							<td>
-								<span class="badge text-bg-secondary">{{ tenant.type === 'CLUB' ? 'Club' : tenant.type === 'CHURCH' ? 'Iglesia' : 'General' }}</span>
+								<span class="badge text-bg-secondary">{{ tenantTypeLabels[tenant.type] }}</span>
 							</td>
 							<td class="text-muted">{{ tenant.slug }}</td>
 							<td>{{ tenant._count?.users ?? 0 }}</td>
@@ -341,6 +341,7 @@ export class SuperAdminComponent implements AfterViewInit {
 	private readonly router = inject(Router);
 
 	tenants = signal<Tenant[]>([]);
+	tenantTypeLabels = TENANT_TYPE_LABELS;
 	selectedTenant = signal<Tenant | null>(null);
 	selectedSubscriptionTenant = signal<Tenant | null>(null);
 

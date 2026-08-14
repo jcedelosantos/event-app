@@ -33,6 +33,10 @@ import { closeModal } from '../../../../utils/modal';
 									<option value="GENERAL">General</option>
 									<option value="CLUB">Club</option>
 									<option value="CHURCH">Iglesia</option>
+									<option value="ONG">ONG</option>
+									<option value="PRIVADA">Empresa privada</option>
+									<option value="PUBLICA">Institución pública</option>
+									<option value="INDEPENDIENTE">Independiente</option>
 								</select>
 								<div class="form-text">
 									Un club pide carnet de socio (o del socio que invita) al reservar un asiento, con máximo 2 invitados por socio por evento.

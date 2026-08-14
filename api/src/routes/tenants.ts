@@ -28,7 +28,7 @@ tenantsRouter.get('/', asyncHandler(async (_req, res) => {
 	res.json(tenants);
 }));
 
-const tenantTypeSchema = z.enum(['GENERAL', 'CLUB', 'CHURCH']);
+const tenantTypeSchema = z.enum(['GENERAL', 'CLUB', 'CHURCH', 'ONG', 'PRIVADA', 'PUBLICA', 'INDEPENDIENTE']);
 
 const createTenantSchema = z.object({
 	name: z.string().min(1),

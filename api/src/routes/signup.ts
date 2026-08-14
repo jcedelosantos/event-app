@@ -20,7 +20,7 @@ export const signupRouter = Router();
 const signupSchema = z.object({
 	organization: z.object({
 		name: z.string().min(1),
-		type: z.enum(['GENERAL', 'CLUB', 'CHURCH']).optional().default('GENERAL'),
+		type: z.enum(['GENERAL', 'CLUB', 'CHURCH', 'ONG', 'PRIVADA', 'PUBLICA', 'INDEPENDIENTE']).optional().default('GENERAL'),
 	}),
 	admin: z.object({
 		username: z.string().min(3),

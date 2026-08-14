@@ -5,7 +5,7 @@ import { environment } from '../../../../environments/environment';
 import { EventPlanCode } from '../../../shared/event-plans';
 
 export type SignupEventInput = {
-	organization: { name: string; type: 'GENERAL' | 'CLUB' | 'CHURCH' };
+	organization: { name: string; type: 'GENERAL' | 'CLUB' | 'CHURCH' | 'ONG' | 'PRIVADA' | 'PUBLICA' | 'INDEPENDIENTE' };
 	admin: { username: string; password: string; name: string; lastname: string; email: string };
 	eventPlanCode: EventPlanCode;
 	paymentMethod: 'PAYPAL' | 'BANK_TRANSFER';

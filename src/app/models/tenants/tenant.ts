@@ -1,4 +1,14 @@
-export type TenantType = 'GENERAL' | 'CLUB' | 'CHURCH';
+export type TenantType = 'GENERAL' | 'CLUB' | 'CHURCH' | 'ONG' | 'PRIVADA' | 'PUBLICA' | 'INDEPENDIENTE';
+
+export const TENANT_TYPE_LABELS: Record<TenantType, string> = {
+	GENERAL: 'General',
+	CLUB: 'Club',
+	CHURCH: 'Iglesia',
+	ONG: 'ONG',
+	PRIVADA: 'Empresa privada',
+	PUBLICA: 'Institución pública',
+	INDEPENDIENTE: 'Independiente',
+};
 
 export interface Tenant {
 	id: number;

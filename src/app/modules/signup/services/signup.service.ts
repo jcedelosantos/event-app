@@ -5,7 +5,7 @@ import { environment } from '../../../../environments/environment';
 import { PlanCode } from '../../../shared/pricing-plans';
 
 export type SignupInput = {
-	organization: { name: string; type: 'GENERAL' | 'CLUB' | 'CHURCH' };
+	organization: { name: string; type: 'GENERAL' | 'CLUB' | 'CHURCH' | 'ONG' | 'PRIVADA' | 'PUBLICA' | 'INDEPENDIENTE' };
 	admin: { username: string; password: string; name: string; lastname: string; email: string };
 	plan: PlanCode;
 };

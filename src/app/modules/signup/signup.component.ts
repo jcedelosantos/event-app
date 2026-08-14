@@ -36,6 +36,10 @@ import { PRICING_PLANS, PlanCode } from '../../shared/pricing-plans';
 							<option value="GENERAL">General</option>
 							<option value="CLUB">Club</option>
 							<option value="CHURCH">Iglesia</option>
+							<option value="ONG">ONG</option>
+							<option value="PRIVADA">Empresa privada</option>
+							<option value="PUBLICA">Institución pública</option>
+							<option value="INDEPENDIENTE">Independiente</option>
 						</select>
 					</div>
 
@@ -106,7 +110,7 @@ export class SignupComponent {
 	form = this.fb.group({
 		plan: this.fb.control<PlanCode>('INTERMEDIO', Validators.required),
 		orgName: this.fb.control('', Validators.required),
-		orgType: this.fb.control<'GENERAL' | 'CLUB' | 'CHURCH'>('GENERAL', Validators.required),
+		orgType: this.fb.control<'GENERAL' | 'CLUB' | 'CHURCH' | 'ONG' | 'PRIVADA' | 'PUBLICA' | 'INDEPENDIENTE'>('GENERAL', Validators.required),
 		adminName: this.fb.control('', Validators.required),
 		adminLastname: this.fb.control('', Validators.required),
 		adminEmail: this.fb.control('', [Validators.required, Validators.email]),

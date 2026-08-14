@@ -90,6 +90,10 @@ type Step = 'form' | 'payment' | 'bank-transfer' | 'pending-review' | 'done';
 									<option value="GENERAL">General</option>
 									<option value="CLUB">Club</option>
 									<option value="CHURCH">Iglesia</option>
+									<option value="ONG">ONG</option>
+									<option value="PRIVADA">Empresa privada</option>
+									<option value="PUBLICA">Institución pública</option>
+									<option value="INDEPENDIENTE">Independiente</option>
 								</select>
 							</div>
 
@@ -241,7 +245,7 @@ export class SignupEventComponent {
 		eventPlanCode: this.fb.control<EventPlanCode>('EVENT_100', Validators.required),
 		paymentMethod: this.fb.control<'PAYPAL' | 'BANK_TRANSFER'>('PAYPAL', Validators.required),
 		orgName: this.fb.control('', Validators.required),
-		orgType: this.fb.control<'GENERAL' | 'CLUB' | 'CHURCH'>('GENERAL', Validators.required),
+		orgType: this.fb.control<'GENERAL' | 'CLUB' | 'CHURCH' | 'ONG' | 'PRIVADA' | 'PUBLICA' | 'INDEPENDIENTE'>('GENERAL', Validators.required),
 		adminName: this.fb.control('', Validators.required),
 		adminLastname: this.fb.control('', Validators.required),
 		adminEmail: this.fb.control('', [Validators.required, Validators.email]),

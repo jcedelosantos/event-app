@@ -58,7 +58,7 @@ export type PublicTicket = {
 	attendeeType: 'SOCIO' | 'INVITADO' | null;
 };
 
-export type TenantType = 'GENERAL' | 'CLUB' | 'CHURCH';
+export type TenantType = 'GENERAL' | 'CLUB' | 'CHURCH' | 'ONG' | 'PRIVADA' | 'PUBLICA' | 'INDEPENDIENTE';
 
 // null = este evento no exige pago online (Event.paymentMode = NONE), el registro sigue siendo
 // gratis como siempre. paypalClientId/linkUrl pueden venir null igual si el manager activó el modo
