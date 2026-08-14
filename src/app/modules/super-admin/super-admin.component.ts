@@ -73,6 +73,7 @@ const REQUEST_STATUS_LABEL: Record<ServiceRequestStatus, string> = {
 				</div>
 			</div>
 
+			<div class="table-responsive">
 			<table class="table table-hover align-middle">
 				<thead>
 					<tr>
@@ -145,6 +146,7 @@ const REQUEST_STATUS_LABEL: Record<ServiceRequestStatus, string> = {
 					}
 				</tbody>
 			</table>
+			</div>
 
 			<div class="d-flex justify-content-between align-items-center mb-3 mt-5">
 				<div>
@@ -157,6 +159,7 @@ const REQUEST_STATUS_LABEL: Record<ServiceRequestStatus, string> = {
 					<p class="text-muted small mb-0">Renta de equipos, personal presencial y demás — cotizar/coordinar y marcar el estado acá.</p>
 				</div>
 			</div>
+			<div class="table-responsive">
 			<table class="table table-hover align-middle">
 				<thead>
 					<tr>
@@ -211,6 +214,7 @@ const REQUEST_STATUS_LABEL: Record<ServiceRequestStatus, string> = {
 					}
 				</tbody>
 			</table>
+			</div>
 
 			<div class="d-flex justify-content-between align-items-center mb-3 mt-5">
 				<div>
@@ -223,6 +227,7 @@ const REQUEST_STATUS_LABEL: Record<ServiceRequestStatus, string> = {
 					<p class="text-muted small mb-0">Prospectos que pidieron que los contactemos desde la portada — sin alta automática, se cotiza y da de alta a mano.</p>
 				</div>
 			</div>
+			<div class="table-responsive">
 			<table class="table table-hover align-middle">
 				<thead>
 					<tr>
@@ -265,6 +270,7 @@ const REQUEST_STATUS_LABEL: Record<ServiceRequestStatus, string> = {
 					}
 				</tbody>
 			</table>
+			</div>
 
 			<div class="d-flex justify-content-between align-items-center mb-3 mt-5">
 				<div>
@@ -277,6 +283,7 @@ const REQUEST_STATUS_LABEL: Record<ServiceRequestStatus, string> = {
 					<p class="text-muted small mb-0">Evento único pagado por transferencia (ver /evento-unico) — confirmá el pago a mano para activar la cuenta.</p>
 				</div>
 			</div>
+			<div class="table-responsive">
 			<table class="table table-hover align-middle">
 				<thead>
 					<tr>
@@ -313,6 +320,7 @@ const REQUEST_STATUS_LABEL: Record<ServiceRequestStatus, string> = {
 					}
 				</tbody>
 			</table>
+			</div>
 		</div>
 		<app-create-tenant-modal (tenantCreated)="loadTenants()" />
 		<app-edit-tenant-modal [(tenant)]="selectedTenant" (tenantUpdated)="loadTenants()" />
