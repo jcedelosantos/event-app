@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, inject, signal } from '@angular/core';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { SignupService, SubscriptionStatus } from './services/signup.service';
+import { AuthService } from '../../core/services/auth.service';
 
 const POLL_INTERVAL_MS = 3000;
 
@@ -21,6 +22,11 @@ const POLL_INTERVAL_MS = 3000;
 						<h1 class="h4 text-success">¡Tu cuenta está lista!</h1>
 						<p class="mb-4" style="color: #b9b9b9;">Tu plan quedó activo. Ya podés iniciar sesión y empezar a crear tu primer evento.</p>
 						<a routerLink="/login/sign-in" class="btn btn-danger">Iniciar sesión</a>
+					}
+					@case ('entering') {
+						<div class="spinner-border text-success mb-3" role="status"></div>
+						<h1 class="h4 text-success">¡Tu cuenta está lista!</h1>
+						<p style="color: #b9b9b9;">Entrando a tu panel...</p>
 					}
 					@case ('blocked') {
 						<h1 class="h4 text-warning">Tu pago no se completó</h1>
@@ -45,10 +51,12 @@ const POLL_INTERVAL_MS = 3000;
 })
 export class SignupConfirmationComponent implements OnInit {
 	private readonly route = inject(ActivatedRoute);
+	private readonly router = inject(Router);
 	private readonly signupService = inject(SignupService);
+	private readonly authService = inject(AuthService);
 	private readonly destroyRef = inject(DestroyRef);
 
-	status = signal<'waiting' | 'active' | 'blocked' | 'not-found'>('waiting');
+	status = signal<'waiting' | 'active' | 'entering' | 'blocked' | 'not-found'>('waiting');
 	private pollIntervalId: ReturnType<typeof setInterval> | null = null;
 
 	ngOnInit(): void {
@@ -57,9 +65,12 @@ export class SignupConfirmationComponent implements OnInit {
 			this.status.set('not-found');
 			return;
 		}
+		// Viaja en el return_url que arma el backend al crear la suscripción (ver routes/signup.ts
+		// POST /signup) — solo esta pestaña, la que hizo el alta original, lo tiene.
+		const claimToken = this.route.snapshot.queryParamMap.get('claim');
 
 		const poll = () => {
-			this.signupService.getStatus(tenantId).subscribe({
+			this.signupService.getStatus(tenantId, claimToken).subscribe({
 				next: (result) => this.applyStatus(result),
 				error: () => this.status.set('not-found'),
 			});
@@ -73,11 +84,19 @@ export class SignupConfirmationComponent implements OnInit {
 
 	private applyStatus(result: SubscriptionStatus): void {
 		if (result.status === 'ACTIVE') {
-			this.status.set('active');
 			if (this.pollIntervalId != null) {
 				clearInterval(this.pollIntervalId);
 				this.pollIntervalId = null;
 			}
+			// Auto-login: el claim token se consumió con éxito en este mismo request (ver
+			// routes/signup.ts) — sin token/user (ya se usó, o llegamos sin claim), cae al botón manual.
+			if (result.token && result.user) {
+				this.status.set('entering');
+				this.authService.applySession(result.token, result.user);
+				this.router.navigateByUrl('/manager/dash-board');
+				return;
+			}
+			this.status.set('active');
 			return;
 		}
 		if (result.status === 'SUSPENDED' || result.status === 'CANCELLED' || result.status === 'PAST_DUE') {

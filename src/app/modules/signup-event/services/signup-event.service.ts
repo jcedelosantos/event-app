@@ -3,6 +3,7 @@ import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 import { EventPlanCode } from '../../../shared/event-plans';
+import { User } from '../../../models/users/user';
 
 export type SignupEventInput = {
 	organization: { name: string; type: 'GENERAL' | 'CLUB' | 'CHURCH' | 'ONG' | 'PRIVADA' | 'PUBLICA' | 'INDEPENDIENTE' };
@@ -14,7 +15,9 @@ export type SignupEventInput = {
 // orderId solo viene con PayPal — con transferencia bancaria el backend no crea ninguna orden (ver
 // routes/signup-event.ts).
 export type SignupEventResult = { tenantId: number; orderId?: string };
-export type CaptureResult = { tenantId: number; planStatus: string };
+// token/user vienen siempre que haya un admin ROOT para el tenant (auto-login — ver
+// routes/signup-event.ts POST /capture, confirmación síncrona, sin necesidad de claim token).
+export type CaptureResult = { tenantId: number; planStatus: string; token?: string; user?: User };
 export type BankInfo = {
 	bankName: string;
 	bankAccountType: string;

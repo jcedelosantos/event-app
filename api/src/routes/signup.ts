@@ -1,3 +1,4 @@
+import { randomBytes, createHash } from 'node:crypto';
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
@@ -10,6 +11,17 @@ import { createSubscription, getSubscription, verifyPlatformWebhookSignature, pl
 import { generateAndStoreInvoice } from '../lib/invoice-generation';
 import { sendNewTenantNotification, sendBankTransferReceiptNotification } from '../lib/mail';
 import { hasValidMxRecord } from '../lib/email-validation';
+import { signToken } from '../lib/jwt';
+import { toPublicUser } from '../lib/serialize';
+
+// Auto-login de un solo uso tras el alta (ver Subscription.claimTokenHash) — 30 minutos alcanza de
+// sobra para el checkout de PayPal más lento, y limita la ventana de un token que quedó sin usar
+// (ej. el comprador cerró la pestaña) dando vueltas en el historial del navegador.
+const CLAIM_TOKEN_TTL_MS = 30 * 60 * 1000;
+
+function hashClaimToken(token: string): string {
+	return createHash('sha256').update(token).digest('hex');
+}
 
 // Alta pública de una organización nueva — versión sin Super Admin de tenants.ts:post('/'), más la
 // suscripción recurrente (PayPal Billing) que ahí no existe porque un Super Admin activa el plan a
@@ -117,6 +129,15 @@ signupRouter.post(
 			return;
 		}
 
+		// Claim token de un solo uso para el auto-login (ver GET /signup/status/:tenantId más abajo) —
+		// viaja embebido en el return_url de PayPal, así sobrevive la ida y vuelta por un sitio externo
+		// sin depender de localStorage/sessionStorage (PayPal navega en la MISMA pestaña).
+		const claimToken = randomBytes(32).toString('hex');
+		await prismaUnscoped.subscription.update({
+			where: { tenantId },
+			data: { claimTokenHash: hashClaimToken(claimToken), claimTokenExpiresAt: new Date(Date.now() + CLAIM_TOKEN_TTL_MS) },
+		});
+
 		// Se crea el tenant/admin/Subscription ANTES de llamar a PayPal a propósito: la suscripción
 		// de PayPal necesita el tenantId como custom_id para que el webhook pueda resolverlo después.
 		// Si esta llamada falla, el tenant queda en planStatus PENDING (huérfano, sin acceso) — se
@@ -127,7 +148,7 @@ signupRouter.post(
 			const { paypalSubscriptionId, approveUrl } = await createSubscription(
 				plan,
 				tenantId,
-				`${frontendUrl}/signup/confirmacion?tenant=${tenantId}`,
+				`${frontendUrl}/signup/confirmacion?tenant=${tenantId}&claim=${claimToken}`,
 				`${frontendUrl}/signup`,
 			);
 			await prismaUnscoped.subscription.update({ where: { tenantId }, data: { paypalSubscriptionId } });
@@ -142,7 +163,8 @@ signupRouter.post(
 
 // Pantalla de confirmación pública (sin token: el admin recién creado todavía no inició sesión)
 // pollea acá mientras espera que el webhook confirme el pago — mismo espíritu que el polling de
-// waiting-room/live-stats. Solo expone plan/status, nada sensible.
+// waiting-room/live-stats. Solo expone plan/status, nada sensible — SALVO que venga el claim
+// token correcto (ver POST /signup), en cuyo caso además emite una sesión real y lo invalida.
 signupRouter.get(
 	'/signup/status/:tenantId',
 	asyncHandler(async (req, res) => {
@@ -152,6 +174,24 @@ signupRouter.get(
 			res.status(404).json({ error: 'No encontrado' });
 			return;
 		}
+
+		const claim = typeof req.query.claim === 'string' ? req.query.claim : null;
+		// Sin claim, con status distinto de ACTIVE, ya consumido (hash null), o vencido: respuesta
+		// normal sin sesión — el frontend cae al link manual "Iniciar sesión", nunca se bloquea.
+		if (claim && subscription.status === 'ACTIVE' && subscription.claimTokenHash && subscription.claimTokenExpiresAt && subscription.claimTokenExpiresAt > new Date() && hashClaimToken(claim) === subscription.claimTokenHash) {
+			// Invalidar ANTES de responder: si dos requests llegan casi juntos (el usuario con dos
+			// pestañas, o un reintento de red), sólo el primer update en tocar la fila con el hash
+			// todavía puesto gana — el resto ya no encuentra match y cae al camino sin sesión.
+			const consumed = await prismaUnscoped.subscription.updateMany({
+				where: { tenantId, claimTokenHash: subscription.claimTokenHash },
+				data: { claimTokenHash: null, claimTokenExpiresAt: null },
+			});
+			if (consumed.count > 0) {
+				res.json({ plan: subscription.plan, status: subscription.status, ...(await signAdminSession(tenantId)) });
+				return;
+			}
+		}
+
 		res.json({ plan: subscription.plan, status: subscription.status });
 	}),
 );
@@ -330,4 +370,18 @@ export async function notifyNewTenant(tenantId: number): Promise<void> {
 		adminEmail: admin?.email ?? '—',
 		adminUsername: admin?.username ?? '—',
 	});
+}
+
+// Emite una sesión real para el admin ROOT de un tenant recién activado — usado por el auto-login
+// de ambos flujos de alta (acá vía claim token, y por signup-event.ts directo en su capture
+// síncrono). Devuelve un objeto vacío si por algún motivo no hay admin ROOT todavía, así el caller
+// puede spread-earlo directo en la respuesta sin romper el shape cuando no hay sesión que dar.
+export async function signAdminSession(tenantId: number): Promise<{ token: string; user: ReturnType<typeof toPublicUser> } | Record<string, never>> {
+	const admin = await prismaUnscoped.user.findFirst({
+		where: { tenantId, type: { type: 'ROOT' } },
+		include: { type: true, tenant: { select: { id: true, name: true, type: true, slug: true, logoUrl: true, plan: true, planStatus: true } } },
+	});
+	if (!admin) return {};
+	const token = signToken({ userId: admin.id, username: admin.username, userType: admin.type.type, tenantId: admin.tenantId });
+	return { token, user: toPublicUser(admin) };
 }

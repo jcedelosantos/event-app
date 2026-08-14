@@ -3,6 +3,7 @@ import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 import { PlanCode } from '../../../shared/pricing-plans';
+import { User } from '../../../models/users/user';
 
 export type SignupInput = {
 	organization: { name: string; type: 'GENERAL' | 'CLUB' | 'CHURCH' | 'ONG' | 'PRIVADA' | 'PUBLICA' | 'INDEPENDIENTE' };
@@ -15,7 +16,10 @@ export type SignupInput = {
 // crea ninguna suscripción todavía (ver routes/signup.ts).
 export type SignupResult = { tenantId: number; paypalSubscriptionId?: string; approveUrl?: string };
 
-export type SubscriptionStatus = { plan: PlanCode; status: 'PENDING' | 'ACTIVE' | 'PAST_DUE' | 'SUSPENDED' | 'CANCELLED' | 'PENDING_REVIEW' };
+// token/user solo vienen la vez que el claim token de auto-login se consume con éxito (ver
+// routes/signup.ts GET /signup/status/:tenantId) — cualquier polling después de ese punto (o sin
+// claim token) devuelve la respuesta de siempre, sin sesión.
+export type SubscriptionStatus = { plan: PlanCode; status: 'PENDING' | 'ACTIVE' | 'PAST_DUE' | 'SUSPENDED' | 'CANCELLED' | 'PENDING_REVIEW'; token?: string; user?: User };
 
 // Mismo shape que BankInfo de signup-event.service.ts — no se importa de ahí porque son módulos
 // hermanos sin dependencia entre sí (cada alta pública es independiente), pero los endpoints de
@@ -39,9 +43,11 @@ export class SignupService {
 	}
 
 	// Sin auth: el admin recién creado todavía no inició sesión mientras espera la confirmación de
-	// PayPal (ver signup-confirmation.component.ts).
-	getStatus(tenantId: number): Observable<SubscriptionStatus> {
-		return this.httpClient.get<SubscriptionStatus>(`${this.baseUrl}/signup/status/${tenantId}`);
+	// PayPal (ver signup-confirmation.component.ts). claimToken viaja siempre que se tenga (llegó en
+	// el return_url de PayPal) — el backend lo ignora silenciosamente si ya se usó o no corresponde.
+	getStatus(tenantId: number, claimToken?: string | null): Observable<SubscriptionStatus> {
+		const params: Record<string, string> = claimToken ? { claim: claimToken } : {};
+		return this.httpClient.get<SubscriptionStatus>(`${this.baseUrl}/signup/status/${tenantId}`, { params });
 	}
 
 	getBankInfo(): Observable<BankInfo> {

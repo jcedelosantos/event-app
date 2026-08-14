@@ -8,7 +8,7 @@ import { requireAuth, requireSuperAdmin } from '../middleware/auth';
 import { uniqueTenantSlug } from '../lib/slug';
 import { isEventPlanCode, EVENT_PLANS } from '../lib/event-plans';
 import { isPlanCode } from '../lib/plans';
-import { generateWelcomeInvoiceOnce, notifyNewTenant } from './signup';
+import { generateWelcomeInvoiceOnce, notifyNewTenant, signAdminSession } from './signup';
 import { createPlatformOrder, capturePlatformOrder, PayPalPlatformRequestError } from '../lib/paypal-platform-orders';
 import { getPlatformConfig } from '../lib/paypal-billing';
 import { getInvoiceIssuerConfig } from '../lib/invoice-config';
@@ -164,7 +164,7 @@ signupEventRouter.post(
 		// Idempotente: si ya se activó (ej. el cliente reintentó tras un timeout de red), no vuelve a
 		// llamar a PayPal — mismo espíritu que el manejo de ORDER_ALREADY_CAPTURED más abajo.
 		if (tenant.planStatus === 'ACTIVE') {
-			res.json({ tenantId, planStatus: 'ACTIVE' });
+			res.json({ tenantId, planStatus: 'ACTIVE', ...(await signAdminSession(tenantId)) });
 			return;
 		}
 
@@ -175,7 +175,11 @@ signupEventRouter.post(
 				return;
 			}
 			await prismaUnscoped.tenant.update({ where: { id: tenantId }, data: { planStatus: 'ACTIVE' } });
-			res.json({ tenantId, planStatus: 'ACTIVE' });
+			// Auto-login: a diferencia de signup.ts (activación async vía webhook, necesita un claim
+			// token porque cualquiera podría adivinar tenantId y pollear el status), acá la confirmación
+			// es SÍNCRONA en esta misma respuesta — solo el comprador que recién generó este orderId
+			// puede estar recibiendo este JSON, no hace falta un token aparte.
+			res.json({ tenantId, planStatus: 'ACTIVE', ...(await signAdminSession(tenantId)) });
 		} catch (err) {
 			if (err instanceof PayPalPlatformRequestError) {
 				res.status(502).json({ error: err.message });

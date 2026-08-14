@@ -107,6 +107,15 @@ model Subscription {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  // Auto-login de un solo uso tras el alta (ver routes/signup.ts POST /signup y GET
+  // /signup/status/:tenantId) — el token en texto plano se manda una sola vez en la respuesta de
+  // POST /signup (y viaja de vuelta embebido en el return_url de PayPal); acá solo se guarda su
+  // hash SHA-256. Cuando el webhook activa la suscripción y el polling manda el token correcto, el
+  // backend emite una sesión real y pone estos dos campos en null — así un token ya usado, robado
+  // de logs o reintentado no puede generar una segunda sesión.
+  claimTokenHash      String?
+  claimTokenExpiresAt DateTime?
 }
 
 // Registro persistente de cada factura generada (ver lib/invoice-generation.ts) — antes de este

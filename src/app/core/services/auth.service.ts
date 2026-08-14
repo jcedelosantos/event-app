@@ -120,6 +120,14 @@ export class AuthService {
 		return this.httpClient.get<User>(`${environment.apiUrl}/auth/me`).pipe(tap((user) => this.currentUser.set(user)));
 	}
 
+	// Auto-login tras el alta pública (ver signup-confirmation.component.ts / signup-event.component.ts)
+	// — el backend ya validó el pago y devolvió token+user directo en la respuesta de status/capture,
+	// así que acá no hay ningún request propio que hacer, solo adoptar la sesión como si fuera un
+	// login normal.
+	applySession(token: string, user: User) {
+		this.adoptSession(token, user);
+	}
+
 	private adoptSession(token: string, user: User) {
 		localStorage.setItem(TOKEN_KEY, token);
 		this.currentUser.set(user);

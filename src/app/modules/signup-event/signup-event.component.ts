@@ -1,14 +1,15 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { DecimalPipe } from '@angular/common';
 import { firstValueFrom } from 'rxjs';
 import { HttpErrorResponse } from '@angular/common/http';
 import { SignupEventService, BankInfo } from './services/signup-event.service';
 import { EVENT_PLANS, EVENT_OVERAGE_FEE_PER_PERSON_USD, EventPlanCode } from '../../shared/event-plans';
 import { extractErrorMessage } from '../../utils/api-error';
+import { AuthService } from '../../core/services/auth.service';
 
-type Step = 'form' | 'payment' | 'bank-transfer' | 'pending-review' | 'done';
+type Step = 'form' | 'payment' | 'bank-transfer' | 'pending-review' | 'entering' | 'done';
 
 @Component({
 	selector: 'app-signup-event',
@@ -202,6 +203,11 @@ type Step = 'form' | 'payment' | 'bank-transfer' | 'pending-review' | 'done';
 							Te confirmamos por correo apenas lo validemos — no hace falta que hagas nada más por ahora.
 						</p>
 					}
+					@case ('entering') {
+						<div class="spinner-border text-success mb-3" role="status"></div>
+						<h1 class="h4 text-success">¡Tu cuenta está lista!</h1>
+						<p style="color: #b9b9b9;">Entrando a tu panel...</p>
+					}
 					@case ('done') {
 						<h1 class="h4 text-success">¡Tu cuenta está lista!</h1>
 						<p class="mb-4" style="color: #b9b9b9;">El pago quedó confirmado. Ya podés iniciar sesión y crear tu evento.</p>
@@ -226,6 +232,8 @@ type Step = 'form' | 'payment' | 'bank-transfer' | 'pending-review' | 'done';
 export class SignupEventComponent {
 	private readonly fb = inject(FormBuilder);
 	private readonly signupEventService = inject(SignupEventService);
+	private readonly authService = inject(AuthService);
+	private readonly router = inject(Router);
 
 	tiers = EVENT_PLANS;
 	overageFee = EVENT_OVERAGE_FEE_PER_PERSON_USD;
@@ -352,7 +360,13 @@ export class SignupEventComponent {
 					createOrder: async () => this.orderId!,
 					onApprove: async () => {
 						try {
-							await firstValueFrom(this.signupEventService.capture(this.tenantId!, this.orderId!));
+							const result = await firstValueFrom(this.signupEventService.capture(this.tenantId!, this.orderId!));
+							if (result.token && result.user) {
+								this.step.set('entering');
+								this.authService.applySession(result.token, result.user);
+								this.router.navigateByUrl('/manager/dash-board');
+								return;
+							}
 							this.step.set('done');
 						} catch (err) {
 							this.errorMessage.set(extractErrorMessage(err as HttpErrorResponse));
