@@ -5,10 +5,10 @@ import { prisma, prismaUnscoped } from '../lib/prisma';
 import { asyncHandler } from '../lib/async-handler';
 import { checkoutRateLimiter } from '../middleware/rate-limit';
 import { uniqueTenantSlug } from '../lib/slug';
-import { isPlanCode } from '../lib/plans';
+import { isPlanCode, PLANS } from '../lib/plans';
 import { createSubscription, getSubscription, verifyPlatformWebhookSignature, planCodeForBillingPlanId, PayPalBillingRequestError } from '../lib/paypal-billing';
 import { generateAndStoreInvoice } from '../lib/invoice-generation';
-import { sendNewTenantNotification } from '../lib/mail';
+import { sendNewTenantNotification, sendBankTransferReceiptNotification } from '../lib/mail';
 import { hasValidMxRecord } from '../lib/email-validation';
 
 // Alta pública de una organización nueva — versión sin Super Admin de tenants.ts:post('/'), más la
@@ -30,6 +30,11 @@ const signupSchema = z.object({
 		email: z.string().email(),
 	}),
 	plan: z.string(),
+	// PayPal sigue siendo el default/automático; BANK_TRANSFER es la alternativa manual (ver POST
+	// /signup/submit-receipt más abajo) — mismo criterio que signup-event.ts, pero acá la
+	// suscripción no tiene forma de cobrarse sola mes a mes: el cliente transfiere cada ciclo y un
+	// Super Admin confirma a mano (ver comentario en POST /signup/submit-receipt).
+	paymentMethod: z.enum(['PAYPAL', 'BANK_TRANSFER']).optional().default('PAYPAL'),
 });
 
 signupRouter.post(
@@ -41,7 +46,7 @@ signupRouter.post(
 			res.status(400).json({ error: parsed.error.flatten() });
 			return;
 		}
-		const { organization, admin, plan } = parsed.data;
+		const { organization, admin, plan, paymentMethod } = parsed.data;
 		if (!isPlanCode(plan)) {
 			res.status(400).json({ error: 'Plan inválido' });
 			return;
@@ -104,6 +109,14 @@ signupRouter.post(
 			throw err;
 		}
 
+		// Transferencia bancaria: el tenant/Subscription quedan PENDING igual que con PayPal, pero sin
+		// nada que crear del lado de PayPal — el frontend pasa directo al paso de mostrar los datos de
+		// cuenta y subir el comprobante (ver POST /signup/submit-receipt), sin paypalSubscriptionId.
+		if (paymentMethod === 'BANK_TRANSFER') {
+			res.status(201).json({ tenantId });
+			return;
+		}
+
 		// Se crea el tenant/admin/Subscription ANTES de llamar a PayPal a propósito: la suscripción
 		// de PayPal necesita el tenantId como custom_id para que el webhook pueda resolverlo después.
 		// Si esta llamada falla, el tenant queda en planStatus PENDING (huérfano, sin acceso) — se
@@ -140,6 +153,50 @@ signupRouter.get(
 			return;
 		}
 		res.json({ plan: subscription.plan, status: subscription.status });
+	}),
+);
+
+// Confirma el comprobante de transferencia de una suscripción recurrente elegida con
+// paymentMethod BANK_TRANSFER (ver POST /signup) — a diferencia del evento único
+// (signup-event.ts), acá no hay forma de cobrar automáticamente los ciclos siguientes (PayPal
+// Subscriptions requiere una suscripción real, y esta cuenta eligió no usar PayPal para nada): el
+// Super Admin confirma el primer pago acá, y los renovaciones futuras se gestionan aparte, fuera
+// de este flujo. GET /signup-event/bank-info y POST /signup-event/upload-receipt se reusan tal
+// cual (no tienen nada específico de evento único) — solo este paso final difiere porque valida
+// contra un plan recurrente (isPlanCode) y actualiza también la fila de Subscription.
+const submitReceiptSchema = z.object({ tenantId: z.number().int(), receiptUrl: z.string().min(1) });
+
+signupRouter.post(
+	'/signup/submit-receipt',
+	checkoutRateLimiter,
+	asyncHandler(async (req, res) => {
+		const parsed = submitReceiptSchema.safeParse(req.body);
+		if (!parsed.success) {
+			res.status(400).json({ error: parsed.error.flatten() });
+			return;
+		}
+		const { tenantId, receiptUrl } = parsed.data;
+
+		const tenant = await prismaUnscoped.tenant.findUnique({ where: { id: tenantId } });
+		const plan = tenant?.plan ?? '';
+		if (!tenant || !isPlanCode(plan) || tenant.planStatus !== 'PENDING') {
+			res.status(409).json({ error: 'Esta organización no está esperando un comprobante de pago.' });
+			return;
+		}
+
+		await prismaUnscoped.$transaction([
+			prismaUnscoped.tenant.update({ where: { id: tenantId }, data: { paymentReceiptUrl: receiptUrl, planStatus: 'PENDING_REVIEW' } }),
+			prismaUnscoped.subscription.update({ where: { tenantId }, data: { status: 'PENDING_REVIEW' } }),
+		]);
+
+		sendBankTransferReceiptNotification({
+			tenantName: tenant.name,
+			tierName: PLANS[plan].name,
+			amountUSD: PLANS[plan].priceUSD,
+			receiptUrl,
+		}).catch((err) => console.error('[signup] No se pudo enviar el aviso de comprobante por correo:', err));
+
+		res.json({ tenantId, planStatus: 'PENDING_REVIEW' });
 	}),
 );
 
@@ -246,17 +303,21 @@ signupRouter.post(
 
 // A prueba de reenvíos del webhook de PayPal (puede reentregar el mismo evento más de una vez) —
 // además de la guarda por status en el caller, esto chequea que el tenant todavía no tenga NINGUNA
-// factura antes de generar la de bienvenida, así una entrega duplicada no crea dos.
-async function generateWelcomeInvoiceOnce(tenantId: number): Promise<void> {
+// factura antes de generar la de bienvenida, así una entrega duplicada no crea dos. Exportada:
+// también la usa signup-event.ts al aprobar un comprobante de transferencia de una suscripción
+// recurrente (ver PUT /signup-event/:tenantId/review), que es la otra ruta real de "primera
+// activación" además del webhook de PayPal.
+export async function generateWelcomeInvoiceOnce(tenantId: number): Promise<void> {
 	const existing = await prisma.invoice.count({ where: { tenantId } });
 	if (existing > 0) return;
 	await generateAndStoreInvoice(tenantId, 'WELCOME');
 }
 
 // Avisa al Super Admin (SUPER_ADMIN_NOTIFICATION_EMAIL) de un cliente que acaba de activar su
-// suscripción — mismo trigger que generateWelcomeInvoiceOnce, así que solo llega para altas que de
-// verdad confirmaron el pago con PayPal, no para quien completó el formulario y nunca activó.
-async function notifyNewTenant(tenantId: number): Promise<void> {
+// suscripción — mismo trigger que generateWelcomeInvoiceOnce (y exportada por el mismo motivo), así
+// que solo llega para altas que de verdad confirmaron el pago, no para quien completó el formulario
+// y nunca activó.
+export async function notifyNewTenant(tenantId: number): Promise<void> {
 	const tenant = await prismaUnscoped.tenant.findUnique({
 		where: { id: tenantId },
 		include: { users: { where: { type: { type: 'ROOT' } }, take: 1 } },

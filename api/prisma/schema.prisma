@@ -91,7 +91,11 @@ model Subscription {
   tenant   Tenant @relation(fields: [tenantId], references: [id])
 
   plan   String // BASICO | INTERMEDIO | AVANZADO | PRO_MAX
-  status String @default("PENDING") // PENDING | ACTIVE | PAST_DUE | SUSPENDED | CANCELLED
+  // PENDING | ACTIVE | PAST_DUE | SUSPENDED | CANCELLED | PENDING_REVIEW. PENDING_REVIEW es propio
+  // de una suscripción que eligió pagar por transferencia (ver routes/signup.ts POST
+  // /signup/submit-receipt): subió el comprobante, espera que un Super Admin lo confirme a mano —
+  // mismo significado que Tenant.planStatus PENDING_REVIEW, se mantienen espejados.
+  status String @default("PENDING")
 
   paypalSubscriptionId String?   @unique
   currentPeriodEnd     DateTime?

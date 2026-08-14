@@ -7,6 +7,8 @@ import { checkoutRateLimiter } from '../middleware/rate-limit';
 import { requireAuth, requireSuperAdmin } from '../middleware/auth';
 import { uniqueTenantSlug } from '../lib/slug';
 import { isEventPlanCode, EVENT_PLANS } from '../lib/event-plans';
+import { isPlanCode } from '../lib/plans';
+import { generateWelcomeInvoiceOnce, notifyNewTenant } from './signup';
 import { createPlatformOrder, capturePlatformOrder, PayPalPlatformRequestError } from '../lib/paypal-platform-orders';
 import { getPlatformConfig } from '../lib/paypal-billing';
 import { getInvoiceIssuerConfig } from '../lib/invoice-config';
@@ -297,11 +299,28 @@ signupEventRouter.put(
 		}
 
 		// approve: true → mismo efecto que una captura de PayPal exitosa. approve: false → CANCELLED,
-		// mismo estado terminal ya usado para cancelaciones (sin valor nuevo para "rechazado").
-		const updated = await prismaUnscoped.tenant.update({
-			where: { id: tenantId },
-			data: { planStatus: parsed.data.approve ? 'ACTIVE' : 'CANCELLED' },
+		// mismo estado terminal ya usado para cancelaciones (sin valor nuevo para "rechazado"). Esta
+		// cola atiende comprobantes de AMBOS flujos (evento único vía signup-event.ts y suscripción
+		// recurrente vía signup.ts — ver el comentario ahí) porque no filtra por tipo de plan, solo
+		// por planStatus. Un tenant recurrente además tiene fila de Subscription, que hay que
+		// mantener espejada (ver schema.prisma) — un tenant de evento único no tiene esa fila.
+		const nextStatus = parsed.data.approve ? 'ACTIVE' : 'CANCELLED';
+		const isRecurring = isPlanCode(tenant.plan ?? '');
+		const updated = await prismaUnscoped.$transaction(async (tx) => {
+			if (isRecurring) {
+				await tx.subscription.update({ where: { tenantId }, data: { status: nextStatus } });
+			}
+			return tx.tenant.update({ where: { id: tenantId }, data: { planStatus: nextStatus } });
 		});
+
+		// Mismo criterio de "primera activación" que el webhook de PayPal (ver signup.ts) — acá el
+		// equivalente es que el Super Admin confirme el comprobante, así que se dispara desde acá en
+		// vez de desde un webhook.
+		if (isRecurring && parsed.data.approve) {
+			generateWelcomeInvoiceOnce(tenantId).catch((err) => console.error('No se pudo generar la factura de bienvenida:', err));
+			notifyNewTenant(tenantId).catch((err) => console.error('No se pudo avisar el alta del tenant:', err));
+		}
+
 		res.json({ tenantId: updated.id, planStatus: updated.planStatus });
 	}),
 );

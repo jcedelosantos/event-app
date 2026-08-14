@@ -16,6 +16,7 @@ import { Tenant, TENANT_TYPE_LABELS } from '../../models/tenants/tenant';
 import { ServiceRequest, ServiceRequestStatus } from '../../models/service-requests/service-request';
 import { EnterpriseLead } from '../../models/enterprise-leads/enterprise-lead';
 import { EVENT_PLANS } from '../../shared/event-plans';
+import { PRICING_PLANS } from '../../shared/pricing-plans';
 import { AuthService } from '../../core/services/auth.service';
 import { confirm, error } from '../../utils/messages';
 import { extractErrorMessage } from '../../utils/api-error';
@@ -280,7 +281,7 @@ const REQUEST_STATUS_LABEL: Record<ServiceRequestStatus, string> = {
 							<span class="badge text-bg-warning ms-2">{{ pendingReceipts().length }} sin revisar</span>
 						}
 					</h2>
-					<p class="text-muted small mb-0">Evento único pagado por transferencia (ver /evento-unico) — confirmá el pago a mano para activar la cuenta.</p>
+					<p class="text-muted small mb-0">Evento único o suscripción recurrente pagados por transferencia — confirmá el pago a mano para activar la cuenta.</p>
 				</div>
 			</div>
 			<div class="table-responsive">
@@ -363,12 +364,15 @@ export class SuperAdminComponent implements AfterViewInit {
 		return REQUEST_STATUS_LABEL[status];
 	}
 
+	// Esta cola atiende comprobantes de AMBOS flujos de transferencia bancaria — evento único
+	// (códigos EVENT_*) y suscripción recurrente (BASICO/INTERMEDIO/AVANZADO) — ver el comentario en
+	// GET /signup-event/admin (api/src/routes/signup-event.ts) sobre por qué es la misma cola.
 	tierName(plan: string): string {
-		return EVENT_PLANS.find((t) => t.code === plan)?.name ?? plan;
+		return EVENT_PLANS.find((t) => t.code === plan)?.name ?? PRICING_PLANS.find((p) => p.code === plan)?.name ?? plan;
 	}
 
 	tierPrice(plan: string): number {
-		return EVENT_PLANS.find((t) => t.code === plan)?.priceUSD ?? 0;
+		return EVENT_PLANS.find((t) => t.code === plan)?.priceUSD ?? PRICING_PLANS.find((p) => p.code === plan)?.priceUSD ?? 0;
 	}
 
 	loadServiceRequests() {
