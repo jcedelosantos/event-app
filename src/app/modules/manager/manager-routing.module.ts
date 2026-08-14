@@ -20,6 +20,7 @@ import { SettingsComponent } from './settings/settings.component';
 import { SubscriptionComponent } from './subscription/subscription.component';
 import { ServiceRequestsComponent } from './service-requests/service-requests.component';
 import { EventWizardComponent } from './events/components/event-wizard/event-wizard.component';
+import { HelpComponent } from './help/help.component';
 import { activeSubscriptionGuard } from '../../core/guards/active-subscription.guard';
 
 const routes: Routes = [
@@ -110,6 +111,11 @@ const routes: Routes = [
 			{
 				path: 'solicitudes',
 				component: ServiceRequestsComponent,
+				canActivate: [activeSubscriptionGuard],
+			},
+			{
+				path: 'ayuda',
+				component: HelpComponent,
 				canActivate: [activeSubscriptionGuard],
 			},
 			// {

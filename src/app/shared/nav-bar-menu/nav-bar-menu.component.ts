@@ -277,6 +277,8 @@ export class NavBarMenuComponent implements AfterViewInit, OnDestroy {
 		// Sin entrada en MENU_ITEM_FEATURE a propósito — visible en todos los planes, es un canal de
 		// upsell (renta de equipos, personal presencial, etc.), no una feature a restringir.
 		{ title: 'Solicitudes', icon: 'bi bi-headset', url: '/manager/solicitudes' },
+		// Mismo criterio que Solicitudes: sin gating de plan, contenido estático de ayuda.
+		{ title: 'Ayuda', icon: 'bi bi-question-circle', url: '/manager/ayuda' },
 		{ title: 'Settings', icon: 'bi bi-palette', url: '/manager/settings' },
 	];
 
