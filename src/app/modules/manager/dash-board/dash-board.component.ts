@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, OnDestroy, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, OnDestroy, OnInit, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { forkJoin, map } from 'rxjs';
 import { EventsService } from '../events/services/events.service';
@@ -12,6 +12,7 @@ import { MiniBarChartComponent, BarChartItem } from '../../../shared/mini-bar-ch
 import { AccessPointsService } from '../access-points/services/access-points.service';
 import { AccessPointStatsResponse } from '../../../models/access-points/access-point';
 import { FlashEventModalComponent } from './components/flash-event-modal/flash-event-modal.component';
+import { AuthService } from '../../../core/services/auth.service';
 
 // Una puerta "concentra" tráfico cuando se lleva más de este % de las entradas recientes del
 // evento — el umbral de "recientes" mínimas (ver GATE_ALERT_MIN_RECENT) evita que 1 de 1 escaneos
@@ -36,6 +37,40 @@ const LIVE_REFRESH_MS = 20_000;
 		</div>
 		<app-flash-event-modal />
 		<br />
+
+		@if (showOnboarding()) {
+			<div class="card mb-4 border-danger-subtle">
+				<div class="card-body">
+					<div class="d-flex justify-content-between align-items-start">
+						<h5 class="mb-1">Primeros pasos</h5>
+						<button type="button" class="btn-close" aria-label="Cerrar" (click)="dismissOnboarding()"></button>
+					</div>
+					<p class="text-body-secondary small mb-3">Tu cuenta está lista — completá esto para arrancar a vender entradas.</p>
+					<div class="row g-2">
+						<div class="col-md-3 col-sm-6">
+							<a routerLink="/manager/events" class="btn btn-outline-light btn-sm w-100 text-start">
+								<i class="bi bi-calendar-plus"></i> Creá tu primer evento
+							</a>
+						</div>
+						<div class="col-md-3 col-sm-6">
+							<a routerLink="/manager/maps" class="btn btn-outline-light btn-sm w-100 text-start">
+								<i class="bi bi-map"></i> Armá un mapa de asientos
+							</a>
+						</div>
+						<div class="col-md-3 col-sm-6">
+							<a routerLink="/manager/qrs" class="btn btn-outline-light btn-sm w-100 text-start">
+								<i class="bi bi-ticket-perforated"></i> Generá y vendé tickets
+							</a>
+						</div>
+						<div class="col-md-3 col-sm-6">
+							<a routerLink="/manager/settings" class="btn btn-outline-light btn-sm w-100 text-start">
+								<i class="bi bi-palette"></i> Personalizá tu marca
+							</a>
+						</div>
+					</div>
+				</div>
+			</div>
+		}
 
 		<div class="card mb-4">
 			<div class="card-header">
@@ -295,6 +330,7 @@ export class DashBoardComponent implements OnInit, OnDestroy {
 	private readonly productSalesService = inject(ProductSalesService);
 	private readonly userService = inject(UserService);
 	private readonly accessPointsService = inject(AccessPointsService);
+	private readonly authService = inject(AuthService);
 	private refreshTimer: ReturnType<typeof setInterval> | null = null;
 
 	loading = signal(true);
@@ -305,6 +341,31 @@ export class DashBoardComponent implements OnInit, OnDestroy {
 	gateStatsByEvent = signal<Map<number, AccessPointStatsResponse>>(new Map());
 
 	clients = computed(() => this.users().filter((u) => u.type?.type === 'CLIENT'));
+
+	// Checklist de "primeros pasos" — vive en localStorage (no AppSetting) a propósito: es una
+	// preferencia de UI liviana sin ningún valor de negocio, y así cualquier cuenta del tenant puede
+	// cerrarlo sin necesitar permiso de Admin (PUT /settings/:key es Admin-only, ver settings.ts).
+	onboardingDismissed = signal(false);
+	showOnboarding = computed(() => !this.loading() && this.events().length === 0 && !this.onboardingDismissed());
+
+	constructor() {
+		effect(() => {
+			const tenantId = this.authService.currentUser()?.tenant?.id;
+			if (tenantId != null) {
+				this.onboardingDismissed.set(localStorage.getItem(this.onboardingKey(tenantId)) === '1');
+			}
+		});
+	}
+
+	private onboardingKey(tenantId: number): string {
+		return `seat-app-onboarding-dismissed-${tenantId}`;
+	}
+
+	dismissOnboarding(): void {
+		const tenantId = this.authService.currentUser()?.tenant?.id;
+		if (tenantId != null) localStorage.setItem(this.onboardingKey(tenantId), '1');
+		this.onboardingDismissed.set(true);
+	}
 
 	upcomingEvents = computed(() => {
 		const today = todayKey();
