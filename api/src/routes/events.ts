@@ -67,6 +67,11 @@ const eventInputSchema = z.object({
 	maxGuestsPerSponsor: z.number().int().min(0).nullable().optional(),
 	// Texto libre opcional, se agrega al email de confirmación del ticket (ver lib/mail.ts).
 	confirmationMessage: z.string().max(1000).nullable().optional(),
+	// Link externo de la encuesta de satisfacción post-evento (ver lib/mail.ts + routes/public.ts
+	// GET /survey/:code). null = no se incluye ningún link en el email. Sin validación de formato
+	// estricta (mismo criterio que el resto de los campos `img` de este archivo) — el frontend ya
+	// usa <input type="url"> para guiar al manager.
+	surveyUrl: z.string().max(500).nullable().optional(),
 });
 
 const include = { map: { include: { areas: true } }, tickets: true, products: true };

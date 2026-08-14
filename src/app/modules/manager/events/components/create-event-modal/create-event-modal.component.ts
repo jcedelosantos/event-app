@@ -197,6 +197,17 @@ function toDateTimeInputValue(date: Date): string {
 									placeholder="Se agrega al correo de confirmación que recibe cada comprador"
 								></textarea>
 							</div>
+							<div class="col-md-12 mb-2">
+								<label for="surveyUrl" class="small mb-1">Link de encuesta de satisfacción <span class="text-muted">(opcional)</span></label>
+								<input
+									type="url"
+									id="surveyUrl"
+									class="form-control form-control-sm"
+									formControlName="surveyUrl"
+									placeholder="Google Forms, Typeform, etc."
+								/>
+								<div class="form-text">Se incluye en el correo de confirmación, pero recién queda accesible después de que termine el evento.</div>
+							</div>
 							<div class="col-md-6 mb-2">
 								<label for="checkInWindowHours" class="small mb-1">Abrir check-in <span class="text-muted">(horas antes del inicio)</span></label>
 								<input
@@ -336,6 +347,7 @@ export class CreateEventModalComponent {
 		maxCapacity: this.fb.control<number | null>(null),
 		maxGuestsPerSponsor: this.fb.control<number | null>(null),
 		confirmationMessage: this.fb.control<string | null>(null),
+		surveyUrl: this.fb.control<string | null>(null),
 	});
 
 	constructor() {
@@ -369,6 +381,7 @@ export class CreateEventModalComponent {
 					maxCapacity: current.maxCapacity ?? null,
 					maxGuestsPerSponsor: current.maxGuestsPerSponsor ?? null,
 					confirmationMessage: current.confirmationMessage ?? null,
+					surveyUrl: current.surveyUrl ?? null,
 				});
 			} else {
 				this.originalLinkedEventId = null;
@@ -386,6 +399,7 @@ export class CreateEventModalComponent {
 					maxCapacity: null,
 					maxGuestsPerSponsor: null,
 					confirmationMessage: null,
+					surveyUrl: null,
 				});
 			}
 		});
@@ -413,6 +427,7 @@ export class CreateEventModalComponent {
 			maxCapacity: source.maxCapacity ?? null,
 			maxGuestsPerSponsor: source.maxGuestsPerSponsor ?? null,
 			confirmationMessage: source.confirmationMessage ?? null,
+			surveyUrl: source.surveyUrl ?? null,
 		});
 		this.eventForm.patchValue({
 			name: `${source.name} (copia)`,
@@ -492,6 +507,7 @@ export class CreateEventModalComponent {
 			maxCapacity: value.maxCapacity,
 			maxGuestsPerSponsor: value.maxGuestsPerSponsor,
 			confirmationMessage: value.confirmationMessage,
+			surveyUrl: value.surveyUrl,
 		};
 		const request = current ? this.eventsService.updateEvent(current.id, payload) : this.eventsService.createEvent(payload);
 

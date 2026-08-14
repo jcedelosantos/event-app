@@ -247,6 +247,24 @@ publicRouter.get('/events/:code', asyncHandler(async (req, res) => {
 	});
 }));
 
+// Página de encuesta post-evento (ver lib/mail.ts sendTicketEmail + create-event-modal
+// Event.surveyUrl) — el gate real de "todavía no terminó el evento" vive ACÁ, del lado del
+// servidor, porque el link del email ya salió y no se puede recontrolar después. dateOff siempre
+// tiene un valor concreto una vez creado el evento (ver events.ts POST: default a dateOn si no se
+// especifica), así que no hace falta un fallback +horas acá.
+publicRouter.get('/survey/:code', asyncHandler(async (req, res) => {
+	const event = await prismaUnscoped.event.findUnique({ where: { code: req.params.code }, select: { surveyUrl: true, dateOff: true } });
+	if (!event || !event.surveyUrl) {
+		res.status(404).json({ error: 'Encuesta no encontrada' });
+		return;
+	}
+	if (new Date() < event.dateOff) {
+		res.json({ ready: false });
+		return;
+	}
+	res.json({ ready: true, surveyUrl: event.surveyUrl });
+}));
+
 // Chequeo previo de socio/invitado — el picker público lo usa apenas se completa el carnet del
 // socio que invita, ANTES de dejar elegir asiento, para no hacer perder tiempo armando una
 // selección que después el submit va a rechazar igual (ver validateAttendeeRule, misma regla,

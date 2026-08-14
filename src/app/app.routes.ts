@@ -42,6 +42,10 @@ export const routes: Routes = [
 		loadComponent: () => import('./modules/org-landing/org-landing.component').then((m) => m.OrgLandingComponent),
 	},
 	{
+		path: 'encuesta/:code',
+		loadComponent: () => import('./modules/survey/survey-redirect.component').then((m) => m.SurveyRedirectComponent),
+	},
+	{
 		path: '',
 		redirectTo: 'site-web',
 		pathMatch: 'full',

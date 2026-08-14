@@ -44,6 +44,9 @@ export interface Events {
 	maxGuestsPerSponsor?: number | null;
 	// Texto libre opcional, se agrega al email de confirmación del ticket.
 	confirmationMessage?: string | null;
+	// Link externo de la encuesta de satisfacción post-evento (ver /encuesta/:code). null = no se
+	// incluye ningún link en el email.
+	surveyUrl?: string | null;
 	map?: Map;
 	tickets: Array<Ticket>;
 	products: Array<Product>;

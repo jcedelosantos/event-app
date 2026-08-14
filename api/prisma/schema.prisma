@@ -299,6 +299,13 @@ model Event {
   // se agrega nada extra al email, comportamiento igual que antes de este campo.
   confirmationMessage String?
 
+  // Link externo (Google Forms, Typeform, etc.) de la encuesta de satisfacción post-evento, opcional
+  // por evento. Se manda en el email de confirmación apuntando a una página propia
+  // (/encuesta/:code, ver routes/public.ts GET /survey/:code) que recién redirige acá una vez que
+  // el evento terminó (dateOff) — el gate real vive en el servidor, no se puede controlar del lado
+  // del email ya enviado. null = no se incluye ningún link.
+  surveyUrl String?
+
   tickets         Ticket[]
   products        Product[]
   saleProducts    SaleProduct[]

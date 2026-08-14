@@ -33,6 +33,7 @@ export type EventInput = {
 	// usa el default del código (2).
 	maxGuestsPerSponsor?: number | null;
 	confirmationMessage?: string | null;
+	surveyUrl?: string | null;
 };
 
 // queueCount/admittedCount vienen de la fila en memoria (ver lib/waiting-room.ts); soldCount/

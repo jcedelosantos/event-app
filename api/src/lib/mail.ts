@@ -285,6 +285,15 @@ export async function sendTicketEmail(args: { to: string; clientName: string; ev
 		? `<p style="color:#ccc;">${escapeHtml(args.event.confirmationMessage).replace(/\n/g, '<br>')}</p>`
 		: '';
 
+	// Apunta a una página propia (/encuesta/:code, ver routes/public.ts GET /survey/:code), NO
+	// directo a args.event.surveyUrl — ese link puede estar guardado desde antes del evento, y este
+	// correo se manda al comprar (mucho antes de que termine). El gate de "todavía no terminó" vive
+	// del lado del servidor en esa página intermedia.
+	const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:4201';
+	const surveyHtml = args.event.surveyUrl
+		? `<p style="color:#ccc;">Cuando termine el evento, contanos qué te pareció: <a href="${frontendUrl}/encuesta/${args.event.code}" style="color:#fff;">completar la encuesta</a>.</p>`
+		: '';
+
 	const html = `
 		<div style="background:#000;padding:24px;font-family:Arial,Helvetica,sans-serif;">
 			<h2 style="color:#fff;">¡Hola ${args.clientName}!</h2>
@@ -292,6 +301,7 @@ export async function sendTicketEmail(args: { to: string; clientName: string; ev
 			${confirmationMessageHtml}
 			${locationHtml}
 			${cards.map((c) => c.html).join('')}
+			${surveyHtml}
 			<p style="color:#666;font-size:12px;">Este correo fue generado automáticamente por Seat App.</p>
 		</div>
 	`;
