@@ -22,6 +22,13 @@ type SaleTicketForEmail = {
 	client: { name: string; lastname: string };
 };
 
+// Ningún otro texto libre de este archivo se escapa hoy (nombres/notas cortas de formularios
+// propios) — este helper es para Event.confirmationMessage específicamente, pensado para párrafos
+// largos que el manager escribe sin restricción.
+function escapeHtml(text: string): string {
+	return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 function ticketTypeLabel(ticket: { type: string; attendeeType?: string | null }): string {
 	if (ticket.attendeeType === 'SOCIO') return 'Socio';
 	if (ticket.attendeeType === 'INVITADO') return 'Invitado';
@@ -270,10 +277,19 @@ export async function sendTicketEmail(args: { to: string; clientName: string; ev
 		? `<p style="color:#ccc;">📍 <a href="${googleMapsLink(map.x, map.y)}" style="color:#fff;">Cómo llegar${map.name ? ` a ${map.name}` : ''}</a></p>`
 		: '';
 
+	// Texto libre que el manager carga por evento (ver Event.confirmationMessage) — a diferencia del
+	// resto de los campos interpolados en este archivo (nombres, notas cortas de un formulario
+	// propio), este es contenido explícitamente pensado para escribir párrafos largos, así que se
+	// escapa antes de insertarlo en el HTML del correo.
+	const confirmationMessageHtml = args.event.confirmationMessage
+		? `<p style="color:#ccc;">${escapeHtml(args.event.confirmationMessage).replace(/\n/g, '<br>')}</p>`
+		: '';
+
 	const html = `
 		<div style="background:#000;padding:24px;font-family:Arial,Helvetica,sans-serif;">
 			<h2 style="color:#fff;">¡Hola ${args.clientName}!</h2>
 			<p style="color:#ccc;">Tu ${actionWord} para <strong style="color:#fff;">${args.event.name}</strong> quedó confirmada. Presentá el código QR (o el PDF adjunto) de cada ticket en la entrada — cada uno es válido una sola vez.</p>
+			${confirmationMessageHtml}
 			${locationHtml}
 			${cards.map((c) => c.html).join('')}
 			<p style="color:#666;font-size:12px;">Este correo fue generado automáticamente por Seat App.</p>

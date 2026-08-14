@@ -42,6 +42,8 @@ export interface Events {
 	// Solo tiene sentido en tenants CLUB — cuántos invitados puede traer un socio a este evento. null
 	// = usa el default del código (MAX_INVITADOS_PER_SOCIO).
 	maxGuestsPerSponsor?: number | null;
+	// Texto libre opcional, se agrega al email de confirmación del ticket.
+	confirmationMessage?: string | null;
 	map?: Map;
 	tickets: Array<Ticket>;
 	products: Array<Product>;

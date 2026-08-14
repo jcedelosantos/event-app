@@ -288,6 +288,11 @@ model Event {
   // lib/attendee.ts).
   maxGuestsPerSponsor Int?
 
+  // Texto libre opcional que el manager carga por evento — se inserta en el email de confirmación
+  // del ticket (ver lib/mail.ts sendTicketEmail), junto al resto de la info del evento. null = no
+  // se agrega nada extra al email, comportamiento igual que antes de este campo.
+  confirmationMessage String?
+
   tickets         Ticket[]
   products        Product[]
   saleProducts    SaleProduct[]

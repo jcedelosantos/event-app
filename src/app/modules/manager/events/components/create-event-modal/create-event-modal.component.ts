@@ -186,6 +186,17 @@ function toDateTimeInputValue(date: Date): string {
 								</select>
 								<div class="form-text">Configurá las credenciales de PayPal y/o el link de pago en Settings → Pagos.</div>
 							</div>
+							<div class="col-md-12 mb-2">
+								<label for="confirmationMessage" class="small mb-1">Mensaje personalizado en el email <span class="text-muted">(opcional)</span></label>
+								<textarea
+									id="confirmationMessage"
+									class="form-control form-control-sm"
+									rows="2"
+									formControlName="confirmationMessage"
+									maxlength="1000"
+									placeholder="Se agrega al correo de confirmación que recibe cada comprador"
+								></textarea>
+							</div>
 							<div class="col-md-6 mb-2">
 								<label for="checkInWindowHours" class="small mb-1">Abrir check-in <span class="text-muted">(horas antes del inicio)</span></label>
 								<input
@@ -324,6 +335,7 @@ export class CreateEventModalComponent {
 		waitingRoomBatchSize: this.fb.control<number | null>(null),
 		maxCapacity: this.fb.control<number | null>(null),
 		maxGuestsPerSponsor: this.fb.control<number | null>(null),
+		confirmationMessage: this.fb.control<string | null>(null),
 	});
 
 	constructor() {
@@ -356,6 +368,7 @@ export class CreateEventModalComponent {
 					waitingRoomBatchSize: current.waitingRoomBatchSize ?? null,
 					maxCapacity: current.maxCapacity ?? null,
 					maxGuestsPerSponsor: current.maxGuestsPerSponsor ?? null,
+					confirmationMessage: current.confirmationMessage ?? null,
 				});
 			} else {
 				this.originalLinkedEventId = null;
@@ -372,6 +385,7 @@ export class CreateEventModalComponent {
 					waitingRoomBatchSize: null,
 					maxCapacity: null,
 					maxGuestsPerSponsor: null,
+					confirmationMessage: null,
 				});
 			}
 		});
@@ -398,6 +412,7 @@ export class CreateEventModalComponent {
 			waitingRoomBatchSize: source.waitingRoomBatchSize ?? null,
 			maxCapacity: source.maxCapacity ?? null,
 			maxGuestsPerSponsor: source.maxGuestsPerSponsor ?? null,
+			confirmationMessage: source.confirmationMessage ?? null,
 		});
 		this.eventForm.patchValue({
 			name: `${source.name} (copia)`,
@@ -476,6 +491,7 @@ export class CreateEventModalComponent {
 			waitingRoomBatchSize: value.waitingRoomBatchSize,
 			maxCapacity: value.maxCapacity,
 			maxGuestsPerSponsor: value.maxGuestsPerSponsor,
+			confirmationMessage: value.confirmationMessage,
 		};
 		const request = current ? this.eventsService.updateEvent(current.id, payload) : this.eventsService.createEvent(payload);
 

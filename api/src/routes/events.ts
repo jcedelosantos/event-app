@@ -65,6 +65,8 @@ const eventInputSchema = z.object({
 	// Solo tiene efecto en tenants CLUB — cuántos invitados puede traer un socio a este evento. null =
 	// usa el default del código (MAX_INVITADOS_PER_SOCIO, ver lib/attendee.ts).
 	maxGuestsPerSponsor: z.number().int().min(0).nullable().optional(),
+	// Texto libre opcional, se agrega al email de confirmación del ticket (ver lib/mail.ts).
+	confirmationMessage: z.string().max(1000).nullable().optional(),
 });
 
 const include = { map: { include: { areas: true } }, tickets: true, products: true };

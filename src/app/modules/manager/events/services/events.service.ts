@@ -32,6 +32,7 @@ export type EventInput = {
 	// Solo tiene efecto en tenants CLUB — cuántos invitados puede traer un socio a este evento. null =
 	// usa el default del código (2).
 	maxGuestsPerSponsor?: number | null;
+	confirmationMessage?: string | null;
 };
 
 // queueCount/admittedCount vienen de la fila en memoria (ver lib/waiting-room.ts); soldCount/
