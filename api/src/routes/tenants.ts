@@ -11,6 +11,7 @@ import { uniqueTenantSlug } from '../lib/slug';
 import { computeTenantOverage } from '../lib/overage';
 import { cancelSubscription } from '../lib/paypal-billing';
 import { generateAndStoreInvoice } from '../lib/invoice-generation';
+import { hasValidMxRecord } from '../lib/email-validation';
 
 // Panel de Super Admin: alta de nuevos clientes (clubes/iglesias) y su primer usuario admin. Usa
 // prismaUnscoped a propósito — el tenant-guard exige tenantId en cada query de los modelos de
@@ -48,6 +49,12 @@ tenantsRouter.post('/', asyncHandler(async (req, res) => {
 		return;
 	}
 	const { name, type, admin } = parsed.data;
+	// Mismo chequeo que las altas públicas (signup.ts/signup-event.ts): el formato ya lo valida el
+	// schema, esto confirma que el dominio existe antes de crear la cuenta.
+	if (!(await hasValidMxRecord(admin.email))) {
+		res.status(400).json({ error: 'El dominio del correo no parece existir — revisá que esté bien escrito.' });
+		return;
+	}
 
 	const adminType = await prismaUnscoped.userType.findFirst({ where: { type: 'ROOT' } });
 	if (!adminType) {

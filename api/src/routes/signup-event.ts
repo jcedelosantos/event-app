@@ -13,6 +13,7 @@ import { getInvoiceIssuerConfig } from '../lib/invoice-config';
 import { formatUploadError, imageUpload } from '../lib/uploads';
 import { sendBankTransferReceiptNotification } from '../lib/mail';
 import { getUsdToDopRate } from '../lib/exchange-rate';
+import { hasValidMxRecord } from '../lib/email-validation';
 
 // Alta pública de un tenant "evento único, sin suscripción" (Event-as-a-Service) — mismo patrón
 // de transacción que signup.ts, pero SIN fila de Subscription (es un pago único, no recurrente,
@@ -65,6 +66,12 @@ signupEventRouter.post(
 		const { organization, admin, eventPlanCode, paymentMethod } = parsed.data;
 		if (!isEventPlanCode(eventPlanCode)) {
 			res.status(400).json({ error: 'Plan de evento inválido' });
+			return;
+		}
+		// Mismo chequeo que signup.ts: el formato ya lo valida el schema, esto confirma que el
+		// dominio existe antes de crear la cuenta.
+		if (!(await hasValidMxRecord(admin.email))) {
+			res.status(400).json({ error: 'El dominio del correo no parece existir — revisá que esté bien escrito.' });
 			return;
 		}
 

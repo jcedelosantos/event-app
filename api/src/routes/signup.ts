@@ -8,6 +8,8 @@ import { uniqueTenantSlug } from '../lib/slug';
 import { isPlanCode } from '../lib/plans';
 import { createSubscription, getSubscription, verifyPlatformWebhookSignature, planCodeForBillingPlanId, PayPalBillingRequestError } from '../lib/paypal-billing';
 import { generateAndStoreInvoice } from '../lib/invoice-generation';
+import { sendNewTenantNotification } from '../lib/mail';
+import { hasValidMxRecord } from '../lib/email-validation';
 
 // Alta pública de una organización nueva — versión sin Super Admin de tenants.ts:post('/'), más la
 // suscripción recurrente (PayPal Billing) que ahí no existe porque un Super Admin activa el plan a
@@ -42,6 +44,13 @@ signupRouter.post(
 		const { organization, admin, plan } = parsed.data;
 		if (!isPlanCode(plan)) {
 			res.status(400).json({ error: 'Plan inválido' });
+			return;
+		}
+		// z.string().email() de arriba solo valida el FORMATO — esto además confirma que el dominio
+		// existe (detecta typos como "gmial.com" antes de crear la cuenta con un correo al que nunca
+		// va a poder llegar el welcome/las facturas).
+		if (!(await hasValidMxRecord(admin.email))) {
+			res.status(400).json({ error: 'El dominio del correo no parece existir — revisá que esté bien escrito.' });
 			return;
 		}
 		// Pro Enterprise ya no es autoservicio: se cotiza y lo activa un Super Admin a mano (ver
@@ -194,6 +203,7 @@ signupRouter.post(
 
 		if (isFirstActivation) {
 			generateWelcomeInvoiceOnce(subscription.tenantId).catch((err) => console.error('No se pudo generar la factura de bienvenida:', err));
+			notifyNewTenant(subscription.tenantId).catch((err) => console.error('No se pudo avisar el alta del tenant:', err));
 		}
 
 		if (eventType === 'BILLING.SUBSCRIPTION.ACTIVATED' || eventType === 'PAYMENT.SALE.COMPLETED') {
@@ -241,4 +251,22 @@ async function generateWelcomeInvoiceOnce(tenantId: number): Promise<void> {
 	const existing = await prisma.invoice.count({ where: { tenantId } });
 	if (existing > 0) return;
 	await generateAndStoreInvoice(tenantId, 'WELCOME');
+}
+
+// Avisa al Super Admin (SUPER_ADMIN_NOTIFICATION_EMAIL) de un cliente que acaba de activar su
+// suscripción — mismo trigger que generateWelcomeInvoiceOnce, así que solo llega para altas que de
+// verdad confirmaron el pago con PayPal, no para quien completó el formulario y nunca activó.
+async function notifyNewTenant(tenantId: number): Promise<void> {
+	const tenant = await prismaUnscoped.tenant.findUnique({
+		where: { id: tenantId },
+		include: { users: { where: { type: { type: 'ROOT' } }, take: 1 } },
+	});
+	if (!tenant) return;
+	const admin = tenant.users[0];
+	await sendNewTenantNotification({
+		tenantName: tenant.name,
+		plan: tenant.plan ?? '—',
+		adminEmail: admin?.email ?? '—',
+		adminUsername: admin?.username ?? '—',
+	});
 }

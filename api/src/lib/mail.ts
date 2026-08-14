@@ -403,6 +403,40 @@ export async function sendBankTransferReceiptNotification(args: { tenantName: st
 	});
 }
 
+// Aviso de un cliente nuevo que activó su suscripción (ver el webhook de PayPal en routes/
+// signup.ts) — dispara en la transición PENDING → ACTIVE, mismo punto exacto que la factura de
+// bienvenida (lib/invoice-generation.ts), así que solo llega para altas que de verdad pagaron, no
+// para quien solo completó el formulario y nunca confirmó con PayPal. Mismo patrón best-effort y
+// mismo destinatario que sendServiceRequestNotification/sendBankTransferReceiptNotification.
+export async function sendNewTenantNotification(args: { tenantName: string; plan: string; adminEmail: string; adminUsername: string }) {
+	const to = process.env.SUPER_ADMIN_NOTIFICATION_EMAIL;
+	if (!to) {
+		console.warn('[mail] SUPER_ADMIN_NOTIFICATION_EMAIL no configurada — no se avisa por correo (el tenant sigue visible en el panel).');
+		return;
+	}
+	const resend = getResendClient();
+	if (!resend) return;
+
+	const html = `
+		<div style="background:#000;padding:24px;font-family:Arial,Helvetica,sans-serif;">
+			<h2 style="color:#fff;">Nuevo cliente activado</h2>
+			<p style="color:#ccc;"><strong style="color:#fff;">${args.tenantName}</strong> — plan ${args.plan}</p>
+			<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#111;border-radius:8px;border:1px solid #2a2a2a;margin:12px 0;">
+				<tr><td style="padding:6px 8px;color:#aaa;">Admin</td><td style="padding:6px 8px;color:#fff;">${args.adminUsername}</td></tr>
+				<tr><td style="padding:6px 8px;color:#aaa;">Email</td><td style="padding:6px 8px;color:#fff;">${args.adminEmail}</td></tr>
+			</table>
+			<p style="color:#666;font-size:12px;">Su suscripción quedó ACTIVE en PayPal — ya puede entrar y usar la plataforma.</p>
+		</div>
+	`;
+
+	await resend.emails.send({
+		from: process.env.RESEND_FROM_EMAIL ?? 'onboarding@resend.dev',
+		to,
+		subject: `Nuevo cliente — ${args.tenantName}`,
+		html,
+	});
+}
+
 // Reporte periódico (mensual/trimestral) programado por el propio tenant (ver
 // scheduled-reports.ts) — mismo patrón best-effort del resto de este archivo: sin
 // RESEND_API_KEY simplemente no se manda, el cron sigue corriendo igual el próximo período.
