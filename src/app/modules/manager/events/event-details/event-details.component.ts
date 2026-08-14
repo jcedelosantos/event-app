@@ -20,6 +20,9 @@ import { DatePipe } from '@angular/common';
 
 import { QRCodeComponent } from 'angularx-qrcode';
 import { CardMapComponent } from '../../maps/components/card-map/card-map.component';
+import { AuthService } from '../../../../core/services/auth.service';
+import { PLAN_FEATURES } from '../../../../shared/pricing-plans';
+import { isEventPlanCode } from '../../../../shared/event-plans';
 
 declare const bootstrap: any;
 
@@ -78,6 +81,12 @@ declare const bootstrap: any;
 					</div>
 				</div>
 				<div class="col-4 text-center">
+					@if (publicPortalBlocked()) {
+						<div class="alert alert-warning small text-start mb-2">
+							<i class="bi bi-lock-fill" aria-hidden="true"></i>
+							Tu plan actual no incluye portada pública — este link no va a cargar hasta que actualices a un plan Intermedio o superior.
+						</div>
+					}
 					<qrcode [qrdata]="publicEventUrl(ev.code)" [width]="130" [errorCorrectionLevel]="'M'"></qrcode>
 					<p class="small text-body-secondary mb-0">Compartí este QR o link para que el público se anote solo</p>
 					<a [href]="publicEventUrl(ev.code)" target="_blank" class="small">{{ publicEventUrl(ev.code) }}</a>
@@ -303,6 +312,7 @@ export class EventDetailsComponent implements OnInit {
 	private readonly qrService = inject(QRService);
 	private readonly accessPointsService = inject(AccessPointsService);
 	private readonly scanConflictsService = inject(ScanConflictsService);
+	private readonly authService = inject(AuthService);
 
 	event = signal<Events | null>(null);
 	maps = signal<Map[]>([]);
@@ -319,6 +329,16 @@ export class EventDetailsComponent implements OnInit {
 		const ev = this.event();
 		if (!ev) return [];
 		return this.allSales().filter((sale) => sale.eventId === ev.id);
+	});
+
+	// El QR/link de acá abajo apuntan a la misma página pública que el link de Settings — sujeta al
+	// mismo bloqueo por plan (ver public.ts GET /events/:code). Mismo criterio que
+	// settings.component.ts: se avisa acá en vez de tocar la respuesta pública, para no romper el
+	// anti-enumeration (un tenant Básico responde 404 genérico, no un mensaje de "necesitás upgrade").
+	publicPortalBlocked = computed(() => {
+		const plan = this.authService.currentUser()?.tenant?.plan;
+		if (!plan || isEventPlanCode(plan)) return false;
+		return !PLAN_FEATURES[plan]?.publicPortal;
 	});
 
 	soldCount = computed(() => this.sales().length);
