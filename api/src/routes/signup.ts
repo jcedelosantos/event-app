@@ -1,12 +1,13 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
-import { prismaUnscoped } from '../lib/prisma';
+import { prisma, prismaUnscoped } from '../lib/prisma';
 import { asyncHandler } from '../lib/async-handler';
 import { checkoutRateLimiter } from '../middleware/rate-limit';
 import { uniqueTenantSlug } from '../lib/slug';
 import { isPlanCode } from '../lib/plans';
 import { createSubscription, getSubscription, verifyPlatformWebhookSignature, planCodeForBillingPlanId, PayPalBillingRequestError } from '../lib/paypal-billing';
+import { generateAndStoreInvoice } from '../lib/invoice-generation';
 
 // Alta pública de una organización nueva — versión sin Super Admin de tenants.ts:post('/'), más la
 // suscripción recurrente (PayPal Billing) que ahí no existe porque un Super Admin activa el plan a
@@ -179,11 +180,20 @@ signupRouter.post(
 		}
 
 		const nextStatus = mapEventTypeToStatus(eventType);
+		// "subscription.status" es el estado ANTES de esta actualización — PENDING es exclusivo del
+		// alta recién creada (ver POST /signup más arriba), nunca vuelve a valer eso después. Cualquier
+		// reactivación posterior (tras SUSPENDED/PAST_DUE/CANCELLED) entra con otro status, así que
+		// esta condición dispara la factura de bienvenida UNA sola vez por tenant, no en cada renovación.
+		const isFirstActivation = subscription.status === 'PENDING' && nextStatus === 'ACTIVE';
 		if (nextStatus) {
 			await prismaUnscoped.$transaction([
 				prismaUnscoped.subscription.update({ where: { tenantId: subscription.tenantId }, data: { status: nextStatus } }),
 				prismaUnscoped.tenant.update({ where: { id: subscription.tenantId }, data: { planStatus: nextStatus } }),
 			]);
+		}
+
+		if (isFirstActivation) {
+			generateWelcomeInvoiceOnce(subscription.tenantId).catch((err) => console.error('No se pudo generar la factura de bienvenida:', err));
 		}
 
 		if (eventType === 'BILLING.SUBSCRIPTION.ACTIVATED' || eventType === 'PAYMENT.SALE.COMPLETED') {
@@ -223,3 +233,12 @@ signupRouter.post(
 		res.json({ received: true });
 	}),
 );
+
+// A prueba de reenvíos del webhook de PayPal (puede reentregar el mismo evento más de una vez) —
+// además de la guarda por status en el caller, esto chequea que el tenant todavía no tenga NINGUNA
+// factura antes de generar la de bienvenida, así una entrega duplicada no crea dos.
+async function generateWelcomeInvoiceOnce(tenantId: number): Promise<void> {
+	const existing = await prisma.invoice.count({ where: { tenantId } });
+	if (existing > 0) return;
+	await generateAndStoreInvoice(tenantId, 'WELCOME');
+}

@@ -1,4 +1,4 @@
-export type InvoiceGeneratedBy = 'MANUAL' | 'AUTO';
+export type InvoiceGeneratedBy = 'MANUAL' | 'AUTO' | 'WELCOME';
 
 export interface Invoice {
 	id: number;

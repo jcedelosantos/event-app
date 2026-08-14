@@ -12,7 +12,10 @@ import { getInvoiceIssuerConfig, nextNcf } from './invoice-config';
 // en la fila de Invoice al momento de emitir, sin depender de reabrir/re-parsear el PDF generado.
 const ITBIS_RATE = 0.18;
 
-export type InvoiceGeneratedBy = 'MANUAL' | 'AUTO';
+// MANUAL: Super Admin la generó a mano. AUTO: cron mensual (ver invoice-cron.ts). WELCOME: primera
+// factura, disparada por el webhook de PayPal en la transición PENDING → ACTIVE de una suscripción
+// recién creada (ver routes/signup.ts) — no espera al día 1 del mes siguiente.
+export type InvoiceGeneratedBy = 'MANUAL' | 'AUTO' | 'WELCOME';
 
 // Genera Y PERSISTE la factura de un tenant — usada tanto por el botón manual del Super Admin
 // (routes/tenants.ts) como por el cron mensual (ver invoice-cron.ts). Antes de este archivo, la
