@@ -243,11 +243,15 @@ export function buildInvoicePdf(input: InvoiceInput): Promise<Buffer> {
 		const payBottom = doc.y;
 
 		doc.y = totalsTop;
-		const subtotal = planPrice + overageTotal;
-		const itbis = Math.round(subtotal * ITBIS_RATE * 100) / 100;
-		const total = subtotal + itbis;
+		// Los precios que ve el cliente (plan y overage, mismos montos que en pricing/PayPal) YA
+		// incluyen ITBIS — antes esto le sumaba 18% ARRIBA de esos montos, dejando el total de la
+		// factura por encima de lo que el cliente realmente paga. Se calcula la porción de impuesto
+		// que ya va DENTRO del total (igual que un recibo con IVA incluido), no se agrega nada.
+		const total = planPrice + overageTotal;
+		const itbis = Math.round((total - total / (1 + ITBIS_RATE)) * 100) / 100;
+		const subtotal = total - itbis;
 		totalsRow('Subtotal', formatUSD(subtotal));
-		totalsRow(`ITBIS (${Math.round(ITBIS_RATE * 100)}%)`, formatUSD(itbis));
+		totalsRow(`ITBIS incluido (${Math.round(ITBIS_RATE * 100)}%)`, formatUSD(itbis));
 		doc.moveDown(0.15);
 		totalsRow('Total', formatUSD(total), { bold: true });
 		const totalsBottom = doc.y;
@@ -256,6 +260,12 @@ export function buildInvoicePdf(input: InvoiceInput): Promise<Buffer> {
 		doc.moveTo(left, doc.y).lineTo(right, doc.y).strokeColor('#ddd').stroke();
 		doc.moveDown(0.5);
 
+		// La suscripción ya la cobró PayPal automáticamente al momento de activarse/renovarse — lo
+		// único que puede seguir pendiente de cobro es el overage (se factura aparte a mano, ver nota
+		// al pie). Sin overage, la factura queda saldada; con overage, el saldo es SOLO esa parte, no
+		// el total (la parte del plan ya está paga).
+		const dueUSD = overageTotal;
+		const isPaid = dueUSD <= 0;
 		const saldoY = doc.y;
 		const saldoHeight = 28;
 		const saldoBoxX = left + contentWidth * 0.45;
@@ -263,8 +273,12 @@ export function buildInvoicePdf(input: InvoiceInput): Promise<Buffer> {
 		const saldoLabelW = 110;
 		const saldoAmountX = saldoBoxX + 15 + saldoLabelW + 10;
 		doc.rect(saldoBoxX, saldoY, saldoBoxW, saldoHeight).fill('#f2f2f2');
-		doc.font('Helvetica-Bold').fontSize(11).fillColor('#333').text('Saldo deudor', saldoBoxX + 15, saldoY + 8, { width: saldoLabelW });
-		doc.font('Helvetica-Bold').fontSize(13).fillColor('#2e7d32').text(formatUSD(total), saldoAmountX, saldoY + 6, { width: saldoBoxX + saldoBoxW - saldoAmountX - 15, align: 'right' });
+		doc.font('Helvetica-Bold').fontSize(11).fillColor('#333').text(isPaid ? 'Estado' : 'Saldo deudor', saldoBoxX + 15, saldoY + 8, { width: saldoLabelW });
+		doc
+			.font('Helvetica-Bold')
+			.fontSize(13)
+			.fillColor('#2e7d32')
+			.text(isPaid ? 'Pagado' : formatUSD(dueUSD), saldoAmountX, saldoY + 6, { width: saldoBoxX + saldoBoxW - saldoAmountX - 15, align: 'right' });
 		doc.y = saldoY + saldoHeight;
 
 		doc.moveDown(1.5);

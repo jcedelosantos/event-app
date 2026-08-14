@@ -8,10 +8,6 @@ import { computeTenantOverage } from './overage';
 import { buildInvoicePdf } from './invoice-pdf';
 import { getInvoiceIssuerConfig, nextNcf } from './invoice-config';
 
-// Mismo 18% que invoice-pdf.ts (no exportado desde ahí) — se recalcula acá para congelar el total
-// en la fila de Invoice al momento de emitir, sin depender de reabrir/re-parsear el PDF generado.
-const ITBIS_RATE = 0.18;
-
 // MANUAL: Super Admin la generó a mano. AUTO: cron mensual (ver invoice-cron.ts). WELCOME: primera
 // factura, disparada por el webhook de PayPal en la transición PENDING → ACTIVE de una suscripción
 // recién creada (ver routes/signup.ts) — no espera al día 1 del mes siguiente.
@@ -45,11 +41,11 @@ export async function generateAndStoreInvoice(tenantId: number, generatedBy: Inv
 	fs.writeFileSync(path.join(uploadsDir, filename), pdf);
 	const pdfUrl = `/uploads/${filename}`;
 
+	// Mismo criterio que invoice-pdf.ts: los precios ya incluyen ITBIS, así que el total NO le suma
+	// nada arriba de plan+overage — es la misma cifra que aparece como "Total" en el PDF.
 	const planDef = tenant.plan && isPlanCode(tenant.plan) ? PLANS[tenant.plan] : null;
 	const planPriceUSD = planDef?.priceUSD ?? 0;
-	const subtotal = planPriceUSD + overage.totalUSD;
-	const itbis = Math.round(subtotal * ITBIS_RATE * 100) / 100;
-	const totalUSD = subtotal + itbis;
+	const totalUSD = planPriceUSD + overage.totalUSD;
 
 	const invoice = await prisma.invoice.create({
 		data: {
