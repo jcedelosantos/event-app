@@ -9,6 +9,8 @@ import { extractErrorMessage } from '../../../utils/api-error';
 import { confirm } from '../../../utils/messages';
 import { QRCodeComponent } from 'angularx-qrcode';
 import { environment } from '../../../../environments/environment';
+import { PLAN_FEATURES } from '../../../shared/pricing-plans';
+import { isEventPlanCode } from '../../../shared/event-plans';
 
 const PRESETS = [
 	{ name: 'Azul oscuro', hex: '#1e3a8a' },
@@ -113,6 +115,14 @@ const PRESETS = [
 		@if (orgUrl(); as url) {
 			<h2 class="section-title mt-4">Portada pública</h2>
 			<p class="text-body-secondary small">Página pública con todos los próximos eventos de tu organización — compartila con tus clientes.</p>
+
+			@if (publicPortalBlocked()) {
+				<div class="alert alert-warning" style="max-width: 480px;">
+					<i class="bi bi-lock-fill" aria-hidden="true"></i>
+					Tu plan actual no incluye portada pública — el link de abajo no va a cargar hasta que
+					actualices a un plan Intermedio o superior.
+				</div>
+			}
 
 			<div class="card" style="max-width: 480px;">
 				<div class="card-body">
@@ -396,6 +406,17 @@ export class SettingsComponent implements OnInit {
 	orgUrl = computed(() => {
 		const slug = this.authService.currentUser()?.tenant?.slug;
 		return slug ? `${window.location.origin}/o/${slug}` : null;
+	});
+
+	// El link de arriba existe siempre (se arma solo del slug), pero el backend lo bloquea con un
+	// 404 genérico si el plan no incluye portal público (ver public.ts — a propósito indistinguible
+	// de "no existe", para no confirmarle a un visitante anónimo que el slug es real) — sin este
+	// aviso acá, el dueño de la organización ve el link "andar" en Settings pero no entiende por qué
+	// no carga cuando lo prueba.
+	publicPortalBlocked = computed(() => {
+		const plan = this.authService.currentUser()?.tenant?.plan;
+		if (!plan || isEventPlanCode(plan)) return false;
+		return !PLAN_FEATURES[plan]?.publicPortal;
 	});
 
 	logoUrl = computed(() => this.authService.currentUser()?.tenant?.logoUrl ?? null);
