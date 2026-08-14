@@ -15,6 +15,8 @@ import { extractErrorMessage } from '../../../utils/api-error';
 import { HttpErrorResponse } from '@angular/common/http';
 import { AuthService } from '../../../core/services/auth.service';
 import { QRCodeComponent } from 'angularx-qrcode';
+import { PLAN_FEATURES } from '../../../shared/pricing-plans';
+import { isEventPlanCode } from '../../../shared/event-plans';
 
 declare const bootstrap: any;
 
@@ -49,6 +51,12 @@ declare const bootstrap: any;
 							</button>
 						}
 					</form>
+					@if (publicPortalBlocked()) {
+						<div class="alert alert-warning small mt-2 mb-0 py-1 px-2">
+							<i class="bi bi-lock-fill" aria-hidden="true"></i>
+							Tu plan actual no incluye portada pública — el botón de arriba no va a cargar hasta que actualices a un plan Intermedio o superior.
+						</div>
+					}
 					<div class="navbar-brand">
 						<div class="row">
 							<div class="col">
@@ -81,6 +89,12 @@ declare const bootstrap: any;
 								<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
 							</div>
 							<div class="modal-body text-center">
+								@if (publicPortalBlocked()) {
+									<div class="alert alert-warning small text-start mb-3">
+										<i class="bi bi-lock-fill" aria-hidden="true"></i>
+										Tu plan actual no incluye portada pública — este link no va a cargar hasta que actualices a un plan Intermedio o superior.
+									</div>
+								}
 								<qrcode [qrdata]="url" [width]="220" [errorCorrectionLevel]="'M'"></qrcode>
 								<p class="small text-body-secondary mt-2 mb-1">Compartí este QR para que tus clientes vean todos tus próximos eventos</p>
 								<a [href]="url" target="_blank" rel="noopener">{{ url }}</a>
@@ -161,6 +175,16 @@ export class EventsComponent implements OnInit, AfterViewInit {
 	orgUrl = computed(() => {
 		const slug = this.authService.currentUser()?.tenant?.slug;
 		return slug ? `${window.location.origin}/o/${slug}` : null;
+	});
+
+	// Mismo patrón que settings.component.ts — el botón "Portada pública" de arriba existe siempre
+	// (se arma solo del slug), pero el backend lo bloquea con un 404 genérico si el plan no incluye
+	// portal público (ver public.ts). Sin este aviso, el manager clickeaba el botón y caía en un 404
+	// sin ninguna explicación.
+	publicPortalBlocked = computed(() => {
+		const plan = this.authService.currentUser()?.tenant?.plan;
+		if (!plan || isEventPlanCode(plan)) return false;
+		return !PLAN_FEATURES[plan]?.publicPortal;
 	});
 
 	filteredEvents = computed(() => {
