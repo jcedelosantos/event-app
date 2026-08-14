@@ -11,6 +11,7 @@ import { eventDateKey, todayKey } from '../../../utils/dates';
 import { MiniBarChartComponent, BarChartItem } from '../../../shared/mini-bar-chart/mini-bar-chart.component';
 import { AccessPointsService } from '../access-points/services/access-points.service';
 import { AccessPointStatsResponse } from '../../../models/access-points/access-point';
+import { FlashEventModalComponent } from './components/flash-event-modal/flash-event-modal.component';
 
 // Una puerta "concentra" tráfico cuando se lleva más de este % de las entradas recientes del
 // evento — el umbral de "recientes" mínimas (ver GATE_ALERT_MIN_RECENT) evita que 1 de 1 escaneos
@@ -25,9 +26,16 @@ const LIVE_REFRESH_MS = 20_000;
 
 @Component({
 	selector: 'app-dash-board',
-	imports: [RouterLink, MiniBarChartComponent],
+	imports: [RouterLink, MiniBarChartComponent, FlashEventModalComponent],
 	template: `
-		<h2 class="section-title">Dashboard</h2>
+		<div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+			<h2 class="section-title mb-0">Dashboard</h2>
+			<button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#flashEventModal">
+				<i class="bi bi-lightning-charge-fill"></i> Evento flash
+			</button>
+		</div>
+		<app-flash-event-modal />
+		<br />
 
 		<div class="card mb-4">
 			<div class="card-header">
