@@ -56,7 +56,10 @@ model Tenant {
   // como "bloquear escrituras, permitir lecturas" — no necesita tratamiento especial). PENDING_REVIEW
   // es propio de un tenant de evento único que eligió pagar por transferencia (ver
   // routes/signup-event.ts): subió el comprobante, espera que un Super Admin lo confirme a mano —
-  // mismo gate de solo-lectura que EVENT_ENDED, sale gratis por el mismo motivo.
+  // mismo gate de solo-lectura que EVENT_ENDED, sale gratis por el mismo motivo. ARCHIVED es un paso
+  // más allá de EVENT_ENDED (ver lib/event-plan-expiry.ts): a los 30 días en EVENT_ENDED sin que
+  // nadie lo reactive, además de solo-lectura se bloquea el LOGIN (routes/auth.ts) — nada se borra,
+  // los datos quedan intactos para auditoría o reactivación manual a mano desde Super Admin.
   planStatus String?
   subscription Subscription?
 

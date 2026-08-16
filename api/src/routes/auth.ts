@@ -33,6 +33,15 @@ authRouter.post('/login', asyncHandler(async (req, res) => {
 		return;
 	}
 
+	// A diferencia del resto de los planStatus !== 'ACTIVE' (solo lectura, ver
+	// requireActiveSubscription en middleware/plan.ts), ARCHIVED bloquea también la entrada — es la
+	// diferencia real entre "modo consulta" y "archivado" (ver lib/event-plan-expiry.ts y el
+	// comentario de Tenant.planStatus en schema.prisma). Reactivar es manual, desde Super Admin.
+	if (user.tenant?.planStatus === 'ARCHIVED') {
+		res.status(403).json({ error: 'Esta cuenta fue archivada por inactividad. Contactanos para reactivarla.' });
+		return;
+	}
+
 	const token = signToken({ userId: user.id, username: user.username, userType: user.type.type, tenantId: user.tenantId });
 
 	res.json({ token, user: toPublicUser(user) });

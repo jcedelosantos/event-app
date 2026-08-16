@@ -54,7 +54,13 @@ const REQUEST_STATUS_LABEL: Record<ServiceRequestStatus, string> = {
 					</h2>
 					<p class="text-muted small mb-0">Panel de Super Admin — alta de clubes/iglesias que usan la plataforma.</p>
 				</div>
-				<div class="d-flex gap-2">
+				<div class="d-flex gap-2 align-items-center">
+					@if (archivedCount() > 0) {
+						<div class="form-check form-switch me-2">
+							<input class="form-check-input" type="checkbox" id="showArchivedSwitch" [checked]="showArchived()" (change)="showArchived.set(!showArchived())" />
+							<label class="form-check-label small text-muted" for="showArchivedSwitch">Mostrar archivadas ({{ archivedCount() }})</label>
+						</div>
+					}
 					<button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createTenantModal">
 						<i class="bi bi-plus-lg"></i> Nueva organización
 					</button>
@@ -90,7 +96,7 @@ const REQUEST_STATUS_LABEL: Record<ServiceRequestStatus, string> = {
 					</tr>
 				</thead>
 				<tbody>
-					@for (tenant of tenants(); track tenant.id) {
+					@for (tenant of visibleTenants(); track tenant.id) {
 						<tr>
 							<td>{{ tenant.name }}</td>
 							<td>
@@ -101,9 +107,13 @@ const REQUEST_STATUS_LABEL: Record<ServiceRequestStatus, string> = {
 							<td>{{ tenant._count?.events ?? 0 }}</td>
 							<td class="text-muted">{{ tenant.createdAt | date: 'mediumDate' }}</td>
 							<td>
-								<span class="badge" [class.text-bg-success]="tenant.active" [class.text-bg-secondary]="!tenant.active">
-									{{ tenant.active ? 'Activa' : 'Inactiva' }}
-								</span>
+								@if (tenant.planStatus === 'ARCHIVED') {
+									<span class="badge text-bg-dark"><i class="bi bi-archive-fill"></i> Archivada</span>
+								} @else {
+									<span class="badge" [class.text-bg-success]="tenant.active" [class.text-bg-secondary]="!tenant.active">
+										{{ tenant.active ? 'Activa' : 'Inactiva' }}
+									</span>
+								}
 							</td>
 							<td>
 								@if (tenant.plan) {
@@ -135,14 +145,22 @@ const REQUEST_STATUS_LABEL: Record<ServiceRequestStatus, string> = {
 								>
 									<i class="bi bi-pencil"></i>
 								</button>
-								<button type="button" class="btn btn-sm" [class.btn-outline-danger]="tenant.active" [class.btn-outline-success]="!tenant.active" (click)="toggleActive(tenant)">
-									{{ tenant.active ? 'Desactivar' : 'Activar' }}
-								</button>
+								@if (tenant.planStatus === 'ARCHIVED') {
+									<button type="button" class="btn btn-sm btn-outline-warning" (click)="reactivateTenant(tenant)">
+										<i class="bi bi-arrow-counterclockwise"></i> Reactivar
+									</button>
+								} @else {
+									<button type="button" class="btn btn-sm" [class.btn-outline-danger]="tenant.active" [class.btn-outline-success]="!tenant.active" (click)="toggleActive(tenant)">
+										{{ tenant.active ? 'Desactivar' : 'Activar' }}
+									</button>
+								}
 							</td>
 						</tr>
 					} @empty {
 						<tr>
-							<td colspan="9" class="text-center text-muted py-4">Todavía no hay organizaciones creadas.</td>
+							<td colspan="9" class="text-center text-muted py-4">
+								{{ archivedCount() > 0 && !showArchived() ? 'Todas las organizaciones están archivadas — activá el toggle para verlas.' : 'Todavía no hay organizaciones creadas.' }}
+							</td>
 						</tr>
 					}
 				</tbody>
@@ -346,6 +364,13 @@ export class SuperAdminComponent implements AfterViewInit {
 	selectedTenant = signal<Tenant | null>(null);
 	selectedSubscriptionTenant = signal<Tenant | null>(null);
 
+	// ARCHIVED (ver lib/event-plan-expiry.ts en la API) se oculta por default de la lista principal —
+	// son organizaciones inactivas hace 30+ días, no algo que el Super Admin necesite ver a diario.
+	// El toggle es solo para auditoría/reactivación manual, nunca automático.
+	showArchived = signal(false);
+	archivedCount = computed(() => this.tenants().filter((t) => t.planStatus === 'ARCHIVED').length);
+	visibleTenants = computed(() => (this.showArchived() ? this.tenants() : this.tenants().filter((t) => t.planStatus !== 'ARCHIVED')));
+
 	serviceRequests = signal<ServiceRequest[]>([]);
 	selectedServiceRequest = signal<ServiceRequest | null>(null);
 
@@ -419,6 +444,18 @@ export class SuperAdminComponent implements AfterViewInit {
 		confirm(`¿${nextState ? 'Activar' : 'Desactivar'} "${tenant.name}"?`, {
 			onConfirm: () =>
 				this.tenantService.setActive(tenant.id, nextState).subscribe({
+					next: () => this.loadTenants(),
+					error: (err: HttpErrorResponse) => error(extractErrorMessage(err)),
+				}),
+		});
+	}
+
+	// Ver comentario de POST /tenants/:id/reactivate en la API — vuelve a ACTIVE a mano, el cron
+	// diario la vuelve a archivar si nadie le carga un evento nuevo.
+	reactivateTenant(tenant: Tenant) {
+		confirm(`¿Reactivar "${tenant.name}"? Vuelve a poder entrar y usar la plataforma.`, {
+			onConfirm: () =>
+				this.tenantService.reactivate(tenant.id).subscribe({
 					next: () => this.loadTenants(),
 					error: (err: HttpErrorResponse) => error(extractErrorMessage(err)),
 				}),

@@ -52,6 +52,12 @@ export class TenantService {
 		return this.httpClient.put<Tenant>(`${this.baseUrl}/${id}`, data);
 	}
 
+	// Ver POST /tenants/:id/reactivate en la API — solo aplica a tenants de evento único ARCHIVED
+	// (ver lib/event-plan-expiry.ts), vuelve a ACTIVE a mano, sin automatizar nada.
+	reactivate(id: number): Observable<Tenant> {
+		return this.httpClient.post<Tenant>(`${this.baseUrl}/${id}/reactivate`, {});
+	}
+
 	impersonate(id: number): Observable<{ token: string; user: User }> {
 		return this.httpClient.post<{ token: string; user: User }>(`${this.baseUrl}/${id}/impersonate`, {});
 	}

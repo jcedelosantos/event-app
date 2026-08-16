@@ -9,6 +9,7 @@ import { logAudit } from '../lib/audit';
 import { asyncHandler } from '../lib/async-handler';
 import { uniqueTenantSlug } from '../lib/slug';
 import { computeTenantOverage } from '../lib/overage';
+import { EVENT_PLAN_CODES } from '../lib/event-plans';
 import { cancelSubscription } from '../lib/paypal-billing';
 import { generateAndStoreInvoice } from '../lib/invoice-generation';
 import { hasValidMxRecord } from '../lib/email-validation';
@@ -124,6 +125,33 @@ tenantsRouter.put('/:id', asyncHandler(async (req, res) => {
 		}
 		throw err;
 	}
+}));
+
+// Reactivación manual de un tenant de evento único archivado (ver lib/event-plan-expiry.ts) —
+// vuelve a ACTIVE a mano, sin automatizar nada (el cron lo va a volver a archivar si el Super Admin
+// no le da un nuevo evento). Restringido a evento único + ARCHIVED a propósito: un tenant recurrente
+// PAST_DUE/SUSPENDED se regulariza por PayPal (ver subscription.ts), no por acá.
+tenantsRouter.post('/:id/reactivate', asyncHandler(async (req: AuthenticatedRequest, res) => {
+	const id = Number(req.params.id);
+	const tenant = await prismaUnscoped.tenant.findUnique({ where: { id } });
+	if (!tenant) {
+		res.status(404).json({ error: 'Organización no encontrada' });
+		return;
+	}
+	if (!tenant.plan || !EVENT_PLAN_CODES.includes(tenant.plan as any) || tenant.planStatus !== 'ARCHIVED') {
+		res.status(400).json({ error: 'Solo se puede reactivar así un tenant de evento único archivado.' });
+		return;
+	}
+	const updated = await prismaUnscoped.tenant.update({ where: { id }, data: { planStatus: 'ACTIVE' } });
+	await logAudit({
+		tenantId: id,
+		userId: req.user!.userId,
+		action: 'UPDATE',
+		entity: 'Tenant',
+		entityId: id,
+		summary: 'El Super Admin reactivó manualmente esta organización archivada',
+	});
+	res.json(updated);
 }));
 
 // "Entrar como" una organización: emite un token válido para su primer admin (ROOT), sin pedir su
