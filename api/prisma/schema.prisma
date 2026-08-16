@@ -855,3 +855,21 @@ model EnterpriseLead {
   createdAt   DateTime  @default(now())
   contactedAt DateTime?
 }
+
+// Cola de la sala de espera virtual (ver lib/waiting-room.ts) — vive en Postgres, no en memoria del
+// proceso, para que la fila sea correcta con más de una réplica de la app corriendo a la vez (cada
+// réplica lee/escribe la misma fila en vez de tener su propia copia). eventCode alcanza como clave
+// (no eventId/tenantId) porque Event.code ya es único globalmente y es lo único que las rutas
+// públicas (sin tenant resuelto todavía) tienen a mano.
+model WaitingRoomEntry {
+  id         Int       @id @default(autoincrement())
+  eventCode  String
+  sessionId  String
+  status     String // QUEUED | ADMITTED
+  joinedAt   DateTime  @default(now())
+  lastSeenAt DateTime  @default(now())
+  admittedAt DateTime?
+
+  @@unique([eventCode, sessionId])
+  @@index([eventCode, status, joinedAt])
+}

@@ -34,6 +34,7 @@ import { runScheduledReportsCheck } from './lib/scheduled-reports';
 import { runEventPlanExpiryCheck } from './lib/event-plan-expiry';
 import { runMonthlyInvoiceGeneration } from './lib/invoice-cron';
 import { runEventOverageSummaryCheck } from './lib/overage-summary';
+import { cleanupExpiredWaitingRoomEntries } from './lib/waiting-room';
 
 // Red de seguridad: una promesa rechazada sin manejar en cualquier punto del proceso (no solo
 // dentro de una request) tumbaba el server entero en Node moderno. asyncHandler cubre las rutas,
@@ -140,6 +141,13 @@ cron.schedule('45 13 * * *', () => {
 // campo de día del mes lo limita a correr una sola vez por mes (ver invoice-cron.ts).
 cron.schedule('0 14 1 * *', () => {
 	runMonthlyInvoiceGeneration().catch((err) => console.error('[invoice-cron] Falló la generación mensual:', err));
+});
+
+// Cada 5 minutos, sin relación con el horario UTC de referencia de arriba — a diferencia de esos
+// (resúmenes diarios/mensuales), esto es pura limpieza de espacio (ver waiting-room.ts) y conviene
+// que corra seguido para que la tabla no crezca entre sale masiva y sale masiva.
+cron.schedule('*/5 * * * *', () => {
+	cleanupExpiredWaitingRoomEntries().catch((err) => console.error('[waiting-room] Falló la limpieza periódica:', err));
 });
 
 const port = Number(process.env.PORT ?? 3001);

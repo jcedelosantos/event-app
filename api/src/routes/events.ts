@@ -148,7 +148,7 @@ eventsRouter.get('/:id/live-stats', asyncHandler(async (req: AuthenticatedReques
 	const tickets = await prisma.ticket.findMany({ where: { eventId: id, tenantId, active: true }, select: { count: true } });
 	const availableCount = tickets.reduce((sum, t) => sum + t.count, 0);
 	const soldCount = await prisma.saleTicket.count({ where: { eventId: id, tenantId } });
-	res.json({ ...getWaitingRoomStats(event.code), soldCount, availableCount, totalCapacity: availableCount + soldCount });
+	res.json({ ...(await getWaitingRoomStats(event.code)), soldCount, availableCount, totalCapacity: availableCount + soldCount });
 }));
 
 eventsRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
