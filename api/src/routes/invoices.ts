@@ -12,6 +12,8 @@ invoicesRouter.use(requireAuth, requireTenant, blockScannerRole);
 
 invoicesRouter.get('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const tenantId = req.user!.tenantId!;
-	const invoices = await prisma.invoice.findMany({ where: { tenantId }, orderBy: { createdAt: 'desc' } });
+	// status !== GENERATED (PENDING/FAILED, ver lib/invoice-generation.ts) es un artefacto interno
+	// de una emisión que no terminó de completarse — el tenant nunca debería ver una fila sin PDF.
+	const invoices = await prisma.invoice.findMany({ where: { tenantId, status: 'GENERATED' }, orderBy: { createdAt: 'desc' } });
 	res.json(invoices);
 }));

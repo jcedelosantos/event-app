@@ -28,18 +28,8 @@ export async function generateAndStoreInvoice(tenantId: number, generatedBy: Inv
 	const overage = await computeTenantOverage(tenantId);
 	const issuedAt = new Date();
 	const dueAt = new Date(issuedAt.getTime() + 7 * 24 * 60 * 60 * 1000);
-	const invoiceNumber = `INV-${String(tenantId).padStart(4, '0')}-${issuedAt.getFullYear()}${String(issuedAt.getMonth() + 1).padStart(2, '0')}`;
 	const billingPeriod = `${issuedAt.getFullYear()}-${String(issuedAt.getMonth() + 1).padStart(2, '0')}`;
 	const issuer = await getInvoiceIssuerConfig();
-	// Consume y avanza la secuencia real de DGII UNA sola vez por factura generada — null si el
-	// Super Admin todavía no cargó el próximo NCF en Configuración de facturación.
-	const ncf = await nextNcf();
-
-	const pdf = await buildInvoicePdf({ tenant, plan: tenant.plan, subscription, overage, invoiceNumber, ncf, issuedAt, dueAt, issuer });
-
-	const filename = `invoice-${tenantId}-${billingPeriod}-${randomUUID()}.pdf`;
-	fs.writeFileSync(path.join(uploadsDir, filename), pdf);
-	const pdfUrl = `/uploads/${filename}`;
 
 	// Mismo criterio que invoice-pdf.ts: los precios ya incluyen ITBIS, así que el total NO le suma
 	// nada arriba de plan+overage — es la misma cifra que aparece como "Total" en el PDF.
@@ -47,20 +37,47 @@ export async function generateAndStoreInvoice(tenantId: number, generatedBy: Inv
 	const planPriceUSD = planDef?.priceUSD ?? 0;
 	const totalUSD = planPriceUSD + overage.totalUSD;
 
-	const invoice = await prisma.invoice.create({
+	// La fila se crea EN PENDING antes de tocar el NCF o generar el PDF — así, si algo falla más
+	// abajo (PDF, disco, etc.), queda un rastro auditable (FAILED, con el NCF que se llegó a
+	// consumir si corresponde) en vez de un hueco silencioso e inexplicable en la numeración fiscal.
+	// invoiceNumber usa el id propio de esta fila (autoincrement, único de verdad) — dos facturas
+	// MANUALes del mismo tenant en el mismo mes ya no comparten referencia.
+	let invoice = await prisma.invoice.create({
 		data: {
 			tenantId,
-			invoiceNumber,
-			ncf,
+			invoiceNumber: '',
 			billingPeriod,
 			planCode: tenant.plan,
 			planPriceUSD,
 			overageUSD: overage.totalUSD,
 			totalUSD,
-			pdfUrl,
 			generatedBy,
+			status: 'PENDING',
 		},
 	});
+	const invoiceNumber = `INV-${String(tenantId).padStart(4, '0')}-${issuedAt.getFullYear()}${String(issuedAt.getMonth() + 1).padStart(2, '0')}-${invoice.id}`;
+	invoice = await prisma.invoice.update({ where: { id: invoice.id }, data: { invoiceNumber } });
 
-	return { invoice, pdf };
+	try {
+		// Consume y avanza la secuencia real de DGII UNA sola vez por factura generada — null si el
+		// Super Admin todavía no cargó el próximo NCF en Configuración de facturación. Se persiste
+		// ACÁ MISMO, antes de intentar el PDF, para que un NCF ya consumido quede registrado en esta
+		// fila incluso si todo lo que sigue falla.
+		const ncf = await nextNcf();
+		if (ncf) {
+			invoice = await prisma.invoice.update({ where: { id: invoice.id }, data: { ncf } });
+		}
+
+		const pdf = await buildInvoicePdf({ tenant, plan: tenant.plan, subscription, overage, invoiceNumber, ncf, issuedAt, dueAt, issuer });
+
+		const filename = `invoice-${tenantId}-${billingPeriod}-${randomUUID()}.pdf`;
+		fs.writeFileSync(path.join(uploadsDir, filename), pdf);
+		const pdfUrl = `/uploads/${filename}`;
+
+		invoice = await prisma.invoice.update({ where: { id: invoice.id }, data: { pdfUrl, status: 'GENERATED' } });
+		return { invoice, pdf };
+	} catch (err) {
+		await prisma.invoice.update({ where: { id: invoice.id }, data: { status: 'FAILED' } }).catch(() => {});
+		throw err;
+	}
 }

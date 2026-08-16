@@ -132,14 +132,23 @@ model Invoice {
   tenantId      Int
   tenant        Tenant   @relation(fields: [tenantId], references: [id])
 
-  invoiceNumber String // referencia interna (INV-<tenantId>-<yyyymm>) — siempre existe
-  ncf           String? // comprobante fiscal de DGII — null si el Super Admin no configuró el rango al momento de emitir
+  // INV-<tenantId>-<yyyymm>-<id> — incluye el id autoincrement de esta misma fila (único de
+  // verdad) desde que se corrigió el hueco de numeración de más abajo; antes era solo
+  // tenant+mes, así que dos facturas MANUALes del mismo tenant en el mismo mes terminaban con la
+  // misma referencia interna (distinto NCF/id, pero confuso para administración).
+  invoiceNumber String
+  ncf           String? // comprobante fiscal de DGII — null si el Super Admin no configuró el rango al momento de emitir, o si la emisión falló antes de consumirlo
   billingPeriod String // "2026-08", el mes que factura (no necesariamente el mes en que se generó)
   planCode      String?
   planPriceUSD  Float
   overageUSD    Float    @default(0)
   totalUSD      Float // planPriceUSD + overageUSD + ITBIS
-  pdfUrl        String
+  // pdfUrl solo se completa en status GENERATED — la fila SIEMPRE se crea primero en PENDING
+  // (antes de tocar el NCF), así que un NCF consumido por una emisión que falla después (PDF,
+  // disco, etc.) queda registrado en una fila FAILED en vez de perderse como un hueco silencioso
+  // en la numeración fiscal (ver lib/invoice-generation.ts).
+  pdfUrl        String?
+  status        String   @default("GENERATED")
   // MANUAL (Super Admin la generó a mano) | AUTO (cron mensual, ver lib/invoice-cron.ts)
   generatedBy   String
   createdAt     DateTime @default(now())

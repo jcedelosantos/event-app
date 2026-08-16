@@ -35,7 +35,7 @@ import { InvoicesService } from './services/invoices.service';
 							<td class="text-end">USD {{ invoice.totalUSD | number: '1.2-2' }}</td>
 							<td class="text-muted text-nowrap">{{ invoice.createdAt | date: 'short' }}</td>
 							<td class="text-end">
-								<a class="btn btn-sm btn-outline-light" [href]="invoice.pdfUrl" target="_blank" rel="noopener">
+								<a class="btn btn-sm btn-outline-light" [href]="invoice.pdfUrl ?? ''" target="_blank" rel="noopener">
 									<i class="bi bi-download"></i> Descargar
 								</a>
 							</td>
