@@ -1,9 +1,9 @@
 // Fuente de verdad de los 4 planes de suscripción (ver plan económico) — usado por el script de
 // setup de PayPal Billing Plans, por el middleware de feature-gating, y por el endpoint público de
-// alta. El frontend (src/app/shared/pricing-plans.ts) mantiene su PROPIA copia para la página de
-// marketing: este repo no es un monorepo con paths compartidos entre api/ y el Angular de arriba,
-// así que no hay forma de importar este archivo desde el frontend sin reestructurar el proyecto —
-// si algún precio/cupo cambia acá, hay que replicarlo a mano allá (mismo comentario en ambos lados).
+// alta. El frontend (src/app/shared/pricing-plans.ts) ya no mantiene una copia a mano de estos
+// números: scripts/generate-plan-catalog.ts lee este archivo y genera
+// src/app/shared/plan-catalog.generated.ts antes de cada build/start — si un precio/cupo cambia
+// acá, se propaga solo en el próximo build (no hace falta tocar nada del lado del frontend).
 
 export type PlanCode = 'BASICO' | 'INTERMEDIO' | 'AVANZADO' | 'PRO_MAX';
 

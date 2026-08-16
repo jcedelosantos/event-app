@@ -1,7 +1,9 @@
 // Catálogo de tiers "evento único, sin suscripción" (Event-as-a-Service) — mismo criterio que
 // lib/plans.ts: es código, no una tabla editable, porque cambia poco. El prefijo `EVENT_` en el
 // código es lo que distingue a un tenant de este tipo de uno recurrente (BASICO/INTERMEDIO/
-// AVANZADO/PRO_MAX) en cualquier chequeo del resto del backend — ver isEventPlanCode().
+// AVANZADO/PRO_MAX) en cualquier chequeo del resto del backend — ver isEventPlanCode(). El
+// frontend (src/app/shared/event-plans.ts) ya no copia estos números a mano — los toma de
+// plan-catalog.generated.ts (ver scripts/generate-plan-catalog.ts).
 //
 // Precio base: USD 1 por asistente incluido en el tier (pago único, no recurrente). Si el tenant
 // vende por encima de ese tope, NO se bloquea la venta — se cobra overage a

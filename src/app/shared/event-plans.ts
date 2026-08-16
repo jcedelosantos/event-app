@@ -1,9 +1,11 @@
-// Copia frontend de api/src/lib/event-plans.ts — este repo no es un monorepo con paths
-// compartidos entre api/ y el Angular de acá arriba, así que no hay forma de importar ese archivo
-// directo (mismo comentario que pricing-plans.ts). Si un precio cambia, hay que replicarlo a mano
-// en los dos lados.
+// Precio/cupo de los tiers de evento único ya NO se copian a mano acá — vienen de
+// plan-catalog.generated.ts, generado automáticamente desde api/src/lib/event-plans.ts en cada
+// build/start (ver scripts/generate-plan-catalog.ts, revisión 9 de código).
 
-export type EventPlanCode = 'EVENT_100' | 'EVENT_300' | 'EVENT_500' | 'EVENT_1000' | 'EVENT_2500' | 'EVENT_5000';
+import { EVENT_PLAN_CATALOG, EVENT_OVERAGE_FEE_PER_PERSON_CENTS, type EventPlanCode } from './plan-catalog.generated';
+
+export type { EventPlanCode };
+export { EVENT_OVERAGE_FEE_PER_PERSON_CENTS };
 
 export type EventPlanDefinition = {
 	code: EventPlanCode;
@@ -13,26 +15,17 @@ export type EventPlanDefinition = {
 	priceCents: number;
 };
 
-const EVENT_PLAN_CODES: EventPlanCode[] = ['EVENT_100', 'EVENT_300', 'EVENT_500', 'EVENT_1000', 'EVENT_2500', 'EVENT_5000'];
+// Nombre corto para esta pantalla (a diferencia del nombre largo del catálogo, pensado para
+// facturas/Super Admin) — acá el contexto de "evento único" ya está dado por la página.
+export const EVENT_PLANS: EventPlanDefinition[] = EVENT_PLAN_CATALOG.map((p) => ({
+	code: p.code,
+	name: `Hasta ${p.maxAttendees.toLocaleString('es-DO')} asistentes`,
+	maxAttendees: p.maxAttendees,
+	priceCents: p.priceCents,
+}));
+
+const EVENT_PLAN_CODES: EventPlanCode[] = EVENT_PLAN_CATALOG.map((p) => p.code);
 
 export function isEventPlanCode(value: string | null | undefined): value is EventPlanCode {
 	return value != null && (EVENT_PLAN_CODES as string[]).includes(value);
 }
-
-// USD 1 por asistente incluido — si el tenant vende por encima del tope no se bloquea, se cobra
-// overage a EVENT_OVERAGE_FEE_PER_PERSON_CENTS por persona (ver api/src/lib/overage.ts).
-const PRICE_PER_ATTENDEE_CENTS = 100;
-export const EVENT_OVERAGE_FEE_PER_PERSON_CENTS = 125;
-
-function definePlan(code: EventPlanCode, maxAttendees: number): EventPlanDefinition {
-	return { code, name: `Hasta ${maxAttendees.toLocaleString('es-DO')} asistentes`, maxAttendees, priceCents: maxAttendees * PRICE_PER_ATTENDEE_CENTS };
-}
-
-export const EVENT_PLANS: EventPlanDefinition[] = [
-	definePlan('EVENT_100', 100),
-	definePlan('EVENT_300', 300),
-	definePlan('EVENT_500', 500),
-	definePlan('EVENT_1000', 1000),
-	definePlan('EVENT_2500', 2500),
-	definePlan('EVENT_5000', 5000),
-];

@@ -49,3 +49,7 @@ Thumbs.db
 
 # Grafo de conocimiento generado por graphify (local, no versionado)
 /graphify-out
+
+# Catálogo de planes generado desde api/src/lib/plans.ts y event-plans.ts en cada build/start
+# (ver scripts/generate-plan-catalog.ts) — nunca se edita a mano, no hace falta versionarlo.
+/src/app/shared/plan-catalog.generated.ts
