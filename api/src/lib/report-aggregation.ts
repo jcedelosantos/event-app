@@ -17,15 +17,17 @@ export async function computeTenantReportStats(tenantId: number, dateFrom: Date,
 	const [saleTickets, saleProducts] = await Promise.all([
 		prisma.saleTicket.findMany({
 			where: { tenantId, dateSold: { gte: dateFrom, lt: dateTo } },
-			select: { checkedInAt: true, priceUSD: true, ticket: { select: { price: true } }, event: { select: { name: true } } },
+			select: { checkedInAt: true, priceUSD: true, ticket: { select: { price: true } }, event: { select: { id: true, name: true } } },
 		}),
 		prisma.saleProduct.findMany({
 			where: { tenantId, dateSold: { gte: dateFrom, lt: dateTo } },
-			select: { quantity: true, unitPriceUSD: true, product: { select: { price: true, name: true } } },
+			select: { quantity: true, unitPriceUSD: true, product: { select: { id: true, price: true, name: true } } },
 		}),
 	]);
 
-	const revenueByEventMap = new Map<string, number>();
+	// Agrupado por id, no por nombre — dos eventos/productos con el mismo nombre (frecuente en
+	// eventos recurrentes) antes se fusionaban silenciosamente en una sola fila del reporte.
+	const revenueByEventMap = new Map<number, { label: string; value: number }>();
 	let totalRevenue = 0;
 	let totalCheckIns = 0;
 	for (const sale of saleTickets) {
@@ -34,21 +36,25 @@ export async function computeTenantReportStats(tenantId: number, dateFrom: Date,
 		const price = sale.priceUSD ?? sale.ticket.price;
 		totalRevenue += price;
 		if (sale.checkedInAt) totalCheckIns += 1;
-		revenueByEventMap.set(sale.event.name, (revenueByEventMap.get(sale.event.name) ?? 0) + price);
+		const entry = revenueByEventMap.get(sale.event.id);
+		if (entry) entry.value += price;
+		else revenueByEventMap.set(sale.event.id, { label: sale.event.name, value: price });
 	}
 
-	const revenueByProductMap = new Map<string, number>();
+	const revenueByProductMap = new Map<number, { label: string; value: number }>();
 	let totalProductsSold = 0;
 	for (const sale of saleProducts) {
 		const unitPrice = sale.unitPriceUSD ?? sale.product.price;
 		const revenue = unitPrice * sale.quantity;
 		totalRevenue += revenue;
 		totalProductsSold += sale.quantity;
-		revenueByProductMap.set(sale.product.name, (revenueByProductMap.get(sale.product.name) ?? 0) + revenue);
+		const entry = revenueByProductMap.get(sale.product.id);
+		if (entry) entry.value += revenue;
+		else revenueByProductMap.set(sale.product.id, { label: sale.product.name, value: revenue });
 	}
 
-	const toSortedItems = (map: Map<string, number>) =>
-		Array.from(map, ([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value);
+	const toSortedItems = (map: Map<number, { label: string; value: number }>) =>
+		Array.from(map.values()).sort((a, b) => b.value - a.value);
 
 	return {
 		totalRevenue,
