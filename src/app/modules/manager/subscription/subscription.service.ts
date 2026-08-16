@@ -6,6 +6,11 @@ import { PlanCode } from '../../../shared/pricing-plans';
 
 export type UpgradeResult = { approveUrl: string | null };
 
+// Ver GET /subscription/overage-nudge en la API — shouldUpgrade=false cuando el tenant no tiene un
+// plan recurrente reconocido, ya está en el tier más alto, o el excedente acumulado todavía no
+// supera lo que costaría el siguiente escalón.
+export type OverageNudge = { shouldUpgrade: boolean; suggestedPlan?: PlanCode | null; suggestedPlanName?: string | null; overageUSD?: number; priceDiffUSD?: number };
+
 @Injectable({ providedIn: 'root' })
 export class SubscriptionService {
 	private readonly httpClient = inject(HttpClient);
@@ -13,5 +18,9 @@ export class SubscriptionService {
 
 	upgrade(plan: PlanCode): Observable<UpgradeResult> {
 		return this.httpClient.post<UpgradeResult>(`${this.baseUrl}/upgrade`, { plan });
+	}
+
+	getOverageNudge(): Observable<OverageNudge> {
+		return this.httpClient.get<OverageNudge>(`${this.baseUrl}/overage-nudge`);
 	}
 }

@@ -69,6 +69,16 @@ declare const bootstrap: any;
 					</div>
 				</div>
 			</div>
+			@if (ev.overage; as overage) {
+				<div class="alert alert-warning small d-flex justify-content-between align-items-center mt-3 mb-0">
+					<span>
+						<i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+						Este evento superó el cupo incluido en tu plan: {{ overage.soldCount }} vendidas de {{ overage.included }} incluidas
+						({{ overage.overageCount }} de excedente). El excedente se factura aparte al cierre.
+					</span>
+					<span class="fw-semibold text-nowrap ms-2">USD {{ overage.overageUSD }}</span>
+				</div>
+			}
 			<br />
 
 			<div class="row">

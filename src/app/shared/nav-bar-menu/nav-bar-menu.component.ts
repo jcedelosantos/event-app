@@ -5,6 +5,7 @@ import { filter } from 'rxjs';
 import { AuthService } from '../../core/services/auth.service';
 import { PLAN_FEATURES, PlanCode, PlanFeatures } from '../pricing-plans';
 import { EVENT_PLANS, isEventPlanCode } from '../event-plans';
+import { SubscriptionService, OverageNudge } from '../../modules/manager/subscription/subscription.service';
 
 type MenuItem = { title: string; icon: string; url: string};
 
@@ -89,6 +90,14 @@ const SIDEBAR_COLLAPSED_KEY = 'seat-app-sidebar-collapsed';
 								<i class="bi bi-arrow-up-circle"></i>
 							</a>
 						}
+					</div>
+				}
+				@if (overageNudge()?.shouldUpgrade && !sidebarCollapsed()) {
+					<div class="px-2 pb-2 upgrade-nudge">
+						<a routerLink="/manager/suscripcion" class="small d-block" title="Ver planes">
+							<i class="bi bi-graph-up-arrow" aria-hidden="true"></i>
+							El excedente de tus eventos ya supera lo que costaría {{ overageNudge()?.suggestedPlanName }}
+						</a>
 					</div>
 				}
 				<div class="d-flex flex-column flex-grow-1 px-2">
@@ -186,6 +195,14 @@ const SIDEBAR_COLLAPSED_KEY = 'seat-app-sidebar-collapsed';
 							</a>
 						</div>
 					}
+					@if (overageNudge()?.shouldUpgrade) {
+						<div class="px-3 pb-2 upgrade-nudge">
+							<a routerLink="/manager/suscripcion" class="small d-block">
+								<i class="bi bi-graph-up-arrow" aria-hidden="true"></i>
+								El excedente de tus eventos ya supera lo que costaría {{ overageNudge()?.suggestedPlanName }}
+							</a>
+						</div>
+					}
 				</div>
 				<div class="d-flex flex-column" style="height: 90%">
 					@for (item of visibleMenuList(); track item.title) {
@@ -218,6 +235,7 @@ const SIDEBAR_COLLAPSED_KEY = 'seat-app-sidebar-collapsed';
 export class NavBarMenuComponent implements AfterViewInit, OnDestroy {
 	router = inject(Router)
 	private readonly authService = inject(AuthService);
+	private readonly subscriptionService = inject(SubscriptionService);
 	path = signal<string>('');
 	isDesktop = signal<boolean>(typeof window !== 'undefined' ? window.innerWidth >= DESKTOP_BREAKPOINT_PX : true);
 	sidebarCollapsed = signal<boolean>(typeof localStorage !== 'undefined' && localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === '1');
@@ -229,6 +247,12 @@ export class NavBarMenuComponent implements AfterViewInit, OnDestroy {
 	tenantName = computed(() => this.authService.currentUser()?.tenant?.name ?? null);
 	tenantLogoUrl = computed(() => this.authService.currentUser()?.tenant?.logoUrl ?? null);
 	tenantLogoBroken = signal(false);
+
+	// Se pide UNA vez al cargar el menú (ver ngAfterViewInit) — no reactivo al tenant porque este
+	// sidebar vive dentro del layout autenticado, nunca sobrevive un cambio de organización sin una
+	// recarga completa de la página (login/logout). shouldUpgrade=false por default hasta que
+	// responda, así que el nudge simplemente no aparece hasta tener la respuesta real.
+	overageNudge = signal<OverageNudge | null>(null);
 
 	// null cuando el tenant no tiene plan asignado (organizaciones dadas de alta antes de que
 	// existiera el sistema de suscripciones) — mismo criterio que getTenantPlanFeatures en el backend.
@@ -302,6 +326,12 @@ export class NavBarMenuComponent implements AfterViewInit, OnDestroy {
 			this.path.set(event.urlAfterRedirects);
 		});
 		this.initOffCanvas();
+		// Best-effort: si falla (tenant sin plan recurrente reconocido, red, etc.) el nudge
+		// simplemente no aparece — no es información crítica como para bloquear nada del menú.
+		this.subscriptionService.getOverageNudge().subscribe({
+			next: (nudge) => this.overageNudge.set(nudge),
+			error: () => {},
+		});
 	}
 
 	initOffCanvas() {

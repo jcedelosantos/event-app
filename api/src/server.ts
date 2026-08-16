@@ -33,6 +33,7 @@ import { uploadsDir } from './lib/uploads';
 import { runScheduledReportsCheck } from './lib/scheduled-reports';
 import { runEventPlanExpiryCheck } from './lib/event-plan-expiry';
 import { runMonthlyInvoiceGeneration } from './lib/invoice-cron';
+import { runEventOverageSummaryCheck } from './lib/overage-summary';
 
 // Red de seguridad: una promesa rechazada sin manejar en cualquier punto del proceso (no solo
 // dentro de una request) tumbaba el server entero en Node moderno. asyncHandler cubre las rutas,
@@ -126,6 +127,13 @@ cron.schedule('0 13 * * *', () => {
 // terminó (ver lib/event-plan-expiry.ts).
 cron.schedule('30 13 * * *', () => {
 	runEventPlanExpiryCheck().catch((err) => console.error('[event-plan-expiry] Falló el chequeo diario:', err));
+});
+
+// Mismo horario de referencia, corrido 15 minutos después del cron de arriba — resumen post-evento
+// de excedente para CUALQUIER evento terminado (recurrente o de evento único, ver
+// lib/overage-summary.ts), no solo los de evento único que expira event-plan-expiry.
+cron.schedule('45 13 * * *', () => {
+	runEventOverageSummaryCheck().catch((err) => console.error('[overage-summary] Falló el chequeo diario:', err));
 });
 
 // Mismo horario UTC de referencia, corrido una hora después del cron de reportes — el "1" en el

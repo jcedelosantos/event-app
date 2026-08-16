@@ -50,4 +50,15 @@ export interface Events {
 	map?: Map;
 	tickets: Array<Ticket>;
 	products: Array<Product>;
+	// Solo viene en GET /events/:id (no en la lista) — excedente sobre el cupo incluido en el plan
+	// del tenant para ESTE evento puntual (ver lib/overage.ts). null = sin excedente, o el tenant no
+	// tiene un plan con tope reconocido.
+	overage?: EventOverage | null;
+}
+
+export interface EventOverage {
+	soldCount: number;
+	included: number;
+	overageCount: number;
+	overageUSD: number;
 }

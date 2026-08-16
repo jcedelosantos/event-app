@@ -9,6 +9,7 @@ import { findDuplicateEventSlot } from '../lib/find-duplicate-event-slot';
 import { getWaitingRoomStats } from '../lib/waiting-room';
 import { getTenantPlanFeatures, requireActiveSubscription } from '../middleware/plan';
 import { isEventPlanCode } from '../lib/event-plans';
+import { computeEventOverage } from '../lib/overage';
 
 export const eventsRouter = Router();
 eventsRouter.use(requireAuth, requireTenant, requireActiveSubscription);
@@ -126,7 +127,8 @@ eventsRouter.get('/:id', asyncHandler(async (req: AuthenticatedRequest, res) => 
 		res.status(404).json({ error: 'Evento no encontrado' });
 		return;
 	}
-	res.json(event);
+	const overage = await computeEventOverage(tenantId, id);
+	res.json({ ...event, overage });
 }));
 
 // Estado en vivo de un evento en pleno pico de demanda: cuánta gente hay en la fila/admitida (ver

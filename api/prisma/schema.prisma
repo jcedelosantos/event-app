@@ -315,6 +315,14 @@ model Event {
   // del email ya enviado. null = no se incluye ningún link.
   surveyUrl String?
 
+  // Marca que el resumen post-evento de excedente (ver lib/overage-summary.ts, cron diario en
+  // server.ts) ya se mandó para ESTE evento — null = todavía no se procesó. Se setea SIEMPRE que el
+  // cron procesa un evento terminado, tenga o no overage, así el sweep diario no lo vuelve a mirar
+  // (el overage de un evento ya terminado no cambia salvo ventas tardías, que este sistema no
+  // contempla). Distinto de Subscription.claimTokenHash u otros "de un solo uso": esto no es un
+  // secreto, es un flag de "ya procesado".
+  overageSummarySentAt DateTime?
+
   tickets         Ticket[]
   products        Product[]
   saleProducts    SaleProduct[]

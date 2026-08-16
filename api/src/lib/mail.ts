@@ -463,6 +463,70 @@ export async function sendNewTenantNotification(args: { tenantName: string; plan
 	});
 }
 
+// Aviso al propio tenant (no a Super Admin) cuando un evento cruza el cupo incluido de su plan —
+// dispara desde notifyIfOverageJustCrossed (lib/overage.ts), justo después de la venta que cruza
+// el umbral. No bloquea nada: el excedente ya se factura aparte (ver
+// computeTenantOverage/lib/invoice-generation.ts), esto solo lo anticipa.
+export async function sendOverageCrossedNotification(args: { to: string; tenantName: string; eventName: string; includedCount: number; soldCount: number }) {
+	const resend = getResendClient();
+	if (!resend) return;
+
+	const html = `
+		<div style="background:#000;padding:24px;font-family:Arial,Helvetica,sans-serif;">
+			<h2 style="color:#fff;">Tu evento superó el cupo incluido en tu plan</h2>
+			<p style="color:#ccc;"><strong style="color:#fff;">${args.eventName}</strong></p>
+			<p style="color:#ccc;">Vendiste <strong style="color:#fff;">${args.soldCount}</strong> entradas — tu plan incluye
+			<strong style="color:#fff;">${args.includedCount}</strong> por evento.</p>
+			<p style="color:#ccc;">El excedente se factura aparte al cierre del evento. Podés seguir vendiendo sin límite,
+			esto es solo un aviso.</p>
+			<p style="color:#666;font-size:12px;">Si te pasa seguido, puede convenirte actualizar de plan — revisalo desde el
+			menú lateral de tu cuenta.</p>
+		</div>
+	`;
+
+	await resend.emails.send({
+		from: process.env.RESEND_FROM_EMAIL ?? 'onboarding@resend.dev',
+		to: args.to,
+		subject: `${args.tenantName}: "${args.eventName}" superó el cupo de tu plan`,
+		html,
+	});
+}
+
+// Resumen post-evento: dispara desde runEventOverageSummaryCheck (lib/overage-summary.ts, cron
+// diario en server.ts) para cada evento recién terminado con excedente — a diferencia de
+// sendOverageCrossedNotification (en caliente, al momento de la venta que cruza el umbral), este es
+// el cierre: "esto es lo que se va a facturar aparte". Va tanto a la organización como a
+// SUPER_ADMIN_NOTIFICATION_EMAIL (si está configurada, ver comentario en
+// sendServiceRequestNotification) para que el Super Admin no tenga que entrar a revisar el panel
+// evento por evento.
+export async function sendEventOverageSummary(args: { orgEmail: string; tenantName: string; eventName: string; includedCount: number; soldCount: number; overageUSD: number }) {
+	const resend = getResendClient();
+	if (!resend) return;
+
+	const superAdminEmail = process.env.SUPER_ADMIN_NOTIFICATION_EMAIL;
+	const to = superAdminEmail ? [args.orgEmail, superAdminEmail] : [args.orgEmail];
+
+	const html = `
+		<div style="background:#000;padding:24px;font-family:Arial,Helvetica,sans-serif;">
+			<h2 style="color:#fff;">Resumen de excedente — evento terminado</h2>
+			<p style="color:#ccc;"><strong style="color:#fff;">${args.tenantName}</strong> — ${args.eventName}</p>
+			<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#111;border-radius:8px;border:1px solid #2a2a2a;margin:12px 0;">
+				<tr><td style="padding:6px 8px;color:#aaa;">Vendidas</td><td style="padding:6px 8px;color:#fff;">${args.soldCount}</td></tr>
+				<tr><td style="padding:6px 8px;color:#aaa;">Incluidas en el plan</td><td style="padding:6px 8px;color:#fff;">${args.includedCount}</td></tr>
+				<tr><td style="padding:6px 8px;color:#aaa;">Excedente a facturar</td><td style="padding:6px 8px;color:#fff;">USD ${args.overageUSD}</td></tr>
+			</table>
+			<p style="color:#666;font-size:12px;">Este monto se incluye en la próxima factura del tenant (ver Super Admin → Facturación).</p>
+		</div>
+	`;
+
+	await resend.emails.send({
+		from: process.env.RESEND_FROM_EMAIL ?? 'onboarding@resend.dev',
+		to,
+		subject: `${args.tenantName}: resumen de excedente — "${args.eventName}"`,
+		html,
+	});
+}
+
 // Reporte periódico (mensual/trimestral) programado por el propio tenant (ver
 // scheduled-reports.ts) — mismo patrón best-effort del resto de este archivo: sin
 // RESEND_API_KEY simplemente no se manda, el cron sigue corriendo igual el próximo período.

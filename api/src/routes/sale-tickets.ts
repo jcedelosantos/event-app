@@ -17,6 +17,7 @@ import { uniqueUsername } from '../lib/unique-username';
 import { finalizePaidSaleTickets } from '../lib/checkout';
 import { assertEventCapacity } from '../lib/capacity';
 import { serializableTransaction } from '../lib/serializable-tx';
+import { notifyIfOverageJustCrossed } from '../lib/overage';
 
 export const saleTicketsRouter = Router();
 saleTicketsRouter.use(requireAuth, requireTenant, requireActiveSubscription);
@@ -193,6 +194,7 @@ saleTicketsRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res) 
 			});
 		});
 		res.status(201).json(toPublicSaleTicket(saleTicket));
+		notifyIfOverageJustCrossed(tenantId, parsed.data.eventId, 1).catch((err) => console.error('No se pudo verificar aforo:', err));
 	} catch (err: any) {
 		if (err instanceof CapacityExceededError) {
 			res.status(409).json({ error: err.message });
@@ -367,6 +369,9 @@ saleTicketsRouter.post('/bulk-import', asyncHandler(async (req: AuthenticatedReq
 	}
 
 	res.json({ created, skipped });
+	if (created > 0) {
+		notifyIfOverageJustCrossed(tenantId, eventId, created).catch((err) => console.error('No se pudo verificar aforo:', err));
+	}
 }));
 
 saleTicketsRouter.post('/:id/resend', asyncHandler(async (req: AuthenticatedRequest, res) => {

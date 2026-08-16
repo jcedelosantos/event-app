@@ -11,6 +11,7 @@ import { asyncHandler } from '../lib/async-handler';
 import { isClubTenant, validateAttendeeRule, principalCarnet, MAX_INVITADOS_PER_SOCIO } from '../lib/attendee';
 import { lookupClubMember, assertActiveMember } from '../lib/club-members';
 import { assertEventCapacity } from '../lib/capacity';
+import { notifyIfOverageJustCrossed } from '../lib/overage';
 import { uniqueUsername } from '../lib/unique-username';
 import { resolveFamilyCodeQR } from '../lib/family-code';
 import { checkDuplicateEventRegistration } from '../lib/duplicate-event-guard';
@@ -792,6 +793,7 @@ publicRouter.post('/purchase', checkoutRateLimiter, asyncHandler(async (req, res
 			saleTickets: publicSaleTickets,
 			children: createdChildren.map((c) => ({ id: c.id, name: c.name, codeQR: c.codeQR })),
 		});
+		notifyIfOverageJustCrossed(tenantId, event.id, saleTickets.length).catch((err) => console.error('No se pudo verificar aforo:', err));
 	} catch (err: any) {
 		if (err instanceof TransactionValidationError) {
 			res.status(409).json({ error: err.message });
@@ -1002,6 +1004,7 @@ publicRouter.post('/checkout/hold', checkoutRateLimiter, asyncHandler(async (req
 			totalUSD: ticket.price * seatIds.length,
 			expiresAt,
 		});
+		notifyIfOverageJustCrossed(tenantId, event.id, seatIds.length).catch((err) => console.error('No se pudo verificar aforo:', err));
 	} catch (err: any) {
 		if (err instanceof TransactionValidationError) {
 			res.status(409).json({ error: err.message });
