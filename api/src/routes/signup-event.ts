@@ -132,7 +132,7 @@ signupEventRouter.post(
 		// llamada falla el tenant queda PENDING (sin acceso), reintentable desde el frontend con el
 		// mismo tenantId ya devuelto.
 		try {
-			const { orderId } = await createPlatformOrder(EVENT_PLANS[eventPlanCode].priceUSD, slug);
+			const { orderId } = await createPlatformOrder(EVENT_PLANS[eventPlanCode].priceCents, slug);
 			res.status(201).json({ tenantId, orderId });
 		} catch (err) {
 			console.error('Error creando la orden de PayPal para el evento único:', err);
@@ -259,7 +259,7 @@ signupEventRouter.post(
 		sendBankTransferReceiptNotification({
 			tenantName: tenant.name,
 			tierName: EVENT_PLANS[tenant.plan].name,
-			amountUSD: EVENT_PLANS[tenant.plan].priceUSD,
+			amountCents: EVENT_PLANS[tenant.plan].priceCents,
 			receiptUrl,
 		}).catch((err) => console.error('[signup-event] No se pudo enviar el aviso de comprobante por correo:', err));
 

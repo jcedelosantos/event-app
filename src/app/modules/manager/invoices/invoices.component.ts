@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@ang
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { Invoice } from '../../../models/invoices/invoice';
 import { InvoicesService } from './services/invoices.service';
+import { centsToDollars } from '../../../shared/money';
 
 @Component({
 	selector: 'app-invoices',
@@ -32,7 +33,7 @@ import { InvoicesService } from './services/invoices.service';
 							<td>{{ invoice.billingPeriod }}</td>
 							<td class="text-muted">{{ invoice.invoiceNumber }}</td>
 							<td class="text-muted">{{ invoice.ncf ?? '—' }}</td>
-							<td class="text-end">USD {{ invoice.totalUSD | number: '1.2-2' }}</td>
+							<td class="text-end">USD {{ centsToDollars(invoice.totalCents) | number: '1.2-2' }}</td>
 							<td class="text-muted text-nowrap">{{ invoice.createdAt | date: 'short' }}</td>
 							<td class="text-end">
 								<a class="btn btn-sm btn-outline-light" [href]="invoice.pdfUrl ?? ''" target="_blank" rel="noopener">
@@ -56,6 +57,7 @@ export class InvoicesComponent implements OnInit {
 
 	invoices = signal<Invoice[]>([]);
 	loading = signal(true);
+	readonly centsToDollars = centsToDollars;
 
 	ngOnInit(): void {
 		this.invoicesService.getMine().subscribe((invoices) => {

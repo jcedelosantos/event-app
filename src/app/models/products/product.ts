@@ -8,7 +8,8 @@ export interface Product {
 	variant: string;
 	count: number;
 	active: boolean;
-	price: number;
+	// Centavos enteros, no dólares (ver api/src/lib/money.ts).
+	priceCents: number;
 	eventId: number;
 	// Solo relevante en tenants CHURCH — ver models/events/events.ts.
 	isMealOfTheDay: boolean;

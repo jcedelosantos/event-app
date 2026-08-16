@@ -18,6 +18,7 @@ import { UserService } from '../../../users/services/user.service';
 import { AuthService } from '../../../../../core/services/auth.service';
 import { extractErrorMessage } from '../../../../../utils/api-error';
 import { closeModal } from '../../../../../utils/modal';
+import { centsToDollars } from '../../../../../shared/money';
 
 @Component({
 	selector: 'create-qr-modal',
@@ -50,7 +51,7 @@ import { closeModal } from '../../../../../utils/modal';
 									<select class="custom-select d-block w-100" [class.is-invalid]="isInvalid('ticketId')" formControlName="ticketId">
 										<option [ngValue]="null">Choose...</option>
 										@for (ticket of availableTickets(); track ticket.id) {
-											<option [ngValue]="ticket.id">{{ ticket.name }} — {{ ticket.type }} ({{ ticket.price }} USD, {{ ticket.count }} en stock)</option>
+											<option [ngValue]="ticket.id">{{ ticket.name }} — {{ ticket.type }} ({{ centsToDollars(ticket.priceCents) }} USD, {{ ticket.count }} en stock)</option>
 										}
 									</select>
 									@if (isInvalid('ticketId')) {
@@ -256,6 +257,7 @@ export class CreateQrModalComponent implements OnInit {
 	private readonly seatsService = inject(SeatsService);
 	private readonly userService = inject(UserService);
 	private readonly authService = inject(AuthService);
+	readonly centsToDollars = centsToDollars;
 	private readonly productsService = inject(ProductsService);
 	private readonly childrenService = inject(ChildrenService);
 

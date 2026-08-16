@@ -9,7 +9,7 @@ export type UpgradeResult = { approveUrl: string | null };
 // Ver GET /subscription/overage-nudge en la API — shouldUpgrade=false cuando el tenant no tiene un
 // plan recurrente reconocido, ya está en el tier más alto, o el excedente acumulado todavía no
 // supera lo que costaría el siguiente escalón.
-export type OverageNudge = { shouldUpgrade: boolean; suggestedPlan?: PlanCode | null; suggestedPlanName?: string | null; overageUSD?: number; priceDiffUSD?: number };
+export type OverageNudge = { shouldUpgrade: boolean; suggestedPlan?: PlanCode | null; suggestedPlanName?: string | null; overageCents?: number; priceDiffCents?: number };
 
 @Injectable({ providedIn: 'root' })
 export class SubscriptionService {

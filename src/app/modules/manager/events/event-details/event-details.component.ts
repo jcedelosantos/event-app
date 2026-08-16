@@ -17,6 +17,7 @@ import { AccessPoint } from '../../../../models/access-points/access-point';
 import { ScanConflictsService } from '../../qrs/services/scan-conflicts.service';
 import { ScanConflict } from '../../../../models/scan-conflicts/scan-conflict';
 import { DatePipe } from '@angular/common';
+import { centsToDollars } from '../../../../shared/money';
 
 import { QRCodeComponent } from 'angularx-qrcode';
 import { CardMapComponent } from '../../maps/components/card-map/card-map.component';
@@ -48,7 +49,7 @@ declare const bootstrap: any;
 					<div class="card">
 						<div class="card-body">
 							<div class="p-2 text-body-secondary">Ingresos</div>
-							<div class="p-2 fs-4">{{ revenue() }} USD</div>
+							<div class="p-2 fs-4">{{ centsToDollars(revenue()) }} USD</div>
 						</div>
 					</div>
 				</div>
@@ -76,7 +77,7 @@ declare const bootstrap: any;
 						Este evento superó el cupo incluido en tu plan: {{ overage.soldCount }} vendidas de {{ overage.included }} incluidas
 						({{ overage.overageCount }} de excedente). El excedente se factura aparte al cierre.
 					</span>
-					<span class="fw-semibold text-nowrap ms-2">USD {{ overage.overageUSD }}</span>
+					<span class="fw-semibold text-nowrap ms-2">USD {{ centsToDollars(overage.overageCents) }}</span>
 				</div>
 			}
 			<br />
@@ -189,7 +190,7 @@ declare const bootstrap: any;
 								@for (ticket of ev.tickets; track ticket.id) {
 									<div class="d-flex justify-content-between">
 										<span>{{ ticket.name }} ({{ ticket.type }})</span>
-										<span>{{ ticket.price }} USD</span>
+										<span>{{ centsToDollars(ticket.priceCents) }} USD</span>
 									</div>
 								}
 							}
@@ -205,7 +206,7 @@ declare const bootstrap: any;
 								@for (product of ev.products; track product.id) {
 									<div class="d-flex justify-content-between">
 										<span>{{ product.name }} ({{ product.type }}) x{{ product.count }}</span>
-										<span>{{ product.price }} USD</span>
+										<span>{{ centsToDollars(product.priceCents) }} USD</span>
 									</div>
 								}
 							}
@@ -257,7 +258,7 @@ declare const bootstrap: any;
 											<td>{{ sale.ticket.name }}</td>
 											<td>{{ sale.seat.name }}</td>
 											<td>{{ sale.paidType }}</td>
-											<td>{{ sale.priceUSD ?? sale.ticket.price }} USD</td>
+											<td>{{ centsToDollars(sale.priceCents ?? sale.ticket.priceCents) }} USD</td>
 										</tr>
 									}
 								</tbody>
@@ -323,6 +324,7 @@ export class EventDetailsComponent implements OnInit {
 	private readonly accessPointsService = inject(AccessPointsService);
 	private readonly scanConflictsService = inject(ScanConflictsService);
 	private readonly authService = inject(AuthService);
+	readonly centsToDollars = centsToDollars;
 
 	event = signal<Events | null>(null);
 	maps = signal<Map[]>([]);
@@ -352,7 +354,8 @@ export class EventDetailsComponent implements OnInit {
 	});
 
 	soldCount = computed(() => this.sales().length);
-	revenue = computed(() => this.sales().reduce((sum, sale) => sum + (sale.priceUSD ?? sale.ticket?.price ?? 0), 0));
+	// Centavos enteros — se convierte a dólares recién en el template.
+	revenue = computed(() => this.sales().reduce((sum, sale) => sum + (sale.priceCents ?? sale.ticket?.priceCents ?? 0), 0));
 	totalCount = computed(() => this.event()?.tickets.reduce((sum, ticket) => sum + ticket.count, 0) ?? 0);
 
 	ngOnInit(): void {

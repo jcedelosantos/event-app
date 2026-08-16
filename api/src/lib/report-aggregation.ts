@@ -1,7 +1,9 @@
 import { prisma } from './prisma';
 
+// value acá está en centavos enteros (ver lib/money.ts), no dólares — mismo campo que
+// revenueByEvent/revenueByProduct.
 export type TenantReportStats = {
-	totalRevenue: number;
+	totalRevenueCents: number;
 	totalTicketsSold: number;
 	totalCheckIns: number;
 	totalProductsSold: number;
@@ -17,47 +19,47 @@ export async function computeTenantReportStats(tenantId: number, dateFrom: Date,
 	const [saleTickets, saleProducts] = await Promise.all([
 		prisma.saleTicket.findMany({
 			where: { tenantId, dateSold: { gte: dateFrom, lt: dateTo } },
-			select: { checkedInAt: true, priceUSD: true, ticket: { select: { price: true } }, event: { select: { id: true, name: true } } },
+			select: { checkedInAt: true, priceCents: true, ticket: { select: { priceCents: true } }, event: { select: { id: true, name: true } } },
 		}),
 		prisma.saleProduct.findMany({
 			where: { tenantId, dateSold: { gte: dateFrom, lt: dateTo } },
-			select: { quantity: true, unitPriceUSD: true, product: { select: { id: true, price: true, name: true } } },
+			select: { quantity: true, unitPriceCents: true, product: { select: { id: true, priceCents: true, name: true } } },
 		}),
 	]);
 
 	// Agrupado por id, no por nombre — dos eventos/productos con el mismo nombre (frecuente en
 	// eventos recurrentes) antes se fusionaban silenciosamente en una sola fila del reporte.
 	const revenueByEventMap = new Map<number, { label: string; value: number }>();
-	let totalRevenue = 0;
+	let totalRevenueCents = 0;
 	let totalCheckIns = 0;
 	for (const sale of saleTickets) {
-		// priceUSD null = venta de antes de este campo (ver comentario en schema.prisma) — cae de
+		// priceCents null = venta de antes de este campo (ver comentario en schema.prisma) — cae de
 		// vuelta al precio actual del ticket solo en esos casos.
-		const price = sale.priceUSD ?? sale.ticket.price;
-		totalRevenue += price;
+		const priceCents = sale.priceCents ?? sale.ticket.priceCents;
+		totalRevenueCents += priceCents;
 		if (sale.checkedInAt) totalCheckIns += 1;
 		const entry = revenueByEventMap.get(sale.event.id);
-		if (entry) entry.value += price;
-		else revenueByEventMap.set(sale.event.id, { label: sale.event.name, value: price });
+		if (entry) entry.value += priceCents;
+		else revenueByEventMap.set(sale.event.id, { label: sale.event.name, value: priceCents });
 	}
 
 	const revenueByProductMap = new Map<number, { label: string; value: number }>();
 	let totalProductsSold = 0;
 	for (const sale of saleProducts) {
-		const unitPrice = sale.unitPriceUSD ?? sale.product.price;
-		const revenue = unitPrice * sale.quantity;
-		totalRevenue += revenue;
+		const unitPriceCents = sale.unitPriceCents ?? sale.product.priceCents;
+		const revenueCents = unitPriceCents * sale.quantity;
+		totalRevenueCents += revenueCents;
 		totalProductsSold += sale.quantity;
 		const entry = revenueByProductMap.get(sale.product.id);
-		if (entry) entry.value += revenue;
-		else revenueByProductMap.set(sale.product.id, { label: sale.product.name, value: revenue });
+		if (entry) entry.value += revenueCents;
+		else revenueByProductMap.set(sale.product.id, { label: sale.product.name, value: revenueCents });
 	}
 
 	const toSortedItems = (map: Map<number, { label: string; value: number }>) =>
 		Array.from(map.values()).sort((a, b) => b.value - a.value);
 
 	return {
-		totalRevenue,
+		totalRevenueCents,
 		totalTicketsSold: saleTickets.length,
 		totalCheckIns,
 		totalProductsSold,

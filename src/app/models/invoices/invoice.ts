@@ -13,9 +13,10 @@ export interface Invoice {
 	ncf: string | null;
 	billingPeriod: string;
 	planCode: string | null;
-	planPriceUSD: number;
-	overageUSD: number;
-	totalUSD: number;
+	// Centavos enteros, no dólares (ver api/src/lib/money.ts).
+	planPriceCents: number;
+	overageCents: number;
+	totalCents: number;
 	// null solo en status PENDING/FAILED — el tenant nunca ve esas filas (ver routes/invoices.ts).
 	pdfUrl: string | null;
 	status: InvoiceStatus;

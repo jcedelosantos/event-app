@@ -5,6 +5,7 @@ import { TenantService, TenantSubscriptionDetail } from '../../services/tenant.s
 import { Tenant } from '../../../../models/tenants/tenant';
 import { extractErrorMessage } from '../../../../utils/api-error';
 import { confirm, error as showError } from '../../../../utils/messages';
+import { centsToDollars } from '../../../../shared/money';
 
 const STATUS_LABEL: Record<string, string> = {
 	PENDING: 'Pendiente de pago',
@@ -65,14 +66,14 @@ const STATUS_LABEL: Record<string, string> = {
 													<td class="text-end">{{ ev.soldCount }}</td>
 													<td class="text-end">{{ ev.included }}</td>
 													<td class="text-end">{{ ev.overageCount }}</td>
-													<td class="text-end">{{ ev.overageUSD | number: '1.2-2' }}</td>
+													<td class="text-end">{{ centsToDollars(ev.overageCents) | number: '1.2-2' }}</td>
 												</tr>
 											}
 										</tbody>
 										<tfoot>
 											<tr class="fw-bold">
 												<td colspan="4" class="text-end">Total a facturar aparte</td>
-												<td class="text-end">$ {{ d.overage.totalUSD | number: '1.2-2' }}</td>
+												<td class="text-end">$ {{ centsToDollars(d.overage.totalCents) | number: '1.2-2' }}</td>
 											</tr>
 										</tfoot>
 									</table>
@@ -104,6 +105,7 @@ const STATUS_LABEL: Record<string, string> = {
 })
 export class SubscriptionModalComponent {
 	private readonly tenantService = inject(TenantService);
+	readonly centsToDollars = centsToDollars;
 
 	tenant = model.required<Tenant | null>();
 	subscriptionChanged = output<void>();

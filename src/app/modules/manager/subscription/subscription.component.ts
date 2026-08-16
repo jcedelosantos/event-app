@@ -4,6 +4,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { AuthService } from '../../../core/services/auth.service';
 import { SubscriptionService } from './subscription.service';
 import { PLANS_BY_CODE, PlanCode } from '../../../shared/pricing-plans';
+import { centsToDollars } from '../../../shared/money';
 import { EventPlanCode } from '../../../shared/event-plans';
 import { extractErrorMessage } from '../../../utils/api-error';
 
@@ -94,7 +95,7 @@ const REVIEW_POLL_INTERVAL_MS = 10000;
 					<label class="form-label small text-body-secondary" for="plan-select">Cambiar a</label>
 					<select id="plan-select" class="form-select mb-3" [value]="selectedPlan()" (change)="onSelectPlan($event)">
 						@for (plan of otherPlans(tenant.plan); track plan.code) {
-							<option [value]="plan.code">{{ plan.name }} — USD {{ plan.priceUSD }}/mes</option>
+							<option [value]="plan.code">{{ plan.name }} — USD {{ centsToDollars(plan.priceCents) }}/mes</option>
 						}
 					</select>
 
@@ -118,6 +119,7 @@ export class SubscriptionComponent {
 	private readonly subscriptionService = inject(SubscriptionService);
 	private readonly route = inject(ActivatedRoute);
 	private readonly destroyRef = inject(DestroyRef);
+	readonly centsToDollars = centsToDollars;
 
 	tenant = computed(() => this.authService.currentUser()?.tenant ?? null);
 	selectedPlan = signal<PlanCode | null>(null);
@@ -154,8 +156,10 @@ export class SubscriptionComponent {
 	planName(code: PlanCode | EventPlanCode | null): string {
 		return code ? (PLANS_BY_CODE[code as PlanCode]?.name ?? code) : '';
 	}
+	// Devuelve dólares (no centavos) — llamado directo desde el template, mismo criterio que el resto
+	// de los getters de esta clase.
 	priceOf(code: PlanCode | EventPlanCode | null): number {
-		return code ? (PLANS_BY_CODE[code as PlanCode]?.priceUSD ?? 0) : 0;
+		return code ? centsToDollars(PLANS_BY_CODE[code as PlanCode]?.priceCents ?? 0) : 0;
 	}
 	attendeesOf(code: PlanCode | EventPlanCode | null): number {
 		return code ? (PLANS_BY_CODE[code as PlanCode]?.attendeesPerEvent ?? 0) : 0;

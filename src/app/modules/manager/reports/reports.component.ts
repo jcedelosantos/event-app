@@ -6,6 +6,7 @@ import { EventsService } from '../events/services/events.service';
 import { QRService, SaleTicket } from '../qrs/services/qr.service';
 import { ProductSalesService, SaleProduct } from '../qrs/services/product-sales.service';
 import { ProductsService } from '../products/services/products.service';
+import { centsToDollars } from '../../../shared/money';
 
 type TicketRow = { name: string; sold: number; revenue: number };
 type ProductRow = { name: string; sold: number; revenue: number; stock: number };
@@ -46,7 +47,7 @@ type ProductRow = { name: string; sold: number; revenue: number; stock: number }
 					<div class="card report-stat">
 						<div class="card-body">
 							<div class="stat-label">Ingresos por tickets</div>
-							<div class="stat-value">{{ ticketRevenue() }} USD</div>
+							<div class="stat-value">{{ centsToDollars(ticketRevenue()) }} USD</div>
 						</div>
 					</div>
 				</div>
@@ -62,7 +63,7 @@ type ProductRow = { name: string; sold: number; revenue: number; stock: number }
 					<div class="card report-stat">
 						<div class="card-body">
 							<div class="stat-label">Ingresos por productos</div>
-							<div class="stat-value">{{ productRevenue() }} USD</div>
+							<div class="stat-value">{{ centsToDollars(productRevenue()) }} USD</div>
 						</div>
 					</div>
 				</div>
@@ -151,6 +152,7 @@ export class ReportsComponent implements OnInit {
 	private readonly qrService = inject(QRService);
 	private readonly productSalesService = inject(ProductSalesService);
 	private readonly productsService = inject(ProductsService);
+	readonly centsToDollars = centsToDollars;
 
 	events = signal<Events[]>([]);
 	selectedEventId = signal<number | null>(null);
@@ -160,24 +162,29 @@ export class ReportsComponent implements OnInit {
 	saleProducts = signal<SaleProduct[]>([]);
 	products = signal<Product[]>([]);
 
-	ticketRevenue = computed(() => this.saleTickets().reduce((sum, s) => sum + (s.priceUSD ?? s.ticket?.price ?? 0), 0));
+	// Centavos enteros (ver shared/money.ts) — se convierten a dólares recién al mostrarse.
+	ticketRevenue = computed(() => this.saleTickets().reduce((sum, s) => sum + (s.priceCents ?? s.ticket?.priceCents ?? 0), 0));
 	checkedInCount = computed(() => this.saleTickets().filter((s) => s.checkedInAt).length);
 	checkedInPct = computed(() => {
 		const total = this.saleTickets().length;
 		return total > 0 ? Math.round((this.checkedInCount() / total) * 100) : 0;
 	});
-	productRevenue = computed(() => this.saleProducts().reduce((sum, s) => sum + (s.unitPriceUSD ?? s.product?.price ?? 0) * s.quantity, 0));
+	productRevenue = computed(() => this.saleProducts().reduce((sum, s) => sum + (s.unitPriceCents ?? s.product?.priceCents ?? 0) * s.quantity, 0));
 
+	// row.revenue se acumula en centavos y se convierte a dólares recién al final, para no arrastrar
+	// error de redondeo float sumando venta por venta.
 	ticketRows = computed<TicketRow[]>(() => {
 		const rows = new Map<string, TicketRow>();
 		for (const sale of this.saleTickets()) {
 			const name = sale.ticket?.name ?? 'Sin ticket';
 			const row = rows.get(name) ?? { name, sold: 0, revenue: 0 };
 			row.sold += 1;
-			row.revenue += sale.priceUSD ?? sale.ticket?.price ?? 0;
+			row.revenue += sale.priceCents ?? sale.ticket?.priceCents ?? 0;
 			rows.set(name, row);
 		}
-		return Array.from(rows.values()).sort((a, b) => b.revenue - a.revenue);
+		return Array.from(rows.values())
+			.map((row) => ({ ...row, revenue: centsToDollars(row.revenue) }))
+			.sort((a, b) => b.revenue - a.revenue);
 	});
 
 	productRows = computed<ProductRow[]>(() => {
@@ -186,14 +193,16 @@ export class ReportsComponent implements OnInit {
 			const name = sale.product?.name ?? 'Sin producto';
 			const row = rows.get(name) ?? { name, sold: 0, revenue: 0, stock: 0 };
 			row.sold += sale.quantity;
-			row.revenue += (sale.unitPriceUSD ?? sale.product?.price ?? 0) * sale.quantity;
+			row.revenue += (sale.unitPriceCents ?? sale.product?.priceCents ?? 0) * sale.quantity;
 			rows.set(name, row);
 		}
 		for (const product of this.products()) {
 			const row = rows.get(product.name);
 			if (row) row.stock = product.count;
 		}
-		return Array.from(rows.values()).sort((a, b) => b.revenue - a.revenue);
+		return Array.from(rows.values())
+			.map((row) => ({ ...row, revenue: centsToDollars(row.revenue) }))
+			.sort((a, b) => b.revenue - a.revenue);
 	});
 
 	ngOnInit(): void {

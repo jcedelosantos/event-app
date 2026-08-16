@@ -5,7 +5,7 @@ import { generateAndStoreInvoice } from './invoice-generation';
 // Corre el día 1 de cada mes (ver cron.schedule en server.ts) — genera y guarda automáticamente la
 // factura mensual de cada tenant con suscripción recurrente ACTIVA. Los tenants de evento único
 // (EVENT_*, ver lib/event-plans.ts) quedan afuera a propósito: pagan una vez, no tienen ciclo
-// mensual, y su plan no calcula precio de suscripción (ver invoice-generation.ts — planPriceUSD
+// mensual, y su plan no calcula precio de suscripción (ver invoice-generation.ts — planPriceCents
 // sale 0 para un código que isPlanCode no reconoce).
 export async function runMonthlyInvoiceGeneration(): Promise<void> {
 	const recurringTenants = await prismaUnscoped.tenant.findMany({

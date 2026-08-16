@@ -5,7 +5,7 @@
 //
 // Precio base: USD 1 por asistente incluido en el tier (pago único, no recurrente). Si el tenant
 // vende por encima de ese tope, NO se bloquea la venta — se cobra overage a
-// EVENT_OVERAGE_FEE_PER_PERSON_USD por persona, mismo mecanismo ya usado para los planes
+// EVENT_OVERAGE_FEE_PER_PERSON_CENTS por persona, mismo mecanismo ya usado para los planes
 // recurrentes (ver lib/overage.ts), facturado a mano por el Super Admin.
 
 export type EventPlanCode = 'EVENT_100' | 'EVENT_300' | 'EVENT_500' | 'EVENT_1000' | 'EVENT_2500' | 'EVENT_5000';
@@ -14,14 +14,15 @@ export type EventPlanDefinition = {
 	code: EventPlanCode;
 	name: string;
 	maxAttendees: number;
-	priceUSD: number;
+	// Centavos enteros, no dólares (ver lib/money.ts).
+	priceCents: number;
 };
 
-const PRICE_PER_ATTENDEE_USD = 1;
-export const EVENT_OVERAGE_FEE_PER_PERSON_USD = 1.25;
+const PRICE_PER_ATTENDEE_CENTS = 100;
+export const EVENT_OVERAGE_FEE_PER_PERSON_CENTS = 125;
 
 function definePlan(code: EventPlanCode, maxAttendees: number): EventPlanDefinition {
-	return { code, name: `Evento único — hasta ${maxAttendees.toLocaleString('es-DO')} asistentes`, maxAttendees, priceUSD: maxAttendees * PRICE_PER_ATTENDEE_USD };
+	return { code, name: `Evento único — hasta ${maxAttendees.toLocaleString('es-DO')} asistentes`, maxAttendees, priceCents: maxAttendees * PRICE_PER_ATTENDEE_CENTS };
 }
 
 export const EVENT_PLANS: Record<EventPlanCode, EventPlanDefinition> = {

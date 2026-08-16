@@ -15,7 +15,7 @@ const ticketInputSchema = z.object({
 	type: z.string().min(1),
 	count: z.coerce.number().int(),
 	active: z.boolean().optional().default(true),
-	price: z.coerce.number(),
+	priceCents: z.coerce.number().int(),
 	eventId: z.number().int(),
 	areaId: z.number().int().nullable().optional(),
 	attendeeType: z.enum(['SOCIO', 'INVITADO']).nullable().optional(),

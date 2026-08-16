@@ -41,7 +41,7 @@ async function processEndedEvent(tenantId: number, eventId: number): Promise<voi
 				eventName: overage.eventName,
 				includedCount: overage.included,
 				soldCount: overage.soldCount,
-				overageUSD: overage.overageUSD,
+				overageCents: overage.overageCents,
 			});
 		}
 	}

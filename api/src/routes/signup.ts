@@ -143,7 +143,7 @@ signupRouter.post(
 		// Si esta llamada falla, el tenant queda en planStatus PENDING (huérfano, sin acceso) — se
 		// puede reintentar el alta más adelante o limpiarlo a mano desde Super Admin; no se revierte
 		// la transacción anterior porque no hay forma de "deshacer" sin conocer aún el tenantId.
-		const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:4201';
+		const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:4200';
 		try {
 			const { paypalSubscriptionId, approveUrl } = await createSubscription(
 				plan,
@@ -232,7 +232,7 @@ signupRouter.post(
 		sendBankTransferReceiptNotification({
 			tenantName: tenant.name,
 			tierName: PLANS[plan].name,
-			amountUSD: PLANS[plan].priceUSD,
+			amountCents: PLANS[plan].priceCents,
 			receiptUrl,
 		}).catch((err) => console.error('[signup] No se pudo enviar el aviso de comprobante por correo:', err));
 

@@ -6,8 +6,9 @@ export type PlanCode = 'BASICO' | 'INTERMEDIO' | 'AVANZADO' | 'PRO_MAX';
 
 export type PricingPlan = {
 	code: PlanCode;
+	// Centavos enteros, no dólares (ver shared/money.ts).
+	priceCents: number;
 	name: string;
-	priceUSD: number;
 	attendeesPerEvent: number;
 	highlighted?: boolean;
 	features: string[];
@@ -38,7 +39,7 @@ export const PRICING_PLANS: PricingPlan[] = [
 	{
 		code: 'BASICO',
 		name: 'Básico',
-		priceUSD: 49,
+		priceCents: 4900,
 		attendeesPerEvent: 50,
 		features: ['Eventos ilimitados por mes', 'Hasta 50 asistentes por evento', 'Creación de eventos, mapas y asientos', 'Venta manual + scanner de check-in', 'Panel de QRs y correo automático'],
 		description: 'Ideal para clubes y organizaciones que recién empiezan a digitalizar sus eventos — todo lo esencial para vender entradas y controlar el acceso, sin complicarte.',
@@ -46,7 +47,7 @@ export const PRICING_PLANS: PricingPlan[] = [
 	{
 		code: 'INTERMEDIO',
 		name: 'Intermedio',
-		priceUSD: 99,
+		priceCents: 9900,
 		attendeesPerEvent: 150,
 		highlighted: true,
 		features: ['Todo lo de Básico', 'Hasta 150 asistentes por evento', 'Portal público de auto-registro', 'Reportería y auditoría avanzada', 'Venta de productos / comida del día'],
@@ -55,7 +56,7 @@ export const PRICING_PLANS: PricingPlan[] = [
 	{
 		code: 'AVANZADO',
 		name: 'Avanzado',
-		priceUSD: 199,
+		priceCents: 19900,
 		attendeesPerEvent: 500,
 		features: ['Todo lo de Intermedio', 'Hasta 500 asistentes por evento', 'Cobro online (PayPal / link de pago)', 'Sala de espera virtual', 'Aforo e invitados con nombre propio'],
 		description: 'Pensado para eventos grandes: cobro online, sala de espera virtual, y control fino de aforo e invitados con nombre propio.',
@@ -63,12 +64,12 @@ export const PRICING_PLANS: PricingPlan[] = [
 	{
 		code: 'PRO_MAX',
 		name: 'Pro Enterprise',
-		priceUSD: 650,
+		priceCents: 65000,
 		attendeesPerEvent: 1000,
 		features: ['Todo lo de Avanzado', 'Hasta 1,000 asistentes por evento', 'Integración con base de datos externa (setup aparte)', 'Contratos a medida (multi-sede, API, white label, SLA)'],
-		// Sin autoservicio: la marketing page (site-web.component.ts) no muestra priceUSD para este
+		// Sin autoservicio: la marketing page (site-web.component.ts) no muestra priceCents para este
 		// tier y el signup público lo rechaza (ver POST /public/signup) — lo activa un Super Admin a
-		// mano tras cotizar. priceUSD queda como referencia interna, no se le da uso en la UI pública.
+		// mano tras cotizar. priceCents queda como referencia interna, no se le da uso en la UI pública.
 		description: 'Para operaciones grandes con necesidades a medida — multi-sede, integración API, white label completo o SLA. Nuestro equipo cotiza y activa tu cuenta directamente.',
 	},
 ];
@@ -77,4 +78,4 @@ export const PRICING_PLANS: PricingPlan[] = [
 // PRICING_PLANS, pensado para recorrerse en orden en la página de marketing).
 export const PLANS_BY_CODE: Record<PlanCode, PricingPlan> = Object.fromEntries(PRICING_PLANS.map((p) => [p.code, p])) as Record<PlanCode, PricingPlan>;
 
-export const OVERAGE_FEE_PER_PERSON_USD = 0.6;
+export const OVERAGE_FEE_PER_PERSON_CENTS = 60;

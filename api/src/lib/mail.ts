@@ -5,6 +5,7 @@ import type { Event as EventModel } from '@prisma/client';
 import type { TenantReportStats } from './report-aggregation';
 import { prisma } from './prisma';
 import { hasRealLocation, googleMapsLink } from './map-location';
+import { centsToDollars } from './money';
 
 type SaleTicketForEmail = {
 	id: number;
@@ -14,7 +15,7 @@ type SaleTicketForEmail = {
 	// attendeeType solo viene seteado en tenants CLUB (ver Ticket.attendeeType) — cuando está,
 	// reemplaza a `type` (VIP/Normal) en el ticket impreso/enviado, igual que ya se hace en las
 	// tarjetas de ticket/evento del manager.
-	ticket: { name: string; type: string; price: number; attendeeType?: string | null };
+	ticket: { name: string; type: string; priceCents: number; attendeeType?: string | null };
 	// Nombre del titular real de ESTE ticket puntual — quien recibe el correo (`clientName` en
 	// sendTicketEmail) puede ser un socio comprando para sí mismo Y sus invitados en una sola compra
 	// (ver public.ts /purchase, `guests`); cada tarjeta necesita decir a quién le corresponde para que
@@ -39,7 +40,7 @@ type SaleProductForEmail = {
 	id: number;
 	codeQR: string;
 	quantity: number;
-	product: { name: string; type: string; price: number };
+	product: { name: string; type: string; priceCents: number };
 };
 
 function getResendClient(): Resend | null {
@@ -102,7 +103,7 @@ function buildTicketPdf(event: EventModel, sale: SaleTicketForEmail, qrBuffer: B
 		doc.fontSize(14).fillColor('#000').text(sale.seat.name);
 		doc.moveDown(0.5);
 		doc.fontSize(10).fillColor('#888').text('Ticket');
-		doc.fontSize(14).fillColor('#000').text(`${sale.ticket.name} — ${sale.ticket.price} USD`);
+		doc.fontSize(14).fillColor('#000').text(`${sale.ticket.name} — ${centsToDollars(sale.ticket.priceCents)} USD`);
 		doc.moveDown(1.2);
 
 		const qrSize = 220;
@@ -179,7 +180,7 @@ async function ticketCardHtml(event: EventModel, sale: SaleTicketForEmail): Prom
 									<div style="font-size:13px;color:#aaa;">Asiento</div>
 									<div style="font-size:15px;margin-bottom:8px;">${sale.seat.name}</div>
 									<div style="font-size:13px;color:#aaa;">Ticket</div>
-									<div style="font-size:15px;">${sale.ticket.name} — ${sale.ticket.price} USD</div>
+									<div style="font-size:15px;">${sale.ticket.name} — ${centsToDollars(sale.ticket.priceCents)} USD</div>
 								</td>
 								<td style="width:120px;text-align:right;vertical-align:top;">
 									<img src="cid:${cid}" width="110" height="110" alt="QR" style="border-radius:6px;" />
@@ -264,7 +265,7 @@ export async function sendTicketEmail(args: { to: string; clientName: string; ev
 
 	// "Reserva" en vez de "compra" cuando ningún ticket del lote tiene costo — no tiene sentido
 	// hablar de "compra" para un registro gratis (ej. tickets de evento CHURCH/CLUB sin cobro).
-	const isFree = args.saleTickets.every((sale) => sale.ticket.price <= 0);
+	const isFree = args.saleTickets.every((sale) => sale.ticket.priceCents <= 0);
 	const actionWord = isFree ? 'reserva' : 'compra';
 
 	// Link "Cómo llegar" solo si el manager de verdad reubicó el pin del mapa (ver hasRealLocation) —
@@ -289,7 +290,7 @@ export async function sendTicketEmail(args: { to: string; clientName: string; ev
 	// directo a args.event.surveyUrl — ese link puede estar guardado desde antes del evento, y este
 	// correo se manda al comprar (mucho antes de que termine). El gate de "todavía no terminó" vive
 	// del lado del servidor en esa página intermedia.
-	const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:4201';
+	const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:4200';
 	const surveyHtml = args.event.surveyUrl
 		? `<p style="color:#ccc;">Cuando termine el evento, contanos qué te pareció: <a href="${frontendUrl}/encuesta/${args.event.code}" style="color:#fff;">completar la encuesta</a>.</p>`
 		: '';
@@ -400,7 +401,7 @@ export async function sendEnterpriseLeadNotification(args: { orgName: string; co
 // mismo patrón best-effort que sendServiceRequestNotification, a SUPER_ADMIN_NOTIFICATION_EMAIL
 // (bandeja general de "hay que revisar algo a mano"), a diferencia del lead de Pro Enterprise que
 // va a un destinatario fijo aparte.
-export async function sendBankTransferReceiptNotification(args: { tenantName: string; tierName: string; amountUSD: number; receiptUrl: string }) {
+export async function sendBankTransferReceiptNotification(args: { tenantName: string; tierName: string; amountCents: number; receiptUrl: string }) {
 	const to = process.env.SUPER_ADMIN_NOTIFICATION_EMAIL;
 	if (!to) {
 		console.warn('[mail] SUPER_ADMIN_NOTIFICATION_EMAIL no configurada — no se avisa por correo (el comprobante sigue visible en el panel).');
@@ -409,13 +410,13 @@ export async function sendBankTransferReceiptNotification(args: { tenantName: st
 	const resend = getResendClient();
 	if (!resend) return;
 
-	const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:4201';
+	const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:4200';
 
 	const html = `
 		<div style="background:#000;padding:24px;font-family:Arial,Helvetica,sans-serif;">
 			<h2 style="color:#fff;">Nuevo comprobante de transferencia</h2>
 			<p style="color:#ccc;"><strong style="color:#fff;">${args.tenantName}</strong> — ${args.tierName}</p>
-			<p style="color:#ccc;">Monto esperado: <strong style="color:#fff;">USD ${args.amountUSD}</strong></p>
+			<p style="color:#ccc;">Monto esperado: <strong style="color:#fff;">USD ${centsToDollars(args.amountCents)}</strong></p>
 			<p><a href="${frontendUrl}${args.receiptUrl}" style="color:#dc3545;">Ver comprobante</a></p>
 			<p style="color:#666;font-size:12px;">Revisalo y confirmá el pago desde el panel de Super Admin.</p>
 		</div>
@@ -499,7 +500,7 @@ export async function sendOverageCrossedNotification(args: { to: string; tenantN
 // SUPER_ADMIN_NOTIFICATION_EMAIL (si está configurada, ver comentario en
 // sendServiceRequestNotification) para que el Super Admin no tenga que entrar a revisar el panel
 // evento por evento.
-export async function sendEventOverageSummary(args: { orgEmail: string; tenantName: string; eventName: string; includedCount: number; soldCount: number; overageUSD: number }) {
+export async function sendEventOverageSummary(args: { orgEmail: string; tenantName: string; eventName: string; includedCount: number; soldCount: number; overageCents: number }) {
 	const resend = getResendClient();
 	if (!resend) return;
 
@@ -513,7 +514,7 @@ export async function sendEventOverageSummary(args: { orgEmail: string; tenantNa
 			<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#111;border-radius:8px;border:1px solid #2a2a2a;margin:12px 0;">
 				<tr><td style="padding:6px 8px;color:#aaa;">Vendidas</td><td style="padding:6px 8px;color:#fff;">${args.soldCount}</td></tr>
 				<tr><td style="padding:6px 8px;color:#aaa;">Incluidas en el plan</td><td style="padding:6px 8px;color:#fff;">${args.includedCount}</td></tr>
-				<tr><td style="padding:6px 8px;color:#aaa;">Excedente a facturar</td><td style="padding:6px 8px;color:#fff;">USD ${args.overageUSD}</td></tr>
+				<tr><td style="padding:6px 8px;color:#aaa;">Excedente a facturar</td><td style="padding:6px 8px;color:#fff;">USD ${centsToDollars(args.overageCents)}</td></tr>
 			</table>
 			<p style="color:#666;font-size:12px;">Este monto se incluye en la próxima factura del tenant (ver Super Admin → Facturación).</p>
 		</div>
@@ -540,7 +541,7 @@ export async function sendPeriodicReport(args: { to: string[]; tenantName: strin
 			.slice(0, 8)
 			.map(
 				(item) =>
-					`<tr><td style="padding:6px 8px;color:#ccc;">${item.label}</td><td style="padding:6px 8px;color:#fff;text-align:right;">${item.value.toLocaleString('es-DO')} USD</td></tr>`,
+					`<tr><td style="padding:6px 8px;color:#ccc;">${item.label}</td><td style="padding:6px 8px;color:#fff;text-align:right;">${centsToDollars(item.value).toLocaleString('es-DO')} USD</td></tr>`,
 			)
 			.join('');
 
@@ -549,7 +550,7 @@ export async function sendPeriodicReport(args: { to: string[]; tenantName: strin
 			<h2 style="color:#fff;">Reporte ${args.periodLabel}</h2>
 			<p style="color:#ccc;"><strong style="color:#fff;">${args.tenantName}</strong></p>
 			<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#111;border-radius:8px;border:1px solid #2a2a2a;margin:16px 0;">
-				<tr><td style="padding:10px 8px;color:#aaa;">Ingresos totales</td><td style="padding:10px 8px;color:#fff;font-weight:bold;text-align:right;">${stats.totalRevenue.toLocaleString('es-DO')} USD</td></tr>
+				<tr><td style="padding:10px 8px;color:#aaa;">Ingresos totales</td><td style="padding:10px 8px;color:#fff;font-weight:bold;text-align:right;">${centsToDollars(stats.totalRevenueCents).toLocaleString('es-DO')} USD</td></tr>
 				<tr><td style="padding:10px 8px;color:#aaa;">Tickets vendidos</td><td style="padding:10px 8px;color:#fff;text-align:right;">${stats.totalTicketsSold.toLocaleString('es-DO')}</td></tr>
 				<tr><td style="padding:10px 8px;color:#aaa;">Check-ins registrados</td><td style="padding:10px 8px;color:#fff;text-align:right;">${stats.totalCheckIns.toLocaleString('es-DO')}</td></tr>
 				<tr><td style="padding:10px 8px;color:#aaa;">Productos vendidos</td><td style="padding:10px 8px;color:#fff;text-align:right;">${stats.totalProductsSold.toLocaleString('es-DO')}</td></tr>

@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
 import { NgClass } from '@angular/common';
 import { Product } from '../../../../../models/products/product';
+import { centsToDollars } from '../../../../../shared/money';
 
 @Component({
 	selector: 'product-card',
@@ -42,7 +43,7 @@ import { Product } from '../../../../../models/products/product';
 						<h5 [class.text-danger]="product().count <= 0" [class.text-body-secondary]="product().count > 0">
 							<i class="bi bi-box-seam"></i> {{ product().count }} en stock
 						</h5>
-						<h5 class="text-body-secondary"><i class="bi bi-currency-dollar"></i>{{ product().price }}</h5>
+						<h5 class="text-body-secondary"><i class="bi bi-currency-dollar"></i>{{ centsToDollars(product().priceCents) }}</h5>
 					</div>
 					<div class="text-center small text-body-secondary">{{ product().code }}</div>
 				</div>
@@ -53,6 +54,7 @@ import { Product } from '../../../../../models/products/product';
 	changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ProductCardComponent {
+	readonly centsToDollars = centsToDollars;
 	product = input.required<Product>();
 	selectedProduct = output<Product | null>();
 	deleteProduct = output<Product>();

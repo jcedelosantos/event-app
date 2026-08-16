@@ -1,19 +1,19 @@
 import { prisma } from './prisma';
-import { PLANS, OVERAGE_FEE_PER_PERSON_USD, isPlanCode } from './plans';
-import { EVENT_PLANS, EVENT_OVERAGE_FEE_PER_PERSON_USD, isEventPlanCode } from './event-plans';
+import { PLANS, OVERAGE_FEE_PER_PERSON_CENTS, isPlanCode } from './plans';
+import { EVENT_PLANS, EVENT_OVERAGE_FEE_PER_PERSON_CENTS, isEventPlanCode } from './event-plans';
 import { sendOverageCrossedNotification } from './mail';
 
-export type EventOverage = { eventId: number; eventName: string; soldCount: number; included: number; overageCount: number; overageUSD: number };
+export type EventOverage = { eventId: number; eventName: string; soldCount: number; included: number; overageCount: number; overageCents: number };
 
 // Mismo tope/tarifa que usan computeTenantOverage/notifyIfOverageJustCrossed/computeEventOverage —
 // factorizado acá para no repetir el if/else de PLANS vs EVENT_PLANS en cada uno.
-async function getIncludedAndFee(tenantId: number): Promise<{ included: number; feePerPersonUSD: number } | null> {
+async function getIncludedAndFee(tenantId: number): Promise<{ included: number; feePerPersonCents: number } | null> {
 	const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { plan: true } });
 	if (tenant?.plan && isPlanCode(tenant.plan)) {
-		return { included: PLANS[tenant.plan].attendeesPerEvent, feePerPersonUSD: OVERAGE_FEE_PER_PERSON_USD };
+		return { included: PLANS[tenant.plan].attendeesPerEvent, feePerPersonCents: OVERAGE_FEE_PER_PERSON_CENTS };
 	}
 	if (tenant?.plan && isEventPlanCode(tenant.plan)) {
-		return { included: EVENT_PLANS[tenant.plan].maxAttendees, feePerPersonUSD: EVENT_OVERAGE_FEE_PER_PERSON_USD };
+		return { included: EVENT_PLANS[tenant.plan].maxAttendees, feePerPersonCents: EVENT_OVERAGE_FEE_PER_PERSON_CENTS };
 	}
 	return null;
 }
@@ -23,27 +23,29 @@ async function getIncludedAndFee(tenantId: number): Promise<{ included: number; 
 // Subscriptions no soporta montos variables sin permisos de Reference Transactions) — esto solo
 // calcula y expone el total para que el Super Admin lo facture aparte.
 //
-// Cubre tanto planes recurrentes (PLANS, tope = attendeesPerEvent, tarifa OVERAGE_FEE_PER_PERSON_USD)
-// como tenants de evento único (EVENT_PLANS, tope = maxAttendees, tarifa
-// EVENT_OVERAGE_FEE_PER_PERSON_USD) — mismo cálculo, cada uno con su propio tope/tarifa, así que
-// el resto del sistema (panel de Super Admin, factura PDF) no necesita distinguir el tipo de plan.
-export async function computeTenantOverage(tenantId: number): Promise<{ totalUSD: number; events: EventOverage[] }> {
+// Cubre tanto planes recurrentes (PLANS, tope = attendeesPerEvent, tarifa
+// OVERAGE_FEE_PER_PERSON_CENTS) como tenants de evento único (EVENT_PLANS, tope = maxAttendees,
+// tarifa EVENT_OVERAGE_FEE_PER_PERSON_CENTS) — mismo cálculo, cada uno con su propio tope/tarifa,
+// así que el resto del sistema (panel de Super Admin, factura PDF) no necesita distinguir el tipo
+// de plan. Todo en centavos enteros (ver lib/money.ts) — la multiplicación/suma es exacta, sin el
+// Math.round(x*100)/100 que hacía falta antes para no arrastrar error de punto flotante.
+export async function computeTenantOverage(tenantId: number): Promise<{ totalCents: number; events: EventOverage[] }> {
 	const planInfo = await getIncludedAndFee(tenantId);
-	if (!planInfo) return { totalUSD: 0, events: [] };
-	const { included, feePerPersonUSD } = planInfo;
+	if (!planInfo) return { totalCents: 0, events: [] };
+	const { included, feePerPersonCents } = planInfo;
 
 	const events = await prisma.event.findMany({ where: { tenantId }, select: { id: true, name: true } });
 	const overages: EventOverage[] = [];
-	let totalUSD = 0;
+	let totalCents = 0;
 	for (const event of events) {
 		const soldCount = await prisma.saleTicket.count({ where: { eventId: event.id, tenantId } });
 		const overageCount = Math.max(0, soldCount - included);
 		if (overageCount === 0) continue;
-		const overageUSD = Math.round(overageCount * feePerPersonUSD * 100) / 100;
-		totalUSD += overageUSD;
-		overages.push({ eventId: event.id, eventName: event.name, soldCount, included, overageCount, overageUSD });
+		const overageCents = overageCount * feePerPersonCents;
+		totalCents += overageCents;
+		overages.push({ eventId: event.id, eventName: event.name, soldCount, included, overageCount, overageCents });
 	}
-	return { totalUSD: Math.round(totalUSD * 100) / 100, events: overages };
+	return { totalCents, events: overages };
 }
 
 // Overage de UN solo evento, sin escanear el resto del tenant — usado por GET /events/:id (badge
@@ -52,7 +54,7 @@ export async function computeTenantOverage(tenantId: number): Promise<{ totalUSD
 export async function computeEventOverage(tenantId: number, eventId: number): Promise<EventOverage | null> {
 	const planInfo = await getIncludedAndFee(tenantId);
 	if (!planInfo) return null;
-	const { included, feePerPersonUSD } = planInfo;
+	const { included, feePerPersonCents } = planInfo;
 
 	const [event, soldCount] = await Promise.all([
 		prisma.event.findUnique({ where: { id: eventId, tenantId }, select: { name: true } }),
@@ -62,8 +64,8 @@ export async function computeEventOverage(tenantId: number, eventId: number): Pr
 
 	const overageCount = Math.max(0, soldCount - included);
 	if (overageCount === 0) return null;
-	const overageUSD = Math.round(overageCount * feePerPersonUSD * 100) / 100;
-	return { eventId, eventName: event.name, soldCount, included, overageCount, overageUSD };
+	const overageCents = overageCount * feePerPersonCents;
+	return { eventId, eventName: event.name, soldCount, included, overageCount, overageCents };
 }
 
 // Best-effort: avisa la PRIMERA vez que un evento cruza el cupo incluido del plan, disparado desde

@@ -1,4 +1,5 @@
 import { prisma } from './prisma';
+import { centsToPayPalValue } from './money';
 
 // Credenciales de PayPal por tenant, guardadas en AppSetting (ver settings.ts) bajo el namespace
 // "payments.*" — mismo patrón ya usado para el color de acento. paypalSecret y paypalWebhookId
@@ -50,7 +51,7 @@ export type PayPalOrderStatus = 'CREATED' | 'SAVED' | 'APPROVED' | 'VOIDED' | 'C
 // reference guarda el/los codeQR del hold que esta orden cubre — sirve para reconciliar del lado de
 // PayPal (aparece en su panel), no lo usamos para volver a resolver el tenant (eso se hace por
 // paypalOrderId, ver public.ts).
-export async function createOrder(tenantId: number, amountUSD: number, reference: string): Promise<{ orderId: string }> {
+export async function createOrder(tenantId: number, amountCents: number, reference: string): Promise<{ orderId: string }> {
 	const config = await getTenantConfig(tenantId);
 	const token = await getAccessToken(config);
 	const res = await fetch(`${API_BASE[config.mode]}/v2/checkout/orders`, {
@@ -58,7 +59,7 @@ export async function createOrder(tenantId: number, amountUSD: number, reference
 		headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
 		body: JSON.stringify({
 			intent: 'CAPTURE',
-			purchase_units: [{ reference_id: reference, amount: { currency_code: 'USD', value: amountUSD.toFixed(2) } }],
+			purchase_units: [{ reference_id: reference, amount: { currency_code: 'USD', value: centsToPayPalValue(amountCents) } }],
 		}),
 	});
 	if (!res.ok) {

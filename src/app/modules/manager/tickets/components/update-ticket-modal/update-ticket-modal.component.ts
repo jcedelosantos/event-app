@@ -8,6 +8,7 @@ import { EventsService } from '../../../events/services/events.service';
 import { extractErrorMessage } from '../../../../../utils/api-error';
 import { closeModal } from '../../../../../utils/modal';
 import { AuthService } from '../../../../../core/services/auth.service';
+import { centsToDollars, dollarsToCents } from '../../../../../shared/money';
 
 @Component({
 	selector: 'app-update-ticket-modal',
@@ -186,7 +187,9 @@ export class UpdateTicketModalComponent {
 			this.eventsService.getEvents().subscribe((events) => this.events.set(events));
 			this.patchingFromTicket = true;
 			if (current) {
-				this.form.patchValue({ ...current });
+				// El form muestra dólares (mejor UX que tipear centavos) — priceCents no calza por
+				// nombre con el control `price`, así que el spread de arriba no lo toca solo.
+				this.form.patchValue({ ...current, price: centsToDollars(current.priceCents) });
 				this.selectedEventId.set(current.eventId);
 			} else {
 				this.form.reset({ active: true, eventId: defaultEventId });
@@ -225,7 +228,7 @@ export class UpdateTicketModalComponent {
 			type: value.type!,
 			count: value.count!,
 			active: value.active!,
-			price: value.price!,
+			priceCents: dollarsToCents(value.price!),
 			attendeeType: value.attendeeType ?? null,
 		};
 

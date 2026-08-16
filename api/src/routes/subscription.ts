@@ -38,15 +38,15 @@ subscriptionRouter.get('/overage-nudge', asyncHandler(async (req: AuthenticatedR
 		res.json({ shouldUpgrade: false });
 		return;
 	}
-	const { totalUSD: overageUSD } = await computeTenantOverage(tenantId);
-	const priceDiffUSD = PLANS[nextPlan].priceUSD - PLANS[tenant.plan].priceUSD;
-	const shouldUpgrade = overageUSD > priceDiffUSD;
+	const { totalCents: overageCents } = await computeTenantOverage(tenantId);
+	const priceDiffCents = PLANS[nextPlan].priceCents - PLANS[tenant.plan].priceCents;
+	const shouldUpgrade = overageCents > priceDiffCents;
 	res.json({
 		shouldUpgrade,
 		suggestedPlan: shouldUpgrade ? nextPlan : null,
 		suggestedPlanName: shouldUpgrade ? PLANS[nextPlan].name : null,
-		overageUSD,
-		priceDiffUSD,
+		overageCents,
+		priceDiffCents,
 	});
 }));
 
@@ -70,7 +70,7 @@ subscriptionRouter.post(
 			// lib/event-plans.ts) que quiere pasarse a un plan recurrente, o de cualquier tenant sin
 			// Subscription todavía. Se crea una por primera vez, mismo flujo que signup.ts pero
 			// disparado desde el panel en vez del alta pública.
-			const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:4201';
+			const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:4200';
 			try {
 				const { paypalSubscriptionId, approveUrl } = await createSubscription(
 					parsed.data.plan,
@@ -98,7 +98,7 @@ subscriptionRouter.post(
 			return;
 		}
 
-		const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:4201';
+		const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:4200';
 		try {
 			const { approveUrl } = await reviseSubscription(
 				subscription.paypalSubscriptionId,

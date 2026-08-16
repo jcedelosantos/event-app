@@ -10,6 +10,7 @@ import { ProductsService } from '../../../products/services/products.service';
 import { UserService } from '../../../users/services/user.service';
 import { extractErrorMessage } from '../../../../../utils/api-error';
 import { closeModal } from '../../../../../utils/modal';
+import { centsToDollars } from '../../../../../shared/money';
 
 @Component({
 	selector: 'create-product-qr-modal',
@@ -41,7 +42,7 @@ import { closeModal } from '../../../../../utils/modal';
 								<select class="custom-select d-block w-100" [class.is-invalid]="isInvalid('productId')" formControlName="productId">
 									<option [ngValue]="null">Choose...</option>
 									@for (product of availableProducts(); track product.id) {
-										<option [ngValue]="product.id">{{ product.name }} — {{ product.type }} ({{ product.price }} USD) — {{ product.count }} en stock</option>
+										<option [ngValue]="product.id">{{ product.name }} — {{ product.type }} ({{ centsToDollars(product.priceCents) }} USD) — {{ product.count }} en stock</option>
 									}
 								</select>
 								@if (isInvalid('productId')) {
@@ -112,6 +113,7 @@ export class CreateProductQrModalComponent implements OnInit {
 	private readonly eventsService = inject(EventsService);
 	private readonly productsService = inject(ProductsService);
 	private readonly userService = inject(UserService);
+	readonly centsToDollars = centsToDollars;
 
 	saleProductCreated = output<SaleProduct>();
 	errorMessage = '';

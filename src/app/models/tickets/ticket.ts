@@ -7,7 +7,8 @@ export interface Ticket {
 	type: string;
 	count: number;
 	active: boolean;
-	price: number;
+	// Centavos enteros, no dólares (ver api/src/lib/money.ts).
+	priceCents: number;
 	eventId: number;
 	// Si está seteado, este ticket solo da acceso a asientos de esa área — el picker público filtra
 	// las áreas visibles según el ticket elegido (ver public-event.component.ts).

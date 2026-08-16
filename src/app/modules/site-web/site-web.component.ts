@@ -6,6 +6,7 @@ import { NavBarInitComponent } from '../../shared/nav-bar-init/nav-bar-init.comp
 import { PRICING_PLANS, PricingPlan } from '../../shared/pricing-plans';
 import { EnterpriseLeadService } from './services/enterprise-lead.service';
 import { extractErrorMessage } from '../../utils/api-error';
+import { centsToDollars } from '../../shared/money';
 
 type LeadFormState = 'closed' | 'open' | 'success';
 
@@ -62,7 +63,7 @@ type LeadFormState = 'closed' | 'open' | 'success';
 									@if (plan.code === 'PRO_MAX') {
 										<p class="mb-0 mt-1"><span class="fs-4 fw-bold">Integrado a tu Medida</span></p>
 									} @else {
-										<p class="mb-0 mt-1"><span class="fs-4 fw-bold">USD {{ plan.priceUSD }}</span><span style="color: #b9b9b9;">/mes</span></p>
+										<p class="mb-0 mt-1"><span class="fs-4 fw-bold">USD {{ centsToDollars(plan.priceCents) }}</span><span style="color: #b9b9b9;">/mes</span></p>
 									}
 									<p class="small mb-0 flex-grow-1" style="color: #b9b9b9;">Hasta {{ plan.attendeesPerEvent }} asistentes por evento</p>
 									<span class="small text-danger mt-1">Ver detalle <i class="bi bi-arrow-right"></i></span>
@@ -138,7 +139,7 @@ type LeadFormState = 'closed' | 'open' | 'success';
 								@if (plan.code === 'PRO_MAX') {
 									<p class="mb-1"><span class="fs-3 fw-bold">Integrado a tu Medida</span></p>
 								} @else {
-									<p class="mb-1"><span class="fs-3 fw-bold">USD {{ plan.priceUSD }}</span><span style="color: #b9b9b9;">/mes</span></p>
+									<p class="mb-1"><span class="fs-3 fw-bold">USD {{ centsToDollars(plan.priceCents) }}</span><span style="color: #b9b9b9;">/mes</span></p>
 								}
 								<p class="small mb-3" style="color: #b9b9b9;">Hasta {{ plan.attendeesPerEvent }} asistentes por evento</p>
 								<p style="color: #d0d0d0;">{{ plan.description }}</p>
@@ -185,6 +186,7 @@ type LeadFormState = 'closed' | 'open' | 'success';
 })
 export class SiteWebComponent {
 	private readonly enterpriseLeadService = inject(EnterpriseLeadService);
+	readonly centsToDollars = centsToDollars;
 
 	plans = PRICING_PLANS;
 	selectedPlan = signal<PricingPlan | null>(null);

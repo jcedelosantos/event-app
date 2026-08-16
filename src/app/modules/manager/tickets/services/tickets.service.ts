@@ -11,7 +11,8 @@ export type TicketInput = {
 	type: string;
 	count: number;
 	active?: boolean;
-	price: number;
+	// Centavos enteros, no dólares (ver shared/money.ts).
+	priceCents: number;
 	eventId: number;
 	areaId?: number | null;
 	attendeeType?: 'SOCIO' | 'INVITADO' | null;

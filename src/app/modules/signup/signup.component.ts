@@ -6,6 +6,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { SignupService, BankInfo } from './services/signup.service';
 import { PRICING_PLANS, PlanCode } from '../../shared/pricing-plans';
 import { extractErrorMessage } from '../../utils/api-error';
+import { centsToDollars } from '../../shared/money';
 
 type Step = 'form' | 'bank-transfer' | 'pending-review';
 
@@ -26,7 +27,7 @@ type Step = 'form' | 'bank-transfer' | 'pending-review';
 								<label class="form-label small">Plan</label>
 								<select class="form-select" formControlName="plan">
 									@for (plan of plans; track plan.code) {
-										<option [value]="plan.code">{{ plan.name }} — USD {{ plan.priceUSD }}/mes (hasta {{ plan.attendeesPerEvent }} asistentes por evento)</option>
+										<option [value]="plan.code">{{ plan.name }} — USD {{ centsToDollars(plan.priceCents) }}/mes (hasta {{ plan.attendeesPerEvent }} asistentes por evento)</option>
 									}
 								</select>
 							</div>
@@ -199,6 +200,7 @@ export class SignupComponent {
 	private readonly fb = inject(FormBuilder);
 	private readonly signupService = inject(SignupService);
 	private readonly route = inject(ActivatedRoute);
+	readonly centsToDollars = centsToDollars;
 
 	// Pro Enterprise no es autoservicio (ver PRICING_PLANS/pricing-plans.ts) — el backend igual lo
 	// rechaza si llegara a mandarse, esto evita que aparezca como opción en primer lugar.
@@ -234,8 +236,9 @@ export class SignupComponent {
 		}
 	}
 
+	// Devuelve dólares (no centavos) — se usa directo en el template y para el equivalente en pesos.
 	selectedPlanPrice(): number {
-		return this.plans.find((p) => p.code === this.form.controls.plan.value)?.priceUSD ?? 0;
+		return centsToDollars(this.plans.find((p) => p.code === this.form.controls.plan.value)?.priceCents ?? 0);
 	}
 
 	dopAmount = computed(() => {

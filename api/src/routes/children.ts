@@ -100,7 +100,7 @@ childrenRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res) => 
 						userId: req.user!.userId,
 						clientId: parentId,
 						tenantId,
-						unitPriceUSD: mealProduct.price,
+						unitPriceCents: mealProduct.priceCents,
 					},
 				});
 				saleProductId = saleProduct.id;

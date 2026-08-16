@@ -139,7 +139,7 @@
                 <td scope="row">{{qr.seat.area.name}} / {{qr.seat.name}}</td>
             }
             @if (visibleQrColumns()['price']) {
-                <td scope="row">{{qr.priceUSD ?? qr.ticket.price}}</td>
+                <td scope="row">{{centsToDollars(qr.priceCents ?? qr.ticket.priceCents)}}</td>
             }
             @if (visibleQrColumns()['status']) {
                 <td scope="row">

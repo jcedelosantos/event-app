@@ -32,10 +32,11 @@ export async function generateAndStoreInvoice(tenantId: number, generatedBy: Inv
 	const issuer = await getInvoiceIssuerConfig();
 
 	// Mismo criterio que invoice-pdf.ts: los precios ya incluyen ITBIS, así que el total NO le suma
-	// nada arriba de plan+overage — es la misma cifra que aparece como "Total" en el PDF.
+	// nada arriba de plan+overage — es la misma cifra que aparece como "Total" en el PDF. Centavos
+	// enteros (ver lib/money.ts).
 	const planDef = tenant.plan && isPlanCode(tenant.plan) ? PLANS[tenant.plan] : null;
-	const planPriceUSD = planDef?.priceUSD ?? 0;
-	const totalUSD = planPriceUSD + overage.totalUSD;
+	const planPriceCents = planDef?.priceCents ?? 0;
+	const totalCents = planPriceCents + overage.totalCents;
 
 	// La fila se crea EN PENDING antes de tocar el NCF o generar el PDF — así, si algo falla más
 	// abajo (PDF, disco, etc.), queda un rastro auditable (FAILED, con el NCF que se llegó a
@@ -48,9 +49,9 @@ export async function generateAndStoreInvoice(tenantId: number, generatedBy: Inv
 			invoiceNumber: '',
 			billingPeriod,
 			planCode: tenant.plan,
-			planPriceUSD,
-			overageUSD: overage.totalUSD,
-			totalUSD,
+			planPriceCents,
+			overageCents: overage.totalCents,
+			totalCents,
 			generatedBy,
 			status: 'PENDING',
 		},

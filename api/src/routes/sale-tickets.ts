@@ -73,7 +73,7 @@ export function toPublicSaleTicket(saleTicket: any) {
 const listInclude = {
 	event: { select: { id: true, name: true } },
 	seat: { select: { name: true, area: { select: { name: true } } } },
-	ticket: { select: { name: true, price: true } },
+	ticket: { select: { name: true, priceCents: true } },
 	client: { select: { id: true, name: true, lastname: true, carnet: true, email: true } },
 };
 
@@ -137,10 +137,10 @@ saleTicketsRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res) 
 	// solo tiene sentido si ESTE ticket puntual participa de ese modelo (mismo criterio que
 	// public-event.component.ts, eventUsesAttendeeTypeTickets). Esta lectura en sí no decide cupo,
 	// así que puede quedar afuera de la transacción — lo que sí importa (contar invitados/registros
-	// existentes) se valida más abajo, DENTRO de la transacción serializable. price viaja acá para
-	// congelarlo en la venta (ver SaleTicket.priceUSD) — el precio ACTUAL en el momento de vender,
-	// no el que el ticket tenga después si alguien lo edita.
-	const ticketForAttendeeCheck = await prisma.ticket.findFirst({ where: { id: parsed.data.ticketId, tenantId }, select: { attendeeType: true, price: true } });
+	// existentes) se valida más abajo, DENTRO de la transacción serializable. priceCents viaja acá
+	// para congelarlo en la venta (ver SaleTicket.priceCents) — el precio ACTUAL en el momento de
+	// vender, no el que el ticket tenga después si alguien lo edita.
+	const ticketForAttendeeCheck = await prisma.ticket.findFirst({ where: { id: parsed.data.ticketId, tenantId }, select: { attendeeType: true, priceCents: true } });
 
 	try {
 		const saleTicket = await serializableTransaction(async (tx) => {
@@ -189,7 +189,7 @@ saleTicketsRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res) 
 					codeQR: randomUUID(),
 					userId: req.user!.userId,
 					tenantId,
-					priceUSD: ticketForAttendeeCheck?.price,
+					priceCents: ticketForAttendeeCheck?.priceCents,
 				},
 				include,
 			});
@@ -356,7 +356,7 @@ saleTicketsRouter.post('/bulk-import', asyncHandler(async (req: AuthenticatedReq
 						description: 'Importación masiva',
 						codeQR: randomUUID(),
 						tenantId,
-						priceUSD: ticket.price,
+						priceCents: ticket.priceCents,
 					},
 				});
 			});

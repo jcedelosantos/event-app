@@ -5,9 +5,10 @@ import { DecimalPipe } from '@angular/common';
 import { firstValueFrom } from 'rxjs';
 import { HttpErrorResponse } from '@angular/common/http';
 import { SignupEventService, BankInfo } from './services/signup-event.service';
-import { EVENT_PLANS, EVENT_OVERAGE_FEE_PER_PERSON_USD, EventPlanCode } from '../../shared/event-plans';
+import { EVENT_PLANS, EVENT_OVERAGE_FEE_PER_PERSON_CENTS, EventPlanCode } from '../../shared/event-plans';
 import { extractErrorMessage } from '../../utils/api-error';
 import { AuthService } from '../../core/services/auth.service';
+import { centsToDollars } from '../../shared/money';
 
 type Step = 'form' | 'payment' | 'bank-transfer' | 'pending-review' | 'entering' | 'done';
 
@@ -41,7 +42,7 @@ type Step = 'form' | 'payment' | 'bank-transfer' | 'pending-review' | 'entering'
 												(click)="form.controls.eventPlanCode.setValue(tier.code)"
 											>
 												<div class="fw-semibold">{{ tier.name }}</div>
-												<div class="small">USD {{ tier.priceUSD }} — pago único</div>
+												<div class="small">USD {{ centsToDollars(tier.priceCents) }} — pago único</div>
 											</button>
 										</div>
 									}
@@ -236,7 +237,9 @@ export class SignupEventComponent {
 	private readonly router = inject(Router);
 
 	tiers = EVENT_PLANS;
-	overageFee = EVENT_OVERAGE_FEE_PER_PERSON_USD;
+	readonly centsToDollars = centsToDollars;
+	// Dólares (no centavos) — se muestra directo en el template sin más conversión.
+	overageFee = centsToDollars(EVENT_OVERAGE_FEE_PER_PERSON_CENTS);
 	step = signal<Step>('form');
 	submitting = signal(false);
 	errorMessage = signal('');
@@ -261,8 +264,10 @@ export class SignupEventComponent {
 		adminPassword: this.fb.control('', [Validators.required, Validators.minLength(4)]),
 	});
 
+	// Devuelve dólares (no centavos) — se usa directo en el template y para calcular el equivalente
+	// en pesos (ver más abajo).
 	selectedTierPrice(): number {
-		return this.tiers.find((t) => t.code === this.form.controls.eventPlanCode.value)?.priceUSD ?? 0;
+		return centsToDollars(this.tiers.find((t) => t.code === this.form.controls.eventPlanCode.value)?.priceCents ?? 0);
 	}
 
 	dopAmount = computed(() => {

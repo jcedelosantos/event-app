@@ -647,7 +647,7 @@ publicRouter.post('/purchase', checkoutRateLimiter, asyncHandler(async (req, res
 						tenantId,
 						channel: 'PUBLIC',
 						attendeeType: 'SOCIO',
-						priceUSD: ticket.price,
+						priceCents: ticket.priceCents,
 					},
 					include,
 				});
@@ -710,7 +710,7 @@ publicRouter.post('/purchase', checkoutRateLimiter, asyncHandler(async (req, res
 								channel: 'PUBLIC',
 								attendeeType: 'INVITADO',
 								sponsorCarnet: clientData.carnet.trim(),
-								priceUSD: ticket.price,
+								priceCents: ticket.priceCents,
 							},
 							include,
 						}),
@@ -733,7 +733,7 @@ publicRouter.post('/purchase', checkoutRateLimiter, asyncHandler(async (req, res
 								tenantId,
 								channel: 'PUBLIC',
 								...(attendeeType ? { attendeeType, sponsorCarnet: attendeeType === 'INVITADO' ? sponsorCarnet?.trim() : null } : {}),
-								priceUSD: ticket.price,
+								priceCents: ticket.priceCents,
 							},
 							include,
 						}),
@@ -772,7 +772,7 @@ publicRouter.post('/purchase', checkoutRateLimiter, asyncHandler(async (req, res
 							userId: rootUser.id,
 							clientId: client!.id,
 							tenantId,
-							unitPriceUSD: mealProduct.price,
+							unitPriceCents: mealProduct.priceCents,
 						},
 					});
 					saleProductId = saleProduct.id;
@@ -996,7 +996,7 @@ publicRouter.post('/checkout/hold', checkoutRateLimiter, asyncHandler(async (req
 							paymentExpiresAt: expiresAt,
 							holdToken,
 							...(attendeeType ? { attendeeType, sponsorCarnet: attendeeType === 'INVITADO' ? sponsorCarnet?.trim() : null } : {}),
-							priceUSD: ticket.price,
+							priceCents: ticket.priceCents,
 						},
 					}),
 				),
@@ -1006,7 +1006,7 @@ publicRouter.post('/checkout/hold', checkoutRateLimiter, asyncHandler(async (req
 		res.status(201).json({
 			holdIds: saleTickets.map((s) => s.id),
 			holdToken,
-			totalUSD: ticket.price * seatIds.length,
+			totalCents: ticket.priceCents * seatIds.length,
 			expiresAt,
 		});
 		notifyIfOverageJustCrossed(tenantId, event.id, seatIds.length).catch((err) => console.error('No se pudo verificar aforo:', err));
@@ -1053,10 +1053,10 @@ publicRouter.post('/checkout/paypal/order', checkoutRateLimiter, asyncHandler(as
 	}
 
 	const tenantId = holds[0].tenantId;
-	const totalUSD = holds.reduce((sum, h) => sum + h.ticket.price, 0);
+	const totalCents = holds.reduce((sum, h) => sum + h.ticket.priceCents, 0);
 
 	try {
-		const { orderId } = await createPaypalOrder(tenantId, totalUSD, holds.map((h) => h.id).join(','));
+		const { orderId } = await createPaypalOrder(tenantId, totalCents, holds.map((h) => h.id).join(','));
 		await prisma.saleTicket.updateMany({ where: { id: { in: holds.map((h) => h.id) }, tenantId }, data: { paypalOrderId: orderId } });
 		res.json({ orderId });
 	} catch (err) {
@@ -1337,7 +1337,7 @@ publicRouter.post('/webhooks/whatsapp/:slug', asyncHandler(async (req, res) => {
 					description: '',
 					type: 'Normal',
 					count: t.count,
-					price: t.price,
+					priceCents: t.price,
 					eventId: event.id,
 					areaId: venue.areaId,
 					attendeeType: t.attendeeType,

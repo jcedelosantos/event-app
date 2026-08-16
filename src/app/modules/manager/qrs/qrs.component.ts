@@ -18,6 +18,7 @@ import { extractErrorMessage } from '../../../utils/api-error';
 import { eventDateKey, todayKey } from '../../../utils/dates';
 import { HttpErrorResponse } from '@angular/common/http';
 import * as bootstrap from "bootstrap";
+import { centsToDollars } from '../../../shared/money';
 
 type QrSortKey = 'carnet' | 'client' | 'event' | 'seat' | 'price';
 type ProductSortKey = 'carnet' | 'client' | 'date' | 'event' | 'product' | 'qty';
@@ -67,6 +68,7 @@ export class QrsComponent implements OnInit, AfterViewInit, OnDestroy {
   childrenService = inject(ChildrenService);
   private readonly eventsService = inject(EventsService);
   private readonly authService = inject(AuthService);
+  readonly centsToDollars = centsToDollars;
   private readonly route = inject(ActivatedRoute);
   private refreshTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -194,7 +196,7 @@ export class QrsComponent implements OnInit, AfterViewInit, OnDestroy {
       case 'client': return `${qr.client.name} ${qr.client.lastname}`;
       case 'event': return qr.event.name;
       case 'seat': return `${qr.seat.area.name} / ${qr.seat.name}`;
-      case 'price': return qr.priceUSD ?? qr.ticket.price;
+      case 'price': return qr.priceCents ?? qr.ticket.priceCents;
     }
   }
 

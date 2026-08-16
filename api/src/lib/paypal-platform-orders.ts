@@ -4,6 +4,7 @@
 // credenciales con getPlatformConfig() (PlatformSetting) en vez de credenciales por tenant.
 import { getPlatformConfig, PayPalBillingNotConfiguredError, PayPalBillingRequestError } from './paypal-billing';
 import { PayPalConfig, PayPalOrderStatus } from './paypal';
+import { centsToPayPalValue } from './money';
 
 const API_BASE: Record<PayPalConfig['mode'], string> = {
 	sandbox: 'https://api-m.sandbox.paypal.com',
@@ -27,7 +28,7 @@ async function getAccessToken(config: PayPalConfig): Promise<string> {
 // reference guarda el slug del tenant que se está dando de alta — sirve para reconciliar del lado
 // de PayPal, no se usa para resolver el tenant de vuelta (eso lo hace el frontend pasando
 // tenantId explícito a /signup-event/capture).
-export async function createPlatformOrder(amountUSD: number, reference: string): Promise<{ orderId: string }> {
+export async function createPlatformOrder(amountCents: number, reference: string): Promise<{ orderId: string }> {
 	const config = await getPlatformConfig();
 	const token = await getAccessToken(config);
 	const res = await fetch(`${API_BASE[config.mode]}/v2/checkout/orders`, {
@@ -35,7 +36,7 @@ export async function createPlatformOrder(amountUSD: number, reference: string):
 		headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
 		body: JSON.stringify({
 			intent: 'CAPTURE',
-			purchase_units: [{ reference_id: reference, amount: { currency_code: 'USD', value: amountUSD.toFixed(2) } }],
+			purchase_units: [{ reference_id: reference, amount: { currency_code: 'USD', value: centsToPayPalValue(amountCents) } }],
 		}),
 	});
 	if (!res.ok) {

@@ -10,6 +10,7 @@
 // después, esto no se entera ni se rompe).
 import { prisma } from './prisma';
 import { PayPalConfig } from './paypal';
+import { centsToPayPalValue } from './money';
 
 export class PayPalBillingNotConfiguredError extends Error {}
 export class PayPalBillingRequestError extends Error {}
@@ -164,7 +165,7 @@ export async function reviseSubscription(
 // solo cambia lo que paga alguien que se suscriba a este plan DE ACÁ EN ADELANTE. Migrar a los
 // suscriptores actuales al precio nuevo requeriría reviseSubscription por cada uno (que sí les
 // pide re-aprobar en PayPal) — deliberadamente NO se hace acá, es una decisión de negocio aparte.
-export async function updatePlanPricing(plan: PlanCode, priceUSD: number): Promise<void> {
+export async function updatePlanPricing(plan: PlanCode, priceCents: number): Promise<void> {
 	const config = await getPlatformConfig();
 	const token = await getAccessToken(config);
 	const res = await fetch(`${API_BASE[config.mode]}/v1/billing/plans/${getBillingPlanId(plan)}/update-pricing-schemes`, {
@@ -174,7 +175,7 @@ export async function updatePlanPricing(plan: PlanCode, priceUSD: number): Promi
 			pricing_schemes: [
 				{
 					billing_cycle_sequence: 1,
-					pricing_scheme: { fixed_price: { value: priceUSD.toFixed(2), currency_code: 'USD' } },
+					pricing_scheme: { fixed_price: { value: centsToPayPalValue(priceCents), currency_code: 'USD' } },
 				},
 			],
 		}),

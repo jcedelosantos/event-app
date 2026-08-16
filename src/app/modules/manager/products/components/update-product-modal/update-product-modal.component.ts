@@ -8,6 +8,7 @@ import { EventsService } from '../../../events/services/events.service';
 import { AuthService } from '../../../../../core/services/auth.service';
 import { extractErrorMessage } from '../../../../../utils/api-error';
 import { closeModal } from '../../../../../utils/modal';
+import { centsToDollars, dollarsToCents } from '../../../../../shared/money';
 
 @Component({
 	selector: 'app-update-product-modal',
@@ -159,7 +160,9 @@ export class UpdateProductModalComponent {
 			const defaultEventId = this.defaultEventId();
 			this.eventsService.getEvents().subscribe((events) => this.events.set(events));
 			if (current) {
-				this.form.patchValue({ ...current });
+				// El form muestra dólares (mejor UX que tipear centavos) — priceCents no calza por
+				// nombre con el control `price`, así que el spread de arriba no lo toca solo.
+				this.form.patchValue({ ...current, price: centsToDollars(current.priceCents) });
 			} else {
 				this.form.reset({ active: true, eventId: defaultEventId, isMealOfTheDay: false });
 			}
@@ -187,7 +190,7 @@ export class UpdateProductModalComponent {
 			variant: value.variant ?? '',
 			count: value.count!,
 			active: value.active!,
-			price: value.price!,
+			priceCents: dollarsToCents(value.price!),
 			isMealOfTheDay: value.isMealOfTheDay ?? false,
 		};
 

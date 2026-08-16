@@ -13,6 +13,7 @@ import { AccessPointsService } from '../access-points/services/access-points.ser
 import { AccessPointStatsResponse } from '../../../models/access-points/access-point';
 import { FlashEventModalComponent } from './components/flash-event-modal/flash-event-modal.component';
 import { AuthService } from '../../../core/services/auth.service';
+import { centsToDollars } from '../../../shared/money';
 
 // Una puerta "concentra" tráfico cuando se lleva más de este % de las entradas recientes del
 // evento — el umbral de "recientes" mínimas (ver GATE_ALERT_MIN_RECENT) evita que 1 de 1 escaneos
@@ -156,7 +157,7 @@ const LIVE_REFRESH_MS = 20_000;
 						<i class="bi bi-cash-stack stat-icon"></i>
 						<div>
 							<div class="stat-label">Ingresos totales</div>
-							<div class="stat-value">{{ totalRevenue() }} USD</div>
+							<div class="stat-value">{{ centsToDollars(totalRevenue()) }} USD</div>
 						</div>
 					</div>
 				</a>
@@ -227,7 +228,7 @@ const LIVE_REFRESH_MS = 20_000;
 								@for (sale of recentSales(); track sale.id) {
 									<li class="list-group-item d-flex justify-content-between align-items-center">
 										<span>{{ sale.event.name }} — {{ sale.client.name }} {{ sale.client.lastname }}</span>
-										<span class="badge text-bg-secondary">{{ sale.priceUSD ?? sale.ticket.price }} USD</span>
+										<span class="badge text-bg-secondary">{{ centsToDollars(sale.priceCents ?? sale.ticket.priceCents) }} USD</span>
 									</li>
 								}
 							</ul>
@@ -325,6 +326,7 @@ const LIVE_REFRESH_MS = 20_000;
 	changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class DashBoardComponent implements OnInit, OnDestroy {
+	readonly centsToDollars = centsToDollars;
 	private readonly eventsService = inject(EventsService);
 	private readonly qrService = inject(QRService);
 	private readonly productSalesService = inject(ProductSalesService);
@@ -414,9 +416,10 @@ export class DashBoardComponent implements OnInit, OnDestroy {
 			});
 	});
 
+	// Centavos enteros (ver shared/money.ts) — se convierte a dólares recién al mostrarse.
 	totalRevenue = computed(() => {
-		const ticketRevenue = this.saleTickets().reduce((sum, sale) => sum + (sale.priceUSD ?? sale.ticket?.price ?? 0), 0);
-		const productRevenue = this.saleProducts().reduce((sum, sale) => sum + (sale.unitPriceUSD ?? sale.product?.price ?? 0) * sale.quantity, 0);
+		const ticketRevenue = this.saleTickets().reduce((sum, sale) => sum + (sale.priceCents ?? sale.ticket?.priceCents ?? 0), 0);
+		const productRevenue = this.saleProducts().reduce((sum, sale) => sum + (sale.unitPriceCents ?? sale.product?.priceCents ?? 0) * sale.quantity, 0);
 		return ticketRevenue + productRevenue;
 	});
 
@@ -428,9 +431,9 @@ export class DashBoardComponent implements OnInit, OnDestroy {
 		const totals = new Map<string, number>();
 		for (const sale of this.saleTickets()) {
 			const label = sale.event?.name ?? 'Sin evento';
-			totals.set(label, (totals.get(label) ?? 0) + (sale.priceUSD ?? sale.ticket?.price ?? 0));
+			totals.set(label, (totals.get(label) ?? 0) + (sale.priceCents ?? sale.ticket?.priceCents ?? 0));
 		}
-		return Array.from(totals, ([label, value]) => ({ label, value }))
+		return Array.from(totals, ([label, value]) => ({ label, value: centsToDollars(value) }))
 			.sort((a, b) => b.value - a.value)
 			.slice(0, 6);
 	});
@@ -448,9 +451,9 @@ export class DashBoardComponent implements OnInit, OnDestroy {
 		const totals = new Map<string, number>();
 		for (const sale of this.saleProducts()) {
 			const label = sale.product?.name ?? 'Sin producto';
-			totals.set(label, (totals.get(label) ?? 0) + (sale.unitPriceUSD ?? sale.product?.price ?? 0) * sale.quantity);
+			totals.set(label, (totals.get(label) ?? 0) + (sale.unitPriceCents ?? sale.product?.priceCents ?? 0) * sale.quantity);
 		}
-		return Array.from(totals, ([label, value]) => ({ label, value }))
+		return Array.from(totals, ([label, value]) => ({ label, value: centsToDollars(value) }))
 			.sort((a, b) => b.value - a.value)
 			.slice(0, 6);
 	});
@@ -493,7 +496,11 @@ export class DashBoardComponent implements OnInit, OnDestroy {
 	// Tendencia mensual (últimos 12 meses con datos) — a diferencia de los gráficos de arriba, que
 	// ordenan por valor descendente, estos se ordenan cronológicamente a propósito: el objetivo es
 	// ver evolución en el tiempo, no un ranking.
-	monthlyRevenueTrend = computed<BarChartItem[]>(() => this.monthlyTotals((sale) => sale.priceUSD ?? sale.ticket?.price ?? 0));
+	// monthlyTotals suma en centavos (ver reducer) — se convierte a dólares recién al construir los
+	// items del gráfico, nunca antes.
+	monthlyRevenueTrend = computed<BarChartItem[]>(() =>
+		this.monthlyTotals((sale) => sale.priceCents ?? sale.ticket?.priceCents ?? 0).map((item) => ({ ...item, value: centsToDollars(item.value) })),
+	);
 	monthlyTicketsTrend = computed<BarChartItem[]>(() => this.monthlyTotals(() => 1));
 	monthsWithSalesCount = computed(() => new Set(this.saleTickets().map((s) => this.monthKey(new Date(s.dateSold)))).size);
 

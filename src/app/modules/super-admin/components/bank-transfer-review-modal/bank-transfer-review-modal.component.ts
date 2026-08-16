@@ -4,6 +4,7 @@ import { PendingReceiptTenant, SignupEventAdminService } from '../../services/si
 import { EVENT_PLANS } from '../../../../shared/event-plans';
 import { extractErrorMessage } from '../../../../utils/api-error';
 import { closeModal } from '../../../../utils/modal';
+import { centsToDollars } from '../../../../shared/money';
 
 @Component({
 	selector: 'app-bank-transfer-review-modal',
@@ -60,8 +61,9 @@ export class BankTransferReviewModalComponent {
 		return EVENT_PLANS.find((t) => t.code === plan)?.name ?? plan;
 	}
 
+	// Devuelve dólares (no centavos) — se muestra directo en el template.
 	tierPrice(plan: string): number {
-		return EVENT_PLANS.find((t) => t.code === plan)?.priceUSD ?? 0;
+		return centsToDollars(EVENT_PLANS.find((t) => t.code === plan)?.priceCents ?? 0);
 	}
 
 	review(approve: boolean) {

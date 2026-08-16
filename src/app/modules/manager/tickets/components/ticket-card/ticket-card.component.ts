@@ -4,6 +4,7 @@ import JsBarcode /* , { Options as jsBarcodeOptions } */ from 'jsbarcode';
 import { NgClass } from '@angular/common';
 import { Ticket } from '../../../../../models/tickets/ticket';
 import { AuthService } from '../../../../../core/services/auth.service';
+import { centsToDollars } from '../../../../../shared/money';
 
 @Component({
 	selector: 'ticket-card',
@@ -43,7 +44,7 @@ import { AuthService } from '../../../../../core/services/auth.service';
 						<span [class.text-danger]="ticket().count <= 0" [class.text-warning]="ticket().count > 0 && ticket().count <= lowStockThreshold" [class.text-body-secondary]="ticket().count > lowStockThreshold">
 							<i class="bi bi-ticket"></i> {{ ticket().count <= 0 ? 'Agotado' : ticket().count + ' en stock' }}
 						</span>
-						<span class="text-body-secondary"><i class="bi bi-currency-dollar"></i>{{ ticket().price }}</span>
+						<span class="text-body-secondary"><i class="bi bi-currency-dollar"></i>{{ centsToDollars(ticket().priceCents) }}</span>
 					</div>
 					@if (ticket().seatsTotal) {
 						<div class="progress stock-progress mb-1" role="progressbar" [attr.aria-valuenow]="ticket().seatsAvailable" aria-valuemin="0" [attr.aria-valuemax]="ticket().seatsTotal">
@@ -66,6 +67,7 @@ import { AuthService } from '../../../../../core/services/auth.service';
 })
 export class TicketCardComponent implements AfterViewInit {
 	private readonly authService = inject(AuthService);
+	readonly centsToDollars = centsToDollars;
 
 	ticket = input.required<Ticket>();
 	selectedTicket = output<Ticket | null>();

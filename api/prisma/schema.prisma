@@ -105,8 +105,10 @@ model Subscription {
   // Overage calculado (asistentes reales de un evento por encima del cupo del plan) todavía sin
   // cobrar — PayPal Subscriptions no permite cobrar un monto variable arriba de una suscripción
   // sin permisos de "Reference Transactions" (nivel partner). Se acumula acá y se factura aparte
-  // hasta que eso se resuelva; ver middleware/plan.ts para el cálculo.
-  pendingOverageUSD    Float     @default(0)
+  // hasta que eso se resuelva; ver middleware/plan.ts para el cálculo. Centavos enteros, no
+  // dólares (ver lib/money.ts) — campo sin lectores/escritores reales hoy, se mantiene consistente
+  // con el resto de los montos del schema.
+  pendingOverageCents  Int       @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -140,9 +142,11 @@ model Invoice {
   ncf           String? // comprobante fiscal de DGII — null si el Super Admin no configuró el rango al momento de emitir, o si la emisión falló antes de consumirlo
   billingPeriod String // "2026-08", el mes que factura (no necesariamente el mes en que se generó)
   planCode      String?
-  planPriceUSD  Float
-  overageUSD    Float    @default(0)
-  totalUSD      Float // planPriceUSD + overageUSD + ITBIS
+  // Centavos enteros, no dólares (ver lib/money.ts) — evita el drift de redondeo float al sumar
+  // plan+overage+ITBIS que antes podía dejar el total de la factura un centavo desalineado.
+  planPriceCents Int
+  overageCents   Int      @default(0)
+  totalCents     Int // planPriceCents + overageCents + ITBIS
   // pdfUrl solo se completa en status GENERATED — la fila SIEMPRE se crea primero en PENDING
   // (antes de tocar el NCF), así que un NCF consumido por una emisión que falla después (PDF,
   // disco, etc.) queda registrado en una fila FAILED en vez de perderse como un hueco silencioso
@@ -507,7 +511,8 @@ model Ticket {
   type        String
   count       Int
   active      Boolean @default(true)
-  price       Float
+  // Centavos enteros, no dólares (ver lib/money.ts).
+  priceCents  Int
 
   eventId Int
   event   Event @relation(fields: [eventId], references: [id])
@@ -544,7 +549,8 @@ model Product {
   variant     String  @default("")
   count       Int
   active      Boolean @default(true)
-  price       Float
+  // Centavos enteros, no dólares (ver lib/money.ts).
+  priceCents  Int
 
   eventId Int
   event   Event @relation(fields: [eventId], references: [id])
@@ -592,11 +598,11 @@ model SaleProduct {
 
   // Precio unitario CONGELADO al momento de esta venta (multiplicar por quantity para el total) —
   // sin esto, cualquier reporte/dashboard que mostrara ingresos históricos en realidad leía
-  // product.price ACTUAL, así que cambiar el precio de un producto reescribía en silencio el
+  // product.priceCents ACTUAL, así que cambiar el precio de un producto reescribía en silencio el
   // ingreso de ventas viejas. null = venta de antes de este campo, sin dato histórico real
   // disponible (los lugares que lo leen caen de vuelta al precio actual del producto solo para
-  // esos casos, best-effort).
-  unitPriceUSD Float?
+  // esos casos, best-effort). Centavos enteros, no dólares (ver lib/money.ts).
+  unitPriceCents Int?
 
   @@index([tenantId])
 }
@@ -672,12 +678,12 @@ model SaleTicket {
   accessPointId Int?
   accessPoint   AccessPoint? @relation(fields: [accessPointId], references: [id], onDelete: SetNull)
 
-  // Precio CONGELADO al momento de esta venta — mismo motivo que SaleProduct.unitPriceUSD: sin
-  // esto, el ingreso histórico mostrado en dashboard/reportes en realidad leía ticket.price ACTUAL,
-  // así que cambiar el precio de un tipo de ticket reescribía en silencio el ingreso de ventas
-  // viejas. null = venta de antes de este campo (sin dato histórico real, cae de vuelta al precio
-  // actual del ticket solo en esos casos).
-  priceUSD Float?
+  // Precio CONGELADO al momento de esta venta — mismo motivo que SaleProduct.unitPriceCents: sin
+  // esto, el ingreso histórico mostrado en dashboard/reportes en realidad leía ticket.priceCents
+  // ACTUAL, así que cambiar el precio de un tipo de ticket reescribía en silencio el ingreso de
+  // ventas viejas. null = venta de antes de este campo (sin dato histórico real, cae de vuelta al
+  // precio actual del ticket solo en esos casos). Centavos enteros, no dólares (ver lib/money.ts).
+  priceCents Int?
 
   // Un mismo asiento no se puede vender dos veces para el mismo evento.
   @@unique([eventId, seatId])

@@ -49,7 +49,8 @@ export type PublicTicket = {
 	id: number;
 	name: string;
 	type: string;
-	price: number;
+	// Centavos enteros, no dólares (ver shared/money.ts).
+	priceCents: number;
 	description: string;
 	areaId: number | null;
 	count: number;
@@ -139,7 +140,7 @@ export type CheckoutHoldInput = {
 
 // `holdToken` ata este hold al comprador que lo creó — hay que devolverlo junto con `holdIds` en
 // createPaypalOrder para probar que es el mismo comprador (ver schema.prisma SaleTicket.holdToken).
-export type CheckoutHoldResult = { holdIds: number[]; holdToken: string; totalUSD: number; expiresAt: string };
+export type CheckoutHoldResult = { holdIds: number[]; holdToken: string; totalCents: number; expiresAt: string };
 export type PaypalOrderResult = { orderId: string };
 // Sin `children` a propósito — el checkout con pago no soporta registro de hijos (ver
 // CheckoutHoldInput / public.ts).
@@ -149,7 +150,7 @@ export type PurchasedSaleTicket = {
 	id: number;
 	codeQR: string;
 	seat: { name: string; area: { name: string } };
-	ticket: { name: string; type: string; price: number };
+	ticket: { name: string; type: string; priceCents: number };
 };
 
 export type PurchasedChild = { id: number; name: string; codeQR: string };

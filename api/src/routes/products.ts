@@ -22,7 +22,7 @@ const productInputSchema = z.object({
 	variant: z.string().optional().default(''),
 	count: z.coerce.number().int(),
 	active: z.boolean().optional().default(true),
-	price: z.coerce.number(),
+	priceCents: z.coerce.number().int(),
 	eventId: z.number().int(),
 	// Solo tiene efecto en tenants CHURCH — ver children.ts/public.ts, que buscan el producto
 	// isMealOfTheDay del evento para descontar stock al registrar la comida de un hijo.
@@ -97,7 +97,7 @@ const bulkImportSchema = z.object({
 				type: z.string().optional().default(''),
 				variant: z.string().optional().default(''),
 				count: z.coerce.number().int().optional().default(0),
-				price: z.coerce.number().optional().default(0),
+				priceCents: z.coerce.number().int().optional().default(0),
 				img: z.string().optional().default(''),
 			}),
 		)
@@ -136,7 +136,7 @@ productsRouter.post('/bulk-import', asyncHandler(async (req: AuthenticatedReques
 					type: row.type,
 					variant: row.variant,
 					count: row.count,
-					price: row.price,
+					priceCents: row.priceCents,
 					img: row.img,
 					active: true,
 					eventId,

@@ -12,7 +12,8 @@ export type ProductInput = {
 	variant?: string;
 	count: number;
 	active?: boolean;
-	price: number;
+	// Centavos enteros, no dólares (ver shared/money.ts).
+	priceCents: number;
 	eventId: number;
 	isMealOfTheDay?: boolean;
 };
@@ -23,7 +24,7 @@ export type BulkImportProductRow = {
 	type: string;
 	variant: string;
 	count: number;
-	price: number;
+	priceCents: number;
 	img: string;
 };
 

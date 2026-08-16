@@ -73,7 +73,7 @@ platformSettingsRouter.put('/:key', asyncHandler(async (req, res) => {
 	res.json({ ok: true });
 }));
 
-// Empuja los priceUSD de api/src/lib/plans.ts (fuente de verdad) a los Billing Plans YA CREADOS
+// Empuja los priceCents de api/src/lib/plans.ts (fuente de verdad) a los Billing Plans YA CREADOS
 // en la cuenta real de PayPal — uno por uno, para poder reportar cuál falló sin que un error corte
 // a los demás. Deliberadamente NO toca las suscripciones activas (ver comentario en
 // updatePlanPricing): esto solo cambia lo que paga alguien que se suscriba de acá en adelante.
@@ -83,7 +83,7 @@ platformSettingsRouter.post(
 		const results: Record<PlanCode, { ok: boolean; error?: string }> = {} as any;
 		for (const code of Object.keys(PLANS) as PlanCode[]) {
 			try {
-				await updatePlanPricing(code, PLANS[code].priceUSD);
+				await updatePlanPricing(code, PLANS[code].priceCents);
 				results[code] = { ok: true };
 			} catch (err) {
 				results[code] = { ok: false, error: err instanceof Error ? err.message : String(err) };

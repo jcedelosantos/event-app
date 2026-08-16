@@ -6,6 +6,7 @@ import { Events } from '../../../../../models/events/events';
 import { EventsService } from '../../../events/services/events.service';
 import { extractErrorMessage } from '../../../../../utils/api-error';
 import { parseCsv, pickColumn } from '../../../../../utils/csv';
+import { centsToDollars, dollarsToCents } from '../../../../../shared/money';
 
 @Component({
 	selector: 'import-products-modal',
@@ -55,7 +56,7 @@ import { parseCsv, pickColumn } from '../../../../../utils/csv';
 													<td>{{ row.type || '—' }}</td>
 													<td>{{ row.variant || '—' }}</td>
 													<td>{{ row.count }}</td>
-													<td>{{ row.price }}</td>
+													<td>{{ centsToDollars(row.priceCents) }}</td>
 												</tr>
 											}
 										</tbody>
@@ -101,6 +102,7 @@ export class ImportProductsModalComponent implements OnInit {
 	private readonly fb = inject(FormBuilder);
 	private readonly productsService = inject(ProductsService);
 	private readonly eventsService = inject(EventsService);
+	readonly centsToDollars = centsToDollars;
 
 	imported = output<number>();
 
@@ -149,7 +151,9 @@ export class ImportProductsModalComponent implements OnInit {
 						type: pickColumn(row, 'TIPO', 'tipo', 'type'),
 						variant: pickColumn(row, 'VARIANTE', 'variante', 'variant'),
 						count: Number(pickColumn(row, 'CANTIDAD', 'cantidad', 'count', 'stock')) || 0,
-						price: Number(pickColumn(row, 'PRECIO', 'precio', 'price')) || 0,
+						// La columna PRECIO del CSV trae dólares (lo que carga la persona en la planilla) —
+						// se convierte a centavos acá, en el único lugar donde se parsea ese valor crudo.
+						priceCents: dollarsToCents(Number(pickColumn(row, 'PRECIO', 'precio', 'price')) || 0),
 						img: pickColumn(row, 'IMG', 'IMAGEN', 'img', 'image'),
 					}))
 					.filter((row) => row.name);

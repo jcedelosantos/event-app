@@ -83,9 +83,9 @@ saleProductsRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res)
 		return;
 	}
 
-	// Se congela en la venta (ver SaleProduct.unitPriceUSD) — el precio ACTUAL en el momento de
+	// Se congela en la venta (ver SaleProduct.unitPriceCents) — el precio ACTUAL en el momento de
 	// vender, no el que el producto tenga después si alguien lo edita.
-	const productForPrice = await prisma.product.findFirst({ where: { id: parsed.data.productId, tenantId }, select: { price: true } });
+	const productForPrice = await prisma.product.findFirst({ where: { id: parsed.data.productId, tenantId }, select: { priceCents: true } });
 
 	try {
 		const saleProduct = await prisma.$transaction(async (tx) => {
@@ -105,7 +105,7 @@ saleProductsRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res)
 					codeQR: randomUUID(),
 					userId: req.user!.userId,
 					tenantId,
-					unitPriceUSD: productForPrice?.price,
+					unitPriceCents: productForPrice?.priceCents,
 				},
 				include,
 			});

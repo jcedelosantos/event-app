@@ -13,9 +13,9 @@ export type SubscriptionInfo = {
 	currentPeriodEnd: string | null;
 } | null;
 
-export type EventOverage = { eventId: number; eventName: string; soldCount: number; included: number; overageCount: number; overageUSD: number };
+export type EventOverage = { eventId: number; eventName: string; soldCount: number; included: number; overageCount: number; overageCents: number };
 
-export type TenantSubscriptionDetail = { subscription: SubscriptionInfo; overage: { totalUSD: number; events: EventOverage[] } };
+export type TenantSubscriptionDetail = { subscription: SubscriptionInfo; overage: { totalCents: number; events: EventOverage[] } };
 
 export type CreateTenantInput = {
 	name: string;

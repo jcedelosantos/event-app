@@ -21,6 +21,7 @@ import { AuthService } from '../../core/services/auth.service';
 import { confirm, error } from '../../utils/messages';
 import { extractErrorMessage } from '../../utils/api-error';
 import { HttpErrorResponse } from '@angular/common/http';
+import { centsToDollars } from '../../shared/money';
 
 const REQUEST_STATUS_LABEL: Record<ServiceRequestStatus, string> = {
 	PENDING: 'Pendiente',
@@ -396,8 +397,9 @@ export class SuperAdminComponent implements AfterViewInit {
 		return EVENT_PLANS.find((t) => t.code === plan)?.name ?? PRICING_PLANS.find((p) => p.code === plan)?.name ?? plan;
 	}
 
+	// Devuelve dólares (no centavos) — se muestra directo en el template.
 	tierPrice(plan: string): number {
-		return EVENT_PLANS.find((t) => t.code === plan)?.priceUSD ?? PRICING_PLANS.find((p) => p.code === plan)?.priceUSD ?? 0;
+		return centsToDollars(EVENT_PLANS.find((t) => t.code === plan)?.priceCents ?? PRICING_PLANS.find((p) => p.code === plan)?.priceCents ?? 0);
 	}
 
 	loadServiceRequests() {

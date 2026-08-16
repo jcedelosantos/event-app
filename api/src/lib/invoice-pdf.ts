@@ -1,8 +1,10 @@
 import PDFDocument from 'pdfkit';
 import path from 'node:path';
 import fs from 'node:fs';
-import { PLANS, isPlanCode } from './plans';
+import { PLANS, OVERAGE_FEE_PER_PERSON_CENTS, isPlanCode } from './plans';
+import { EVENT_OVERAGE_FEE_PER_PERSON_CENTS, isEventPlanCode } from './event-plans';
 import { uploadsDir } from './uploads';
+import { formatUSD } from './money';
 import type { EventOverage } from './overage';
 import type { InvoiceIssuerConfig } from './invoice-config';
 
@@ -10,7 +12,7 @@ export type InvoiceInput = {
 	tenant: { name: string; slug: string; rnc: string | null; address: string | null; phone: string | null };
 	plan: string | null;
 	subscription: { currentPeriodEnd: Date | null } | null;
-	overage: { totalUSD: number; events: EventOverage[] };
+	overage: { totalCents: number; events: EventOverage[] };
 	invoiceNumber: string; // referencia interna de seat-app — siempre existe
 	ncf: string | null; // comprobante fiscal real de DGII — null si el Super Admin no configuró el rango
 	issuedAt: Date;
@@ -22,10 +24,6 @@ export type InvoiceInput = {
 // Dominicana, 18% sobre el subtotal de servicios. Ver la factura modelo (CNaco_B0100000506.pdf)
 // que definió este formato.
 const ITBIS_RATE = 0.18;
-
-function formatUSD(amount: number): string {
-	return `USD ${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
 
 // timeZone explícito: el server (Railway) corre en UTC, así que sin esto una fecha generada de
 // noche en RD (UTC-4) puede mostrar el día siguiente — mismo gotcha de fechas UTC ya visto en jsPDF.
@@ -200,26 +198,32 @@ export function buildInvoicePdf(input: InvoiceInput): Promise<Buffer> {
 		}
 
 		tableHeader();
-		const planPrice = planDef?.priceUSD ?? 0;
+		const planPriceCents = planDef?.priceCents ?? 0;
 		const periodLabel = input.issuedAt.toLocaleDateString('es-DO', { month: 'long', year: 'numeric', timeZone: 'America/Santo_Domingo' });
 		tableRow(
 			`Suscripción — Plan ${planDef?.name ?? input.plan ?? 'Sin plan'}`,
 			`Corresponde a ${periodLabel}.`,
 			'1',
-			formatUSD(planPrice),
-			formatUSD(planPrice),
+			formatUSD(planPriceCents),
+			formatUSD(planPriceCents),
 		);
 
-		let overageTotal = 0;
+		// Antes esta tarifa estaba hardcodeada acá (formatUSD(0.6)) en vez de leerse de la misma
+		// constante que hace el cálculo real (lib/overage.ts) — si la tarifa cambiaba, la factura
+		// mostraba un precio unitario que ya no era el real.
+		const feePerPersonCents =
+			input.plan && isPlanCode(input.plan) ? OVERAGE_FEE_PER_PERSON_CENTS : input.plan && isEventPlanCode(input.plan) ? EVENT_OVERAGE_FEE_PER_PERSON_CENTS : 0;
+
+		let overageTotalCents = 0;
 		for (const ev of input.overage.events) {
 			tableRow(
 				`Exceso de aforo — ${ev.eventName}`,
 				`${ev.overageCount} persona(s) por encima del cupo del plan (${ev.included}).`,
 				String(ev.overageCount),
-				formatUSD(0.6),
-				formatUSD(ev.overageUSD),
+				formatUSD(feePerPersonCents),
+				formatUSD(ev.overageCents),
 			);
-			overageTotal += ev.overageUSD;
+			overageTotalCents += ev.overageCents;
 		}
 
 		doc.moveDown(0.3);
@@ -247,13 +251,15 @@ export function buildInvoicePdf(input: InvoiceInput): Promise<Buffer> {
 		// incluyen ITBIS — antes esto le sumaba 18% ARRIBA de esos montos, dejando el total de la
 		// factura por encima de lo que el cliente realmente paga. Se calcula la porción de impuesto
 		// que ya va DENTRO del total (igual que un recibo con IVA incluido), no se agrega nada.
-		const total = planPrice + overageTotal;
-		const itbis = Math.round((total - total / (1 + ITBIS_RATE)) * 100) / 100;
-		const subtotal = total - itbis;
-		totalsRow('Subtotal', formatUSD(subtotal));
-		totalsRow(`ITBIS incluido (${Math.round(ITBIS_RATE * 100)}%)`, formatUSD(itbis));
+		// totalCents/itbisCents/subtotalCents son centavos enteros — el único Math.round que queda
+		// es genuino (dividir por 1.18 no da un entero exacto), no el redondeo doble de antes.
+		const totalCents = planPriceCents + overageTotalCents;
+		const itbisCents = Math.round(totalCents - totalCents / (1 + ITBIS_RATE));
+		const subtotalCents = totalCents - itbisCents;
+		totalsRow('Subtotal', formatUSD(subtotalCents));
+		totalsRow(`ITBIS incluido (${Math.round(ITBIS_RATE * 100)}%)`, formatUSD(itbisCents));
 		doc.moveDown(0.15);
-		totalsRow('Total', formatUSD(total), { bold: true });
+		totalsRow('Total', formatUSD(totalCents), { bold: true });
 		const totalsBottom = doc.y;
 
 		doc.y = Math.max(payBottom, totalsBottom) + 10;
@@ -264,8 +270,8 @@ export function buildInvoicePdf(input: InvoiceInput): Promise<Buffer> {
 		// único que puede seguir pendiente de cobro es el overage (se factura aparte a mano, ver nota
 		// al pie). Sin overage, la factura queda saldada; con overage, el saldo es SOLO esa parte, no
 		// el total (la parte del plan ya está paga).
-		const dueUSD = overageTotal;
-		const isPaid = dueUSD <= 0;
+		const dueCents = overageTotalCents;
+		const isPaid = dueCents <= 0;
 		const saldoY = doc.y;
 		const saldoHeight = 28;
 		const saldoBoxX = left + contentWidth * 0.45;
@@ -278,7 +284,7 @@ export function buildInvoicePdf(input: InvoiceInput): Promise<Buffer> {
 			.font('Helvetica-Bold')
 			.fontSize(13)
 			.fillColor('#2e7d32')
-			.text(isPaid ? 'Pagado' : formatUSD(dueUSD), saldoAmountX, saldoY + 6, { width: saldoBoxX + saldoBoxW - saldoAmountX - 15, align: 'right' });
+			.text(isPaid ? 'Pagado' : formatUSD(dueCents), saldoAmountX, saldoY + 6, { width: saldoBoxX + saldoBoxW - saldoAmountX - 15, align: 'right' });
 		doc.y = saldoY + saldoHeight;
 
 		doc.moveDown(1.5);

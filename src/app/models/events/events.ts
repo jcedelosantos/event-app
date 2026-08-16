@@ -60,5 +60,5 @@ export interface EventOverage {
 	soldCount: number;
 	included: number;
 	overageCount: number;
-	overageUSD: number;
+	overageCents: number;
 }
