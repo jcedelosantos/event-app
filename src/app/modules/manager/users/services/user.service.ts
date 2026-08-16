@@ -4,7 +4,7 @@ import { Observable } from 'rxjs';
 import { User } from '../../../../models/users/user';
 import { environment } from '../../../../../environments/environment';
 
-export type UserTypeCode = 'ROOT' | 'USER' | 'CLIENT';
+export type UserTypeCode = 'ROOT' | 'USER' | 'CLIENT' | 'SCANNER';
 
 export type UserInput = {
 	username: string;
@@ -17,6 +17,9 @@ export type UserInput = {
 	adress: string;
 	phone: string;
 	userType: UserTypeCode;
+	// Solo tiene efecto (y se exige del lado de la API) cuando userType === 'SCANNER' — ver
+	// User.scannerEventId en la API.
+	scannerEventId?: number | null;
 };
 
 @Injectable({

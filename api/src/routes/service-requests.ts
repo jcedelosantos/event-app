@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { prisma, prismaUnscoped } from '../lib/prisma';
-import { requireAuth, requireTenant, requireSuperAdmin, AuthenticatedRequest } from '../middleware/auth';
+import { requireAuth, requireTenant, requireSuperAdmin, blockScannerRole, AuthenticatedRequest } from '../middleware/auth';
 import { requireActiveSubscription } from '../middleware/plan';
 import { asyncHandler } from '../lib/async-handler';
 import { logAudit } from '../lib/audit';
@@ -40,6 +40,7 @@ serviceRequestsRouter.post(
 	'/',
 	requireAuth,
 	requireTenant,
+	blockScannerRole,
 	requireActiveSubscription,
 	asyncHandler(async (req: AuthenticatedRequest, res) => {
 		const parsed = createInputSchema.safeParse(req.body);
@@ -117,6 +118,7 @@ serviceRequestsRouter.get(
 	'/',
 	requireAuth,
 	requireTenant,
+	blockScannerRole,
 	asyncHandler(async (req: AuthenticatedRequest, res) => {
 		const tenantId = req.user!.tenantId!;
 		const requests = await prisma.serviceRequest.findMany({ where: { tenantId }, include, orderBy: { createdAt: 'desc' } });
@@ -131,6 +133,7 @@ serviceRequestsRouter.put(
 	'/:id',
 	requireAuth,
 	requireTenant,
+	blockScannerRole,
 	requireActiveSubscription,
 	asyncHandler(async (req: AuthenticatedRequest, res) => {
 		const id = Number(req.params.id);

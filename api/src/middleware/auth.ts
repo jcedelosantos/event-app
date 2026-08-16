@@ -49,3 +49,18 @@ export function requireSuperAdmin(req: AuthenticatedRequest, res: Response, next
 	}
 	next();
 }
+
+// Un usuario tipo SCANNER (ver User.scannerEventId) solo puede escanear — se agrega al `.use()` de
+// CUALQUIER router de negocio que un scanner no deba tocar en absoluto (Events, Maps, Users, Sale,
+// Settings, etc.). scan.ts NUNCA la usa (es exactamente lo que sí puede hacer); access-points.ts la
+// usa por-ruta en vez de a nivel router porque GET / sí queda permitido (lo necesita el selector de
+// puerta del scanner, ver qr-scanner.component.ts). No hace falta chequear el evento asignado
+// acá — eso lo valida scan.ts mismo contra scannerEventId, esta función solo cierra el resto de
+// la API.
+export function blockScannerRole(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+	if (req.user?.userType === 'SCANNER') {
+		res.status(403).json({ error: 'Tu usuario solo puede escanear tickets — no tiene acceso a esta sección.' });
+		return;
+	}
+	next();
+}

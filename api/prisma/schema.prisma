@@ -203,6 +203,12 @@ model User {
   childrenRegistered  Child[]       @relation("ChildParent")
   serviceRequestsMade ServiceRequest[]
 
+  // Solo tiene sentido para type.type === 'SCANNER' (ver routes/users.ts) — un usuario de este rol
+  // queda restringido a escanear ÚNICAMENTE los tickets/productos/hijos de ESTE evento (ver
+  // middleware/auth.ts blockScannerRole y routes/scan.ts). null para cualquier otro tipo de usuario.
+  scannerEventId Int?
+  scannerEvent   Event? @relation("ScannerAssignedEvent", fields: [scannerEventId], references: [id])
+
   @@unique([tenantId, email])
 }
 
@@ -333,6 +339,9 @@ model Event {
   children        Child[]
   accessPoints    AccessPoint[]
   serviceRequests ServiceRequest[]
+  // Back-relation de User.scannerEventId (ver ese campo) — nunca se recorre desde acá, existe solo
+  // porque Prisma exige declarar los dos lados de la relación.
+  scannerUsers    User[]           @relation("ScannerAssignedEvent")
 
   @@index([tenantId, duplicateGroupKey])
 }

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { prisma } from '../lib/prisma';
-import { requireAuth, requireTenant, AuthenticatedRequest } from '../middleware/auth';
+import { requireAuth, requireTenant, blockScannerRole, AuthenticatedRequest } from '../middleware/auth';
 import { asyncHandler } from '../lib/async-handler';
 
 // De solo lectura a propósito — el tenant NUNCA genera su propia factura (eso sigue siendo
@@ -8,7 +8,7 @@ import { asyncHandler } from '../lib/async-handler';
 // se le emitió. Sin requireActiveSubscription: un tenant en modo consulta (EVENT_ENDED,
 // PENDING_REVIEW, etc.) igual tiene que poder ver/descargar sus facturas viejas.
 export const invoicesRouter = Router();
-invoicesRouter.use(requireAuth, requireTenant);
+invoicesRouter.use(requireAuth, requireTenant, blockScannerRole);
 
 invoicesRouter.get('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const tenantId = req.user!.tenantId!;

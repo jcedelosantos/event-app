@@ -42,6 +42,14 @@ async function main() {
 		update: {},
 		create: { name: 'Super Admin', description: 'Super Admin', type: 'SUPERADMIN', license: JSON.stringify(['*']) },
 	});
+	// Rol restringido a escanear un solo evento (ver User.scannerEventId, middleware/auth.ts
+	// blockScannerRole) — en producción esta fila la inserta la migración
+	// 20260816044500_add_scanner_role, no este seed.
+	await prisma.userType.upsert({
+		where: { id: 5 },
+		update: {},
+		create: { name: 'Escáner', description: 'Scanner', type: 'SCANNER', license: JSON.stringify(['SCAN']) },
+	});
 
 	const hashedAdmin = await bcrypt.hash('1234', 10);
 	const hashedUser = await bcrypt.hash('1234', 10);

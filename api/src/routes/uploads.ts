@@ -1,11 +1,11 @@
 import { Router } from 'express';
-import { requireAuth, requireTenant } from '../middleware/auth';
+import { requireAuth, requireTenant, blockScannerRole } from '../middleware/auth';
 import { requireActiveSubscription } from '../middleware/plan';
 import { formatUploadError, imageUpload } from '../lib/uploads';
 import { asyncHandler } from '../lib/async-handler';
 
 export const uploadsRouter = Router();
-uploadsRouter.use(requireAuth, requireTenant, requireActiveSubscription);
+uploadsRouter.use(requireAuth, requireTenant, blockScannerRole, requireActiveSubscription);
 
 // Único endpoint de la API que no pasaba por asyncHandler (multer usa un callback, no una promesa) —
 // hoy es inofensivo porque no hay ningún `await` antes de responder, pero se envuelve igual para que

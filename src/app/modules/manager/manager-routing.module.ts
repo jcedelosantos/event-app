@@ -22,6 +22,7 @@ import { ServiceRequestsComponent } from './service-requests/service-requests.co
 import { EventWizardComponent } from './events/components/event-wizard/event-wizard.component';
 import { HelpComponent } from './help/help.component';
 import { activeSubscriptionGuard } from '../../core/guards/active-subscription.guard';
+import { scannerRoleGuard } from '../../core/guards/scanner-role.guard';
 
 const routes: Routes = [
 	{
@@ -37,86 +38,90 @@ const routes: Routes = [
 			{
 				path: 'dash-board',
 				component: DashBoardComponent,
-				canActivate: [activeSubscriptionGuard],
+				canActivate: [activeSubscriptionGuard, scannerRoleGuard],
 			},
 			{
 				path: 'maps',
 				component: MapsComponent,
-				canActivate: [activeSubscriptionGuard],
+				canActivate: [activeSubscriptionGuard, scannerRoleGuard],
 			},
 			{
 				path: 'maps/:id/areas',
 				component: AreasComponent,
-				canActivate: [activeSubscriptionGuard],
+				canActivate: [activeSubscriptionGuard, scannerRoleGuard],
 			},
 			{
 				path: 'maps/:id_map/areas/:id_area',
 				component: SeatsComponent,
-				canActivate: [activeSubscriptionGuard],
+				canActivate: [activeSubscriptionGuard, scannerRoleGuard],
 			},
 			{
 				path: 'events',
 				canActivate: [activeSubscriptionGuard],
 				children: [
-					{ path: '', component: EventsComponent },
-					{ path: 'wizard', component: EventWizardComponent },
+					// scannerRoleGuard va por-hijo acá, no en el padre 'events': qr-scanner es la ÚNICA
+					// pantalla que un usuario SCANNER puede usar (ver core/guards/scanner-role.guard.ts),
+					// el resto de este subárbol (lista de eventos, wizard) queda vedado igual que todo lo
+					// demás del manager.
+					{ path: '', component: EventsComponent, canActivate: [scannerRoleGuard] },
+					{ path: 'wizard', component: EventWizardComponent, canActivate: [scannerRoleGuard] },
 					{ path: 'qr-scanner', component: QrScannerComponent },
 				]
 			},
 			{
 				path: 'events/:id_event',
 				component: EventDetailsComponent,
-				canActivate: [activeSubscriptionGuard],
+				canActivate: [activeSubscriptionGuard, scannerRoleGuard],
 			},
 			{
 				path: 'tickets',
 				component: TicketsComponent,
-				canActivate: [activeSubscriptionGuard],
+				canActivate: [activeSubscriptionGuard, scannerRoleGuard],
 			},
 			{
 				path: 'users',
 				component: UsersComponent,
-				canActivate: [activeSubscriptionGuard],
+				canActivate: [activeSubscriptionGuard, scannerRoleGuard],
 			},
 			{
 				path: 'reports',
 				component: ReportsComponent,
-				canActivate: [activeSubscriptionGuard],
+				canActivate: [activeSubscriptionGuard, scannerRoleGuard],
 			},
 			{
 				path: 'history',
 				component: HistoryComponent,
-				canActivate: [activeSubscriptionGuard],
+				canActivate: [activeSubscriptionGuard, scannerRoleGuard],
 			},
 			{
 				path: 'settings',
 				component: SettingsComponent,
-				canActivate: [activeSubscriptionGuard],
+				canActivate: [activeSubscriptionGuard, scannerRoleGuard],
 			},
 			{
 				path: 'qrs',
 				component: QrsComponent,
-				canActivate: [activeSubscriptionGuard],
+				canActivate: [activeSubscriptionGuard, scannerRoleGuard],
 			},
 			{
 				path: 'products',
 				component: ProductsComponent,
-				canActivate: [activeSubscriptionGuard],
+				canActivate: [activeSubscriptionGuard, scannerRoleGuard],
 			},
 			{
 				path: 'invoices',
 				component: InvoicesComponent,
-				canActivate: [activeSubscriptionGuard],
+				canActivate: [activeSubscriptionGuard, scannerRoleGuard],
 			},
 			{
 				path: 'solicitudes',
 				component: ServiceRequestsComponent,
-				canActivate: [activeSubscriptionGuard],
+				canActivate: [activeSubscriptionGuard, scannerRoleGuard],
 			},
 			{
 				path: 'ayuda',
 				component: HelpComponent,
-				canActivate: [activeSubscriptionGuard],
+				canActivate: [activeSubscriptionGuard, scannerRoleGuard],
 			},
 			// {
 			//     path: 'event/:id',

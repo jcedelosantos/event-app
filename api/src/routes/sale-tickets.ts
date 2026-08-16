@@ -3,7 +3,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import bcrypt from 'bcryptjs';
 import { prisma } from '../lib/prisma';
-import { requireAuth, requireTenant, AuthenticatedRequest } from '../middleware/auth';
+import { requireAuth, requireTenant, blockScannerRole, AuthenticatedRequest } from '../middleware/auth';
 import { requireActiveSubscription } from '../middleware/plan';
 import { hasLicense } from '../middleware/license';
 import { toPublicUser } from '../lib/serialize';
@@ -20,7 +20,7 @@ import { serializableTransaction } from '../lib/serializable-tx';
 import { notifyIfOverageJustCrossed } from '../lib/overage';
 
 export const saleTicketsRouter = Router();
-saleTicketsRouter.use(requireAuth, requireTenant, requireActiveSubscription);
+saleTicketsRouter.use(requireAuth, requireTenant, blockScannerRole, requireActiveSubscription);
 
 class InsufficientStockError extends Error {}
 class CapacityExceededError extends Error {}

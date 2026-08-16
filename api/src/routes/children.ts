@@ -2,14 +2,14 @@ import { randomUUID } from 'node:crypto';
 import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
-import { requireAuth, requireTenant, AuthenticatedRequest } from '../middleware/auth';
+import { requireAuth, requireTenant, blockScannerRole, AuthenticatedRequest } from '../middleware/auth';
 import { requireActiveSubscription } from '../middleware/plan';
 import { asyncHandler } from '../lib/async-handler';
 import { toPublicUser } from '../lib/serialize';
 import { resolveFamilyCodeQR } from '../lib/family-code';
 
 export const childrenRouter = Router();
-childrenRouter.use(requireAuth, requireTenant, requireActiveSubscription);
+childrenRouter.use(requireAuth, requireTenant, blockScannerRole, requireActiveSubscription);
 
 class InsufficientStockError extends Error {}
 

@@ -2,16 +2,19 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
-import { requireAuth, requireTenant, AuthenticatedRequest } from '../middleware/auth';
+import { requireAuth, requireTenant, blockScannerRole, AuthenticatedRequest } from '../middleware/auth';
 import { requireActiveSubscription } from '../middleware/plan';
 import { toPublicUser } from '../lib/serialize';
 import { asyncHandler } from '../lib/async-handler';
 import { logAudit } from '../lib/audit';
 
 export const usersRouter = Router();
-usersRouter.use(requireAuth, requireTenant, requireActiveSubscription);
+usersRouter.use(requireAuth, requireTenant, blockScannerRole, requireActiveSubscription);
 
-const USER_TYPE_CODES = ['ROOT', 'USER', 'CLIENT'] as const;
+// SCANNER (ver User.scannerEventId, middleware/auth.ts blockScannerRole) queda restringido a
+// escanear un solo evento — a diferencia del resto de los tipos, requiere el campo extra
+// scannerEventId (ver validateScannerEventId más abajo).
+const USER_TYPE_CODES = ['ROOT', 'USER', 'CLIENT', 'SCANNER'] as const;
 
 const userInputSchema = z.object({
 	username: z.string().min(1),
@@ -29,7 +32,22 @@ const userInputSchema = z.object({
 	adress: z.string(),
 	phone: z.string(),
 	userType: z.enum(USER_TYPE_CODES),
+	// Solo se usa (y se exige) cuando userType === 'SCANNER' — ver validateScannerEventId.
+	scannerEventId: z.number().int().nullable().optional(),
 });
+
+// Devuelve el error a mostrar, o null si está todo bien. effectiveUserType es el tipo que el
+// usuario va a tener DESPUÉS de este request — en un PUT parcial que no toca userType, es el tipo
+// que ya tenía antes (lo resuelve el caller). Para SCANNER, scannerEventId es obligatorio y tiene
+// que ser un evento real de este tenant; para cualquier otro tipo, se ignora lo que se haya
+// mandado (nunca se persiste un scannerEventId huérfano en un usuario que no es SCANNER).
+async function validateScannerEventId(tenantId: number, effectiveUserType: string, scannerEventId: number | null | undefined): Promise<{ error: string } | { scannerEventId: number | null }> {
+	if (effectiveUserType !== 'SCANNER') return { scannerEventId: null };
+	if (scannerEventId == null) return { error: 'Un usuario tipo Escáner necesita un evento asignado.' };
+	const event = await prisma.event.findFirst({ where: { id: scannerEventId, tenantId }, select: { id: true } });
+	if (!event) return { error: 'El evento asignado no existe en esta organización.' };
+	return { scannerEventId };
+}
 
 usersRouter.get('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const tenantId = req.user!.tenantId!;
@@ -56,17 +74,22 @@ usersRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	}
 
 	const tenantId = req.user!.tenantId!;
-	const { userType, password, ...data } = parsed.data;
+	const { userType, password, scannerEventId, ...data } = parsed.data;
 	const type = await prisma.userType.findFirst({ where: { type: userType } });
 	if (!type) {
 		res.status(400).json({ error: `Tipo de usuario desconocido: ${userType}` });
+		return;
+	}
+	const scannerResult = await validateScannerEventId(tenantId, userType, scannerEventId);
+	if ('error' in scannerResult) {
+		res.status(400).json({ error: scannerResult.error });
 		return;
 	}
 
 	try {
 		const hashed = await bcrypt.hash(password, 10);
 		const user = await prisma.user.create({
-			data: { ...data, password: hashed, typeId: type.id, tenantId },
+			data: { ...data, password: hashed, typeId: type.id, tenantId, scannerEventId: scannerResult.scannerEventId },
 			include: { type: true },
 		});
 		await logAudit({ tenantId, userId: req.user!.userId, action: 'CREATE', entity: 'User', entityId: user.id, summary: `Creó el usuario "${user.username}"` });
@@ -89,14 +112,23 @@ usersRouter.put('/:id', asyncHandler(async (req: AuthenticatedRequest, res) => {
 		return;
 	}
 
-	const existing = await prisma.user.findFirst({ where: { id, tenantId } });
+	const existing = await prisma.user.findFirst({ where: { id, tenantId }, include: { type: true } });
 	if (!existing) {
 		res.status(404).json({ error: 'Usuario no encontrado' });
 		return;
 	}
 
-	const { userType, password, ...data } = parsed.data;
+	const { userType, password, scannerEventId, ...data } = parsed.data;
 	const typeId = userType ? (await prisma.userType.findFirst({ where: { type: userType } }))?.id : undefined;
+	// Un PUT parcial puede no tocar userType (ej. solo cambia el nombre) — el tipo "efectivo" para
+	// decidir si scannerEventId aplica es el que va a quedar DESPUÉS de este request: el nuevo si
+	// vino, si no el que ya tenía.
+	const effectiveUserType = userType ?? existing.type.type;
+	const scannerResult = await validateScannerEventId(tenantId, effectiveUserType, scannerEventId ?? (userType ? undefined : existing.scannerEventId));
+	if ('error' in scannerResult) {
+		res.status(400).json({ error: scannerResult.error });
+		return;
+	}
 
 	try {
 		// `tenantId` en el where (además del `findFirst` de arriba) — User no está en tenant-guard
@@ -108,6 +140,7 @@ usersRouter.put('/:id', asyncHandler(async (req: AuthenticatedRequest, res) => {
 				...data,
 				...(password ? { password: await bcrypt.hash(password, 10) } : {}),
 				...(typeId ? { typeId } : {}),
+				scannerEventId: scannerResult.scannerEventId,
 			},
 			include: { type: true },
 		});

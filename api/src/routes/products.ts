@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
-import { requireAuth, requireTenant, AuthenticatedRequest } from '../middleware/auth';
+import { requireAuth, requireTenant, blockScannerRole, AuthenticatedRequest } from '../middleware/auth';
 import { requireActiveSubscription, requirePlan } from '../middleware/plan';
 import { asyncHandler } from '../lib/async-handler';
 import { logAudit } from '../lib/audit';
@@ -9,7 +9,7 @@ import { logAudit } from '../lib/audit';
 export const productsRouter = Router();
 // Venta de productos es una feature de Intermedio para arriba (ver plan económico) — Básico no la
 // incluye.
-productsRouter.use(requireAuth, requireTenant, requireActiveSubscription, requirePlan('productsModule'));
+productsRouter.use(requireAuth, requireTenant, blockScannerRole, requireActiveSubscription, requirePlan('productsModule'));
 
 const productInputSchema = z.object({
 	name: z.string().min(1),

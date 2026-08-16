@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
-import { requireAuth, requireTenant, AuthenticatedRequest } from '../middleware/auth';
+import { requireAuth, requireTenant, blockScannerRole, AuthenticatedRequest } from '../middleware/auth';
 import { asyncHandler } from '../lib/async-handler';
 import { logAudit } from '../lib/audit';
 import { findDuplicateEventSlot } from '../lib/find-duplicate-event-slot';
@@ -12,7 +12,7 @@ import { isEventPlanCode } from '../lib/event-plans';
 import { computeEventOverage } from '../lib/overage';
 
 export const eventsRouter = Router();
-eventsRouter.use(requireAuth, requireTenant, requireActiveSubscription);
+eventsRouter.use(requireAuth, requireTenant, blockScannerRole, requireActiveSubscription);
 
 class LinkedEventNotFoundError extends Error {}
 class EventNotFoundError extends Error {}

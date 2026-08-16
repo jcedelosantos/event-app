@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, model, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, model, OnInit, output, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { User } from '../../../../../models/users/user';
 import { UserService, UserTypeCode } from '../../services/user.service';
@@ -7,6 +7,8 @@ import { confirm } from '../../../../../utils/messages';
 import { extractErrorMessage } from '../../../../../utils/api-error';
 import { closeModal } from '../../../../../utils/modal';
 import { AuthService } from '../../../../../core/services/auth.service';
+import { EventsService } from '../../../events/services/events.service';
+import { Events } from '../../../../../models/events/events';
 
 @Component({
 	selector: 'app-update-user-modal',
@@ -73,11 +75,26 @@ import { AuthService } from '../../../../../core/services/auth.service';
 										<option value="ROOT">Admin</option>
 										<option value="USER">User</option>
 										<option value="CLIENT">Client</option>
+										<option value="SCANNER">Escáner</option>
 									</select>
 									@if (isInvalid('userType')) {
 										<div class="invalid-feedback">Elegí un tipo de usuario.</div>
 									}
 								</div>
+								@if (form.controls.userType.value === 'SCANNER') {
+									<div class="col-md-6 mb-3">
+										<label for="scannerEventId">Evento asignado *</label>
+										<select class="custom-select d-block w-100" [class.is-invalid]="isInvalid('scannerEventId')" formControlName="scannerEventId">
+											<option [ngValue]="null">Elegí un evento...</option>
+											@for (event of events(); track event.id) {
+												<option [ngValue]="event.id">{{ event.name }}</option>
+											}
+										</select>
+										@if (isInvalid('scannerEventId')) {
+											<div class="invalid-feedback">Un usuario Escáner necesita un evento asignado.</div>
+										}
+									</div>
+								}
 								<div class="col-md-6 mb-3">
 									<label for="state">Gender</label>
 									<select class="custom-select d-block w-100" formControlName="gender">
@@ -118,9 +135,10 @@ import { AuthService } from '../../../../../core/services/auth.service';
 	`,
 	changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class UpdateUserModalComponent {
+export class UpdateUserModalComponent implements OnInit {
 	userService = inject(UserService);
 	private readonly authService = inject(AuthService);
+	private readonly eventsService = inject(EventsService);
 
 	user = model.required<User | null>();
 	userSaved = output<void>();
@@ -132,6 +150,10 @@ export class UpdateUserModalComponent {
 	// Solo CLUB depende del carnet para identificar socios al vender un ticket (validateAttendeeRule)
 	// — en el resto de los tenants es un dato de referencia, no algo que deba bloquear el alta.
 	isChurchTenant = computed(() => this.authService.currentUser()?.tenant?.type === 'CHURCH');
+
+	// Para el selector "Evento asignado" que solo aparece cuando userType === 'SCANNER' (ver
+	// User.scannerEventId en la API).
+	events = signal<Events[]>([]);
 
 	form = new FormGroup({
 		userName: new FormControl<string>('', [Validators.required]),
@@ -149,6 +171,7 @@ export class UpdateUserModalComponent {
 		carnet: new FormControl<string>('', this.isChurchTenant() ? [] : [Validators.required]),
 		address: new FormControl<string>(''),
 		phone: new FormControl<string>('', [Validators.required, Validators.pattern('^[- +()0-9]+$')]),
+		scannerEventId: new FormControl<number | null>(null),
 	});
 
 	constructor() {
@@ -167,11 +190,25 @@ export class UpdateUserModalComponent {
 					carnet: current.carnet,
 					address: current.adress,
 					phone: String(current.phone),
+					scannerEventId: current.scannerEventId ?? null,
 				});
 			} else {
-				this.form.reset({ userName: '', password: '', userType: '', name: '', lastName: '', gender: '', email: '', carnet: '', address: '', phone: '' });
+				this.form.reset({ userName: '', password: '', userType: '', name: '', lastName: '', gender: '', email: '', carnet: '', address: '', phone: '', scannerEventId: null });
 			}
 		});
+
+		// scannerEventId solo es obligatorio mientras userType sea 'SCANNER' — se recalcula cada vez
+		// que el tipo cambia (ej. el usuario prueba "Escáner", se arrepiente y elige "User" antes de
+		// guardar).
+		this.form.controls.userType.valueChanges.subscribe((type) => {
+			const control = this.form.controls.scannerEventId;
+			control.setValidators(type === 'SCANNER' ? [Validators.required] : []);
+			control.updateValueAndValidity({ emitEvent: false });
+		});
+	}
+
+	ngOnInit(): void {
+		this.eventsService.getEvents().subscribe((events) => this.events.set(events));
 	}
 
 	isInvalid(controlName: keyof typeof this.form.controls): boolean {
@@ -203,6 +240,7 @@ export class UpdateUserModalComponent {
 			carnet: value.carnet!,
 			adress: value.address!,
 			phone: value.phone!,
+			scannerEventId: value.scannerEventId,
 			userType: value.userType as UserTypeCode,
 		};
 

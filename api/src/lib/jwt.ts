@@ -15,6 +15,11 @@ export type AuthTokenPayload = {
 	// null solo para la cuenta de Super Admin (gestiona /tenants, no pertenece a ningún cliente).
 	// Cualquier otra ruta de negocio filtra TODO por este valor.
 	tenantId: number | null;
+	// Solo tiene valor real cuando userType === 'SCANNER' (ver User.scannerEventId en schema.prisma)
+	// — va en el token (no se resuelve contra la DB en cada request) porque POST /scan es de las
+	// rutas más frecuentes de toda la app, a diferencia de license.ts que sí puede permitirse el
+	// roundtrip extra. undefined/null para cualquier otro tipo de usuario.
+	scannerEventId?: number | null;
 };
 
 export function signToken(payload: AuthTokenPayload): string {

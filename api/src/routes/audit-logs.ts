@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { prisma } from '../lib/prisma';
-import { requireAuth, requireTenant, AuthenticatedRequest } from '../middleware/auth';
+import { requireAuth, requireTenant, blockScannerRole, AuthenticatedRequest } from '../middleware/auth';
 import { requirePlan } from '../middleware/plan';
 import { asyncHandler } from '../lib/async-handler';
 import { toPublicUser } from '../lib/serialize';
@@ -8,7 +8,7 @@ import { toPublicUser } from '../lib/serialize';
 export const auditLogsRouter = Router();
 // Reportería y auditoría es una feature de Intermedio para arriba (ver plan económico) — Básico no
 // la incluye.
-auditLogsRouter.use(requireAuth, requireTenant, requirePlan('advancedReporting'));
+auditLogsRouter.use(requireAuth, requireTenant, blockScannerRole, requirePlan('advancedReporting'));
 
 const LIST_LIMIT = 300;
 

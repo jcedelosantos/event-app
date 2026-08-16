@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
-import { requireAuth, requireTenant, AuthenticatedRequest } from '../middleware/auth';
+import { requireAuth, requireTenant, blockScannerRole, AuthenticatedRequest } from '../middleware/auth';
 import { asyncHandler } from '../lib/async-handler';
 import { isPlanCode, PLANS, PlanCode } from '../lib/plans';
 import { createSubscription, reviseSubscription, PayPalBillingRequestError } from '../lib/paypal-billing';
@@ -12,7 +12,7 @@ import { computeTenantOverage } from '../lib/overage';
 // requireActiveSubscription a propósito: una cuenta PAST_DUE/SUSPENDED tiene que poder usar esto
 // para regularizarse, es la única puerta de salida de un estado bloqueado.
 export const subscriptionRouter = Router();
-subscriptionRouter.use(requireAuth, requireTenant);
+subscriptionRouter.use(requireAuth, requireTenant, blockScannerRole);
 
 const upgradeSchema = z.object({ plan: z.string() });
 

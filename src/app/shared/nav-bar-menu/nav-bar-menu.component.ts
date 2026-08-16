@@ -272,6 +272,10 @@ export class NavBarMenuComponent implements AfterViewInit, OnDestroy {
 	// Oculta las secciones que el plan del tenant no incluye (Products/Reports/History según el
 	// plan) — sin plan asignado, no se restringe nada (mismo criterio que el backend).
 	visibleMenuList = computed(() => {
+		// Un usuario SCANNER (ver User.scannerEventId, core/guards/scanner-role.guard.ts) solo puede
+		// entrar a /manager/events/qr-scanner, sin acceso a ninguna otra sección — no hay nada útil
+		// que este menú pueda ofrecerle, así que se oculta entero (queda solo "Exit", ver menuExit).
+		if (this.authService.currentUser()?.type?.type === 'SCANNER') return [];
 		const tenant = this.authService.currentUser()?.tenant;
 		// Un tenant de evento único (ver shared/event-plans.ts) no tiene entrada en PLAN_FEATURES —
 		// mismo criterio que sin plan asignado, no se restringe nada.

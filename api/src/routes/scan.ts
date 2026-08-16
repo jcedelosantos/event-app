@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { prisma } from '../lib/prisma';
 import { requireAuth, requireTenant, AuthenticatedRequest } from '../middleware/auth';
 import { requireActiveSubscription } from '../middleware/plan';
+import { AuthTokenPayload } from '../lib/jwt';
 import { asyncHandler } from '../lib/async-handler';
 import { saleTicketInclude, toPublicSaleTicket } from './sale-tickets';
 import { saleProductInclude, toPublicSaleProduct } from './sale-products';
@@ -54,6 +55,17 @@ async function accessPointDenialError(accessPointId: number | undefined, ticketI
 	return allowed ? null : `Este ticket no tiene acceso por la puerta "${accessPoint.name}".`;
 }
 
+// Un usuario SCANNER (ver User.scannerEventId, middleware/auth.ts blockScannerRole) solo puede
+// escanear tickets/productos/hijos de SU evento asignado — a diferencia de accessPointDenialError
+// (una regla de negocio opt-in por puerta), esto es el límite de autorización del rol y aplica
+// SIEMPRE que el usuario sea SCANNER, sin importar si el evento configuró puertas o no. Se rechaza
+// ANTES de revelar cualquier otro estado (ya escaneado, ventana cerrada, etc.) para no filtrar
+// información de eventos ajenos a este scanner.
+function scannerEventDenialError(user: AuthTokenPayload, eventId: number): string | null {
+	if (user.userType !== 'SCANNER') return null;
+	return eventId === user.scannerEventId ? null : 'Este código no pertenece a tu evento asignado.';
+}
+
 scanRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const tenantId = req.user!.tenantId!;
 	const codeQR = String(req.body?.codeQR ?? '');
@@ -65,6 +77,11 @@ scanRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
 
 	const saleTicket = await prisma.saleTicket.findFirst({ where: { codeQR, tenantId }, include: saleTicketInclude });
 	if (saleTicket) {
+		const scannerError = scannerEventDenialError(req.user!, saleTicket.eventId);
+		if (scannerError) {
+			res.status(403).json({ type: 'ticket', error: scannerError });
+			return;
+		}
 		if (saleTicket.checkedInAt) {
 			res.status(409).json({ type: 'ticket', error: 'Este QR ya fue escaneado', saleTicket: toPublicSaleTicket(saleTicket) });
 			return;
@@ -90,6 +107,11 @@ scanRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
 
 	const saleProduct = await prisma.saleProduct.findFirst({ where: { codeQR, tenantId }, include: saleProductInclude });
 	if (saleProduct) {
+		const scannerError = scannerEventDenialError(req.user!, saleProduct.eventId);
+		if (scannerError) {
+			res.status(403).json({ type: 'product', error: scannerError });
+			return;
+		}
 		if (saleProduct.deliveredAt) {
 			res.status(409).json({ type: 'product', error: 'Este QR ya fue entregado', saleProduct: toPublicSaleProduct(saleProduct) });
 			return;
@@ -113,6 +135,13 @@ scanRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	// diferencia de tickets/productos) porque ambas pasan durante/después del servicio.
 	const familyChildren = await prisma.child.findMany({ where: { codeQR, tenantId }, include: childInclude });
 	if (familyChildren.length) {
+		// Todos los hijos de este talón familiar comparten el mismo evento — alcanza con mirar el
+		// primero.
+		const scannerError = scannerEventDenialError(req.user!, familyChildren[0].eventId);
+		if (scannerError) {
+			res.status(403).json({ type: 'child', error: scannerError });
+			return;
+		}
 		const mode = req.body?.mode === 'meal' ? 'meal' : 'pickup';
 		const now = new Date();
 
@@ -184,7 +213,7 @@ async function reconcileEntity(params: {
 	return 'conflict';
 }
 
-async function applySyncItem(tenantId: number, item: SyncItem): Promise<SyncItemResult> {
+async function applySyncItem(tenantId: number, user: AuthTokenPayload, item: SyncItem): Promise<SyncItemResult> {
 	const clientScannedAt = new Date(item.clientScannedAt);
 	if (Number.isNaN(clientScannedAt.getTime())) {
 		return { tempId: item.tempId, status: 'error', error: 'clientScannedAt inválido' };
@@ -193,6 +222,8 @@ async function applySyncItem(tenantId: number, item: SyncItem): Promise<SyncItem
 
 	const saleTicket = await prisma.saleTicket.findFirst({ where: { codeQR: item.codeQR, tenantId } });
 	if (saleTicket) {
+		const scannerError = scannerEventDenialError(user, saleTicket.eventId);
+		if (scannerError) return { tempId: item.tempId, status: 'error', error: scannerError };
 		const status = await reconcileEntity({
 			tenantId,
 			entityType: 'SaleTicket',
@@ -210,6 +241,8 @@ async function applySyncItem(tenantId: number, item: SyncItem): Promise<SyncItem
 
 	const saleProduct = await prisma.saleProduct.findFirst({ where: { codeQR: item.codeQR, tenantId } });
 	if (saleProduct) {
+		const scannerError = scannerEventDenialError(user, saleProduct.eventId);
+		if (scannerError) return { tempId: item.tempId, status: 'error', error: scannerError };
 		const status = await reconcileEntity({
 			tenantId,
 			entityType: 'SaleProduct',
@@ -226,6 +259,8 @@ async function applySyncItem(tenantId: number, item: SyncItem): Promise<SyncItem
 
 	const familyChildren = await prisma.child.findMany({ where: { codeQR: item.codeQR, tenantId } });
 	if (familyChildren.length) {
+		const scannerError = scannerEventDenialError(user, familyChildren[0].eventId);
+		if (scannerError) return { tempId: item.tempId, status: 'error', error: scannerError };
 		const mode = item.mode === 'meal' ? 'meal' : 'pickup';
 		const statuses: ('applied' | 'conflict')[] = [];
 
@@ -293,7 +328,7 @@ scanRouter.post('/sync', asyncHandler(async (req: AuthenticatedRequest, res) => 
 			results.push({ tempId: item?.tempId ?? '', status: 'error', error: 'Item incompleto' });
 			continue;
 		}
-		results.push(await applySyncItem(tenantId, item));
+		results.push(await applySyncItem(tenantId, req.user!, item));
 	}
 	res.json({ results });
 }));

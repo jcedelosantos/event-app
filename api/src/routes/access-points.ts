@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
-import { requireAuth, requireTenant, AuthenticatedRequest } from '../middleware/auth';
+import { requireAuth, requireTenant, blockScannerRole, AuthenticatedRequest } from '../middleware/auth';
 import { requireActiveSubscription } from '../middleware/plan';
 import { asyncHandler } from '../lib/async-handler';
 import { logAudit } from '../lib/audit';
@@ -32,6 +32,9 @@ function toPublicAccessPoint<T extends { allowedTickets: { ticketId: number }[] 
 	return { ...rest, ticketIds: allowedTickets.map((t) => t.ticketId) };
 }
 
+// Sin blockScannerRole a propósito, a diferencia de todos los demás endpoints de este archivo — el
+// selector de puerta del scanner (qr-scanner.component.ts) necesita esta lista, es la ÚNICA lectura
+// que un usuario SCANNER tiene permitida fuera de /scan (ver middleware/auth.ts).
 accessPointsRouter.get('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const tenantId = req.user!.tenantId!;
 	const eventId = req.query.eventId ? Number(req.query.eventId) : undefined;
@@ -49,7 +52,7 @@ const RECENT_WINDOW_MINUTES = 5;
 // completos al cliente). checkedIn = total histórico del evento por esa puerta; recentCount = los
 // últimos RECENT_WINDOW_MINUTES minutos, insumo para la tasa por minuto y la alerta de
 // concentración que calcula el frontend.
-accessPointsRouter.get('/stats', asyncHandler(async (req: AuthenticatedRequest, res) => {
+accessPointsRouter.get('/stats', blockScannerRole, asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const tenantId = req.user!.tenantId!;
 	const eventId = Number(req.query.eventId);
 	if (!eventId) {
@@ -79,7 +82,7 @@ accessPointsRouter.get('/stats', asyncHandler(async (req: AuthenticatedRequest, 
 	});
 }));
 
-accessPointsRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
+accessPointsRouter.post('/', blockScannerRole, asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const parsed = accessPointInputSchema.safeParse(req.body);
 	if (!parsed.success) {
 		res.status(400).json({ error: parsed.error.flatten() });
@@ -108,7 +111,7 @@ accessPointsRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res)
 	}
 }));
 
-accessPointsRouter.put('/:id', asyncHandler(async (req: AuthenticatedRequest, res) => {
+accessPointsRouter.put('/:id', blockScannerRole, asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const id = Number(req.params.id);
 	const tenantId = req.user!.tenantId!;
 	const parsed = accessPointInputSchema.partial().safeParse(req.body);
@@ -143,7 +146,7 @@ accessPointsRouter.put('/:id', asyncHandler(async (req: AuthenticatedRequest, re
 	}
 }));
 
-accessPointsRouter.delete('/:id', asyncHandler(async (req: AuthenticatedRequest, res) => {
+accessPointsRouter.delete('/:id', blockScannerRole, asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const id = Number(req.params.id);
 	const tenantId = req.user!.tenantId!;
 

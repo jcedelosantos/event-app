@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
-import { requireAuth, requireTenant, AuthenticatedRequest } from '../middleware/auth';
+import { requireAuth, requireTenant, blockScannerRole, AuthenticatedRequest } from '../middleware/auth';
 import { requireActiveSubscription } from '../middleware/plan';
 import { toPublicUser } from '../lib/serialize';
 import { sendProductEmail } from '../lib/mail';
@@ -10,7 +10,7 @@ import { asyncHandler } from '../lib/async-handler';
 import { logAudit } from '../lib/audit';
 
 export const saleProductsRouter = Router();
-saleProductsRouter.use(requireAuth, requireTenant, requireActiveSubscription);
+saleProductsRouter.use(requireAuth, requireTenant, blockScannerRole, requireActiveSubscription);
 
 class InsufficientStockError extends Error {}
 
