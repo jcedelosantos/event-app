@@ -41,6 +41,11 @@ export type SaleTicket = {
 	// MANUAL (venta cargada por un staff desde el manager) | PUBLIC (el comprador se autogestionó
 	// desde el portal público) — ver columna "Origen" en el panel de QRs.
 	channel: 'MANUAL' | 'PUBLIC';
+	// Precio CONGELADO al momento de esta venta — usar esto para ingresos históricos, NUNCA
+	// ticket.price (ese es el precio ACTUAL del tipo de ticket, puede haber cambiado desde
+	// entonces). null = venta de antes de este campo, sin dato histórico real (ver
+	// SaleTicket.priceUSD en la API).
+	priceUSD: number | null;
 };
 
 export type SaleTicketInput = {

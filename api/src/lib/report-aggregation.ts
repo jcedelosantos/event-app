@@ -17,11 +17,11 @@ export async function computeTenantReportStats(tenantId: number, dateFrom: Date,
 	const [saleTickets, saleProducts] = await Promise.all([
 		prisma.saleTicket.findMany({
 			where: { tenantId, dateSold: { gte: dateFrom, lt: dateTo } },
-			select: { checkedInAt: true, ticket: { select: { price: true } }, event: { select: { name: true } } },
+			select: { checkedInAt: true, priceUSD: true, ticket: { select: { price: true } }, event: { select: { name: true } } },
 		}),
 		prisma.saleProduct.findMany({
 			where: { tenantId, dateSold: { gte: dateFrom, lt: dateTo } },
-			select: { quantity: true, product: { select: { price: true, name: true } } },
+			select: { quantity: true, unitPriceUSD: true, product: { select: { price: true, name: true } } },
 		}),
 	]);
 
@@ -29,7 +29,9 @@ export async function computeTenantReportStats(tenantId: number, dateFrom: Date,
 	let totalRevenue = 0;
 	let totalCheckIns = 0;
 	for (const sale of saleTickets) {
-		const price = sale.ticket.price;
+		// priceUSD null = venta de antes de este campo (ver comentario en schema.prisma) — cae de
+		// vuelta al precio actual del ticket solo en esos casos.
+		const price = sale.priceUSD ?? sale.ticket.price;
 		totalRevenue += price;
 		if (sale.checkedInAt) totalCheckIns += 1;
 		revenueByEventMap.set(sale.event.name, (revenueByEventMap.get(sale.event.name) ?? 0) + price);
@@ -38,7 +40,8 @@ export async function computeTenantReportStats(tenantId: number, dateFrom: Date,
 	const revenueByProductMap = new Map<string, number>();
 	let totalProductsSold = 0;
 	for (const sale of saleProducts) {
-		const revenue = sale.product.price * sale.quantity;
+		const unitPrice = sale.unitPriceUSD ?? sale.product.price;
+		const revenue = unitPrice * sale.quantity;
 		totalRevenue += revenue;
 		totalProductsSold += sale.quantity;
 		revenueByProductMap.set(sale.product.name, (revenueByProductMap.get(sale.product.name) ?? 0) + revenue);

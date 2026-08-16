@@ -160,13 +160,13 @@ export class ReportsComponent implements OnInit {
 	saleProducts = signal<SaleProduct[]>([]);
 	products = signal<Product[]>([]);
 
-	ticketRevenue = computed(() => this.saleTickets().reduce((sum, s) => sum + (s.ticket?.price ?? 0), 0));
+	ticketRevenue = computed(() => this.saleTickets().reduce((sum, s) => sum + (s.priceUSD ?? s.ticket?.price ?? 0), 0));
 	checkedInCount = computed(() => this.saleTickets().filter((s) => s.checkedInAt).length);
 	checkedInPct = computed(() => {
 		const total = this.saleTickets().length;
 		return total > 0 ? Math.round((this.checkedInCount() / total) * 100) : 0;
 	});
-	productRevenue = computed(() => this.saleProducts().reduce((sum, s) => sum + (s.product?.price ?? 0) * s.quantity, 0));
+	productRevenue = computed(() => this.saleProducts().reduce((sum, s) => sum + (s.unitPriceUSD ?? s.product?.price ?? 0) * s.quantity, 0));
 
 	ticketRows = computed<TicketRow[]>(() => {
 		const rows = new Map<string, TicketRow>();
@@ -174,7 +174,7 @@ export class ReportsComponent implements OnInit {
 			const name = sale.ticket?.name ?? 'Sin ticket';
 			const row = rows.get(name) ?? { name, sold: 0, revenue: 0 };
 			row.sold += 1;
-			row.revenue += sale.ticket?.price ?? 0;
+			row.revenue += sale.priceUSD ?? sale.ticket?.price ?? 0;
 			rows.set(name, row);
 		}
 		return Array.from(rows.values()).sort((a, b) => b.revenue - a.revenue);
@@ -186,7 +186,7 @@ export class ReportsComponent implements OnInit {
 			const name = sale.product?.name ?? 'Sin producto';
 			const row = rows.get(name) ?? { name, sold: 0, revenue: 0, stock: 0 };
 			row.sold += sale.quantity;
-			row.revenue += (sale.product?.price ?? 0) * sale.quantity;
+			row.revenue += (sale.unitPriceUSD ?? sale.product?.price ?? 0) * sale.quantity;
 			rows.set(name, row);
 		}
 		for (const product of this.products()) {

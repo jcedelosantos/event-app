@@ -194,7 +194,7 @@ export class QrsComponent implements OnInit, AfterViewInit, OnDestroy {
       case 'client': return `${qr.client.name} ${qr.client.lastname}`;
       case 'event': return qr.event.name;
       case 'seat': return `${qr.seat.area.name} / ${qr.seat.name}`;
-      case 'price': return qr.ticket.price;
+      case 'price': return qr.priceUSD ?? qr.ticket.price;
     }
   }
 

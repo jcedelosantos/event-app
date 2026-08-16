@@ -257,7 +257,7 @@ declare const bootstrap: any;
 											<td>{{ sale.ticket.name }}</td>
 											<td>{{ sale.seat.name }}</td>
 											<td>{{ sale.paidType }}</td>
-											<td>{{ sale.ticket.price }} USD</td>
+											<td>{{ sale.priceUSD ?? sale.ticket.price }} USD</td>
 										</tr>
 									}
 								</tbody>
@@ -352,7 +352,7 @@ export class EventDetailsComponent implements OnInit {
 	});
 
 	soldCount = computed(() => this.sales().length);
-	revenue = computed(() => this.sales().reduce((sum, sale) => sum + (sale.ticket?.price ?? 0), 0));
+	revenue = computed(() => this.sales().reduce((sum, sale) => sum + (sale.priceUSD ?? sale.ticket?.price ?? 0), 0));
 	totalCount = computed(() => this.event()?.tickets.reduce((sum, ticket) => sum + ticket.count, 0) ?? 0);
 
 	ngOnInit(): void {

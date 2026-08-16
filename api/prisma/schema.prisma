@@ -581,6 +581,14 @@ model SaleProduct {
   // hijo registrado (ver Child).
   child Child?
 
+  // Precio unitario CONGELADO al momento de esta venta (multiplicar por quantity para el total) —
+  // sin esto, cualquier reporte/dashboard que mostrara ingresos históricos en realidad leía
+  // product.price ACTUAL, así que cambiar el precio de un producto reescribía en silencio el
+  // ingreso de ventas viejas. null = venta de antes de este campo, sin dato histórico real
+  // disponible (los lugares que lo leen caen de vuelta al precio actual del producto solo para
+  // esos casos, best-effort).
+  unitPriceUSD Float?
+
   @@index([tenantId])
 }
 
@@ -654,6 +662,13 @@ model SaleTicket {
   // pierde aunque después se borre esa AccessPoint.
   accessPointId Int?
   accessPoint   AccessPoint? @relation(fields: [accessPointId], references: [id], onDelete: SetNull)
+
+  // Precio CONGELADO al momento de esta venta — mismo motivo que SaleProduct.unitPriceUSD: sin
+  // esto, el ingreso histórico mostrado en dashboard/reportes en realidad leía ticket.price ACTUAL,
+  // así que cambiar el precio de un tipo de ticket reescribía en silencio el ingreso de ventas
+  // viejas. null = venta de antes de este campo (sin dato histórico real, cae de vuelta al precio
+  // actual del ticket solo en esos casos).
+  priceUSD Float?
 
   // Un mismo asiento no se puede vender dos veces para el mismo evento.
   @@unique([eventId, seatId])

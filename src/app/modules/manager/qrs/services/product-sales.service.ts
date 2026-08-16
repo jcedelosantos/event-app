@@ -21,6 +21,10 @@ export type SaleProduct = {
 	product: Product;
 	client: User;
 	seller: User;
+	// Precio unitario CONGELADO al momento de esta venta — usar esto (× quantity) para ingresos
+	// históricos, NUNCA product.price (ese es el precio ACTUAL, puede haber cambiado desde
+	// entonces). null = venta de antes de este campo (ver SaleProduct.unitPriceUSD en la API).
+	unitPriceUSD: number | null;
 };
 
 export type SaleProductInput = {

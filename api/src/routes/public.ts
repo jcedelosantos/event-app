@@ -647,6 +647,7 @@ publicRouter.post('/purchase', checkoutRateLimiter, asyncHandler(async (req, res
 						tenantId,
 						channel: 'PUBLIC',
 						attendeeType: 'SOCIO',
+						priceUSD: ticket.price,
 					},
 					include,
 				});
@@ -709,6 +710,7 @@ publicRouter.post('/purchase', checkoutRateLimiter, asyncHandler(async (req, res
 								channel: 'PUBLIC',
 								attendeeType: 'INVITADO',
 								sponsorCarnet: clientData.carnet.trim(),
+								priceUSD: ticket.price,
 							},
 							include,
 						}),
@@ -731,6 +733,7 @@ publicRouter.post('/purchase', checkoutRateLimiter, asyncHandler(async (req, res
 								tenantId,
 								channel: 'PUBLIC',
 								...(attendeeType ? { attendeeType, sponsorCarnet: attendeeType === 'INVITADO' ? sponsorCarnet?.trim() : null } : {}),
+								priceUSD: ticket.price,
 							},
 							include,
 						}),
@@ -769,6 +772,7 @@ publicRouter.post('/purchase', checkoutRateLimiter, asyncHandler(async (req, res
 							userId: rootUser.id,
 							clientId: client!.id,
 							tenantId,
+							unitPriceUSD: mealProduct.price,
 						},
 					});
 					saleProductId = saleProduct.id;
@@ -992,6 +996,7 @@ publicRouter.post('/checkout/hold', checkoutRateLimiter, asyncHandler(async (req
 							paymentExpiresAt: expiresAt,
 							holdToken,
 							...(attendeeType ? { attendeeType, sponsorCarnet: attendeeType === 'INVITADO' ? sponsorCarnet?.trim() : null } : {}),
+							priceUSD: ticket.price,
 						},
 					}),
 				),

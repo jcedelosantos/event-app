@@ -1,0 +1,5 @@
+-- AlterTable
+ALTER TABLE "SaleTicket" ADD COLUMN "priceUSD" DOUBLE PRECISION;
+
+-- AlterTable
+ALTER TABLE "SaleProduct" ADD COLUMN "unitPriceUSD" DOUBLE PRECISION;

@@ -227,7 +227,7 @@ const LIVE_REFRESH_MS = 20_000;
 								@for (sale of recentSales(); track sale.id) {
 									<li class="list-group-item d-flex justify-content-between align-items-center">
 										<span>{{ sale.event.name }} — {{ sale.client.name }} {{ sale.client.lastname }}</span>
-										<span class="badge text-bg-secondary">{{ sale.ticket.price }} USD</span>
+										<span class="badge text-bg-secondary">{{ sale.priceUSD ?? sale.ticket.price }} USD</span>
 									</li>
 								}
 							</ul>
@@ -415,8 +415,8 @@ export class DashBoardComponent implements OnInit, OnDestroy {
 	});
 
 	totalRevenue = computed(() => {
-		const ticketRevenue = this.saleTickets().reduce((sum, sale) => sum + (sale.ticket?.price ?? 0), 0);
-		const productRevenue = this.saleProducts().reduce((sum, sale) => sum + (sale.product?.price ?? 0) * sale.quantity, 0);
+		const ticketRevenue = this.saleTickets().reduce((sum, sale) => sum + (sale.priceUSD ?? sale.ticket?.price ?? 0), 0);
+		const productRevenue = this.saleProducts().reduce((sum, sale) => sum + (sale.unitPriceUSD ?? sale.product?.price ?? 0) * sale.quantity, 0);
 		return ticketRevenue + productRevenue;
 	});
 
@@ -428,7 +428,7 @@ export class DashBoardComponent implements OnInit, OnDestroy {
 		const totals = new Map<string, number>();
 		for (const sale of this.saleTickets()) {
 			const label = sale.event?.name ?? 'Sin evento';
-			totals.set(label, (totals.get(label) ?? 0) + (sale.ticket?.price ?? 0));
+			totals.set(label, (totals.get(label) ?? 0) + (sale.priceUSD ?? sale.ticket?.price ?? 0));
 		}
 		return Array.from(totals, ([label, value]) => ({ label, value }))
 			.sort((a, b) => b.value - a.value)
@@ -448,7 +448,7 @@ export class DashBoardComponent implements OnInit, OnDestroy {
 		const totals = new Map<string, number>();
 		for (const sale of this.saleProducts()) {
 			const label = sale.product?.name ?? 'Sin producto';
-			totals.set(label, (totals.get(label) ?? 0) + (sale.product?.price ?? 0) * sale.quantity);
+			totals.set(label, (totals.get(label) ?? 0) + (sale.unitPriceUSD ?? sale.product?.price ?? 0) * sale.quantity);
 		}
 		return Array.from(totals, ([label, value]) => ({ label, value }))
 			.sort((a, b) => b.value - a.value)
@@ -493,7 +493,7 @@ export class DashBoardComponent implements OnInit, OnDestroy {
 	// Tendencia mensual (últimos 12 meses con datos) — a diferencia de los gráficos de arriba, que
 	// ordenan por valor descendente, estos se ordenan cronológicamente a propósito: el objetivo es
 	// ver evolución en el tiempo, no un ranking.
-	monthlyRevenueTrend = computed<BarChartItem[]>(() => this.monthlyTotals((sale) => sale.ticket?.price ?? 0));
+	monthlyRevenueTrend = computed<BarChartItem[]>(() => this.monthlyTotals((sale) => sale.priceUSD ?? sale.ticket?.price ?? 0));
 	monthlyTicketsTrend = computed<BarChartItem[]>(() => this.monthlyTotals(() => 1));
 	monthsWithSalesCount = computed(() => new Set(this.saleTickets().map((s) => this.monthKey(new Date(s.dateSold)))).size);
 
