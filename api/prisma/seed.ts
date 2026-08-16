@@ -4,8 +4,21 @@ import bcrypt from 'bcryptjs';
 const prisma = new PrismaClient();
 
 async function main() {
-	// Este seed es solo para bases de datos nuevas/vacías (dev local recién clonado). En producción,
-	// el tenant real y el superadmin ya los crea la migración de datos (ver
+	// El CMD del Dockerfile corre este script en TODO arranque de contenedor, en TODO ambiente (ver
+	// Dockerfile: `prisma migrate deploy && tsx prisma/seed.ts && node dist/server.js`) — incluyendo
+	// un ambiente nuevo con Postgres recién provisionado y todavía sin tenants (ej. el ambiente
+	// `load-test` de esta sesión, o un restore de disaster-recovery a una DB vacía). Sin este opt-in
+	// explícito, ese primer arranque crearía en silencio una cuenta SUPERADMIN real con password
+	// "1234" — utilizable contra cualquier tenant del sistema. Requerir SEED_DEMO_DATA=true (nunca
+	// seteada en Railway producción/load-test, solo en el .env local de un dev) hace que ese
+	// escenario sea imposible por default en vez de depender de que siempre haya un tenant ya creado.
+	if (process.env.SEED_DEMO_DATA !== 'true') {
+		console.log('SEED_DEMO_DATA no está en "true" — se omite el seed de datos demo (esperado en producción).');
+		return;
+	}
+
+	// Solo para bases de datos nuevas/vacías (dev local recién clonado). En producción, el tenant
+	// real y el superadmin ya los crea la migración de datos (ver
 	// prisma/migrations/20260714135300_backfill_tenant_data) — si ya hay un tenant, correr esto de
 	// nuevo solo agregaría una organización "Demo" fantasma al panel de Super Admin.
 	const existingTenantCount = await prisma.tenant.count();
