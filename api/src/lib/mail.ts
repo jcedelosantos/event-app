@@ -292,7 +292,7 @@ export async function sendTicketEmail(args: { to: string; clientName: string; ev
 	// del lado del servidor en esa página intermedia.
 	const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:4200';
 	const surveyHtml = args.event.surveyUrl
-		? `<p style="color:#ccc;">Cuando termine el evento, contanos qué te pareció: <a href="${frontendUrl}/encuesta/${args.event.code}" style="color:#fff;">completar la encuesta</a>.</p>`
+		? `<p style="color:#ccc;">Cuando termine el evento, contanos qué te pareció: <a href="${frontendUrl}/encuesta/${args.event.publicSlug}" style="color:#fff;">completar la encuesta</a>.</p>`
 		: '';
 
 	const html = `

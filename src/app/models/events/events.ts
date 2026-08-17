@@ -8,6 +8,7 @@ export interface Events {
 	name: string;
 	img: string;
 	code: string;
+	publicSlug: string;
 	type: string;
 	description: string;
 	dateSale: Date;

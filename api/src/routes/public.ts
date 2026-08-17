@@ -26,6 +26,7 @@ import { checkoutRateLimiter } from '../middleware/rate-limit';
 import { logAudit } from '../lib/audit';
 import { joinWaitingRoom, getWaitingRoomStatus } from '../lib/waiting-room';
 import { serializableTransaction } from '../lib/serializable-tx';
+import { generatePublicSlug } from './events';
 
 export const publicRouter = Router();
 
@@ -157,7 +158,7 @@ publicRouter.get('/org/:slug', asyncHandler(async (req, res) => {
 
 publicRouter.get('/events/:code', asyncHandler(async (req, res) => {
 	const event = await prismaUnscoped.event.findUnique({
-		where: { code: req.params.code },
+		where: { publicSlug: req.params.code },
 		include: {
 			map: { include: { areas: { include: { seats: true, tables: true } } } },
 			tickets: { where: { active: true } },
@@ -254,7 +255,7 @@ publicRouter.get('/events/:code', asyncHandler(async (req, res) => {
 // tiene un valor concreto una vez creado el evento (ver events.ts POST: default a dateOn si no se
 // especifica), así que no hace falta un fallback +horas acá.
 publicRouter.get('/survey/:code', asyncHandler(async (req, res) => {
-	const event = await prismaUnscoped.event.findUnique({ where: { code: req.params.code }, select: { surveyUrl: true, dateOff: true } });
+	const event = await prismaUnscoped.event.findUnique({ where: { publicSlug: req.params.code }, select: { surveyUrl: true, dateOff: true } });
 	if (!event || !event.surveyUrl) {
 		res.status(404).json({ error: 'Encuesta no encontrada' });
 		return;
@@ -278,7 +279,7 @@ publicRouter.get('/events/:code/sponsor-status', asyncHandler(async (req, res) =
 		return;
 	}
 
-	const event = await prismaUnscoped.event.findUnique({ where: { code: req.params.code }, select: { id: true, tenantId: true, maxGuestsPerSponsor: true } });
+	const event = await prismaUnscoped.event.findUnique({ where: { publicSlug: req.params.code }, select: { id: true, tenantId: true, maxGuestsPerSponsor: true } });
 	if (!event) {
 		res.status(404).json({ error: 'Evento no encontrado' });
 		return;
@@ -326,7 +327,7 @@ publicRouter.get('/events/:code/member-status', asyncHandler(async (req, res) =>
 		return;
 	}
 
-	const event = await prismaUnscoped.event.findUnique({ where: { code: req.params.code }, select: { tenantId: true } });
+	const event = await prismaUnscoped.event.findUnique({ where: { publicSlug: req.params.code }, select: { tenantId: true } });
 	if (!event) {
 		res.status(404).json({ error: 'Evento no encontrado' });
 		return;
@@ -364,7 +365,7 @@ publicRouter.get('/events/:code/duplicate-check', asyncHandler(async (req, res) 
 		return;
 	}
 
-	const event = await prismaUnscoped.event.findUnique({ where: { code: req.params.code }, select: { id: true, tenantId: true } });
+	const event = await prismaUnscoped.event.findUnique({ where: { publicSlug: req.params.code }, select: { id: true, tenantId: true } });
 	if (!event) {
 		res.status(404).json({ error: 'Evento no encontrado' });
 		return;
@@ -482,7 +483,7 @@ publicRouter.post('/purchase', checkoutRateLimiter, asyncHandler(async (req, res
 		}
 	}
 
-	const event = await prismaUnscoped.event.findUnique({ where: { code: eventCode } });
+	const event = await prismaUnscoped.event.findUnique({ where: { publicSlug: eventCode } });
 	if (!event || !event.active) {
 		res.status(404).json({ error: 'Evento no encontrado' });
 		return;
@@ -844,7 +845,7 @@ publicRouter.post('/checkout/hold', checkoutRateLimiter, asyncHandler(async (req
 	}
 	const { eventCode, ticketId, client: clientData, seatIds, attendeeType, sponsorCarnet, provider } = parsed.data;
 
-	const event = await prismaUnscoped.event.findUnique({ where: { code: eventCode } });
+	const event = await prismaUnscoped.event.findUnique({ where: { publicSlug: eventCode } });
 	if (!event || !event.active) {
 		res.status(404).json({ error: 'Evento no encontrado' });
 		return;
@@ -1311,6 +1312,7 @@ publicRouter.post('/webhooks/whatsapp/:slug', asyncHandler(async (req, res) => {
 				name: extracted.name,
 				img,
 				code: '',
+				publicSlug: generatePublicSlug(),
 				type: 'Normal',
 				description: extracted.description,
 				dateSale: new Date(),
@@ -1356,7 +1358,7 @@ publicRouter.post('/webhooks/whatsapp/:slug', asyncHandler(async (req, res) => {
 			summary: `Creó el evento "${event.name}" automáticamente desde una imagen de WhatsApp`,
 		});
 
-		const publicUrl = `${req.protocol}://${req.get('host')}/e/${event.code}`;
+		const publicUrl = `${req.protocol}://${req.get('host')}/e/${event.publicSlug}`;
 		const ticketsSummary = extracted.tickets.map((t) => `• ${t.name}: RD$${t.price} (${t.count} cupos)`).join('\n');
 		const publishAtLabel = publishAt.toLocaleString('es-DO', {
 			timeZone: 'America/Santo_Domingo',

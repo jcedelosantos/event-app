@@ -24,9 +24,9 @@ import { isEventPlanCode } from '../../../../../shared/event-plans';
 									Tu plan actual no incluye portada pública — este link no va a cargar hasta que actualices a un plan Intermedio o superior.
 								</div>
 							}
-							<qrcode [qrdata]="publicUrl(ev.code)" [width]="220" [errorCorrectionLevel]="'M'"></qrcode>
+							<qrcode [qrdata]="publicUrl(ev.publicSlug)" [width]="220" [errorCorrectionLevel]="'M'"></qrcode>
 							<p class="small text-body-secondary mt-2 mb-1">Compartí este QR o link para que el público se anote solo</p>
-							<a [href]="publicUrl(ev.code)" target="_blank">{{ publicUrl(ev.code) }}</a>
+							<a [href]="publicUrl(ev.publicSlug)" target="_blank">{{ publicUrl(ev.publicSlug) }}</a>
 						}
 					</div>
 					<div class="modal-footer">

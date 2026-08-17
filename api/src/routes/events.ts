@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
@@ -16,6 +16,13 @@ eventsRouter.use(requireAuth, requireTenant, blockScannerRole, requireActiveSubs
 
 class LinkedEventNotFoundError extends Error {}
 class EventNotFoundError extends Error {}
+
+// Token opaco para links públicos (/e/, /encuesta/, etc.) — a diferencia de `code` (EVT-0001,
+// correlativo del id, adivinable) esto no revela nada sobre el orden ni la cantidad de eventos.
+// Exportada porque public.ts también crea eventos (alta por WhatsApp) y necesita el mismo generador.
+export function generatePublicSlug(): string {
+	return randomBytes(9).toString('base64url');
+}
 
 const eventInputSchema = z.object({
 	name: z.string().min(1),
@@ -140,7 +147,7 @@ eventsRouter.get('/:id', asyncHandler(async (req: AuthenticatedRequest, res) => 
 eventsRouter.get('/:id/live-stats', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const id = Number(req.params.id);
 	const tenantId = req.user!.tenantId!;
-	const event = await prisma.event.findUnique({ where: { id, tenantId }, select: { code: true } });
+	const event = await prisma.event.findUnique({ where: { id, tenantId }, select: { publicSlug: true } });
 	if (!event) {
 		res.status(404).json({ error: 'Evento no encontrado' });
 		return;
@@ -148,7 +155,7 @@ eventsRouter.get('/:id/live-stats', asyncHandler(async (req: AuthenticatedReques
 	const tickets = await prisma.ticket.findMany({ where: { eventId: id, tenantId, active: true }, select: { count: true } });
 	const availableCount = tickets.reduce((sum, t) => sum + t.count, 0);
 	const soldCount = await prisma.saleTicket.count({ where: { eventId: id, tenantId } });
-	res.json({ ...(await getWaitingRoomStats(event.code)), soldCount, availableCount, totalCapacity: availableCount + soldCount });
+	res.json({ ...(await getWaitingRoomStats(event.publicSlug)), soldCount, availableCount, totalCapacity: availableCount + soldCount });
 }));
 
 eventsRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
@@ -184,6 +191,7 @@ eventsRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
 		data: {
 			...data,
 			code: code || '',
+			publicSlug: generatePublicSlug(),
 			dateSale: dateSale ?? data.dateOn,
 			dateOff: dateOff ?? data.dateOn,
 			userId: req.user!.userId,

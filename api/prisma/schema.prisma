@@ -249,7 +249,14 @@ model Event {
   id          Int       @id @default(autoincrement())
   name        String
   img         String
+  // Referencia interna legible (EVT-0001), correlativa GLOBAL entre organizaciones — nunca usar
+  // para links públicos (/e/, /encuesta/): es adivinable con solo cambiar el número, lo que deja
+  // enumerar eventos de OTRAS organizaciones (ver publicSlug, el campo correcto para eso).
   code        String    @unique
+  // Token opaco para todo link de cara al público (/e/:publicSlug, /encuesta/:publicSlug,
+  // sponsor-status, member-status, duplicate-check, purchase, checkout/hold, waiting-room) — a
+  // diferencia de `code`, no es adivinable ni secuencial.
+  publicSlug  String    @unique
   type        String
   description String
   dateSale    DateTime

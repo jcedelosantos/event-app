@@ -102,9 +102,9 @@ declare const bootstrap: any;
 							Tu plan actual no incluye portada pública — este link no va a cargar hasta que actualices a un plan Intermedio o superior.
 						</div>
 					}
-					<qrcode [qrdata]="publicEventUrl(ev.code)" [width]="130" [errorCorrectionLevel]="'M'"></qrcode>
+					<qrcode [qrdata]="publicEventUrl(ev.publicSlug)" [width]="130" [errorCorrectionLevel]="'M'"></qrcode>
 					<p class="small text-body-secondary mb-0">Compartí este QR o link para que el público se anote solo</p>
-					<a [href]="publicEventUrl(ev.code)" target="_blank" class="small">{{ publicEventUrl(ev.code) }}</a>
+					<a [href]="publicEventUrl(ev.publicSlug)" target="_blank" class="small">{{ publicEventUrl(ev.publicSlug) }}</a>
 				</div>
 			</div>
 
