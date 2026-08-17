@@ -14,8 +14,8 @@ import { closeModal } from '../../../../../utils/modal';
 		<div class="modal-dialog">
 			<div class="modal-content">
 				<div class="modal-header">
-					<h1 class="modal-title fs-5" id="updateGateModalLabel">{{ (gate()?.id ?? 0) > 0 ? 'Update' : 'Create' }} puerta</h1>
-					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+					<h1 class="modal-title fs-5" id="updateGateModalLabel">{{ (gate()?.id ?? 0) > 0 ? 'Editar' : 'Crear' }} puerta</h1>
+					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
 				</div>
 				<div class="modal-body">
 					<form class="needs-validation" novalidate="" [formGroup]="form">
@@ -41,7 +41,7 @@ import { closeModal } from '../../../../../utils/modal';
 							}
 						</div>
 						<div class="mb-3">
-							<label for="state">Status</label>
+							<label for="state">Estado</label>
 							<select class="custom-select d-block w-100" formControlName="active">
 								@for (status of activeList; track status.label) {
 									<option [ngValue]="status.value">{{ status.label }}</option>
@@ -54,9 +54,9 @@ import { closeModal } from '../../../../../utils/modal';
 					</form>
 				</div>
 				<div class="modal-footer">
-					<button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal"><i class="bi bi-x-lg"></i> Close</button>
+					<button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal"><i class="bi bi-x-lg"></i> Cerrar</button>
 					<button type="button" class="btn btn-primary btn-sm" (click)="save()">
-						<i class="bi bi-floppy-fill" aria-hidden="true"></i> {{ (gate()?.id ?? 0) > 0 ? 'Update' : 'Create' }}
+						<i class="bi bi-floppy-fill" aria-hidden="true"></i> {{ (gate()?.id ?? 0) > 0 ? 'Guardar' : 'Crear' }}
 					</button>
 				</div>
 			</div>
@@ -76,8 +76,8 @@ export class UpdateGateModalComponent {
 	selectedTicketIds = new Set<number>();
 
 	activeList: { label: string; value: boolean }[] = [
-		{ label: 'Active', value: true },
-		{ label: 'Inactive', value: false },
+		{ label: 'Activo', value: true },
+		{ label: 'Inactivo', value: false },
 	];
 
 	form = new FormGroup({

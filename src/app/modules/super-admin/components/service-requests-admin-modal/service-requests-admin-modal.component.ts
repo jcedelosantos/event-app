@@ -22,7 +22,7 @@ const STATUS_OPTIONS: Array<{ value: ServiceRequestStatus; label: string }> = [
 			<div class="modal-content">
 				<div class="modal-header">
 					<h1 class="modal-title fs-5" id="serviceRequestsAdminModalLabel">Solicitud — {{ request()?.tenant?.name }}</h1>
-					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
 				</div>
 				<div class="modal-body">
 					@if (request(); as r) {

@@ -119,7 +119,7 @@ type WizardStep = 'evento' | 'mapa' | 'tickets' | 'productos' | 'listo';
 									</a>
 								}
 							}
-							<a routerLink="/manager/events" class="btn btn-outline-secondary btn-sm">Volver a Events</a>
+							<a routerLink="/manager/events" class="btn btn-outline-secondary btn-sm">Volver a Eventos</a>
 						</div>
 					</div>
 				</div>

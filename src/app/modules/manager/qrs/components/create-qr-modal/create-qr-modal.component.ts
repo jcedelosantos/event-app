@@ -29,14 +29,14 @@ import { centsToDollars } from '../../../../../shared/money';
 				<div class="modal-content">
 					<div class="modal-header">
 						<h1 class="modal-title fs-5" id="createQrModalLabel">Vender ticket / Generar QR</h1>
-						<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+						<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
 					</div>
 					<div class="modal-body">
 						<form [formGroup]="form" novalidate>
 							<div class="mb-3">
 								<label>Event *</label>
 								<select class="custom-select d-block w-100" [class.is-invalid]="isInvalid('eventId')" formControlName="eventId" (change)="onEventChange()">
-									<option [ngValue]="null">Choose...</option>
+									<option [ngValue]="null">Elegir...</option>
 									@for (event of events(); track event.id) {
 										<option [ngValue]="event.id">{{ event.name }}</option>
 									}
@@ -49,7 +49,7 @@ import { centsToDollars } from '../../../../../shared/money';
 								<div class="col-md-6 mb-3">
 									<label>Ticket type *</label>
 									<select class="custom-select d-block w-100" [class.is-invalid]="isInvalid('ticketId')" formControlName="ticketId">
-										<option [ngValue]="null">Choose...</option>
+										<option [ngValue]="null">Elegir...</option>
 										@for (ticket of availableTickets(); track ticket.id) {
 											<option [ngValue]="ticket.id">{{ ticket.name }} — {{ ticket.type }} ({{ centsToDollars(ticket.priceCents) }} USD, {{ ticket.count }} en stock)</option>
 										}
@@ -66,7 +66,7 @@ import { centsToDollars } from '../../../../../shared/money';
 								<div class="col-md-6 mb-3">
 									<label>Area *</label>
 									<select class="custom-select d-block w-100" [class.is-invalid]="areaControl.invalid && areaControl.touched" [formControl]="areaControl" (change)="onAreaChange()">
-										<option [ngValue]="null">Choose...</option>
+										<option [ngValue]="null">Elegir...</option>
 										@for (area of areas(); track area.id) {
 											<option [ngValue]="area.id">{{ area.name }}</option>
 										}
@@ -79,7 +79,7 @@ import { centsToDollars } from '../../../../../shared/money';
 							<div class="mb-3">
 								<label>Seat *</label>
 								<select class="custom-select d-block w-100" [class.is-invalid]="isInvalid('seatId')" formControlName="seatId">
-									<option [ngValue]="null">Choose...</option>
+									<option [ngValue]="null">Elegir...</option>
 									@for (seat of availableSeats(); track seat.id) {
 										<option [ngValue]="seat.id">{{ seat.name }}</option>
 									}
@@ -96,7 +96,7 @@ import { centsToDollars } from '../../../../../shared/money';
 									<label>Client *</label>
 									<div class="d-flex gap-2">
 										<select class="custom-select d-block w-100" [class.is-invalid]="isInvalid('clientId')" formControlName="clientId">
-											<option [ngValue]="null">Choose...</option>
+											<option [ngValue]="null">Elegir...</option>
 											@for (client of clients(); track client.id) {
 												<option [ngValue]="client.id">{{ client.name }} {{ client.lastname }} ({{ client.username }})</option>
 											}
@@ -217,12 +217,12 @@ import { centsToDollars } from '../../../../../shared/money';
 							}
 							<div class="row">
 								<div class="col-md-6 mb-3">
-									<label>Paid type *</label>
+									<label>Forma de pago *</label>
 									<select class="custom-select d-block w-100" [class.is-invalid]="isInvalid('paidType')" formControlName="paidType">
-										<option value="">Choose...</option>
-										<option value="Cash">Cash</option>
-										<option value="Card">Card</option>
-										<option value="Transfer">Transfer</option>
+										<option value="">Elegir...</option>
+										<option value="Efectivo">Efectivo</option>
+										<option value="Tarjeta">Tarjeta</option>
+										<option value="Transferencia">Transferencia</option>
 										<option value="Invitado">Invitado (sin cargo)</option>
 									</select>
 									@if (isInvalid('paidType')) {
@@ -230,7 +230,7 @@ import { centsToDollars } from '../../../../../shared/money';
 									}
 								</div>
 								<div class="col-md-6 mb-3">
-									<label>Description</label>
+									<label>Descripción</label>
 									<input type="text" class="form-control" formControlName="description" />
 								</div>
 							</div>
@@ -240,8 +240,8 @@ import { centsToDollars } from '../../../../../shared/money';
 						</form>
 					</div>
 					<div class="modal-footer">
-						<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-						<button type="button" class="btn btn-danger" (click)="submit()">Create</button>
+						<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+						<button type="button" class="btn btn-danger" (click)="submit()">Crear</button>
 					</div>
 				</div>
 			</div>

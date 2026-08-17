@@ -34,7 +34,7 @@ declare const bootstrap: any;
 	template: `
 		<nav-bar-map [areas]="map()?.areas" [idMap]="map()?.id" />
 		<div class="col-xxl-9 col-md-12 d-flex justify-content-between align-items-center">
-			<h3 class="section-title mb-0">Manager Seat</h3>
+			<h3 class="section-title mb-0">Gestión de Asientos</h3>
 			<div>
 				@if (tables().length) {
 					<button type="button" class="btn btn-outline-danger btn-sm me-2" data-bs-toggle="modal" data-bs-target="#bulkEditTablesModal">
@@ -42,7 +42,7 @@ declare const bootstrap: any;
 					</button>
 				}
 				<button type="button" class="btn btn-outline-danger btn-sm me-2" data-bs-toggle="modal" data-bs-target="#bulkCreateSeatsModal"><i class="bi bi-grid-3x3-gap"></i> Generar varios</button>
-				<button type="button" class="btn btn-danger btn-sm" (click)="openCreateSeatModal()"><i class="bi bi-plus-lg"></i> Add Seat</button>
+				<button type="button" class="btn btn-danger btn-sm" (click)="openCreateSeatModal()"><i class="bi bi-plus-lg"></i> Agregar Asiento</button>
 			</div>
 		</div>
 		<div class="col-xxl-9 col-md-12 d-flex align-items-center gap-3 mb-2">
@@ -148,7 +148,7 @@ declare const bootstrap: any;
 										</li>
 									} @empty {
 										@if (!tables().length) {
-											<li class="list-group-item text-muted">Sin asientos — usá el botón "Add Seat" arriba (o doble click sobre la imagen para ubicarlo en un punto exacto).</li>
+											<li class="list-group-item text-muted">Sin asientos — usá el botón "Agregar Asiento" arriba (o doble click sobre la imagen para ubicarlo en un punto exacto).</li>
 										}
 									}
 									<collapse-tables [tables]="tablesWithSeats()" [id]="a.id" (deleteTable)="deleteTable($event)" />

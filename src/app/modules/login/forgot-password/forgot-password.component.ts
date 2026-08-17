@@ -8,7 +8,7 @@ import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } 
 	template: `
 		<div class="row container-sign-in">
 			<div class="col-12">
-				<h2>Forgot password</h2>
+				<h2>Recuperar contraseña</h2>
 			</div>
 			<div class="col-12">
 				<form [formGroup]="formGroupInput">
@@ -22,11 +22,11 @@ import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } 
 					}
 
 					<div class="col-12 text-end">
-						<span> <button type="button" class="btn btn-link" routerLink="/login/sign-up">Sign In</button></span>
+						<span> <button type="button" class="btn btn-link" routerLink="/login/sign-up">Iniciar sesión</button></span>
 					</div>
 					<br />
 					<div class="d-grid gap-2">
-						<button type="button" class="btn btn-dark" (click)="forgetPassword()">Reset password</button>
+						<button type="button" class="btn btn-dark" (click)="forgetPassword()">Restablecer contraseña</button>
 					</div>
 				</form>
 			</div>
@@ -52,6 +52,6 @@ export class ForgotPasswordComponent {
 		if (this.formGroupInput.valid) {
 			this['router'].navigate(['/login/sign-in']);
 		}
-		this.status = 'forgetPassword ... ';
+		this.status = 'Enviando...';
 	}
 }

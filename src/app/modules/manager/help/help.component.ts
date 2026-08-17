@@ -9,8 +9,8 @@ type FaqItem = { question: string; answerHtml: string };
 const FAQ: FaqItem[] = [
 	{
 		question: '¿Cómo creo mi primer evento?',
-		answerHtml: `Tenés dos formas: <strong>Evento flash</strong> (botón en el Dashboard) para cargar nombre, lugar y cupo esperado en segundos, o
-			<strong>Crear con guía</strong> (en Events) para un paso a paso completo con mapa y tickets incluidos. Cualquiera de las dos te deja el evento
+		answerHtml: `Tenés dos formas: <strong>Evento flash</strong> (botón en el Panel) para cargar nombre, lugar y cupo esperado en segundos, o
+			<strong>Crear con guía</strong> (en Eventos) para un paso a paso completo con mapa y tickets incluidos. Cualquiera de las dos te deja el evento
 			100% editable después desde su ficha.`,
 	},
 	{
@@ -37,23 +37,23 @@ const FAQ: FaqItem[] = [
 	},
 	{
 		question: '¿Puedo cobrar las entradas online?',
-		answerHtml: `Sí, configurando PayPal y/o un link de pago manual en <strong>Settings → Pagos</strong>. Después, en cada evento elegís el modo de
+		answerHtml: `Sí, configurando PayPal y/o un link de pago manual en <strong>Configuración → Pagos</strong>. Después, en cada evento elegís el modo de
 			cobro (ninguno, PayPal, link, o que el comprador elija). Esta función depende de tu plan — si no la ves disponible, revisá tu plan actual en
 			el badge del menú lateral.`,
 	},
 	{
 		question: '¿Cómo cambio de plan o veo mi factura?',
 		answerHtml: `Tu plan y estado aparecen siempre en el menú lateral — hacé clic ahí para ver el detalle y actualizar. El historial de facturas
-			está en <strong>Invoices</strong>.`,
+			está en <strong>Facturas</strong>.`,
 	},
 	{
 		question: '¿Qué es la "portada pública" y por qué no carga?',
-		answerHtml: `Es una página pública con todos tus próximos eventos, para compartir con tus clientes (el link está en Settings y en Events). Es una
+		answerHtml: `Es una página pública con todos tus próximos eventos, para compartir con tus clientes (el link está en Configuración y en Eventos). Es una
 			función de los planes Intermedio en adelante — si tu plan no la incluye, vas a ver un aviso explicándolo antes de intentar abrirla.`,
 	},
 	{
 		question: '¿Puedo tener varios usuarios manejando la cuenta?',
-		answerHtml: `Sí, desde <strong>Users</strong> podés crear cuentas adicionales para tu equipo (por ejemplo, alguien que solo escanea en la puerta
+		answerHtml: `Sí, desde <strong>Usuarios</strong> podés crear cuentas adicionales para tu equipo (por ejemplo, alguien que solo escanea en la puerta
 			el día del evento).`,
 	},
 ];

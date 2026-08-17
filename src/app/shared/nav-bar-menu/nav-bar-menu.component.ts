@@ -13,9 +13,9 @@ type MenuItem = { title: string; icon: string; url: string};
 // baseline (Dashboard, Events, Maps, Tickets, QRs, Users, Sale, Settings) y nunca se oculta, sin
 // importar el plan.
 const MENU_ITEM_FEATURE: Partial<Record<string, keyof PlanFeatures>> = {
-	Products: 'productsModule',
-	Reports: 'advancedReporting',
-	History: 'advancedReporting',
+	Productos: 'productsModule',
+	Reportes: 'advancedReporting',
+	Historial: 'advancedReporting',
 };
 
 const PLAN_NAME: Record<PlanCode, string> = { BASICO: 'Básico', INTERMEDIO: 'Intermedio', AVANZADO: 'Avanzado', PRO_MAX: 'Pro Enterprise' };
@@ -166,7 +166,7 @@ const SIDEBAR_COLLAPSED_KEY = 'seat-app-sidebar-collapsed';
 				<div class="p-1" style="height: 5%">
 					<div class="d-flex flex-row justify-content-end mb-3">
 						<div class="p-2">
-							<button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+							<button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Cerrar"></button>
 						</div>
 					</div>
 					@if (tenantName(); as name) {
@@ -292,25 +292,25 @@ export class NavBarMenuComponent implements AfterViewInit, OnDestroy {
 	// se repurposeó como "Invoices" — historial de facturas de la propia organización (ver
 	// api/src/lib/invoice-generation.ts), no ventas de tickets/productos (eso lo cubre QRs).
 	menuList: Array<MenuItem> = [
-		{ title: 'Dash Board', icon: 'bi bi-speedometer', url: '/manager/dash-board' },
-		{ title: 'Events', icon: 'bi bi-calendar-event', url: '/manager/events' },
-		{ title: 'Maps', icon: 'bi bi-map', url: '/manager/maps' },
+		{ title: 'Panel', icon: 'bi bi-speedometer', url: '/manager/dash-board' },
+		{ title: 'Eventos', icon: 'bi bi-calendar-event', url: '/manager/events' },
+		{ title: 'Mapas', icon: 'bi bi-map', url: '/manager/maps' },
 		{ title: 'Tickets', icon: 'bi bi-ticket-fill', url: '/manager/tickets' },
 		{ title: 'QRs', icon: 'bi bi-qr-code', url: '/manager/qrs' },
-		{ title: 'Users', icon: 'bi bi-people-fill', url: '/manager/users' },
-		{ title: 'Invoices', icon: 'bi bi-receipt', url: '/manager/invoices' },
-		{ title: 'Products', icon: 'bi bi-calendar2-event-fill', url: '/manager/products' },
-		{ title: 'Reports', icon: 'bi bi-flag-fill', url: '/manager/reports' },
-		{ title: 'History', icon: 'bi bi-clock-history', url: '/manager/history' },
+		{ title: 'Usuarios', icon: 'bi bi-people-fill', url: '/manager/users' },
+		{ title: 'Facturas', icon: 'bi bi-receipt', url: '/manager/invoices' },
+		{ title: 'Productos', icon: 'bi bi-calendar2-event-fill', url: '/manager/products' },
+		{ title: 'Reportes', icon: 'bi bi-flag-fill', url: '/manager/reports' },
+		{ title: 'Historial', icon: 'bi bi-clock-history', url: '/manager/history' },
 		// Sin entrada en MENU_ITEM_FEATURE a propósito — visible en todos los planes, es un canal de
 		// upsell (renta de equipos, personal presencial, etc.), no una feature a restringir.
 		{ title: 'Solicitudes', icon: 'bi bi-headset', url: '/manager/solicitudes' },
 		// Mismo criterio que Solicitudes: sin gating de plan, contenido estático de ayuda.
 		{ title: 'Ayuda', icon: 'bi bi-question-circle', url: '/manager/ayuda' },
-		{ title: 'Settings', icon: 'bi bi-palette', url: '/manager/settings' },
+		{ title: 'Configuración', icon: 'bi bi-palette', url: '/manager/settings' },
 	];
 
-	menuExit: Array<MenuItem> = [{ title: 'Exit', icon: 'bi bi-box-arrow-left', url: '/site-web' }];
+	menuExit: Array<MenuItem> = [{ title: 'Salir', icon: 'bi bi-box-arrow-left', url: '/site-web' }];
 
 	@HostListener('window:resize')
 	onResize() {

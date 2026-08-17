@@ -14,12 +14,12 @@ import { HttpErrorResponse } from '@angular/common/http';
 	selector: 'app-products',
 	imports: [ProductCardComponent, UpdateProductModalComponent, ImportProductsModalComponent],
 	template: `
-		<h2 class="section-title">Products Manager</h2>
+		<h2 class="section-title">Gestión de Productos</h2>
 
 		<nav class="navbar border-bottom border-body">
 			<div class="container-fluid">
 				<form class="d-flex" role="search">
-					<button type="button" class="btn btn-danger me-4" (click)="selectedProduct.set(null)" data-bs-toggle="modal" data-bs-target="#updateProductModal">Create</button>
+					<button type="button" class="btn btn-danger me-4" (click)="selectedProduct.set(null)" data-bs-toggle="modal" data-bs-target="#updateProductModal">Crear</button>
 					<button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#importProductsModal">
 						<i class="bi bi-upload" aria-hidden="true"></i> Importar desde CSV
 					</button>
@@ -34,7 +34,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 						<product-card [product]="product" (selectedProduct)="selectedProduct.set($event)" (deleteProduct)="onDeleteProduct($event)" />
 					</div>
 				} @empty {
-					<p class="text-body-secondary">Todavía no hay productos cargados. Creá el primero con el botón "Create".</p>
+					<p class="text-body-secondary">Todavía no hay productos cargados. Creá el primero con el botón "Crear".</p>
 				}
 			</div>
 		}

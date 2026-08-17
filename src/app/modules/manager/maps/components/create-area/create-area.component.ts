@@ -14,7 +14,7 @@ import { closeModal as closeModalById } from '../../../../../utils/modal';
 			<div class="modal-content">
 				<form [formGroup]="areaCreateForm" (ngSubmit)="clickPostAreaCreate()">
 					<div class="modal-header">
-						<h4>Create Area</h4>
+						<h4>Crear Área</h4>
 					</div>
 					<div class="modal-body">
 						<p class="text-muted">Un área es una zona de tu venue (ej. "VIP", "Platea", "General") donde después vas a poder agregar asientos o mesas.</p>
@@ -47,18 +47,18 @@ import { closeModal as closeModalById } from '../../../../../utils/modal';
 								</div>
 
 								<div class="col-md-2 mb-2">
-									<h6>Size</h6>
+									<h6>Tamaño</h6>
 									<input type="number" min="1" max="32" class="form-control" formControlName="editSize" placeholder="0" />
 								</div>
 
 								<div class="col-md-6 mb-2">
 									<div class="row">
 										<div class="col-4">
-											<label for="colorInput" class="form-label">Text</label>
+											<label for="colorInput" class="form-label">Color de texto</label>
 											<input type="color" class="form-control form-control-color" id="colorInput" formControlName="editColor" />
 										</div>
 										<div class="col-8">
-											<label for="colorBackInput" class="form-label">BackGround</label>
+											<label for="colorBackInput" class="form-label">Fondo</label>
 											<input type="color" class="form-control form-control-color" id="colorBackInput" formControlName="editBackGround" />
 										</div>
 									</div>
@@ -66,7 +66,7 @@ import { closeModal as closeModalById } from '../../../../../utils/modal';
 
 								<div class="col-md-4 mb-2">
 									<div class="form-group">
-										<label for="editIcons">Icons</label>
+										<label for="editIcons">Íconos</label>
 										<div class="row p-2">
 											<div class="col-8">
 												<select id="editIcon" class="form-control " name="editIcon" formControlName="editIcon" (change)="getIcon()">
@@ -89,7 +89,7 @@ import { closeModal as closeModalById } from '../../../../../utils/modal';
 								</div>
 
 								<div class="col-md-8 mb-2">
-									<label for="editImg" class="form-label">Image URL</label>
+									<label for="editImg" class="form-label">URL de imagen</label>
 									<input class="form-control" type="text" id="editImg" formControlName="editImg" placeholder="https://..." />
 								</div>
 							</div>
@@ -100,7 +100,7 @@ import { closeModal as closeModalById } from '../../../../../utils/modal';
 					</div>
 					<div class="modal-footer">
 						<button type="button" class="btn btn-secondary" (click)="closeModal()">Cerrar</button>
-						<button type="submit" class="btn btn-primary">Create</button>
+						<button type="submit" class="btn btn-primary">Crear</button>
 					</div>
 				</form>
 			</div>
@@ -117,12 +117,12 @@ export class CreateAreaComponent implements OnChanges {
 	icons = [
 		{ label: '', value: '' },
 		{ label: 'Curso', value: 'bi-input-cursor' },
-		{ label: 'Resize', value: 'bi-textarea-resize' },
-		{ label: 'Textarea', value: 'bi-textarea' },
-		{ label: 'Map', value: 'bi bi-map' },
+		{ label: 'Redimensionar', value: 'bi-textarea-resize' },
+		{ label: 'Área de texto', value: 'bi-textarea' },
+		{ label: 'Mapa', value: 'bi bi-map' },
 		{ label: 'Geo', value: 'bi-geo' },
-		{ label: 'Table', value: 'bi-table' },
-		{ label: 'Bank', value: 'bi-bank' },
+		{ label: 'Tabla', value: 'bi-table' },
+		{ label: 'Banco', value: 'bi-bank' },
 	];
 	selectedIcon: string = this.icons[0].value;
 

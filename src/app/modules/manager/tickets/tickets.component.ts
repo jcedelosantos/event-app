@@ -16,14 +16,14 @@ import { HttpErrorResponse } from '@angular/common/http';
 	selector: 'app-tickets',
 	imports: [TicketCardComponent, UpdateTicketModalComponent, ExportTicketsModalComponent, ImportTicketsModalComponent],
 	template: `
-		<h2 class="section-title">Tickets Manager</h2>
+		<h2 class="section-title">Gestión de Tickets</h2>
 
 		<nav class="navbar border-bottom border-body">
 			<div class="container-fluid">
 				<form class="d-flex" role="search" (submit)="$event.preventDefault(); searchText.set(searchInput.value)">
-					<button type="button" class="btn btn-danger me-4" (click)="selectedTicket.set(null)" data-bs-toggle="modal" data-bs-target="#updateTicketModal">Create</button>
-					<input #searchInput class="form-control me-2" type="search" placeholder="Search" aria-label="Name" (input)="searchText.set(searchInput.value)" />
-					<button class="btn btn-dark me-4" type="submit">Search</button>
+					<button type="button" class="btn btn-danger me-4" (click)="selectedTicket.set(null)" data-bs-toggle="modal" data-bs-target="#updateTicketModal">Crear</button>
+					<input #searchInput class="form-control me-2" type="search" placeholder="Buscar" aria-label="Nombre" (input)="searchText.set(searchInput.value)" />
+					<button class="btn btn-dark me-4" type="submit">Buscar</button>
 				</form>
 				<div class="navbar-brand">
 					<div class="row">

@@ -24,5 +24,5 @@ import { RouterLink } from '@angular/router';
 })
 export class NavBarInitComponent {
 	title: string = 'INTEG';
-	menuList: Array<{ title: string; icon: string; url: string }> = [{ title: 'Sign In', icon: '', url: '/login/sign-in' }];
+	menuList: Array<{ title: string; icon: string; url: string }> = [{ title: 'Iniciar sesión', icon: '', url: '/login/sign-in' }];
 }

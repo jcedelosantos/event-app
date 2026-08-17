@@ -20,7 +20,7 @@ import { centsToDollars } from '../../../../../shared/money';
 					<div class="row">
 						<div class="col-9">
 							<span class="badge" [ngClass]="{ 'text-bg-success': product().active, 'text-bg-danger': !product().active }">
-								{{ product().active ? 'Active' : 'Inactive' }}
+								{{ product().active ? 'Activo' : 'Inactivo' }}
 							</span>
 							<span class="badge text-bg-secondary m-1">{{ product().type }}</span>
 							@if (product().variant) {

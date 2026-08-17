@@ -12,7 +12,7 @@ import { Events } from '../../models/events/events';
 		<div class="col-12 schedule-box">
 			<form [formGroup]="form" (ngSubmit)="onSubmit()">
 				<div class="p-2">
-					<h5>Schedule</h5>
+					<h5>Calendario</h5>
 				</div>
 				<div class="col ps-2 pe-2 pb-3">
 					<div class="row g-2">
@@ -20,7 +20,7 @@ import { Events } from '../../models/events/events';
 							<input type="number" min="2000" max="2100" class="form-control form-control-sm" formControlName="filterYear" />
 						</div>
 						<div class="col-6">
-							<select class="form-select form-select-sm" aria-label="Default select example" formControlName="filterMonth" required="">
+							<select class="form-select form-select-sm" aria-label="Seleccionar mes" formControlName="filterMonth" required="">
 								@for (month of months; track $index; let idx = $index) {
 									<option [value]="idx">{{ month }}</option>
 								}
@@ -105,7 +105,7 @@ import { Events } from '../../models/events/events';
 				<div class="col-12">
 					<div class="d-flex justify-content-start">
 						<div class="p-2">
-							<h5>List events</h5>
+							<h5>Eventos del mes</h5>
 						</div>
 						<div class="p-2">
 							<span class="badge text-bg-danger">{{ monthEvents().length }}</span>
@@ -131,7 +131,7 @@ import { Events } from '../../models/events/events';
 											<div class="d-flex justify-content-between">
 												<div class="p-2">Cupo : <span class="badge text-bg-warning">{{ totalCount(event) }}</span></div>
 												<div class="p-2">
-													<a class="btn btn-danger btn-sm" [routerLink]="['/manager/events', event.id]">Details</a>
+													<a class="btn btn-danger btn-sm" [routerLink]="['/manager/events', event.id]">Detalles</a>
 												</div>
 											</div>
 										</li>
@@ -151,8 +151,8 @@ import { Events } from '../../models/events/events';
 export class ScheduleComponent implements OnInit, OnChanges {
 	@Input() events: Events[] = [];
 
-	dayList: string[] = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
-	months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+	dayList: string[] = ['Do', 'Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá'];
+	months = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 	year: number;
 	month: number;
 	day: number;

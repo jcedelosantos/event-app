@@ -308,7 +308,7 @@ const REQUEST_STATUS_LABEL: Record<ServiceRequestStatus, string> = {
 				<thead>
 					<tr>
 						<th scope="col">Organización</th>
-						<th scope="col">Tier</th>
+						<th scope="col">Plan</th>
 						<th scope="col" class="text-end">Monto</th>
 						<th scope="col">Fecha</th>
 						<th scope="col"></th>

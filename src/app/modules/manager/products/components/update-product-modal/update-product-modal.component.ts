@@ -17,31 +17,31 @@ import { centsToDollars, dollarsToCents } from '../../../../../shared/money';
 		<div class="modal-dialog">
 			<div class="modal-content">
 				<div class="modal-header">
-					<h1 class="modal-title fs-5" id="updateProductModalLabel">{{ (product()?.id ?? 0) > 0 ? 'Update' : 'Create' }} product</h1>
-					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+					<h1 class="modal-title fs-5" id="updateProductModalLabel">{{ (product()?.id ?? 0) > 0 ? 'Editar' : 'Crear' }} producto</h1>
+					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
 				</div>
 				<div class="modal-body">
 					<form class="needs-validation" novalidate="" [formGroup]="form">
 						<div class="mb-3">
-							<label for="name">Name *</label>
+							<label for="name">Nombre *</label>
 							<input type="text" class="form-control" [class.is-invalid]="isInvalid('name')" formControlName="name" />
 							@if (isInvalid('name')) {
 								<div class="invalid-feedback">El nombre es obligatorio.</div>
 							}
 						</div>
 						<div class="mb-3">
-							<label for="description">Description </label>
+							<label for="description">Descripción </label>
 							<input type="text" class="form-control" formControlName="description" />
 						</div>
 						<div class="mb-3">
-							<label for="img">Photo URL <span class="text-muted">(opcional — pegá el link de una imagen online)</span></label>
+							<label for="img">URL de foto <span class="text-muted">(opcional — pegá el link de una imagen online)</span></label>
 							<input type="text" class="form-control" formControlName="img" placeholder="https://..." />
 							<div class="form-text">Sin foto, se muestra una imagen genérica en la tarjeta del producto.</div>
 						</div>
 						<div class="mb-3">
-							<label for="event">Event *</label>
+							<label for="event">Evento *</label>
 							<select class="custom-select d-block w-100" [class.is-invalid]="isInvalid('eventId')" formControlName="eventId">
-								<option [ngValue]="null">Choose...</option>
+								<option [ngValue]="null">Elegir...</option>
 								@for (event of events(); track event.id) {
 									<option [ngValue]="event.id">{{ event.name }}</option>
 								}
@@ -60,7 +60,7 @@ import { centsToDollars, dollarsToCents } from '../../../../../shared/money';
 								<div class="form-text">Se descuenta automáticamente con cada venta.</div>
 							</div>
 							<div class="col-md-6 mb-3">
-								<label for="price">Price *</label>
+								<label for="price">Precio *</label>
 								<input type="number" class="form-control" [class.is-invalid]="isInvalid('price')" formControlName="price" />
 								@if (isInvalid('price')) {
 									<div class="invalid-feedback">Ingresá un precio.</div>
@@ -70,7 +70,7 @@ import { centsToDollars, dollarsToCents } from '../../../../../shared/money';
 
 						<div class="row">
 							<div class="col-md-6 mb-3">
-								<label for="type">Type *</label>
+								<label for="type">Tipo *</label>
 								<input type="text" class="form-control" [class.is-invalid]="isInvalid('type')" formControlName="type" placeholder="Ej: Merchandising, Bebida, Regalo" list="productTypeList" />
 								<datalist id="productTypeList">
 									@for (type of typeSuggestions(); track type) {
@@ -82,7 +82,7 @@ import { centsToDollars, dollarsToCents } from '../../../../../shared/money';
 								}
 							</div>
 							<div class="col-md-6 mb-3">
-								<label for="state">Status</label>
+								<label for="state">Estado</label>
 								<select class="custom-select d-block w-100" formControlName="active">
 									@for (status of activeList(); track status.label) {
 										<option [ngValue]="status.value">{{ status.label }}</option>
@@ -107,9 +107,9 @@ import { centsToDollars, dollarsToCents } from '../../../../../shared/money';
 					</form>
 				</div>
 				<div class="modal-footer">
-					<button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal"><i class="bi bi-x-lg"></i> Close</button>
+					<button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal"><i class="bi bi-x-lg"></i> Cerrar</button>
 					<button type="button" class="btn btn-primary btn-sm" (click)="save()">
-						<i class="bi bi-floppy-fill" aria-hidden="true"></i> {{ (product()?.id ?? 0) > 0 ? 'Update' : 'Create' }}
+						<i class="bi bi-floppy-fill" aria-hidden="true"></i> {{ (product()?.id ?? 0) > 0 ? 'Guardar' : 'Crear' }}
 					</button>
 				</div>
 			</div>
@@ -132,8 +132,8 @@ export class UpdateProductModalComponent {
 
 	typeSuggestions = signal<string[]>(['Merchandising', 'Bebida', 'Comida', 'Regalo', 'Souvenir']);
 	activeList = signal<{ label: string; value: boolean }[]>([
-		{ label: 'Active', value: true },
-		{ label: 'Inactive', value: false },
+		{ label: 'Activo', value: true },
+		{ label: 'Inactivo', value: false },
 	]);
 
 	form = new FormGroup({

@@ -17,24 +17,24 @@ type ColumnKey = SortKey;
 
 const COLUMN_LABELS: Record<ColumnKey, string> = {
 	carnet: 'Carnet',
-	name: 'Name',
-	lastname: 'LastName',
-	username: 'UserName',
+	name: 'Nombre',
+	lastname: 'Apellido',
+	username: 'Usuario',
 	email: 'Email',
-	type: 'Type',
+	type: 'Tipo',
 };
 
 @Component({
 	selector: 'app-users',
 	imports: [UpdateUserModalComponent, ImportUsersModalComponent, ExportUsersModalComponent],
 	template: `
-		<h2 class="section-title">Users Manager</h2>
+		<h2 class="section-title">Gestión de Usuarios</h2>
 		<nav class="navbar border-bottom border-body">
 			<div class="container-fluid">
 				<form class="d-flex" role="search" (submit)="$event.preventDefault(); searchText.set(searchInput.value)">
-					<button type="button" class="btn btn-primary me-4" (click)="openUpdateUserModal(null)">Create</button>
-					<input #searchInput class="form-control me-2" type="search" placeholder="Search" aria-label="Name" (input)="searchText.set(searchInput.value)" />
-					<button class="btn btn-dark me-4" type="submit"> Search</button>
+					<button type="button" class="btn btn-primary me-4" (click)="openUpdateUserModal(null)">Crear</button>
+					<input #searchInput class="form-control me-2" type="search" placeholder="Buscar" aria-label="Nombre" (input)="searchText.set(searchInput.value)" />
+					<button class="btn btn-dark me-4" type="submit"> Buscar</button>
 					<button class="btn btn-danger" type="button" (click)="searchInput.value = ''; searchText.set('')"><i class="bi bi-eraser-fill"></i></button>
 				</form>
 				<div class="navbar-brand d-flex align-items-center gap-3">
@@ -74,15 +74,15 @@ const COLUMN_LABELS: Record<ColumnKey, string> = {
 			<caption>
 				<div class="d-flex justify-content-between">
 					<div class="p-2">
-						List of users
+						Lista de usuarios
 						{{ users().length }}
 						/ 10
 					</div>
 					<div class="p-2">
-						<nav aria-label="Page navigation example">
+						<nav aria-label="Navegación de páginas">
 							<ul class="pagination">
 								<li class="page-item">
-									<a class="page-link" aria-label="Previous">
+									<a class="page-link" aria-label="Anterior">
 										<span aria-hidden="true">&laquo;</span>
 									</a>
 								</li>
@@ -90,7 +90,7 @@ const COLUMN_LABELS: Record<ColumnKey, string> = {
 								<li class="page-item"><a class="page-link">2</a></li>
 								<li class="page-item"><a class="page-link">3</a></li>
 								<li class="page-item">
-									<a class="page-link" aria-label="Next">
+									<a class="page-link" aria-label="Siguiente">
 										<span aria-hidden="true">&raquo;</span>
 									</a>
 								</li>
@@ -106,19 +106,19 @@ const COLUMN_LABELS: Record<ColumnKey, string> = {
 						<th scope="col" role="button" (click)="toggleSort('carnet')">Carnet <i class="bi" [class]="sortIcon('carnet')"></i></th>
 					}
 					@if (visibleColumns()['name']) {
-						<th scope="col" role="button" (click)="toggleSort('name')">Name <i class="bi" [class]="sortIcon('name')"></i></th>
+						<th scope="col" role="button" (click)="toggleSort('name')">Nombre <i class="bi" [class]="sortIcon('name')"></i></th>
 					}
 					@if (visibleColumns()['lastname']) {
-						<th scope="col" role="button" (click)="toggleSort('lastname')">LastName <i class="bi" [class]="sortIcon('lastname')"></i></th>
+						<th scope="col" role="button" (click)="toggleSort('lastname')">Apellido <i class="bi" [class]="sortIcon('lastname')"></i></th>
 					}
 					@if (visibleColumns()['username']) {
-						<th scope="col" role="button" (click)="toggleSort('username')">UserName <i class="bi" [class]="sortIcon('username')"></i></th>
+						<th scope="col" role="button" (click)="toggleSort('username')">Usuario <i class="bi" [class]="sortIcon('username')"></i></th>
 					}
 					@if (visibleColumns()['email']) {
 						<th scope="col" role="button" (click)="toggleSort('email')">Email <i class="bi" [class]="sortIcon('email')"></i></th>
 					}
 					@if (visibleColumns()['type']) {
-						<th scope="col" role="button" (click)="toggleSort('type')">Type <i class="bi" [class]="sortIcon('type')"></i></th>
+						<th scope="col" role="button" (click)="toggleSort('type')">Tipo <i class="bi" [class]="sortIcon('type')"></i></th>
 					}
 					<th scope="col"></th>
 				</tr>

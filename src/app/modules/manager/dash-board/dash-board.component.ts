@@ -31,7 +31,7 @@ const LIVE_REFRESH_MS = 20_000;
 	imports: [RouterLink, MiniBarChartComponent, FlashEventModalComponent],
 	template: `
 		<div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
-			<h2 class="section-title mb-0">Dashboard</h2>
+			<h2 class="section-title mb-0">Panel</h2>
 			<button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#flashEventModal">
 				<i class="bi bi-lightning-charge-fill"></i> Evento flash
 			</button>

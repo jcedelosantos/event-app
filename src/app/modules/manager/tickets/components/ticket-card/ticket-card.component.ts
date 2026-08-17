@@ -18,7 +18,7 @@ import { centsToDollars } from '../../../../../shared/money';
 							<span class="badge "
 								[ngClass]="{'text-bg-success': ticket().active,
 											'text-bg-danger': !ticket().active}">
-								{{ticket().active ? 'Active' : 'Inactive'}}
+								{{ticket().active ? 'Activo' : 'Inactivo'}}
 							</span>
 							<span class="badge"
 							[ngClass]="{'text-bg-purple ': ticket().type === 'VIP',

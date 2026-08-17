@@ -21,14 +21,14 @@ import { centsToDollars } from '../../../../../shared/money';
 				<div class="modal-content">
 					<div class="modal-header">
 						<h1 class="modal-title fs-5" id="createProductQrModalLabel">Vender producto / Generar QR</h1>
-						<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+						<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
 					</div>
 					<div class="modal-body">
 						<form [formGroup]="form" novalidate>
 							<div class="mb-3">
 								<label>Event *</label>
 								<select class="custom-select d-block w-100" [class.is-invalid]="isInvalid('eventId')" formControlName="eventId" (change)="onEventChange()">
-									<option [ngValue]="null">Choose...</option>
+									<option [ngValue]="null">Elegir...</option>
 									@for (event of events(); track event.id) {
 										<option [ngValue]="event.id">{{ event.name }}</option>
 									}
@@ -40,7 +40,7 @@ import { centsToDollars } from '../../../../../shared/money';
 							<div class="mb-3">
 								<label>Product *</label>
 								<select class="custom-select d-block w-100" [class.is-invalid]="isInvalid('productId')" formControlName="productId">
-									<option [ngValue]="null">Choose...</option>
+									<option [ngValue]="null">Elegir...</option>
 									@for (product of availableProducts(); track product.id) {
 										<option [ngValue]="product.id">{{ product.name }} — {{ product.type }} ({{ centsToDollars(product.priceCents) }} USD) — {{ product.count }} en stock</option>
 									}
@@ -57,7 +57,7 @@ import { centsToDollars } from '../../../../../shared/money';
 							<div class="mb-3">
 								<label>Client *</label>
 								<select class="custom-select d-block w-100" [class.is-invalid]="isInvalid('clientId')" formControlName="clientId">
-									<option [ngValue]="null">Choose...</option>
+									<option [ngValue]="null">Elegir...</option>
 									@for (client of clients(); track client.id) {
 										<option [ngValue]="client.id">{{ client.name }} {{ client.lastname }} ({{ client.username }})</option>
 									}
@@ -68,19 +68,19 @@ import { centsToDollars } from '../../../../../shared/money';
 							</div>
 							<div class="row">
 								<div class="col-md-4 mb-3">
-									<label>Quantity *</label>
+									<label>Cantidad *</label>
 									<input type="number" class="form-control" min="1" [class.is-invalid]="isInvalid('quantity')" formControlName="quantity" />
 									@if (isInvalid('quantity')) {
 										<div class="invalid-feedback">Ingresá una cantidad.</div>
 									}
 								</div>
 								<div class="col-md-4 mb-3">
-									<label>Paid type *</label>
+									<label>Forma de pago *</label>
 									<select class="custom-select d-block w-100" [class.is-invalid]="isInvalid('paidType')" formControlName="paidType">
-										<option value="">Choose...</option>
-										<option value="Cash">Cash</option>
-										<option value="Card">Card</option>
-										<option value="Transfer">Transfer</option>
+										<option value="">Elegir...</option>
+										<option value="Efectivo">Efectivo</option>
+										<option value="Tarjeta">Tarjeta</option>
+										<option value="Transferencia">Transferencia</option>
 										<option value="Invitado">Invitado (sin cargo)</option>
 									</select>
 									@if (isInvalid('paidType')) {
@@ -88,7 +88,7 @@ import { centsToDollars } from '../../../../../shared/money';
 									}
 								</div>
 								<div class="col-md-4 mb-3">
-									<label>Description</label>
+									<label>Descripción</label>
 									<input type="text" class="form-control" formControlName="description" />
 								</div>
 							</div>
@@ -98,8 +98,8 @@ import { centsToDollars } from '../../../../../shared/money';
 						</form>
 					</div>
 					<div class="modal-footer">
-						<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-						<button type="button" class="btn btn-danger" (click)="submit()">Create</button>
+						<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+						<button type="button" class="btn btn-danger" (click)="submit()">Crear</button>
 					</div>
 				</div>
 			</div>

@@ -14,7 +14,7 @@ import { extractErrorMessage } from '../../../../../utils/api-error';
 				<div class="modal-content">
 					<div class="modal-header">
 						<h1 class="modal-title fs-5" id="productSaleDetailModalLabel">{{ saleProduct()?.event?.name }}</h1>
-						<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+						<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
 					</div>
 					<div class="modal-body">
 						@if (saleProduct(); as detail) {
@@ -48,7 +48,7 @@ import { extractErrorMessage } from '../../../../../utils/api-error';
 					</div>
 					<div class="modal-footer">
 						<button type="button" class="btn btn-outline-danger" [disabled]="resending()" (click)="resend()"><i class="bi bi-envelope"></i> Reenviar por correo</button>
-						<button type="button" class="btn btn-danger" data-bs-dismiss="modal">Close</button>
+						<button type="button" class="btn btn-danger" data-bs-dismiss="modal">Cerrar</button>
 					</div>
 				</div>
 			</div>

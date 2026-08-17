@@ -1,6 +1,6 @@
 import Swal from 'sweetalert2'
 
-export const info = (text: string, title: string = 'Info',  content : string = '') => {
+export const info = (text: string, title: string = 'Información',  content : string = '') => {
   Swal.fire({
     title,
     text: content ? '' : text,

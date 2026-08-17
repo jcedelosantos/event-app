@@ -23,8 +23,8 @@ import { HttpErrorResponse } from '@angular/common/http';
 	template: `
 		<nav-bar-map [maps]="maps()" [idMap]="map()?.id" [areas]="areas()" />
 		<div class="d-flex justify-content-between align-items-center">
-			<h3 class="section-title mb-0">Manager Areas</h3>
-			<button type="button" class="btn btn-danger btn-sm" (click)="openCreateAreaModal()"><i class="bi bi-plus-lg"></i> Add Area</button>
+			<h3 class="section-title mb-0">Gestión de Áreas</h3>
+			<button type="button" class="btn btn-danger btn-sm" (click)="openCreateAreaModal()"><i class="bi bi-plus-lg"></i> Agregar Área</button>
 		</div>
 		<div class="scroll-map">
 			<div class="card">
@@ -44,7 +44,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 							<div class="col-7">
 								<div class="d-flex justify-content-end">
 									<div class="bd-highlight me-4">
-										Areas : <span class="badge text-bg-danger">{{ areas().length }}</span>
+										Áreas: <span class="badge text-bg-danger">{{ areas().length }}</span>
 									</div>
 									<div class="bd-highlight me-4">
 										Mesas : <span class="badge text-bg-danger">{{ tableCount() }}</span>
@@ -94,7 +94,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 					<h6 class="mb-3">Áreas de "{{ map()?.name }}"</h6>
 					<div class="scroll-list">
 						@if (!areas().length) {
-							<p class="text-muted">Sin áreas — usá el botón "Add Area" arriba para crear la primera.</p>
+							<p class="text-muted">Sin áreas — usá el botón "Agregar Área" arriba para crear la primera.</p>
 						}
 						<div class="row">
 							@for (area of areas(); track area.id; let idx = $index) {

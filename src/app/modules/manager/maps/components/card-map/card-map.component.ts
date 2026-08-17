@@ -26,7 +26,7 @@ import { RouterLink } from '@angular/router';
 					<p class="card-text small text-body-secondary mb-2">{{ map.description }}</p>
 					<div class="d-flex map-stats">
 						<div class="map-stat">
-							<span class="map-stat-label">Areas</span>
+							<span class="map-stat-label">Áreas</span>
 							<span class="badge text-bg-danger">{{ map.areas.length }}</span>
 						</div>
 						<div class="map-stat">
@@ -39,7 +39,7 @@ import { RouterLink } from '@angular/router';
 						</div>
 					</div>
 				</div>
-				<button type="button" class="btn btn-outline-danger btn-sm btn-block" routerLink="/manager/maps/{{ map.id }}/areas">View Details</button>
+				<button type="button" class="btn btn-outline-danger btn-sm btn-block" routerLink="/manager/maps/{{ map.id }}/areas">Ver Detalles</button>
 			</div>
 		}
 	`,

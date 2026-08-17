@@ -24,11 +24,11 @@ declare const bootstrap: any;
 	selector: 'app-events',
 	imports: [RouterLink, CreateEventModalComponent, ScheduleComponent, EventCardComponent, CreateMapModalComponent, EventQrModalComponent, QRCodeComponent],
 	template: `
-			<h2 class="section-title">Events Manager</h2>
+			<h2 class="section-title">Gestión de Eventos</h2>
 			<nav class="navbar border-bottom border-body">
 				<div class="container-fluid">
 					<form class="d-flex align-items-center gap-2 flex-wrap" role="search" (submit)="$event.preventDefault(); searchText.set(searchInput.value)">
-						<button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#createEventModal">Create</button>
+						<button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#createEventModal">Crear</button>
 						<a routerLink="/manager/events/wizard" class="btn btn-outline-light btn-sm" title="Creación guiada paso a paso: evento, mapa, tickets y productos">
 							<i class="bi bi-magic"></i> Crear con guía
 						</a>
@@ -37,11 +37,11 @@ declare const bootstrap: any;
 							class="form-control form-control-sm"
 							style="max-width: 140px"
 							type="search"
-							placeholder="Search"
-							aria-label="Name"
+							placeholder="Buscar"
+							aria-label="Nombre"
 							(input)="searchText.set(searchInput.value)"
 						/>
-						<button class="btn btn-dark btn-sm" type="submit">Search</button>
+						<button class="btn btn-dark btn-sm" type="submit">Buscar</button>
 						@if (orgUrl(); as url) {
 							<a class="btn btn-outline-light btn-sm" [href]="url" target="_blank" rel="noopener" title="Abrir la portada pública de tu organización">
 								<i class="bi bi-box-arrow-up-right"></i> Portada pública
@@ -86,7 +86,7 @@ declare const bootstrap: any;
 						<div class="modal-content">
 							<div class="modal-header">
 								<h1 class="modal-title fs-5" id="orgQrModalLabel">Portada pública</h1>
-								<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+								<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
 							</div>
 							<div class="modal-body text-center">
 								@if (publicPortalBlocked()) {
@@ -100,7 +100,7 @@ declare const bootstrap: any;
 								<a [href]="url" target="_blank" rel="noopener">{{ url }}</a>
 							</div>
 							<div class="modal-footer">
-								<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+								<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
 							</div>
 						</div>
 					</div>
@@ -110,7 +110,7 @@ declare const bootstrap: any;
 				<div class="col-12 col-lg-8">
 					<div class="d-flex flex-column vh-85">
 						<div class="text-white p-1" style="flex: 0 0 45%;">
-							<h5>Now <span class="badge text-bg-secondary">{{ eventsNow().length }}</span></h5>
+							<h5>En curso <span class="badge text-bg-secondary">{{ eventsNow().length }}</span></h5>
 
 							@if (eventsNow().length) {
 								<div class="event-card-list">
@@ -129,7 +129,7 @@ declare const bootstrap: any;
 							}
 						</div>
 						<div class="text-white p-1">
-							<h5>Up Coming <span class="badge text-bg-secondary">{{ eventsUpcoming().length }}</span></h5>
+							<h5>Próximos <span class="badge text-bg-secondary">{{ eventsUpcoming().length }}</span></h5>
 
 							@if (eventsUpcoming().length) {
 								<div class="event-card-list">

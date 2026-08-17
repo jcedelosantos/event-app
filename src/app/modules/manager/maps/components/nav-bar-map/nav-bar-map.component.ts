@@ -10,16 +10,16 @@ import { Area } from '../../../../../models/maps/area';
 	template: `
 		<div class="row nav-bar">
 			<div class="col-6 p-2">
-				<button type="button" class="btn btn-dark m-1" routerLink="/manager/maps">Maps</button>
+				<button type="button" class="btn btn-dark m-1" routerLink="/manager/maps">Mapas</button>
 				@if (idMap) {
-					<button type="button" class="btn btn-dark m-1" [routerLink]="'/manager/maps/' + idMap + '/areas'">Areas</button>
+					<button type="button" class="btn btn-dark m-1" [routerLink]="'/manager/maps/' + idMap + '/areas'">Áreas</button>
 				}
 			</div>
 
 			<div class="col-6 d-flex flex-row-reverse p-2">
-				<nav aria-label="Page navigation example">
+				<nav aria-label="Navegación de páginas">
 					<ul class="pagination justify-content-center">
-						<a class="page-link" aria-label="Previous">
+						<a class="page-link" aria-label="Anterior">
 							<span aria-hidden="true">&laquo;</span>
 						</a>
 						@for (map of maps; track $index; let idx = $index) {
@@ -32,7 +32,7 @@ import { Area } from '../../../../../models/maps/area';
 								<a class="page-link" [routerLink]="'/manager/maps/' + idMap + '/areas/' + area.id">{{ idx + 1 }}</a>
 							</li>
 						}
-						<a class="page-link" aria-label="Next">
+						<a class="page-link" aria-label="Siguiente">
 							<span aria-hidden="true">&raquo;</span>
 						</a>
 					</ul>

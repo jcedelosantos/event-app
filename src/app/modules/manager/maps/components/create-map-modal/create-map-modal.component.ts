@@ -18,20 +18,20 @@ const DEFAULT_LNG = -70.0412847;
 			<div class="modal-dialog">
 				<div class="modal-content">
 					<div class="modal-header">
-						<h1 class="modal-title fs-5" id="createMapModalLabel">{{ map() ? 'Update' : 'Create' }} map</h1>
-						<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+						<h1 class="modal-title fs-5" id="createMapModalLabel">{{ map() ? 'Editar' : 'Crear' }} mapa</h1>
+						<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
 					</div>
 					<div class="modal-body">
 						<form [formGroup]="mapForm" novalidate>
 							<div class="mb-3">
-								<label>Name *</label>
+								<label>Nombre *</label>
 								<input type="text" class="form-control" [class.is-invalid]="isInvalid('name')" formControlName="name" />
 								@if (isInvalid('name')) {
 									<div class="invalid-feedback">El nombre es obligatorio.</div>
 								}
 							</div>
 							<div class="mb-3">
-								<label>Description</label>
+								<label>Descripción</label>
 								<input type="text" class="form-control" formControlName="description" />
 							</div>
 							<div class="mb-2">
@@ -42,11 +42,11 @@ const DEFAULT_LNG = -70.0412847;
 							</div>
 							<div class="row">
 								<div class="col-md-6 mb-3">
-									<label>Latitude</label>
+									<label>Latitud</label>
 									<input type="number" step="any" class="form-control" formControlName="x" (change)="onManualCoordChange()" />
 								</div>
 								<div class="col-md-6 mb-3">
-									<label>Longitude</label>
+									<label>Longitud</label>
 									<input type="number" step="any" class="form-control" formControlName="y" (change)="onManualCoordChange()" />
 								</div>
 							</div>
@@ -67,8 +67,8 @@ const DEFAULT_LNG = -70.0412847;
 						</form>
 					</div>
 					<div class="modal-footer">
-						<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-						<button type="button" class="btn btn-danger" (click)="submit()">{{ map() ? 'Update' : 'Create' }}</button>
+						<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+						<button type="button" class="btn btn-danger" (click)="submit()">{{ map() ? 'Guardar' : 'Crear' }}</button>
 					</div>
 				</div>
 			</div>

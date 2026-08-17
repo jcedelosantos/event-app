@@ -24,7 +24,7 @@ const PRESETS = [
 	selector: 'app-settings',
 	imports: [QRCodeComponent],
 	template: `
-		<h2 class="section-title">Settings</h2>
+		<h2 class="section-title">Configuración</h2>
 		@if (loadError()) {
 			<div class="alert alert-danger">No se pudo cargar la configuración: {{ loadError() }}</div>
 		}
@@ -41,7 +41,7 @@ const PRESETS = [
 				</div>
 
 				<div class="mb-3">
-					<div class="small text-body-secondary mb-1">Presets</div>
+					<div class="small text-body-secondary mb-1">Predefinidos</div>
 					<div class="d-flex flex-wrap gap-2">
 						@for (preset of presets; track preset.hex) {
 							<button
@@ -75,7 +75,7 @@ const PRESETS = [
 				<div class="d-flex flex-wrap gap-2 mt-2">
 					<button type="button" class="btn btn-danger btn-sm">Botón primario</button>
 					<button type="button" class="btn btn-outline-danger btn-sm">Botón outline</button>
-					<span class="badge text-bg-danger">Badge</span>
+					<span class="badge text-bg-danger">Insignia</span>
 					<span class="text-danger small align-self-center">Texto destacado</span>
 				</div>
 			</div>

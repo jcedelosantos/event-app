@@ -14,21 +14,21 @@ import { closeModal } from '../../../../../utils/modal';
 			<div class="modal-dialog">
 				<div class="modal-content">
 					<div class="modal-header">
-						<h1 class="modal-title fs-5" id="createSeatModalLabel">{{ seat() ? 'Update' : 'Create' }} seat</h1>
-						<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+						<h1 class="modal-title fs-5" id="createSeatModalLabel">{{ seat() ? 'Editar' : 'Crear' }} asiento</h1>
+						<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
 					</div>
 					<div class="modal-body">
 						<form [formGroup]="seatForm" novalidate>
 							<div class="row">
 								<div class="col-md-6 mb-3">
-									<label>Name *</label>
+									<label>Nombre *</label>
 									<input type="text" class="form-control" [class.is-invalid]="isInvalid('name')" formControlName="name" />
 									@if (isInvalid('name')) {
 										<div class="invalid-feedback">El nombre es obligatorio.</div>
 									}
 								</div>
 								<div class="col-md-6 mb-3">
-									<label>Size</label>
+									<label>Tamaño</label>
 									<input type="number" class="form-control" formControlName="size" />
 								</div>
 							</div>
@@ -74,8 +74,8 @@ import { closeModal } from '../../../../../utils/modal';
 						</form>
 					</div>
 					<div class="modal-footer">
-						<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-						<button type="button" class="btn btn-danger" (click)="submit()">{{ seat() ? 'Update' : 'Create' }}</button>
+						<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+						<button type="button" class="btn btn-danger" (click)="submit()">{{ seat() ? 'Guardar' : 'Crear' }}</button>
 					</div>
 				</div>
 			</div>

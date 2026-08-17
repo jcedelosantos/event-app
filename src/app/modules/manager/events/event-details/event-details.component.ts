@@ -86,7 +86,7 @@ declare const bootstrap: any;
 				<div class="col-8">
 					<div class="card">
 						<div class="card-body">
-							<h6>Details</h6>
+							<h6>Detalles</h6>
 							<p>{{ ev.description }}</p>
 						</div>
 					</div>
@@ -117,7 +117,7 @@ declare const bootstrap: any;
 				<div class="col-4">
 					<div class="card">
 						<div class="card-body">
-							<h5>Information</h5>
+							<h5>Información</h5>
 							<hr />
 
 							<div class="row row-cols-2 g-2 kv-grid">
@@ -153,7 +153,7 @@ declare const bootstrap: any;
 										<option value="POSTPONED">Pospuesto</option>
 									</select>
 									@if (selectedStatus() !== ev.status) {
-										<button type="button" class="btn btn-danger btn-sm" (click)="saveStatus(ev.id)">Save</button>
+										<button type="button" class="btn btn-danger btn-sm" (click)="saveStatus(ev.id)">Guardar</button>
 									}
 								</div>
 							</div>
@@ -165,7 +165,7 @@ declare const bootstrap: any;
 							<hr />
 
 							<div class="d-flex flex-row mb-2 justify-content-between align-items-center">
-								<div class="p-1">Map:</div>
+								<div class="p-1">Mapa:</div>
 								<div class="p-1 d-flex gap-2 align-items-center">
 									<select class="form-select form-select-sm" [ngModel]="selectedMapId()" (ngModelChange)="selectedMapId.set($event)">
 										<option [ngValue]="null">Sin asignar</option>
@@ -174,7 +174,7 @@ declare const bootstrap: any;
 										}
 									</select>
 									@if (selectedMapId() !== (ev.map?.id ?? null)) {
-										<button type="button" class="btn btn-danger btn-sm" (click)="saveMap(ev.id)">Save</button>
+										<button type="button" class="btn btn-danger btn-sm" (click)="saveMap(ev.id)">Guardar</button>
 									}
 								</div>
 							</div>

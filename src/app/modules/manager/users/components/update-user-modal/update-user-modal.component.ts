@@ -19,21 +19,21 @@ import { Events } from '../../../../../models/events/events';
 			<div class="modal-dialog">
 				<div class="modal-content">
 					<div class="modal-header">
-						<h1 class="modal-title fs-5" id="updateUserModalLabel">{{ user() === null ? 'Create' : 'Update' }} user</h1>
-						<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+						<h1 class="modal-title fs-5" id="updateUserModalLabel">{{ user() === null ? 'Crear' : 'Editar' }} usuario</h1>
+						<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
 					</div>
 					<div class="modal-body">
 						<form id="updateUserForm" class="needs-validation" novalidate [formGroup]="form" (ngSubmit)="saveForm()">
 							<div class="row">
 								<div class="col-md-6 mb-3">
-									<label for="userName">Username *</label>
+									<label for="userName">Usuario *</label>
 									<input type="text" class="form-control" [class.is-invalid]="isInvalid('userName')" formControlName="userName" />
 									@if (isInvalid('userName')) {
 										<div class="invalid-feedback">El username es obligatorio.</div>
 									}
 								</div>
 								<div class="col-md-6 mb-3">
-									<label for="firstName">First name *</label>
+									<label for="firstName">Nombre *</label>
 									<input type="text" class="form-control" [class.is-invalid]="isInvalid('name')" formControlName="name" />
 									@if (isInvalid('name')) {
 										<div class="invalid-feedback">El nombre es obligatorio.</div>
@@ -42,14 +42,14 @@ import { Events } from '../../../../../models/events/events';
 							</div>
 							<div class="row">
 								<div class="col-md-6 mb-3">
-									<label for="lastName">Last name *</label>
+									<label for="lastName">Apellido *</label>
 									<input type="text" class="form-control" [class.is-invalid]="isInvalid('lastName')" formControlName="lastName" />
 									@if (isInvalid('lastName')) {
 										<div class="invalid-feedback">El apellido es obligatorio.</div>
 									}
 								</div>
 								<div class="col-md-6 mb-3">
-									<label for="pasword">Password {{ user() ? '(dejar en blanco para no cambiar)' : '*' }}</label>
+									<label for="pasword">Contraseña {{ user() ? '(dejar en blanco para no cambiar)' : '*' }}</label>
 									<input type="password" class="form-control" formControlName="password" />
 								</div>
 							</div>
@@ -63,18 +63,18 @@ import { Events } from '../../../../../models/events/events';
 							</div>
 
 							<div class="mb-3">
-								<label for="address">Adress</label>
+								<label for="address">Dirección</label>
 								<input type="text" class="form-control" placeholder="Apartment or suite" formControlName="address" />
 							</div>
 
 							<div class="row">
 								<div class="col-md-6 mb-3">
-									<label for="type">Type *</label>
+									<label for="type">Tipo *</label>
 									<select class="custom-select d-block w-100" [class.is-invalid]="isInvalid('userType')" formControlName="userType">
-										<option value="">Choose...</option>
+										<option value="">Elegir...</option>
 										<option value="ROOT">Admin</option>
-										<option value="USER">User</option>
-										<option value="CLIENT">Client</option>
+										<option value="USER">Usuario</option>
+										<option value="CLIENT">Cliente</option>
 										<option value="SCANNER">Escáner</option>
 									</select>
 									@if (isInvalid('userType')) {
@@ -96,11 +96,11 @@ import { Events } from '../../../../../models/events/events';
 									</div>
 								}
 								<div class="col-md-6 mb-3">
-									<label for="state">Gender</label>
+									<label for="state">Género</label>
 									<select class="custom-select d-block w-100" formControlName="gender">
-										<option value="">Choose...</option>
-										<option value="M">Man</option>
-										<option value="F">Woman</option>
+										<option value="">Elegir...</option>
+										<option value="M">Hombre</option>
+										<option value="F">Mujer</option>
 									</select>
 								</div>
 								<div class="col-md-6 mb-3">
@@ -111,7 +111,7 @@ import { Events } from '../../../../../models/events/events';
 									}
 								</div>
 								<div class="col-md-6 mb-3">
-									<label for="zip">Phone *</label>
+									<label for="zip">Teléfono *</label>
 									<input type="text" class="form-control" [class.is-invalid]="isInvalid('phone')" formControlName="phone" />
 									@if (isInvalid('phone')) {
 										<div class="invalid-feedback">Ingresá un teléfono válido (solo números, espacios, +, -, paréntesis).</div>
@@ -124,9 +124,9 @@ import { Events } from '../../../../../models/events/events';
 						</form>
 					</div>
 					<div class="modal-footer">
-						<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+						<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
 						<button type="submit" form="updateUserForm" class="btn btn-primary">
-							{{ user() === null ? 'Create' : 'Update' }}
+							{{ user() === null ? 'Crear' : 'Guardar' }}
 						</button>
 					</div>
 				</div>

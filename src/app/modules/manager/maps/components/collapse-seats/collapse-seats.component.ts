@@ -9,7 +9,7 @@ import { Seat } from '../../../../../models/maps/seat';
 			<div class="d-flex flex-row justify-content-around ">
 				<div class="p-2">
 					<button class="btn position-relative" type="button" data-bs-toggle="collapse" attr.data-bs-target="#{{ 'collapseSeats-' + id }}" aria-expanded="false">
-						Seats
+						Asientos
 						<span class="badge rounded-pill bg-danger">{{ seats.length }}</span>
 					</button>
 				</div>

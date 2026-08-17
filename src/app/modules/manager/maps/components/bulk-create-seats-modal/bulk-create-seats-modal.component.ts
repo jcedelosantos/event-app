@@ -17,7 +17,7 @@ import { closeModal } from '../../../../../utils/modal';
 				<div class="modal-content">
 					<div class="modal-header">
 						<h1 class="modal-title fs-5" id="bulkCreateSeatsModalLabel">Generar varios asientos / mesas</h1>
-						<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+						<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
 					</div>
 					<div class="modal-body">
 						<form [formGroup]="form" novalidate>
@@ -86,7 +86,7 @@ import { closeModal } from '../../../../../utils/modal';
 						</form>
 					</div>
 					<div class="modal-footer">
-						<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+						<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
 						<button type="button" class="btn btn-danger" [disabled]="creating()" (click)="submit()">Generar</button>
 					</div>
 				</div>

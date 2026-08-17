@@ -17,7 +17,7 @@ import { closeModal } from '../../../../utils/modal';
 				<div class="modal-content">
 					<div class="modal-header">
 						<h1 class="modal-title fs-5" id="editTenantModalLabel">Editar organización</h1>
-						<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+						<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
 					</div>
 					<div class="modal-body">
 						<form id="editTenantForm" (submit)="$event.preventDefault(); saveForm()" [formGroup]="form">

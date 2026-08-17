@@ -15,7 +15,7 @@ declare const bootstrap: any;
 	selector: 'app-maps',
 	imports: [CardMapComponent, NavBarMapsComponent, CreateMapModalComponent],
 	template: `
-		<h2 class="section-title">Manger Maps</h2>
+		<h2 class="section-title">Gestión de Mapas</h2>
 		<app-nav-bar-maps />
 		<create-map-modal [(map)]="mapToEdit" (mapCreated)="onMapCreated($event)" (mapUpdated)="onMapUpdated($event)" />
 

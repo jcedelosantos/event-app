@@ -4,8 +4,8 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
 	selector: 'app-page-not-found',
 	imports: [],
 	template: `
-		<h2>Page Not Found</h2>
-		<p>We couldn't find that page! Not even with x-ray vision.</p>
+		<h2>Página no encontrada</h2>
+		<p>No pudimos encontrar esa página. Ni con visión de rayos X.</p>
 	`,
 	styleUrl: './page-not-found.component.css',
 	changeDetection: ChangeDetectionStrategy.OnPush,

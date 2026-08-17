@@ -5,14 +5,14 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
 	imports: [],
 	template: `
 		<div class="d-flex flex-wrap align-items-center gap-2 mb-3">
-			<button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#createMapModal">Create</button>
-			<input class="form-control" style="max-width: 220px" type="search" placeholder="Name" aria-label="Search" />
-			<input class="form-control" style="max-width: 220px" type="search" placeholder="Location" aria-label="Search" />
-			<button class="btn btn-outline-danger" type="button">Search</button>
-			<nav aria-label="Page navigation example" class="ms-auto">
+			<button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#createMapModal">Crear</button>
+			<input class="form-control" style="max-width: 220px" type="search" placeholder="Nombre" aria-label="Buscar" />
+			<input class="form-control" style="max-width: 220px" type="search" placeholder="Ubicación" aria-label="Buscar" />
+			<button class="btn btn-outline-danger" type="button">Buscar</button>
+			<nav aria-label="Navegación de páginas" class="ms-auto">
 				<ul class="pagination mb-0">
 					<li class="page-item">
-						<a class="page-link" aria-label="Previous">
+						<a class="page-link" aria-label="Anterior">
 							<span aria-hidden="true">&laquo;</span>
 						</a>
 					</li>
@@ -20,7 +20,7 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
 					<li class="page-item"><a class="page-link">2</a></li>
 					<li class="page-item"><a class="page-link">3</a></li>
 					<li class="page-item">
-						<a class="page-link" aria-label="Next">
+						<a class="page-link" aria-label="Siguiente">
 							<span aria-hidden="true">&raquo;</span>
 						</a>
 					</li>

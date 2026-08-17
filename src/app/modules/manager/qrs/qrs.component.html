@@ -1,9 +1,9 @@
-<h1 class="section-title">QR Scanner</h1>
+<h1 class="section-title">Escáner de QR</h1>
 
 <div class="row my-3">
     <div class="col-sm-2">
         <a class="btn btn-primary" [routerLink]="['/manager/events/qr-scanner']"><i class="bi bi-qr-code"
-                aria-hidden="true"></i> Qr Scanner</a>
+                aria-hidden="true"></i> Escáner QR</a>
     </div>
     <div class="col-sm-3">
         <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#createQrModal">
@@ -91,19 +91,19 @@
                 <th role="button" (click)="toggleQrSort('carnet')">Carnet <i class="bi" [class]="qrSortIcon('carnet')"></i></th>
             }
             @if (visibleQrColumns()['client']) {
-                <th role="button" (click)="toggleQrSort('client')">Client <i class="bi" [class]="qrSortIcon('client')"></i></th>
+                <th role="button" (click)="toggleQrSort('client')">Cliente <i class="bi" [class]="qrSortIcon('client')"></i></th>
             }
             @if (visibleQrColumns()['time']) {
                 <th title="Hora en la que el socio se registró/ingresó al evento">Hora de registro</th>
             }
             @if (visibleQrColumns()['event']) {
-                <th role="button" (click)="toggleQrSort('event')">Event <i class="bi" [class]="qrSortIcon('event')"></i></th>
+                <th role="button" (click)="toggleQrSort('event')">Evento <i class="bi" [class]="qrSortIcon('event')"></i></th>
             }
             @if (visibleQrColumns()['seat']) {
                 <th role="button" (click)="toggleQrSort('seat')">Mesa/Asiento <i class="bi" [class]="qrSortIcon('seat')"></i></th>
             }
             @if (visibleQrColumns()['price']) {
-                <th role="button" (click)="toggleQrSort('price')">Price <i class="bi" [class]="qrSortIcon('price')"></i></th>
+                <th role="button" (click)="toggleQrSort('price')">Precio <i class="bi" [class]="qrSortIcon('price')"></i></th>
             }
             @if (visibleQrColumns()['status']) {
                 <th>Estado</th>
@@ -199,7 +199,7 @@
             }
             <td scope="row">
                     <button class="btn btn-primary btn-sm me-2" (click)="openDetailModal(qr)">
-                        <i class="bi bi-eye" aria-hidden="true"></i> View
+                        <i class="bi bi-eye" aria-hidden="true"></i> Ver
                     </button>
                     @if (canDeleteQr(qr)) {
                         <button class="btn btn-dark btn-sm" [title]="qr.paymentStatus === 'PENDING' ? 'Liberar reserva (todavía sin pagar)' : 'Liberar asiento'" (click)="deleteQR(qr)">
@@ -228,11 +228,11 @@
     <thead>
         <tr>
             <th role="button" (click)="toggleProductSort('carnet')">Carnet <i class="bi" [class]="productSortIcon('carnet')"></i></th>
-            <th role="button" (click)="toggleProductSort('client')">Client <i class="bi" [class]="productSortIcon('client')"></i></th>
-            <th role="button" (click)="toggleProductSort('date')">Date <i class="bi" [class]="productSortIcon('date')"></i></th>
-            <th role="button" (click)="toggleProductSort('event')">Event <i class="bi" [class]="productSortIcon('event')"></i></th>
-            <th role="button" (click)="toggleProductSort('product')">Product <i class="bi" [class]="productSortIcon('product')"></i></th>
-            <th role="button" (click)="toggleProductSort('qty')">Qty <i class="bi" [class]="productSortIcon('qty')"></i></th>
+            <th role="button" (click)="toggleProductSort('client')">Cliente <i class="bi" [class]="productSortIcon('client')"></i></th>
+            <th role="button" (click)="toggleProductSort('date')">Fecha <i class="bi" [class]="productSortIcon('date')"></i></th>
+            <th role="button" (click)="toggleProductSort('event')">Evento <i class="bi" [class]="productSortIcon('event')"></i></th>
+            <th role="button" (click)="toggleProductSort('product')">Producto <i class="bi" [class]="productSortIcon('product')"></i></th>
+            <th role="button" (click)="toggleProductSort('qty')">Cant. <i class="bi" [class]="productSortIcon('qty')"></i></th>
             <th>Estado</th>
             <th></th>
         </tr>
@@ -255,7 +255,7 @@
             </td>
             <td scope="row">
                     <button class="btn btn-primary btn-sm me-2" (click)="openProductSaleDetailModal(sale)">
-                        <i class="bi bi-eye" aria-hidden="true"></i> View
+                        <i class="bi bi-eye" aria-hidden="true"></i> Ver
                     </button>
                     <button class="btn btn-dark btn-sm" (click)="deleteProductSale(sale)">
                         <i class="bi bi-x-lg" aria-hidden="true"></i>

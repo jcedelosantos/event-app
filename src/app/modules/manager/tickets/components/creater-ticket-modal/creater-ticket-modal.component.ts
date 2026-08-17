@@ -9,7 +9,7 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
 			<div class="modal-content">
 				<div class="modal-header">
 					<h1 class="modal-title fs-5" id="createTicketModalLabel">Create ticket</h1>
-					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
 				</div>
 				<div class="modal-body">
 					<form class="needs-validation" novalidate="">
@@ -44,7 +44,7 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
 							<div class="col-md-6 mb-3">
 								<label for="type">Type</label>
 								<select class="custom-select d-block w-100" required="">
-									<option value="">Choose...</option>
+									<option value="">Elegir...</option>
 									<option>VIP</option>
 									<option>NORMAL</option>
 								</select>
@@ -53,9 +53,9 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
 							<div class="col-md-6 mb-3">
 								<label for="state">Statu</label>
 								<select class="custom-select d-block w-100" id="state" required="">
-									<option value="">Choose...</option>
-									<option>Active</option>
-									<option>Inactive</option>
+									<option value="">Elegir...</option>
+									<option>Activo</option>
+									<option>Inactivo</option>
 								</select>
 								<!-- <div class="invalid-feedback">Please provide a valid state.</div> -->
 							</div>
@@ -63,7 +63,7 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
 					</form>
 				</div>
 				<div class="modal-footer">
-					<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+					<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
 					<button type="button" class="btn btn-danger">Create</button>
 				</div>
 			</div>

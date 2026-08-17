@@ -27,11 +27,11 @@ type QrStatusFilter = 'all' | 'checked' | 'pending';
 
 const QR_COLUMN_LABELS: Record<QrColumnKey, string> = {
   carnet: 'Carnet',
-  client: 'Client',
+  client: 'Cliente',
   time: 'Hora de registro',
-  event: 'Event',
+  event: 'Evento',
   seat: 'Mesa/Asiento',
-  price: 'Price',
+  price: 'Precio',
   status: 'Estado',
   attendeeType: 'Socio/Invitado',
   payment: 'Pago',

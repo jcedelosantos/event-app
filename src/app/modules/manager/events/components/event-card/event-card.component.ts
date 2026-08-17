@@ -64,13 +64,13 @@ import { EventsService, LiveEventStats } from '../../services/events.service';
 				</div>
 				<div class="card-footer text-body-secondary py-2">
 					<div class="d-flex justify-content-between flex-row">
-						<button class="btn btn-danger btn-sm" [routerLink]="['/manager/qrs']" [queryParams]="{ eventId: event.id }">Sale</button>
-						<button class="btn btn-danger btn-sm" [routerLink]="['/manager/events', event.id]">Details</button>
+						<button class="btn btn-danger btn-sm" [routerLink]="['/manager/qrs']" [queryParams]="{ eventId: event.id }">Vender</button>
+						<button class="btn btn-danger btn-sm" [routerLink]="['/manager/events', event.id]">Detalles</button>
 					</div>
 				</div>
 			</div>
 		} @else {
-			<div class="text-muted">No event data</div>
+			<div class="text-muted">Sin datos del evento</div>
 		}
 	`,
 	styleUrl: './event-card.component.css',
