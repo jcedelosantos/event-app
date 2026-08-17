@@ -20,6 +20,8 @@ export type UserInput = {
 	// Solo tiene efecto (y se exige del lado de la API) cuando userType === 'SCANNER' — ver
 	// User.scannerEventId en la API.
 	scannerEventId?: number | null;
+	// Opcional incluso para SCANNER — ver User.accessPointId en la API.
+	accessPointId?: number | null;
 };
 
 @Injectable({

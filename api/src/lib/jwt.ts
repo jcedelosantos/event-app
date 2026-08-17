@@ -20,6 +20,10 @@ export type AuthTokenPayload = {
 	// rutas más frecuentes de toda la app, a diferencia de license.ts que sí puede permitirse el
 	// roundtrip extra. undefined/null para cualquier otro tipo de usuario.
 	scannerEventId?: number | null;
+	// Igual que scannerEventId pero opcional dentro de SCANNER — si está seteado, fija al operador a
+	// UNA sola puerta del evento (ver User.accessPointId). null/undefined = puede elegir cualquier
+	// puerta del evento asignado, comportamiento previo a este campo.
+	accessPointId?: number | null;
 };
 
 export function signToken(payload: AuthTokenPayload): string {

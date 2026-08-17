@@ -92,6 +92,9 @@ export type PublicEvent = {
 	// Solo relevante en tenants CHURCH — habilita el checkbox "¿retira comida?" al registrar hijos.
 	hasMealOfTheDay: boolean;
 	payment: PublicEventPayment | null;
+	// RD$ por USD, configurado en Settings → Pagos — null si el club nunca lo cargó (los precios se
+	// muestran solo en USD en ese caso, ver formatDualCurrency en shared/money.ts).
+	exchangeRateRD: number | null;
 	// Solo relevante en tenants CLUB — cuántos invitados puede cargar un socio (inline en su propia
 	// compra, o por auto-registro independiente vía sponsorCarnet, ver getSponsorStatus). Viene
 	// siempre seteado (fallback al default del backend), inofensivo si no se usa.

@@ -8,6 +8,8 @@ import { extractErrorMessage } from '../../../../../utils/api-error';
 import { closeModal } from '../../../../../utils/modal';
 import { EventsService } from '../../../events/services/events.service';
 import { Events } from '../../../../../models/events/events';
+import { AccessPointsService } from '../../../access-points/services/access-points.service';
+import { AccessPoint } from '../../../../../models/access-points/access-point';
 
 @Component({
 	selector: 'app-update-user-modal',
@@ -93,6 +95,18 @@ import { Events } from '../../../../../models/events/events';
 											<div class="invalid-feedback">Un usuario Escáner necesita un evento asignado.</div>
 										}
 									</div>
+									@if (form.controls.scannerEventId.value) {
+										<div class="col-md-6 mb-3">
+											<label for="accessPointId">Puerta asignada (opcional)</label>
+											<select class="custom-select d-block w-100" formControlName="accessPointId">
+												<option [ngValue]="null">Cualquier puerta del evento</option>
+												@for (gate of accessPoints(); track gate.id) {
+													<option [ngValue]="gate.id">{{ gate.name }}</option>
+												}
+											</select>
+											<div class="form-text">Si elegís una puerta, este usuario queda fijo a escanear solo por ahí (kiosco fijo).</div>
+										</div>
+									}
 								}
 								<div class="col-md-6 mb-3">
 									<label for="state">Género</label>
@@ -137,6 +151,7 @@ import { Events } from '../../../../../models/events/events';
 export class UpdateUserModalComponent implements OnInit {
 	userService = inject(UserService);
 	private readonly eventsService = inject(EventsService);
+	private readonly accessPointsService = inject(AccessPointsService);
 
 	user = model.required<User | null>();
 	userSaved = output<void>();
@@ -148,6 +163,10 @@ export class UpdateUserModalComponent implements OnInit {
 	// Para el selector "Evento asignado" que solo aparece cuando userType === 'SCANNER' (ver
 	// User.scannerEventId en la API).
 	events = signal<Events[]>([]);
+
+	// Puertas del evento elegido, para el selector opcional "Puerta asignada" (ver
+	// User.accessPointId en la API) — se recarga cada vez que scannerEventId cambia.
+	accessPoints = signal<AccessPoint[]>([]);
 
 	// Espejo de userType para el template (un FormControl no se puede leer directo ahí porque OnPush
 	// no repinta solo con sus cambios) — decide si el carnet es obligatorio (solo Cliente).
@@ -170,6 +189,7 @@ export class UpdateUserModalComponent implements OnInit {
 		address: new FormControl<string>(''),
 		phone: new FormControl<string>('', [Validators.required, Validators.pattern('^[- +()0-9]+$')]),
 		scannerEventId: new FormControl<number | null>(null),
+		accessPointId: new FormControl<number | null>(null),
 	});
 
 	constructor() {
@@ -189,9 +209,14 @@ export class UpdateUserModalComponent implements OnInit {
 					address: current.adress,
 					phone: String(current.phone),
 					scannerEventId: current.scannerEventId ?? null,
+					// Después de scannerEventId a propósito: patchValue aplica las claves en orden, y
+					// el cambio de scannerEventId de arriba dispara la suscripción de abajo, que
+					// resetea accessPointId a null — esta clave posterior pisa ese reset con el valor
+					// real que trae el usuario.
+					accessPointId: current.accessPointId ?? null,
 				});
 			} else {
-				this.form.reset({ userName: '', password: '', userType: '', name: '', lastName: '', gender: '', email: '', carnet: '', address: '', phone: '', scannerEventId: null });
+				this.form.reset({ userName: '', password: '', userType: '', name: '', lastName: '', gender: '', email: '', carnet: '', address: '', phone: '', scannerEventId: null, accessPointId: null });
 			}
 		});
 
@@ -208,6 +233,18 @@ export class UpdateUserModalComponent implements OnInit {
 			const carnetControl = this.form.controls.carnet;
 			carnetControl.setValidators(type === 'CLIENT' ? [Validators.required] : []);
 			carnetControl.updateValueAndValidity({ emitEvent: false });
+		});
+
+		// accessPointId es opcional incluso para SCANNER (fija a una sola puerta, ver
+		// User.accessPointId) — cada vez que cambia el evento asignado se recargan sus puertas y se
+		// limpia la selección anterior (pertenecía a otro evento). El patch de arriba pisa este reset
+		// cuando corresponde conservar la puerta ya guardada (ver comentario en el patchValue).
+		this.form.controls.scannerEventId.valueChanges.subscribe((eventId) => {
+			this.form.controls.accessPointId.setValue(null, { emitEvent: false });
+			this.accessPoints.set([]);
+			if (eventId) {
+				this.accessPointsService.getByEvent(eventId).subscribe((gates) => this.accessPoints.set(gates));
+			}
 		});
 	}
 
@@ -245,6 +282,7 @@ export class UpdateUserModalComponent implements OnInit {
 			adress: value.address!,
 			phone: value.phone!,
 			scannerEventId: value.scannerEventId,
+			accessPointId: value.accessPointId,
 			userType: value.userType as UserTypeCode,
 		};
 

@@ -19,6 +19,9 @@ export interface User {
 	// Solo tiene valor real cuando type.type === 'SCANNER' — el evento al que este usuario queda
 	// restringido a escanear (ver User.scannerEventId en la API, middleware/auth.ts blockScannerRole).
 	scannerEventId?: number | null;
+	// Opcional incluso para SCANNER — si está seteado, fija al operador a una sola puerta de ese
+	// evento (kiosco fijo, ver User.accessPointId en la API y qr-scanner.component.ts).
+	accessPointId?: number | null;
 	// null solo para la cuenta de Super Admin — no pertenece a ninguna organización, y también para
 	// tenants dados de alta antes de que existiera el sistema de suscripciones (ver getTenantPlanFeatures
 	// en el backend: plan null = sin restricción).

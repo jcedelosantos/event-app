@@ -66,6 +66,15 @@ function scannerEventDenialError(user: AuthTokenPayload, eventId: number): strin
 	return eventId === user.scannerEventId ? null : 'Este código no pertenece a tu evento asignado.';
 }
 
+// Igual que scannerEventDenialError pero para la puerta (ver User.accessPointId) — solo aplica
+// cuando el SCANNER tiene una puerta fija asignada (kiosco fijo); sin eso, sigue pudiendo elegir
+// cualquier puerta del evento como hasta ahora. Evita que el dispositivo de "Entrada VIP" reporte
+// check-ins bajo otra puerta con solo cambiar el selector en el navegador.
+function scannerAccessPointDenialError(user: AuthTokenPayload, accessPointId: number | undefined): string | null {
+	if (user.userType !== 'SCANNER' || user.accessPointId == null) return null;
+	return accessPointId === user.accessPointId ? null : 'Este dispositivo solo puede escanear por tu puerta asignada.';
+}
+
 scanRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const tenantId = req.user!.tenantId!;
 	const codeQR = String(req.body?.codeQR ?? '');
@@ -80,6 +89,11 @@ scanRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
 		const scannerError = scannerEventDenialError(req.user!, saleTicket.eventId);
 		if (scannerError) {
 			res.status(403).json({ type: 'ticket', error: scannerError });
+			return;
+		}
+		const scannerGateError = scannerAccessPointDenialError(req.user!, accessPointId);
+		if (scannerGateError) {
+			res.status(403).json({ type: 'ticket', error: scannerGateError });
 			return;
 		}
 		if (saleTicket.checkedInAt) {
@@ -112,6 +126,11 @@ scanRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
 			res.status(403).json({ type: 'product', error: scannerError });
 			return;
 		}
+		const scannerGateError = scannerAccessPointDenialError(req.user!, accessPointId);
+		if (scannerGateError) {
+			res.status(403).json({ type: 'product', error: scannerGateError });
+			return;
+		}
 		if (saleProduct.deliveredAt) {
 			res.status(409).json({ type: 'product', error: 'Este QR ya fue entregado', saleProduct: toPublicSaleProduct(saleProduct) });
 			return;
@@ -140,6 +159,11 @@ scanRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
 		const scannerError = scannerEventDenialError(req.user!, familyChildren[0].eventId);
 		if (scannerError) {
 			res.status(403).json({ type: 'child', error: scannerError });
+			return;
+		}
+		const scannerGateError = scannerAccessPointDenialError(req.user!, accessPointId);
+		if (scannerGateError) {
+			res.status(403).json({ type: 'child', error: scannerGateError });
 			return;
 		}
 		const mode = req.body?.mode === 'meal' ? 'meal' : 'pickup';

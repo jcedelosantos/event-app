@@ -1,5 +1,5 @@
-import { ChangeDetectionStrategy, Component, effect, inject, Input, model, output } from '@angular/core';
-import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { ChangeDetectionStrategy, Component, effect, inject, Input, model, output, signal, computed } from '@angular/core';
+import { FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { AccessPoint } from '../../../../../models/access-points/access-point';
 import { Ticket } from '../../../../../models/tickets/ticket';
@@ -9,7 +9,7 @@ import { closeModal } from '../../../../../utils/modal';
 
 @Component({
 	selector: 'app-update-gate-modal',
-	imports: [ReactiveFormsModule],
+	imports: [ReactiveFormsModule, FormsModule],
 	template: ` <div class="modal fade" id="updateGateModal" tabindex="-1" aria-labelledby="updateGateModalLabel" aria-hidden="true">
 		<div class="modal-dialog">
 			<div class="modal-content">
@@ -21,9 +21,18 @@ import { closeModal } from '../../../../../utils/modal';
 					<form class="needs-validation" novalidate="" [formGroup]="form">
 						<div class="mb-3">
 							<label for="name">Nombre *</label>
-							<input type="text" class="form-control" [class.is-invalid]="isInvalid('name')" formControlName="name" placeholder="Entrada Principal, VIP, Staff..." />
+							<select class="custom-select d-block w-100 mb-2" [class.is-invalid]="isInvalid('name')" [ngModel]="selectedPreset()" [ngModelOptions]="{ standalone: true }" (ngModelChange)="onPresetChange($event)">
+								<option value="">Elegir...</option>
+								@for (preset of gateNamePresets; track preset) {
+									<option [value]="preset">{{ preset }}</option>
+								}
+								<option value="__custom__">Otra...</option>
+							</select>
+							@if (usingCustomName()) {
+								<input type="text" class="form-control" [class.is-invalid]="isInvalid('name')" formControlName="name" placeholder="Nombre de la puerta" />
+							}
 							@if (isInvalid('name')) {
-								<div class="invalid-feedback">El nombre es obligatorio.</div>
+								<div class="invalid-feedback d-block">El nombre es obligatorio.</div>
 							}
 						</div>
 						<div class="mb-3">
@@ -75,6 +84,16 @@ export class UpdateGateModalComponent {
 
 	selectedTicketIds = new Set<number>();
 
+	// Nombres estándar sugeridos — cubren el caso común sin bloquear tenants con puertas que no
+	// encajan en ninguno de estos (ej. "Puerta 3", numeración propia del recinto), de ahí la opción
+	// "Otra...".
+	gateNamePresets = ['Entrada Principal', 'Entrada Trasera', 'Entrada VIP', 'Entrada Staff'];
+	// Espejo del select — separado del FormControl name porque el select necesita distinguir "vacío
+	// sin elegir" de "__custom__" (mostrar el input de texto libre), algo que el propio valor de
+	// `name` no puede representar sin ambigüedad.
+	selectedPreset = signal('');
+	usingCustomName = computed(() => this.selectedPreset() === '__custom__');
+
 	activeList: { label: string; value: boolean }[] = [
 		{ label: 'Activo', value: true },
 		{ label: 'Inactivo', value: false },
@@ -92,11 +111,18 @@ export class UpdateGateModalComponent {
 			if (current) {
 				this.form.patchValue({ name: current.name, active: current.active });
 				this.selectedTicketIds = new Set(current.ticketIds);
+				this.selectedPreset.set(this.gateNamePresets.includes(current.name) ? current.name : '__custom__');
 			} else {
 				this.form.reset({ active: true });
 				this.selectedTicketIds = new Set();
+				this.selectedPreset.set('');
 			}
 		});
+	}
+
+	onPresetChange(value: string) {
+		this.selectedPreset.set(value);
+		this.form.controls.name.setValue(value && value !== '__custom__' ? value : null);
 	}
 
 	isInvalid(controlName: keyof typeof this.form.controls): boolean {

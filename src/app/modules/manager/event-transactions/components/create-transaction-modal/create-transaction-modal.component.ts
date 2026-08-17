@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, model, output, signal } from '@angular/core';
-import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { EventTransaction, EventTransactionType } from '../../../../../models/event-transactions/event-transaction';
 import { EventTransactionsService } from '../../services/event-transactions.service';
@@ -12,7 +12,7 @@ const INCOME_CATEGORY_SUGGESTIONS = ['Patrocinio', 'Otro ingreso'];
 
 @Component({
 	selector: 'app-create-transaction-modal',
-	imports: [ReactiveFormsModule],
+	imports: [ReactiveFormsModule, FormsModule],
 	template: `
 		<div class="modal fade" id="createTransactionModal" tabindex="-1" aria-labelledby="createTransactionModalLabel" aria-hidden="true">
 			<div class="modal-dialog">
@@ -32,14 +32,18 @@ const INCOME_CATEGORY_SUGGESTIONS = ['Patrocinio', 'Otro ingreso'];
 							</div>
 							<div class="mb-3">
 								<label for="category">Categoría *</label>
-								<input type="text" class="form-control" [class.is-invalid]="isInvalid('category')" formControlName="category" list="transactionCategoryList" placeholder="Ej: Renta de espacio" />
-								<datalist id="transactionCategoryList">
+								<select class="custom-select d-block w-100 mb-2" [class.is-invalid]="isInvalid('category')" [ngModel]="selectedCategoryPreset()" [ngModelOptions]="{ standalone: true }" (ngModelChange)="onCategoryPresetChange($event)">
+									<option value="">Elegir...</option>
 									@for (category of categorySuggestions(); track category) {
-										<option [value]="category"></option>
+										<option [value]="category">{{ category }}</option>
 									}
-								</datalist>
+									<option value="__custom__">Otra categoría...</option>
+								</select>
+								@if (usingCustomCategory()) {
+									<input type="text" class="form-control" [class.is-invalid]="isInvalid('category')" formControlName="category" placeholder="Ej: Permisos municipales" />
+								}
 								@if (isInvalid('category')) {
-									<div class="invalid-feedback">Indica una categoría.</div>
+									<div class="invalid-feedback d-block">Indica una categoría.</div>
 								}
 							</div>
 							<div class="mb-3">
@@ -93,8 +97,22 @@ export class CreateTransactionModalComponent {
 	private readonly typeSignal = signal<EventTransactionType>('EXPENSE');
 	categorySuggestions = computed(() => (this.typeSignal() === 'INCOME' ? INCOME_CATEGORY_SUGGESTIONS : EXPENSE_CATEGORY_SUGGESTIONS));
 
+	// Espejo del select de categoría — igual que en update-gate-modal.component.ts, separado del
+	// FormControl category porque el select necesita distinguir "vacío sin elegir" de "__custom__"
+	// (mostrar el input de texto libre para categorías que no están en la lista sugerida).
+	selectedCategoryPreset = signal('');
+	usingCustomCategory = computed(() => this.selectedCategoryPreset() === '__custom__');
+
 	constructor() {
-		this.form.controls.type.valueChanges.subscribe((type) => this.typeSignal.set(type));
+		// Cambiar el tipo (Gasto/Ingreso) cambia la lista de sugerencias — la categoría elegida antes
+		// puede ya no aplicar, así que se limpia junto con el tipo. El patch de abajo (modo edición)
+		// pisa este reset con el valor real después, mismo truco de orden que en
+		// update-user-modal.component.ts.
+		this.form.controls.type.valueChanges.subscribe((type) => {
+			this.typeSignal.set(type);
+			this.selectedCategoryPreset.set('');
+			this.form.controls.category.setValue(null);
+		});
 
 		effect(() => {
 			this.errorMessage.set('');
@@ -106,10 +124,17 @@ export class CreateTransactionModalComponent {
 					description: current.description,
 					amount: centsToDollars(current.amountCents),
 				});
+				const suggestions = this.categorySuggestions();
+				this.selectedCategoryPreset.set(current.category && suggestions.includes(current.category) ? current.category : '__custom__');
 			} else {
 				this.form.reset({ type: 'EXPENSE', category: null, description: null, amount: null });
 			}
 		});
+	}
+
+	onCategoryPresetChange(value: string) {
+		this.selectedCategoryPreset.set(value);
+		this.form.controls.category.setValue(value && value !== '__custom__' ? value : null);
 	}
 
 	isInvalid(controlName: keyof typeof this.form.controls): boolean {

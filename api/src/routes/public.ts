@@ -182,15 +182,20 @@ publicRouter.get('/events/:code', asyncHandler(async (req, res) => {
 
 	const mealProduct = await prisma.product.findFirst({ where: { eventId: event.id, tenantId: event.tenantId, isMealOfTheDay: true }, select: { id: true } });
 
-	// Solo se arman a mano estas 3 keys puntuales (nunca un dump de AppSetting) — así el secret de
+	// Solo se arman a mano estas keys puntuales (nunca un dump de AppSetting) — así el secret de
 	// PayPal (payments.paypalSecret) jamás puede llegar a este endpoint público, sin depender de que
 	// el filtro de GET /settings se mantenga correcto para siempre (ver settings.ts).
+	// exchangeRateRD se consulta siempre (no solo si hay paymentMode): el precio en USD de "Elige tu
+	// ticket" se muestra igual para eventos sin cobro online (paga en la puerta), así que la
+	// cotización en pesos tiene que estar disponible ahí también.
+	const paymentSettings = await prisma.appSetting.findMany({
+		where: { tenantId: event.tenantId, key: { in: ['payments.paypalClientId', 'payments.linkUrl', 'payments.exchangeRateRD'] } },
+	});
+	const settingsMap = Object.fromEntries(paymentSettings.map((s) => [s.key, s.value]));
+	const exchangeRateRD = settingsMap['payments.exchangeRateRD'] ? Number(settingsMap['payments.exchangeRateRD']) : null;
+
 	let payment: { mode: string; paypalClientId: string | null; linkUrl: string | null } | null = null;
 	if (event.paymentMode !== 'NONE') {
-		const paymentSettings = await prisma.appSetting.findMany({
-			where: { tenantId: event.tenantId, key: { in: ['payments.paypalClientId', 'payments.linkUrl'] } },
-		});
-		const settingsMap = Object.fromEntries(paymentSettings.map((s) => [s.key, s.value]));
 		payment = {
 			mode: event.paymentMode,
 			paypalClientId: settingsMap['payments.paypalClientId'] ?? null,
@@ -233,6 +238,9 @@ publicRouter.get('/events/:code', asyncHandler(async (req, res) => {
 		tenantLogoUrl: event.tenant?.logoUrl ?? null,
 		hasMealOfTheDay: !!mealProduct,
 		payment,
+		// RD$ por USD, configurado en Settings → Pagos — null si el club nunca lo cargó (el frontend
+		// muestra solo USD en ese caso, mismo comportamiento que antes de este campo).
+		exchangeRateRD,
 		// Solo relevante en tenants CLUB (ver lib/attendee.ts) — cuántos invitados puede cargar un
 		// socio en su propia compra o por auto-registro independiente (mismo tope, mismo pool, ver
 		// /sponsor-status). Se manda igual para cualquier tenant, inofensivo si no se usa.

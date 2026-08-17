@@ -42,7 +42,14 @@ authRouter.post('/login', asyncHandler(async (req, res) => {
 		return;
 	}
 
-	const token = signToken({ userId: user.id, username: user.username, userType: user.type.type, tenantId: user.tenantId, scannerEventId: user.scannerEventId });
+	const token = signToken({
+		userId: user.id,
+		username: user.username,
+		userType: user.type.type,
+		tenantId: user.tenantId,
+		scannerEventId: user.scannerEventId,
+		accessPointId: user.accessPointId,
+	});
 
 	res.json({ token, user: toPublicUser(user) });
 }));

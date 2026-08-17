@@ -27,7 +27,14 @@
 				Para talones de hijos: elige qué acción hace este escaneo — son independientes, se puede entregar la comida sin retirar al niño/a todavía, o al revés.
 			</p>
 		}
-		@if (accessPoints().length) {
+		@if (lockedAccessPointId() != null) {
+			<div class="d-flex justify-content-center mb-3">
+				<div class="form-group text-center" style="min-width: 260px;">
+					<label class="form-label small text-body-secondary mb-1 d-block">Puerta asignada</label>
+					<span class="fw-semibold"><i class="bi bi-door-closed-fill" aria-hidden="true"></i> {{ lockedAccessPointName() || 'Cargando...' }}</span>
+				</div>
+			</div>
+		} @else if (accessPoints().length) {
 			<div class="d-flex justify-content-center mb-3">
 				<div class="form-group" style="min-width: 260px;">
 					<label for="gateSelect" class="form-label small text-body-secondary mb-1">Puerta en la que estás</label>

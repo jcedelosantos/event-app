@@ -223,6 +223,12 @@ model User {
   scannerEventId Int?
   scannerEvent   Event? @relation("ScannerAssignedEvent", fields: [scannerEventId], references: [id])
 
+  // Solo tiene sentido junto con scannerEventId — si además está seteada, el operador queda fijo a
+  // ESA puerta (kiosco fijo en una entrada) en vez de poder elegir entre las puertas del evento
+  // (ver qr-scanner.component.ts). null = puede elegir cualquier puerta del evento asignado.
+  accessPointId Int?
+  accessPoint   AccessPoint? @relation("ScannerAssignedAccessPoint", fields: [accessPointId], references: [id])
+
   @@unique([tenantId, email])
 }
 
@@ -389,6 +395,7 @@ model AccessPoint {
   saleTickets    SaleTicket[]
   children       Child[]
   scanConflicts  ScanConflict[]
+  scannerUsers   User[]              @relation("ScannerAssignedAccessPoint")
 
   @@index([tenantId])
   @@index([eventId])

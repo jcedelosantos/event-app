@@ -60,6 +60,12 @@ export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
 	accessPoints = signal<AccessPoint[]>([]);
 	selectedAccessPointId = signal<number | null>(typeof localStorage !== 'undefined' ? Number(localStorage.getItem(GATE_SELECTION_KEY)) || null : null);
 
+	// Si el usuario Escáner tiene puerta fija asignada (ver User.accessPointId), el selector se
+	// reemplaza por un texto fijo — el backend igual la exige (ver scannerAccessPointDenialError en
+	// scan.ts), mostrar un selector editable que de todas formas va a ser rechazado solo confunde.
+	lockedAccessPointId = computed(() => this.authService.currentUser()?.accessPointId ?? null);
+	lockedAccessPointName = computed(() => this.accessPoints().find((gate) => gate.id === this.lockedAccessPointId())?.name ?? '');
+
 	ngOnInit(): void {
 		// Un usuario tipo Escáner tiene un solo evento asignado (User.scannerEventId) — mostrarle
 		// puertas de otros eventos no tiene sentido y confunde en el momento de elegir. El resto de
@@ -67,7 +73,10 @@ export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
 		// viendo todas las puertas del tenant.
 		const scannerEventId = this.authService.currentUser()?.scannerEventId;
 		const accessPoints$ = scannerEventId ? this.accessPointsService.getByEvent(scannerEventId) : this.accessPointsService.getAll();
-		accessPoints$.subscribe((accessPoints) => this.accessPoints.set(accessPoints));
+		accessPoints$.subscribe((accessPoints) => {
+			this.accessPoints.set(accessPoints);
+			if (this.lockedAccessPointId() != null) this.selectedAccessPointId.set(this.lockedAccessPointId());
+		});
 	}
 
 	onGateChange(accessPointId: string) {

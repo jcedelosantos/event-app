@@ -20,7 +20,7 @@ import {
 import { extractErrorMessage } from '../../utils/api-error';
 import { shortSeatLabel } from '../../utils/seat-label';
 import { warning } from '../../utils/messages';
-import { centsToDollars } from '../../shared/money';
+import { centsToDollars, formatDualCurrency } from '../../shared/money';
 
 // Formato real del carnet (ver create-qr-modal / lib/attendee.ts): una letra (inicial del primer
 // apellido) + 4 dígitos para el socio accionista — ej. "C6735". Los dependientes agregan "-N": "-0"
@@ -141,7 +141,7 @@ const MAX_INVITADO_SEATS = 2;
 								}
 							</div>
 							<p class="text-body-secondary">
-								Total: {{ linkPendingInfo()?.totalCents ? centsToDollars(linkPendingInfo()!.totalCents) : null }} USD. En cuanto confirmemos tu pago te llega el código QR real a
+								Total: {{ linkPendingInfo()?.totalCents ? formatDualCurrency(linkPendingInfo()!.totalCents, event()?.exchangeRateRD ?? null) : null }}. En cuanto confirmemos tu pago te llega el código QR real a
 								{{ registerForm.controls.email.value }}.
 							</p>
 						}
@@ -329,7 +329,7 @@ const MAX_INVITADO_SEATS = 2;
 												[disabled]="ticket.count <= 0"
 												(click)="selectedTicketId.set(ticket.id)"
 											>
-												{{ ticket.name }} ({{ ticket.type }}) — {{ centsToDollars(ticket.priceCents) }} USD
+												{{ ticket.name }} ({{ ticket.type }}) — {{ formatDualCurrency(ticket.priceCents, ev.exchangeRateRD) }}
 												@if (ticket.count <= 0) {
 													<span class="badge text-bg-secondary ms-1">Agotado</span>
 												}
@@ -924,6 +924,7 @@ export class PublicEventComponent implements OnInit {
 	private readonly fb = inject(FormBuilder);
 	private readonly destroyRef = inject(DestroyRef);
 	readonly centsToDollars = centsToDollars;
+	readonly formatDualCurrency = formatDualCurrency;
 
 	readonly maxSeats = MAX_SEATS;
 	// Mismo plano genérico que usa el editor del manager (seats.component.ts) cuando el área
