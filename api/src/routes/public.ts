@@ -105,6 +105,9 @@ publicRouter.get('/org/:slug', asyncHandler(async (req, res) => {
 			id: true,
 			name: true,
 			code: true,
+			// El link de cada tarjeta usa publicSlug, no code (ver org-landing.component.ts) — code
+			// queda igual acá solo por si algún otro campo del frontend lo necesita a futuro.
+			publicSlug: true,
 			img: true,
 			description: true,
 			dateOn: true,

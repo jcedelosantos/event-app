@@ -105,7 +105,7 @@ const DEFAULT_VISIBLE_FILTERS: FilterCategory[] = ['proximos', 'programados'];
 												</div>
 											</div>
 										} @else {
-											<a class="event-card" [routerLink]="['/e', event.code]">
+											<a class="event-card" [routerLink]="['/e', event.publicSlug]">
 												<div class="event-poster">
 													@if (event.img) {
 														<img [src]="event.img" [alt]="event.name" loading="lazy" />

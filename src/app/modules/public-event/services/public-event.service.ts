@@ -198,6 +198,9 @@ export type PublicOrgEvent = {
 	id: number;
 	name: string;
 	code: string;
+	// Usado para el link de la tarjeta (ver org-landing.component.ts) — code queda solo para
+	// referencia interna, no es válido para armar rutas públicas /e/:code (ver Event.publicSlug).
+	publicSlug: string;
 	img: string;
 	description: string;
 	dateOn: string;

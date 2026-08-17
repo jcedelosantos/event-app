@@ -25,6 +25,10 @@ import { HttpErrorResponse } from '@angular/common/http';
 					<input #searchInput class="form-control me-2" type="search" placeholder="Buscar" aria-label="Nombre" (input)="searchText.set(searchInput.value)" />
 					<button class="btn btn-dark me-4" type="submit">Buscar</button>
 				</form>
+				<div class="form-check form-switch me-4">
+					<input class="form-check-input" type="checkbox" role="switch" id="showInactiveEvents" [checked]="showInactiveEvents()" (change)="showInactiveEvents.set($any($event.target).checked)" />
+					<label class="form-check-label small" for="showInactiveEvents">Mostrar de eventos no activos</label>
+				</div>
 				<div class="navbar-brand">
 					<div class="row">
 						<div class="col">
@@ -58,11 +62,17 @@ export class TicketsComponent implements OnInit {
 	tickets = signal<Ticket[]>([]);
 	selectedTicket = signal<Ticket | null>(null);
 	searchText = signal('');
+	// Oculto por default — un tenant con muchos eventos viejos (cancelados/pospuestos) termina con
+	// tickets de esos eventos mezclados con los vigentes en esta lista, sin ningún filtro para
+	// separarlos. Mismo patrón que "Mostrar archivados" en Super Admin.
+	showInactiveEvents = signal(false);
 
 	filteredTickets = computed(() => {
 		const term = this.searchText().trim().toLowerCase();
-		if (!term) return this.tickets();
-		return this.tickets().filter((t) => [t.name, t.description, t.type, t.code, t.event?.name].some((field) => field?.toLowerCase().includes(term)));
+		const showInactive = this.showInactiveEvents();
+		return this.tickets()
+			.filter((t) => showInactive || !t.event?.status || t.event.status === 'ACTIVE')
+			.filter((t) => !term || [t.name, t.description, t.type, t.code, t.event?.name].some((field) => field?.toLowerCase().includes(term)));
 	});
 
 	ngOnInit(): void {

@@ -18,7 +18,8 @@ export interface Ticket {
 	attendeeType: 'SOCIO' | 'INVITADO' | null;
 	// Nombres resueltos por el backend (select mínimo) para mostrar a qué evento/área pertenece el
 	// ticket en su tarjeta, sin tener que cruzar listas de eventos/áreas aparte en el frontend.
-	event?: { id: number; name: string };
+	// status: para poder ocultar tickets de eventos cancelados/pospuestos en tickets.component.ts.
+	event?: { id: number; name: string; status?: 'ACTIVE' | 'CANCELLED' | 'POSTPONED' };
 	area?: { id: number; name: string } | null;
 	// Calculados por el backend (GET /tickets): asientos totales/libres en el alcance del ticket
 	// (su área, o todo el mapa del evento si no tiene una asignada) — el techo real de venta es el

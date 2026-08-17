@@ -26,7 +26,9 @@ const ticketInputSchema = z.object({
 // se usa para calcular disponibilidad de asientos cuando el ticket no tiene área asignada (ver
 // attachSeatAvailability).
 const include = {
-	event: { select: { id: true, name: true, mapId: true } },
+	// status se agrega para que el manager pueda ocultar tickets de eventos cancelados/pospuestos
+	// (ver tickets.component.ts) sin tener que cruzar la lista de eventos aparte.
+	event: { select: { id: true, name: true, mapId: true, status: true } },
 	area: { select: { id: true, name: true } },
 };
 
@@ -63,7 +65,10 @@ async function attachSeatAvailability<T extends { id: number; areaId: number | n
 ticketsRouter.get('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const tenantId = req.user!.tenantId!;
 	const eventId = req.query.eventId ? Number(req.query.eventId) : undefined;
-	const tickets = await prisma.ticket.findMany({ where: eventId ? { eventId, tenantId } : { tenantId }, include, orderBy: { id: 'asc' } });
+	// desc: el más reciente (mayor id) primero — antes salían en orden de creación ascendente, así
+	// que un tenant con muchos tickets tenía que scrollear hasta el final para ver el que acaba de
+	// crear.
+	const tickets = await prisma.ticket.findMany({ where: eventId ? { eventId, tenantId } : { tenantId }, include, orderBy: { id: 'desc' } });
 	res.json(await attachSeatAvailability(tickets, tenantId));
 }));
 
