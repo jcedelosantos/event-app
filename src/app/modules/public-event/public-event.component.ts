@@ -962,6 +962,13 @@ export class PublicEventComponent implements OnInit {
 
 	step = signal<'loading' | 'waiting-room' | 'not-found' | 'ready' | 'confirmed' | 'link-pending'>('loading');
 	event = signal<PublicEvent | null>(null);
+	// El slug de la URL (route param `:code`), NO event().code — ese es el código interno (EVT-XXXX,
+	// ver PublicEvent.code) que ya no sirve para armar requests a los endpoints públicos, todos
+	// migrados a buscar por publicSlug (ver api/src/routes/public.ts). Guardado acá porque varias
+	// llamadas (member-status, sponsor-status, duplicate-check, purchase, checkout) lo necesitan
+	// fuera de ngOnInit, y usar event().code ahí fue un bug real: la request 404 en silencio
+	// (catchError) y el chequeo se queda colgado para siempre (ej. "Verificando tu carnet de socio...").
+	private eventSlug = '';
 	// Posición en la fila, evento y branding del club mientras step() es 'waiting-room' (ver
 	// enterEvent/startWaitingRoomPolling más abajo, y lib/waiting-room.ts del lado del servidor).
 	waitingRoomPosition = signal<number | null>(null);
@@ -1478,7 +1485,7 @@ export class PublicEventComponent implements OnInit {
 		if (!ev || this.attendeeTypeValue() !== 'INVITADO' || !trimmed) {
 			return of<{ carnet: string; status: SponsorStatus | null }>({ carnet: trimmed ?? '', status: null });
 		}
-		return this.publicEventService.getSponsorStatus(ev.code, trimmed).pipe(
+		return this.publicEventService.getSponsorStatus(this.eventSlug, trimmed).pipe(
 			map((status) => ({ carnet: trimmed, status })),
 			// Silencioso: si el chequeo preventivo falla (red, etc.) no bloqueamos por las dudas — el
 			// submit real vuelve a validar esto igual, así que nunca se cuela una reserva de más.
@@ -1514,7 +1521,7 @@ export class PublicEventComponent implements OnInit {
 		if (!ev || this.attendeeTypeValue() !== 'SOCIO' || !this.isValidCarnet(trimmed)) {
 			return of<{ carnet: string; status: MemberStatus | null }>({ carnet: trimmed ?? '', status: null });
 		}
-		return this.publicEventService.getMemberStatus(ev.code, trimmed!).pipe(
+		return this.publicEventService.getMemberStatus(this.eventSlug, trimmed!).pipe(
 			map((status) => ({ carnet: trimmed!, status })),
 			// Silencioso: si el chequeo preventivo falla (red, etc.) no bloqueamos por las dudas — el
 			// submit real vuelve a validar esto igual contra el backend (ver assertActiveMember).
@@ -1544,7 +1551,7 @@ export class PublicEventComponent implements OnInit {
 		const ev = this.event();
 		if (ev) {
 			this.publicEventService
-				.getSponsorStatus(ev.code, carnet)
+				.getSponsorStatus(this.eventSlug, carnet)
 				.pipe(catchError(() => of(null)))
 				.subscribe((sponsorStatus) => {
 					if (!sponsorStatus) return;
@@ -1561,7 +1568,7 @@ export class PublicEventComponent implements OnInit {
 		if (!ev || ev.tenantType !== 'CLUB' || !email || this.registerForm.controls.email.invalid) {
 			return of<DuplicateEventStatus | null>(null);
 		}
-		return this.publicEventService.getDuplicateEventStatus(ev.code, email, carnet).pipe(
+		return this.publicEventService.getDuplicateEventStatus(this.eventSlug, email, carnet).pipe(
 			// Silencioso por la misma razón que checkSponsorStatus$: el submit real (y el backend) vuelven
 			// a validar esto igual, así que un chequeo preventivo que falla no puede colar una reserva.
 			catchError(() => of<DuplicateEventStatus | null>(null)),
@@ -1581,6 +1588,7 @@ export class PublicEventComponent implements OnInit {
 			this.step.set('not-found');
 			return;
 		}
+		this.eventSlug = code;
 		this.enterEvent(code);
 	}
 
@@ -1780,7 +1788,7 @@ export class PublicEventComponent implements OnInit {
 		this.submitting.set(true);
 		this.publicEventService
 			.purchase({
-				eventCode: event.code,
+				eventCode: this.eventSlug,
 				ticketId: this.activeTicketId()!,
 				client: { name: name!, lastname: lastname!, email: email!, phone: phone!, carnet: carnet ?? '' },
 				seatIds: Array.from(this.selectedSeatIds()),
@@ -1857,7 +1865,7 @@ export class PublicEventComponent implements OnInit {
 		const { name, lastname, email, phone, carnet, attendeeType, sponsorCarnet } = this.registerForm.getRawValue();
 		const usesAttendeeType = event.tenantType === 'CLUB' && this.eventUsesAttendeeTypeTickets(event);
 		return {
-			eventCode: event.code,
+			eventCode: this.eventSlug,
 			ticketId: this.activeTicketId()!,
 			client: { name: name!, lastname: lastname!, email: email!, phone: phone!, carnet: carnet ?? '' },
 			seatIds: Array.from(this.selectedSeatIds()),
