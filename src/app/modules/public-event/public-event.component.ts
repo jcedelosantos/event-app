@@ -392,7 +392,7 @@ const MAX_INVITADO_SEATS = 2;
 																[class.table-full]="tableAvailableCount(area, table.id) === 0"
 																[style.top.%]="((table.y - size.minY) / size.h) * 100"
 																[style.left.%]="((table.x - size.minX) / size.w) * 100"
-																[title]="table.name"
+																[title]="tableAvailableCount(area, table.id) > 0 ? table.name + ' — ' + tableAvailableCount(area, table.id) + ' disponible(s)' : table.name + ' — sin cupo'"
 																(click)="onTableClick(area, table.id)"
 															>
 																{{ seatLabel(table) }}
@@ -404,6 +404,12 @@ const MAX_INVITADO_SEATS = 2;
 													}
 												}
 											</div>
+											@if (sortedTables(area).length) {
+												<div class="d-flex gap-3 small text-body-secondary mt-2">
+													<span><span class="legend-dot" style="background: #28a745"></span> Mesa con cupo</span>
+													<span><span class="legend-dot" style="background: #6c757d"></span> Mesa llena</span>
+												</div>
+											}
 										</div>
 									</div>
 								}
@@ -806,8 +812,11 @@ const MAX_INVITADO_SEATS = 2;
 				align-items: center;
 				justify-content: center;
 				border-radius: 50%;
-				border: 2px solid var(--app-accent);
-				background: var(--app-accent);
+				/* Mismo verde que "Disponible" en la leyenda de abajo (ver .legend-dot) — antes usaba
+				   var(--app-accent), que no tiene ninguna relación con "tiene cupo" y obligaba a abrir
+				   la mesa para saberlo. Así se ve de un vistazo cuál mesa conviene mirar primero. */
+				border: 2px solid #28a745;
+				background: #28a745;
 				color: #fff;
 				font-size: clamp(9px, 1.4%, 13px);
 				font-weight: 700;
