@@ -31,7 +31,7 @@ const PRESETS = [
 			<div class="alert alert-danger">No se pudo cargar la configuración: {{ loadError() }}</div>
 		}
 
-		<div class="row g-3">
+		<div class="row g-3 align-items-start">
 			<div class="col-lg-6">
 				<h6>Color de acento</h6>
 				<p class="text-body-secondary small">Color de toda la app: botones, badges, bordes y textos destacados.</p>
@@ -121,7 +121,7 @@ const PRESETS = [
 			</div>
 		</div>
 
-		<div class="row g-3 mt-1">
+		<div class="row g-3 mt-1 align-items-start">
 			@if (orgUrl(); as url) {
 				<div class="col-lg-6">
 					<h6>Portada pública</h6>
@@ -242,7 +242,7 @@ const PRESETS = [
 			</div>
 		</div>
 
-		<div class="row g-3 mt-1">
+		<div class="row g-3 mt-1 align-items-start">
 			<div class="col-lg-6">
 				<h6>WhatsApp</h6>
 				<p class="text-body-secondary small">
