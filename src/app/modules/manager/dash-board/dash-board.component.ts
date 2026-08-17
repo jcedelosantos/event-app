@@ -186,12 +186,9 @@ const LIVE_REFRESH_MS = 20_000;
 					</div>
 				</a>
 			</div>
-		</div>
-
-		@if (eventsWithFinances() > 0) {
-			<div class="row g-3 mt-1">
+			@if (eventsWithFinances() > 0) {
 				<div class="col-md-3 col-sm-6">
-					<div class="card stat-card">
+					<a routerLink="/manager/reports" class="card stat-card stat-card-link text-decoration-none">
 						<div class="card-body d-flex align-items-center gap-3">
 							<i class="bi bi-graph-down-arrow stat-icon"></i>
 							<div>
@@ -199,10 +196,10 @@ const LIVE_REFRESH_MS = 20_000;
 								<div class="stat-value">{{ centsToDollars(avgExpensePerEvent()) }} USD</div>
 							</div>
 						</div>
-					</div>
+					</a>
 				</div>
 				<div class="col-md-3 col-sm-6">
-					<div class="card stat-card">
+					<a routerLink="/manager/reports" class="card stat-card stat-card-link text-decoration-none">
 						<div class="card-body d-flex align-items-center gap-3">
 							<i class="bi bi-graph-up-arrow stat-icon"></i>
 							<div>
@@ -212,10 +209,10 @@ const LIVE_REFRESH_MS = 20_000;
 								</div>
 							</div>
 						</div>
-					</div>
+					</a>
 				</div>
-			</div>
-		}
+			}
+		</div>
 
 		<div class="row g-3">
 			<div class="col-lg-6">

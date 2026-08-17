@@ -12,6 +12,8 @@ import { environment } from '../../../../environments/environment';
 import { PLAN_FEATURES } from '../../../shared/pricing-plans';
 import { isEventPlanCode } from '../../../shared/event-plans';
 
+declare const bootstrap: any;
+
 const PRESETS = [
 	{ name: 'Azul oscuro', hex: '#1e3a8a' },
 	{ name: 'Rojo (original)', hex: '#dc3545' },
@@ -141,13 +143,13 @@ const PRESETS = [
 									<i class="bi" [class.bi-clipboard]="!urlCopied()" [class.bi-clipboard-check]="urlCopied()" aria-hidden="true"></i>
 									{{ urlCopied() ? 'Copiado' : 'Copiar' }}
 								</button>
+								<button type="button" class="btn btn-outline-secondary" (click)="openOrgQrModal()">
+									<i class="bi bi-qr-code" aria-hidden="true"></i>
+									Ver QR
+								</button>
 								<a class="btn btn-outline-secondary" [href]="url" target="_blank" rel="noopener">
 									<i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
 								</a>
-							</div>
-							<div class="text-center mt-3">
-								<qrcode [qrdata]="url" [width]="180" [errorCorrectionLevel]="'M'"></qrcode>
-								<p class="small text-body-secondary mt-2 mb-0">Compartí este QR para que tus clientes vean todos tus próximos eventos</p>
 							</div>
 						</div>
 					</div>
@@ -382,6 +384,26 @@ const PRESETS = [
 				</div>
 			</div>
 		</div>
+
+		@if (orgUrl(); as url) {
+			<div class="modal fade" id="orgQrModal" tabindex="-1" aria-labelledby="orgQrModalLabel" aria-hidden="true">
+				<div class="modal-dialog">
+					<div class="modal-content">
+						<div class="modal-header">
+							<h1 class="modal-title fs-5" id="orgQrModalLabel">Portada pública</h1>
+							<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+						</div>
+						<div class="modal-body text-center">
+							<qrcode [qrdata]="url" [width]="220" [errorCorrectionLevel]="'M'"></qrcode>
+							<p class="small text-body-secondary mt-2 mb-0">Compartí este QR para que tus clientes vean todos tus próximos eventos</p>
+						</div>
+						<div class="modal-footer">
+							<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+						</div>
+					</div>
+				</div>
+			</div>
+		}
 	`,
 	styleUrl: './settings.component.css',
 	changeDetection: ChangeDetectionStrategy.OnPush,
@@ -711,5 +733,12 @@ export class SettingsComponent implements OnInit {
 			this.urlCopied.set(true);
 			setTimeout(() => this.urlCopied.set(false), 2000);
 		});
+	}
+
+	openOrgQrModal() {
+		const modalEl = document.getElementById('orgQrModal');
+		if (modalEl) {
+			bootstrap.Modal.getOrCreateInstance(modalEl).show();
+		}
 	}
 }
