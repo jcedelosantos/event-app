@@ -81,6 +81,7 @@ model Tenant {
   scanConflicts ScanConflict[]
   serviceRequests ServiceRequest[]
   invoices      Invoice[]
+  eventTransactions EventTransaction[]
 }
 
 // La mensualidad que el TENANT le paga a la agencia (no confundir con SaleTicket, que es la venta
@@ -352,6 +353,7 @@ model Event {
   children        Child[]
   accessPoints    AccessPoint[]
   serviceRequests ServiceRequest[]
+  eventTransactions EventTransaction[]
   // Back-relation de User.scannerEventId (ver ese campo) — nunca se recorre desde acá, existe solo
   // porque Prisma exige declarar los dos lados de la relación.
   scannerUsers    User[]           @relation("ScannerAssignedEvent")
@@ -821,8 +823,42 @@ model ServiceRequest {
   tenant   Tenant @relation(fields: [tenantId], references: [id])
 
   items ServiceRequestItem[]
+  // Back-relation de EventTransaction.serviceRequestId — la línea de gasto automática que se crea
+  // cuando esta solicitud pasa a FULFILLED con un evento vinculado (ver PUT /:id/status).
+  eventTransaction EventTransaction?
 
   @@index([tenantId])
+}
+
+// Línea de un ledger financiero por evento (gasto/margen) — pedido de un cliente para ver gasto
+// promedio y margen obtenido por evento. category es texto libre (no enum) a propósito: distintos
+// tenants nombran sus gastos distinto (renta de espacio, animador, staff, etc.) y una lista fija
+// obligaría a migrar el schema cada vez que aparece una categoría nueva — el frontend sugiere
+// categorías comunes vía <datalist>, mismo patrón que Product.type.
+model EventTransaction {
+  id          Int      @id @default(autoincrement())
+  type        String // INCOME | EXPENSE
+  category    String
+  description String   @default("")
+  amountCents Int
+  // MANUAL = cargado a mano por el manager. AUTOMATIC = generado solo cuando una ServiceRequest
+  // vinculada a este evento pasa a FULFILLED (ver PUT /:id/status en service-requests.ts) — esas
+  // líneas son de solo lectura desde acá, se corrigen cambiando el status de la solicitud.
+  source      String   @default("MANUAL")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  eventId Int
+  event   Event @relation(fields: [eventId], references: [id])
+
+  tenantId Int
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+
+  serviceRequestId Int?            @unique
+  serviceRequest   ServiceRequest? @relation(fields: [serviceRequestId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([eventId])
 }
 
 // Una línea de una ServiceRequest — una solicitud real casi siempre combina varios servicios del

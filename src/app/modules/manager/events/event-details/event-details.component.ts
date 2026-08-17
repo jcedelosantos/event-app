@@ -16,6 +16,7 @@ import { AccessPointsService } from '../../access-points/services/access-points.
 import { AccessPoint } from '../../../../models/access-points/access-point';
 import { ScanConflictsService } from '../../qrs/services/scan-conflicts.service';
 import { ScanConflict } from '../../../../models/scan-conflicts/scan-conflict';
+import { ProductSalesService, SaleProduct } from '../../qrs/services/product-sales.service';
 import { DatePipe } from '@angular/common';
 import { centsToDollars } from '../../../../shared/money';
 
@@ -24,12 +25,15 @@ import { CardMapComponent } from '../../maps/components/card-map/card-map.compon
 import { AuthService } from '../../../../core/services/auth.service';
 import { PLAN_FEATURES } from '../../../../shared/pricing-plans';
 import { isEventPlanCode } from '../../../../shared/event-plans';
+import { EventTransaction } from '../../../../models/event-transactions/event-transaction';
+import { EventTransactionsService } from '../../event-transactions/services/event-transactions.service';
+import { CreateTransactionModalComponent } from '../../event-transactions/components/create-transaction-modal/create-transaction-modal.component';
 
 declare const bootstrap: any;
 
 @Component({
 	selector: 'app-event-details',
-	imports: [QRCodeComponent, CardMapComponent, FormsModule, RouterLink, UpdateTicketModalComponent, UpdateProductModalComponent, UpdateGateModalComponent, DatePipe],
+	imports: [QRCodeComponent, CardMapComponent, FormsModule, RouterLink, UpdateTicketModalComponent, UpdateProductModalComponent, UpdateGateModalComponent, CreateTransactionModalComponent, DatePipe],
 	template: `
 		@if (event(); as ev) {
 			<h4 class="pb-2">
@@ -268,6 +272,85 @@ declare const bootstrap: any;
 				</div>
 			</div>
 
+			<hr />
+			<div class="col-12">
+				<div class="d-flex justify-content-between align-items-center mb-2">
+					<h5 class="mb-0">Finanzas</h5>
+					<button type="button" class="btn btn-outline-danger btn-sm" (click)="openCreateTransactionModal()"><i class="bi bi-plus-lg"></i> Movimiento</button>
+				</div>
+				<div class="row g-3 mb-3">
+					<div class="col-4">
+						<div class="card">
+							<div class="card-body">
+								<div class="p-2 text-body-secondary">Ingresos totales</div>
+								<div class="p-2 fs-4">{{ centsToDollars(totalIncome()) }} USD</div>
+							</div>
+						</div>
+					</div>
+					<div class="col-4">
+						<div class="card">
+							<div class="card-body">
+								<div class="p-2 text-body-secondary">Gastos totales</div>
+								<div class="p-2 fs-4">{{ centsToDollars(totalExpenses()) }} USD</div>
+							</div>
+						</div>
+					</div>
+					<div class="col-4">
+						<div class="card">
+							<div class="card-body">
+								<div class="p-2 text-body-secondary">Margen</div>
+								<div class="p-2 fs-4" [class.text-success]="margin() >= 0" [class.text-danger]="margin() < 0">{{ centsToDollars(margin()) }} USD</div>
+							</div>
+						</div>
+					</div>
+				</div>
+				<div class="card">
+					<div class="card-body">
+						@if (!eventTransactions().length) {
+							<p class="text-body-secondary mb-0">Todavía no hay movimientos cargados para este evento.</p>
+						} @else {
+							<table class="table table-striped-columns">
+								<thead>
+									<tr>
+										<th scope="col">Tipo</th>
+										<th scope="col">Categoría</th>
+										<th scope="col">Descripción</th>
+										<th scope="col" class="text-end">Monto</th>
+										<th scope="col">Origen</th>
+										<th scope="col"></th>
+									</tr>
+								</thead>
+								<tbody>
+									@for (t of eventTransactions(); track t.id) {
+										<tr>
+											<td>
+												<span class="badge" [class.text-bg-success]="t.type === 'INCOME'" [class.text-bg-danger]="t.type === 'EXPENSE'">
+													{{ t.type === 'INCOME' ? 'Ingreso' : 'Gasto' }}
+												</span>
+											</td>
+											<td>{{ t.category }}</td>
+											<td>{{ t.description || '—' }}</td>
+											<td class="text-end">{{ centsToDollars(t.amountCents) }} USD</td>
+											<td>
+												<span class="badge text-bg-secondary" [title]="t.source === 'AUTOMATIC' ? 'Generado por una solicitud de servicio resuelta' : ''">
+													{{ t.source === 'AUTOMATIC' ? 'Automático' : 'Manual' }}
+												</span>
+											</td>
+											<td class="text-end">
+												@if (t.source === 'MANUAL') {
+													<button type="button" class="btn btn-link btn-sm p-0 me-2" (click)="openEditTransactionModal(t)">Editar</button>
+													<button type="button" class="btn btn-link btn-sm p-0 text-danger" (click)="deleteTransaction(t)">Borrar</button>
+												}
+											</td>
+										</tr>
+									}
+								</tbody>
+							</table>
+						}
+					</div>
+				</div>
+			</div>
+
 			@if (scanConflicts().length) {
 				<hr />
 				<div class="col-12">
@@ -308,6 +391,7 @@ declare const bootstrap: any;
 			<app-update-ticket-modal [(ticket)]="ticketToEdit" [defaultEventId]="ev.id" (ticketSaved)="onTicketSaved()" />
 			<app-update-product-modal [(product)]="productToEdit" [defaultEventId]="ev.id" (productSaved)="onProductSaved()" />
 			<app-update-gate-modal [(gate)]="gateToEdit" [defaultEventId]="ev.id" [availableTickets]="ev.tickets" (gateSaved)="onGateSaved()" />
+			<app-create-transaction-modal [(transaction)]="transactionToEdit" [eventId]="ev.id" (transactionSaved)="onTransactionSaved()" />
 		} @else {
 			<p>Cargando evento...</p>
 		}
@@ -323,6 +407,8 @@ export class EventDetailsComponent implements OnInit {
 	private readonly qrService = inject(QRService);
 	private readonly accessPointsService = inject(AccessPointsService);
 	private readonly scanConflictsService = inject(ScanConflictsService);
+	private readonly productSalesService = inject(ProductSalesService);
+	private readonly eventTransactionsService = inject(EventTransactionsService);
 	private readonly authService = inject(AuthService);
 	readonly centsToDollars = centsToDollars;
 
@@ -336,6 +422,9 @@ export class EventDetailsComponent implements OnInit {
 	accessPoints = signal<AccessPoint[]>([]);
 	gateToEdit = signal<AccessPoint | null>(null);
 	scanConflicts = signal<ScanConflict[]>([]);
+	productSales = signal<SaleProduct[]>([]);
+	eventTransactions = signal<EventTransaction[]>([]);
+	transactionToEdit = signal<EventTransaction | null>(null);
 
 	sales = computed(() => {
 		const ev = this.event();
@@ -358,6 +447,12 @@ export class EventDetailsComponent implements OnInit {
 	revenue = computed(() => this.sales().reduce((sum, sale) => sum + (sale.priceCents ?? sale.ticket?.priceCents ?? 0), 0));
 	totalCount = computed(() => this.event()?.tickets.reduce((sum, ticket) => sum + ticket.count, 0) ?? 0);
 
+	productRevenue = computed(() => this.productSales().reduce((sum, sale) => sum + (sale.unitPriceCents ?? sale.product?.priceCents ?? 0) * sale.quantity, 0));
+	extraIncome = computed(() => this.eventTransactions().filter((t) => t.type === 'INCOME').reduce((sum, t) => sum + t.amountCents, 0));
+	totalExpenses = computed(() => this.eventTransactions().filter((t) => t.type === 'EXPENSE').reduce((sum, t) => sum + t.amountCents, 0));
+	totalIncome = computed(() => this.revenue() + this.productRevenue() + this.extraIncome());
+	margin = computed(() => this.totalIncome() - this.totalExpenses());
+
 	ngOnInit(): void {
 		this.mapsService.getMaps().subscribe((maps) => this.maps.set(maps));
 		this.qrService.getQRs().subscribe((sales) => this.allSales.set(sales));
@@ -375,6 +470,8 @@ export class EventDetailsComponent implements OnInit {
 					this.selectedStatus.set(event.status);
 					this.loadAccessPoints(event.id);
 					this.loadScanConflicts(event.id);
+					this.loadProductSales(event.id);
+					this.loadEventTransactions(event.id);
 				},
 				error: () => this.router.navigate(['/manager/events']),
 			});
@@ -387,6 +484,42 @@ export class EventDetailsComponent implements OnInit {
 
 	loadScanConflicts(eventId: number) {
 		this.scanConflictsService.getByEvent(eventId).subscribe((conflicts) => this.scanConflicts.set(conflicts));
+	}
+
+	loadProductSales(eventId: number) {
+		this.productSalesService.getSaleProductsByEvent(eventId).subscribe((sales) => this.productSales.set(sales));
+	}
+
+	loadEventTransactions(eventId: number) {
+		this.eventTransactionsService.getByEvent(eventId).subscribe((transactions) => this.eventTransactions.set(transactions));
+	}
+
+	openCreateTransactionModal() {
+		this.transactionToEdit.set(null);
+		const modalEl = document.getElementById('createTransactionModal');
+		if (modalEl) {
+			bootstrap.Modal.getOrCreateInstance(modalEl).show();
+		}
+	}
+
+	openEditTransactionModal(transaction: EventTransaction) {
+		this.transactionToEdit.set(transaction);
+		const modalEl = document.getElementById('createTransactionModal');
+		if (modalEl) {
+			bootstrap.Modal.getOrCreateInstance(modalEl).show();
+		}
+	}
+
+	onTransactionSaved() {
+		const ev = this.event();
+		if (!ev) return;
+		this.loadEventTransactions(ev.id);
+	}
+
+	deleteTransaction(transaction: EventTransaction) {
+		this.eventTransactionsService.delete(transaction.id).subscribe(() => {
+			this.eventTransactions.update((list) => list.filter((t) => t.id !== transaction.id));
+		});
 	}
 
 	resolveConflict(conflict: ScanConflict) {

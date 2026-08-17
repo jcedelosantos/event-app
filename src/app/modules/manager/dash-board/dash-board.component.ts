@@ -14,6 +14,8 @@ import { AccessPointStatsResponse } from '../../../models/access-points/access-p
 import { FlashEventModalComponent } from './components/flash-event-modal/flash-event-modal.component';
 import { AuthService } from '../../../core/services/auth.service';
 import { centsToDollars } from '../../../shared/money';
+import { EventTransaction } from '../../../models/event-transactions/event-transaction';
+import { EventTransactionsService } from '../event-transactions/services/event-transactions.service';
 
 // Una puerta "concentra" tráfico cuando se lleva más de este % de las entradas recientes del
 // evento — el umbral de "recientes" mínimas (ver GATE_ALERT_MIN_RECENT) evita que 1 de 1 escaneos
@@ -186,6 +188,35 @@ const LIVE_REFRESH_MS = 20_000;
 			</div>
 		</div>
 
+		@if (eventsWithFinances() > 0) {
+			<div class="row g-3 mt-1">
+				<div class="col-md-3 col-sm-6">
+					<div class="card stat-card">
+						<div class="card-body d-flex align-items-center gap-3">
+							<i class="bi bi-graph-down-arrow stat-icon"></i>
+							<div>
+								<div class="stat-label">Gasto promedio por evento</div>
+								<div class="stat-value">{{ centsToDollars(avgExpensePerEvent()) }} USD</div>
+							</div>
+						</div>
+					</div>
+				</div>
+				<div class="col-md-3 col-sm-6">
+					<div class="card stat-card">
+						<div class="card-body d-flex align-items-center gap-3">
+							<i class="bi bi-graph-up-arrow stat-icon"></i>
+							<div>
+								<div class="stat-label">Margen promedio por evento</div>
+								<div class="stat-value" [class.text-success]="avgMarginPerEvent() >= 0" [class.text-danger]="avgMarginPerEvent() < 0">
+									{{ centsToDollars(avgMarginPerEvent()) }} USD
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		}
+
 		<div class="row g-3">
 			<div class="col-lg-6">
 				<div class="card h-100">
@@ -332,6 +363,7 @@ export class DashBoardComponent implements OnInit, OnDestroy {
 	private readonly productSalesService = inject(ProductSalesService);
 	private readonly userService = inject(UserService);
 	private readonly accessPointsService = inject(AccessPointsService);
+	private readonly eventTransactionsService = inject(EventTransactionsService);
 	private readonly authService = inject(AuthService);
 	private refreshTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -339,6 +371,7 @@ export class DashBoardComponent implements OnInit, OnDestroy {
 	events = signal<Events[]>([]);
 	saleTickets = signal<SaleTicket[]>([]);
 	saleProducts = signal<SaleProduct[]>([]);
+	eventTransactions = signal<EventTransaction[]>([]);
 	users = signal<User[]>([]);
 	gateStatsByEvent = signal<Map<number, AccessPointStatsResponse>>(new Map());
 
@@ -421,6 +454,36 @@ export class DashBoardComponent implements OnInit, OnDestroy {
 		const ticketRevenue = this.saleTickets().reduce((sum, sale) => sum + (sale.priceCents ?? sale.ticket?.priceCents ?? 0), 0);
 		const productRevenue = this.saleProducts().reduce((sum, sale) => sum + (sale.unitPriceCents ?? sale.product?.priceCents ?? 0) * sale.quantity, 0);
 		return ticketRevenue + productRevenue;
+	});
+
+	// IDs de los eventos que tienen al menos un movimiento de Finanzas cargado (ver event-transactions
+	// en event-details.component.ts) — el promedio de gasto/margen se calcula solo sobre estos, no
+	// sobre TODOS los eventos del tenant, porque un evento sin ningún movimiento cargado no aporta
+	// información real (no es "gasto cero", es "todavía no se cargó nada").
+	private financeEventIds = computed(() => new Set(this.eventTransactions().map((t) => t.eventId)));
+	eventsWithFinances = computed(() => this.financeEventIds().size);
+
+	totalExpenses = computed(() => this.eventTransactions().filter((t) => t.type === 'EXPENSE').reduce((sum, t) => sum + t.amountCents, 0));
+	totalExtraIncome = computed(() => this.eventTransactions().filter((t) => t.type === 'INCOME').reduce((sum, t) => sum + t.amountCents, 0));
+
+	// Ingresos de tickets+productos, pero acotados a los mismos eventos que financeEventIds — mezclar
+	// el margen con ingresos de eventos SIN ningún gasto cargado inflaría el promedio sin sentido.
+	private financeScopedRevenue = computed(() => {
+		const ids = this.financeEventIds();
+		const ticketRevenue = this.saleTickets()
+			.filter((s) => ids.has(s.eventId))
+			.reduce((sum, sale) => sum + (sale.priceCents ?? sale.ticket?.priceCents ?? 0), 0);
+		const productRevenue = this.saleProducts()
+			.filter((s) => ids.has(s.eventId))
+			.reduce((sum, sale) => sum + (sale.unitPriceCents ?? sale.product?.priceCents ?? 0) * sale.quantity, 0);
+		return ticketRevenue + productRevenue;
+	});
+
+	avgExpensePerEvent = computed(() => (this.eventsWithFinances() > 0 ? Math.round(this.totalExpenses() / this.eventsWithFinances()) : 0));
+	avgMarginPerEvent = computed(() => {
+		const n = this.eventsWithFinances();
+		if (n === 0) return 0;
+		return Math.round((this.financeScopedRevenue() + this.totalExtraIncome() - this.totalExpenses()) / n);
 	});
 
 	recentSales = computed(() =>
@@ -509,11 +572,13 @@ export class DashBoardComponent implements OnInit, OnDestroy {
 			events: this.eventsService.getEvents(),
 			saleTickets: this.qrService.getQRs(),
 			saleProducts: this.productSalesService.getSaleProducts(),
+			eventTransactions: this.eventTransactionsService.getAll(),
 			users: this.userService.getUsers(),
-		}).subscribe(({ events, saleTickets, saleProducts, users }) => {
+		}).subscribe(({ events, saleTickets, saleProducts, eventTransactions, users }) => {
 			this.events.set(events);
 			this.saleTickets.set(saleTickets);
 			this.saleProducts.set(saleProducts);
+			this.eventTransactions.set(eventTransactions);
 			this.users.set(users);
 			this.loading.set(false);
 			this.loadGateStats(this.todayEventIds(events));

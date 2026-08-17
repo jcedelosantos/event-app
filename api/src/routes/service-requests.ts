@@ -6,7 +6,7 @@ import { requireActiveSubscription } from '../middleware/plan';
 import { asyncHandler } from '../lib/async-handler';
 import { logAudit } from '../lib/audit';
 import { sendServiceRequestNotification } from '../lib/mail';
-import { ADDON_SERVICES, isAddOnServiceCode, computeFixedTotalDOP } from '../lib/addon-services';
+import { ADDON_SERVICES, isAddOnServiceCode, computeFixedTotalDOP, AddOnServiceCode } from '../lib/addon-services';
 
 // Primer recurso del proyecto con dos audiencias reales (el tenant que pide, el Super Admin que
 // cotiza/resuelve) — por eso el auth va por ruta en vez de un router.use() global como el resto
@@ -240,6 +240,35 @@ serviceRequestsRouter.put(
 			data: { status, resolutionNote, resolvedAt: resolved ? new Date() : null },
 			include: { ...include, tenant: { select: { id: true, name: true } } },
 		});
+
+		// Al pasar a FULFILLED con un evento vinculado, esta solicitud se convierte sola en una línea
+		// de gasto del ledger del evento (ver EventTransaction en schema.prisma) — así el manager no
+		// tiene que volver a cargarla a mano. Si el status cambia a cualquier otra cosa (corrección del
+		// Super Admin) se borra la línea generada, ya que dejó de estar resuelta.
+		if (status === 'FULFILLED' && updated.eventId != null) {
+			const totalDOP = computeFixedTotalDOP(
+				updated.items
+					.filter((i): i is typeof i & { catalogCode: AddOnServiceCode } => isAddOnServiceCode(i.catalogCode))
+					.map((i) => ({ catalogCode: i.catalogCode, quantity: i.quantity })),
+			);
+			const category = updated.items.length === 1 ? updated.items[0].nameSnapshot : 'Servicios adicionales';
+			await prismaUnscoped.eventTransaction.upsert({
+				where: { serviceRequestId: id },
+				create: {
+					type: 'EXPENSE',
+					category,
+					amountCents: Math.round(totalDOP * 100),
+					source: 'AUTOMATIC',
+					eventId: updated.eventId,
+					tenantId: updated.tenantId,
+					serviceRequestId: id,
+				},
+				update: { category, amountCents: Math.round(totalDOP * 100) },
+			});
+		} else {
+			await prismaUnscoped.eventTransaction.deleteMany({ where: { serviceRequestId: id } });
+		}
+
 		res.json(toPublic(updated));
 	}),
 );
