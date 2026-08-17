@@ -172,10 +172,13 @@ publicRouter.get('/events/:code', asyncHandler(async (req, res) => {
 		res.status(404).json({ error: 'Evento no encontrado' });
 		return;
 	}
-	// Mismo criterio que /org/:slug: portal público es feature de Intermedio para arriba, un tenant
-	// Básico responde 404 (no revela que el código sí corresponde a un evento real).
+	// A diferencia de /org/:slug (portal con todos los eventos, feature de Intermedio para arriba),
+	// el link directo de UN evento puntual funciona en cualquier plan — un tenant Básico igual puede
+	// compartir el QR/link de un evento y vender por ahí, solo no tiene la portada que lista todos
+	// sus eventos. Sí se respeta `blocked` (suscripción no ACTIVE) — eso corta toda venta, sin
+	// importar el plan.
 	const planCheck = await getTenantPlanFeatures(event.tenantId);
-	if (planCheck.blocked || (planCheck.features && !planCheck.features.publicPortal)) {
+	if (planCheck.blocked) {
 		res.status(404).json({ error: 'Evento no encontrado' });
 		return;
 	}
