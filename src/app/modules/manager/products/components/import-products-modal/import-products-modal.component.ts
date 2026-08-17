@@ -24,7 +24,7 @@ import { centsToDollars, dollarsToCents } from '../../../../../shared/money';
 							<div class="mb-3">
 								<label>Evento *</label>
 								<select class="custom-select d-block w-100" formControlName="eventId">
-									<option [ngValue]="null">Elegí...</option>
+									<option [ngValue]="null">Elige...</option>
 									@for (event of events(); track event.id) {
 										<option [ngValue]="event.id">{{ event.name }}</option>
 									}
@@ -159,7 +159,7 @@ export class ImportProductsModalComponent implements OnInit {
 					.filter((row) => row.name);
 
 				if (!rows.length) {
-					this.parseError.set('No se pudo leer ninguna fila válida — revisá que el CSV tenga una columna de nombre.');
+					this.parseError.set('No se pudo leer ninguna fila válida — revisa que el CSV tenga una columna de nombre.');
 				}
 				this.parsedRows.set(rows);
 			} catch {

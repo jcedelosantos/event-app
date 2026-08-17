@@ -67,7 +67,7 @@ signupRouter.post(
 		// existe (detecta typos como "gmial.com" antes de crear la cuenta con un correo al que nunca
 		// va a poder llegar el welcome/las facturas).
 		if (!(await hasValidMxRecord(admin.email))) {
-			res.status(400).json({ error: 'El dominio del correo no parece existir — revisá que esté bien escrito.' });
+			res.status(400).json({ error: 'El dominio del correo no parece existir — revisa que esté bien escrito.' });
 			return;
 		}
 		// Pro Enterprise ya no es autoservicio: se cotiza y lo activa un Super Admin a mano (ver

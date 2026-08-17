@@ -16,15 +16,15 @@ type State = 'loading' | 'not-ready' | 'not-found' | 'error';
 					}
 					@case ('not-ready') {
 						<h1 class="h4">Todavía no</h1>
-						<p style="color: #b9b9b9;">La encuesta se habilita apenas termine el evento — probá de nuevo más tarde.</p>
+						<p style="color: #b9b9b9;">La encuesta se habilita apenas termine el evento — prueba de nuevo más tarde.</p>
 					}
 					@case ('not-found') {
 						<h1 class="h4">No encontramos esta encuesta</h1>
-						<p style="color: #b9b9b9;">Revisá el link del correo, puede que ya no esté disponible.</p>
+						<p style="color: #b9b9b9;">Revisa el link del correo, puede que ya no esté disponible.</p>
 					}
 					@case ('error') {
 						<h1 class="h4">Algo salió mal</h1>
-						<p style="color: #b9b9b9;">No pudimos cargar la encuesta — probá de nuevo en un momento.</p>
+						<p style="color: #b9b9b9;">No pudimos cargar la encuesta — prueba de nuevo en un momento.</p>
 					}
 				}
 			</div>

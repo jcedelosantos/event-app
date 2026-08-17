@@ -84,7 +84,7 @@ export const promptSelect = (title: string, options: Record<string, string>, def
     cancelButtonColor: '#d33',
     confirmButtonText: 'Confirmar',
     cancelButtonText: 'Cancelar',
-    inputValidator: (value) => (!value ? 'Elegí una opción.' : undefined),
+    inputValidator: (value) => (!value ? 'Elige una opción.' : undefined),
   }).then((result) => (result.isConfirmed ? (result.value as string) : null));
 }
 

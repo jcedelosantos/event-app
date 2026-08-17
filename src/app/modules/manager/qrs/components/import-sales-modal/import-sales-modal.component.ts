@@ -26,7 +26,7 @@ import { parseCsv, pickColumn } from '../../../../../utils/csv';
 								<div class="col-md-6 mb-3">
 									<label>Evento *</label>
 									<select class="custom-select d-block w-100" formControlName="eventId" (change)="onEventChange()">
-										<option [ngValue]="null">Elegí...</option>
+										<option [ngValue]="null">Elige...</option>
 										@for (event of events(); track event.id) {
 											<option [ngValue]="event.id">{{ event.name }}</option>
 										}
@@ -35,7 +35,7 @@ import { parseCsv, pickColumn } from '../../../../../utils/csv';
 								<div class="col-md-6 mb-3">
 									<label>Tipo de ticket *</label>
 									<select class="custom-select d-block w-100" formControlName="ticketId">
-										<option [ngValue]="null">Elegí...</option>
+										<option [ngValue]="null">Elige...</option>
 										@for (ticket of tickets(); track ticket.id) {
 											<option [ngValue]="ticket.id">{{ ticket.name }} — {{ ticket.type }}</option>
 										}
@@ -189,7 +189,7 @@ export class ImportSalesModalComponent implements OnInit {
 					.filter((row) => row.name && row.seatName);
 
 				if (!rows.length) {
-					this.parseError.set('No se pudo leer ninguna fila válida — revisá que el CSV tenga columnas de nombre, mesa y silla.');
+					this.parseError.set('No se pudo leer ninguna fila válida — revisa que el CSV tenga columnas de nombre, mesa y silla.');
 				}
 				this.parsedRows.set(rows);
 			} catch {

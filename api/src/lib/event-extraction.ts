@@ -77,9 +77,9 @@ export async function extractEventFromImage(imageBuffer: Buffer, mimeType: strin
 		'Reglas para completar datos que el flyer no da explícitamente:',
 		'- Si el flyer no dice el año, asumí la próxima fecha futura que coincida con ese día y mes (si ya pasó este año, es el año que viene).',
 		'- Si da un aforo/capacidad total pero no el desglose por tipo de ticket, repartilo en partes iguales entre los tipos de ticket que sí menciona.',
-		'- Si no da ningún número de aforo, usá 300 como cupo por defecto para cada tipo de ticket.',
+		'- Si no da ningún número de aforo, usa 300 como cupo por defecto para cada tipo de ticket.',
 		'- "No cover" o "gratis" significa price: 0.',
-		`- Mapas/salones ya existentes en este club (para venueNameGuess, elegí el que mejor coincida con lo que dice el flyer, o null si ninguno aplica): ${existingMapNames.join(', ') || '(ninguno registrado)'}`,
+		`- Mapas/salones ya existentes en este club (para venueNameGuess, elige el que mejor coincida con lo que dice el flyer, o null si ninguno aplica): ${existingMapNames.join(', ') || '(ninguno registrado)'}`,
 		'- No inventes artistas, nombres de personas ni datos que no estén escritos en el flyer.',
 	].join('\n');
 

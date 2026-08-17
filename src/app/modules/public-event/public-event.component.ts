@@ -83,7 +83,7 @@ const MAX_INVITADO_SEATS = 2;
 				@case ('not-found') {
 					<div class="center-msg">
 						<h4>No encontramos este evento</h4>
-						<p class="text-body-secondary">Revisá el link o pedí uno nuevo a la organización.</p>
+						<p class="text-body-secondary">Revisa el link o pide uno nuevo a la organización.</p>
 					</div>
 				}
 				@case ('confirmed') {
@@ -126,11 +126,11 @@ const MAX_INVITADO_SEATS = 2;
 						<h3>¡Ya casi, {{ registerForm.controls.name.value }}!</h3>
 						@if (linkPendingExpired()) {
 							<div class="alert alert-danger">
-								Se venció el tiempo para pagar y tu asiento quedó libre de nuevo. Volvé a la página del evento para elegir uno.
+								Se venció el tiempo para pagar y tu asiento quedó libre de nuevo. Vuelve a la página del evento para elegir uno.
 							</div>
 						} @else {
 							<div class="alert alert-warning">
-								Reservamos tu(s) asiento(s) mientras completás el pago
+								Reservamos tu(s) asiento(s) mientras completas el pago
 								@if (linkPendingCountdownLabel(); as countdown) {
 									— te quedan <strong>{{ countdown }}</strong> minutos.
 								}
@@ -177,14 +177,14 @@ const MAX_INVITADO_SEATS = 2;
 									<h5>1. Tus datos</h5>
 									<form [formGroup]="registerForm" class="row g-2">
 										<div class="col-md-6">
-											<label for="club-attendee-type" class="visually-hidden">¿Sos socio o invitado?</label>
+											<label for="club-attendee-type" class="visually-hidden">¿Eres socio o invitado?</label>
 											<select
 												id="club-attendee-type"
 												class="form-select"
 												[class.is-invalid]="attendeeError() && !registerForm.controls.attendeeType.value"
 												formControlName="attendeeType"
 											>
-												<option value="">¿Sos socio o invitado?</option>
+												<option value="">¿Eres socio o invitado?</option>
 												<option value="SOCIO">Soy socio</option>
 												<option value="INVITADO">Soy invitado de un socio</option>
 											</select>
@@ -288,7 +288,7 @@ const MAX_INVITADO_SEATS = 2;
 													[class.is-invalid]="attendeeError() && !registerForm.controls.sponsorCarnet.value"
 													formControlName="sponsorCarnet"
 												/>
-												<div class="form-text">Como invitado podés elegir hasta 2 asientos.</div>
+												<div class="form-text">Como invitado puedes elegir hasta 2 asientos.</div>
 											</div>
 										}
 										<div class="col-md-6">
@@ -314,7 +314,7 @@ const MAX_INVITADO_SEATS = 2;
 								</div>
 							} @else {
 								<div class="mb-4">
-									<h5>1. Elegí tu ticket</h5>
+									<h5>1. Elige tu ticket</h5>
 									@if (!ev.tickets.length) {
 										<p class="text-body-secondary">Este evento todavía no tiene tickets a la venta.</p>
 									}
@@ -341,7 +341,7 @@ const MAX_INVITADO_SEATS = 2;
 
 							<div class="mb-4">
 								<div class="d-flex justify-content-between align-items-center mb-2">
-									<h5 class="mb-0">2. Elegí tu(s) asiento(s)</h5>
+									<h5 class="mb-0">2. Elige tu(s) asiento(s)</h5>
 									<span class="badge text-bg-danger">{{ selectedSeatIds().size }} / {{ effectiveMaxSeats() }}</span>
 								</div>
 								@if (duplicateEventBlockReason()) {
@@ -468,11 +468,11 @@ const MAX_INVITADO_SEATS = 2;
 							@if (ev.tenantType === 'CHURCH' && !ev.payment) {
 								<div class="mb-4">
 									<div class="d-flex justify-content-between align-items-center mb-2">
-										<h5 class="mb-0">4. ¿Venís con hijos?</h5>
+										<h5 class="mb-0">4. ¿Vienes con hijos?</h5>
 										<button type="button" class="btn btn-sm btn-outline-danger" (click)="addChildDraft()">+ Agregar hijo/a</button>
 									</div>
 									@if (!childrenDraft().length) {
-										<p class="text-body-secondary small">Si venís con hijos, agregalos acá para darles su código de retiro.</p>
+										<p class="text-body-secondary small">Si vienes con hijos, agregalos acá para darles su código de retiro.</p>
 									}
 									@for (child of childrenDraft(); track $index) {
 										<div class="row g-2 align-items-center mb-2">
@@ -1020,7 +1020,7 @@ export class PublicEventComponent implements OnInit {
 			return `Este evento estará disponible para la venta a partir del ${publishDate}.`;
 		}
 		if (!ev.tickets.length) {
-			return 'Este evento todavía no está disponible para la venta — probá más adelante.';
+			return 'Este evento todavía no está disponible para la venta — prueba más adelante.';
 		}
 		// Distinto del chequeo de stock por tipo de ticket de abajo: el aforo compartido del evento
 		// (Event.maxCapacity) puede llenarse aunque algún tipo de ticket todavía tenga cupo propio.
@@ -1059,7 +1059,7 @@ export class PublicEventComponent implements OnInit {
 	childrenNamesLabel = computed(() => this.purchasedChildren().map((c) => c.name).join(', '));
 
 	// Borrador de hijos a registrar junto con la compra — solo se muestra/manda en tenants CHURCH (ver
-	// "4. ¿Venís con hijos?"). Plano con signal en vez de un FormArray reactivo: no hay otro precedente
+	// "4. ¿Vienes con hijos?"). Plano con signal en vez de un FormArray reactivo: no hay otro precedente
 	// de FormArray en este codebase y una lista chica como esta no lo necesita.
 	childrenDraft = signal<{ name: string; age: string; wantsMeal: boolean }[]>([]);
 
@@ -1120,7 +1120,7 @@ export class PublicEventComponent implements OnInit {
 	});
 
 	// En tenants CLUB con tickets socio/invitado, el ticket lo define automáticamente la respuesta a
-	// "¿Sos socio o invitado?" (ver 1. Tus datos) — el comprador nunca elige un ticket a mano ahí. En
+	// "¿Eres socio o invitado?" (ver 1. Tus datos) — el comprador nunca elige un ticket a mano ahí. En
 	// el resto (no-CLUB, o CLUB sin ese modelo de tickets), sigue siendo el que se clickeó en el paso 1.
 	activeTicket = computed(() => {
 		const ev = this.event();
@@ -1391,7 +1391,7 @@ export class PublicEventComponent implements OnInit {
 			: `El socio ${carnet} ya alcanzó su máximo de invitados para este evento.`;
 	}
 
-	// Gatekeeper único de "2. Elegí tu(s) asiento(s)": para un tenant CLUB no alcanza con haber
+	// Gatekeeper único de "2. Elige tu(s) asiento(s)": para un tenant CLUB no alcanza con haber
 	// elegido socio/invitado (eso solo resuelve el ticket) — un invitado necesita el carnet del socio
 	// ya CONFIRMADO contra el backend, y un socio necesita sus datos de contacto + su propio carnet
 	// completos. Antes de este chequeo, elegir "Soy invitado" ya destrababa el mapa de asientos sin
@@ -1418,25 +1418,25 @@ export class PublicEventComponent implements OnInit {
 		return !!value && CARNET_PATTERN.test(value.trim());
 	}
 
-	// Mensaje que explica por qué "2. Elegí tu(s) asiento(s)" sigue bloqueado — un solo lugar para
+	// Mensaje que explica por qué "2. Elige tu(s) asiento(s)" sigue bloqueado — un solo lugar para
 	// toda la lógica de qué falta, en el mismo orden que valida canPickSeats().
 	seatsLockedMessage(ev: PublicEvent): string {
 		if (this.duplicateEventBlockReason()) {
 			return this.duplicateEventBlockReason()!;
 		}
 		if (ev.tenantType !== 'CLUB' || !this.usesAttendeeTypeTickets()) {
-			return 'Elegí primero un tipo de ticket arriba para poder elegir tu(s) asiento(s).';
+			return 'Elige primero un tipo de ticket arriba para poder elegir tu(s) asiento(s).';
 		}
 		const type = this.attendeeTypeValue();
 		if (!type) {
-			return 'Completá tus datos arriba (decinos si sos socio o invitado) para poder elegir tu(s) asiento(s).';
+			return 'Completa tus datos arriba (dinos si eres socio o invitado) para poder elegir tu(s) asiento(s).';
 		}
 		if (!this.activeTicketId()) {
-			return `Este evento no tiene un ticket de ${type === 'SOCIO' ? 'socio' : 'invitado'} disponible — contactá a la organización.`;
+			return `Este evento no tiene un ticket de ${type === 'SOCIO' ? 'socio' : 'invitado'} disponible — contacta a la organización.`;
 		}
 		const contactFilled = !this.registerForm.controls.name.invalid && !this.registerForm.controls.email.invalid && !this.registerForm.controls.phone.invalid;
 		if (!contactFilled) {
-			return 'Completá tu nombre, email y teléfono arriba para poder elegir tu(s) asiento(s).';
+			return 'Completa tu nombre, email y teléfono arriba para poder elegir tu(s) asiento(s).';
 		}
 		if (type === 'SOCIO') {
 			const carnet = this.registerForm.controls.carnet.value?.trim();
@@ -1708,7 +1708,7 @@ export class PublicEventComponent implements OnInit {
 		const usesAttendeeType = event.tenantType === 'CLUB' && this.eventUsesAttendeeTypeTickets(event);
 		if (usesAttendeeType) {
 			if (!attendeeType) {
-				this.attendeeError.set('Elegí si sos socio o invitado.');
+				this.attendeeError.set('Elige si eres socio o invitado.');
 				return;
 			}
 			if (this.sponsorBlocked()) {
@@ -1720,20 +1720,20 @@ export class PublicEventComponent implements OnInit {
 				return;
 			}
 			if (!this.activeTicketId()) {
-				this.attendeeError.set(`Este evento no tiene un ticket de ${attendeeType === 'SOCIO' ? 'socio' : 'invitado'} disponible — contactá a la organización.`);
+				this.attendeeError.set(`Este evento no tiene un ticket de ${attendeeType === 'SOCIO' ? 'socio' : 'invitado'} disponible — contacta a la organización.`);
 				return;
 			}
 		} else if (!this.activeTicketId()) {
-			this.errorMessage.set('Elegí un ticket.');
+			this.errorMessage.set('Elige un ticket.');
 			return;
 		}
 		if (!this.selectedSeatIds().size) {
-			this.errorMessage.set('Elegí al menos un asiento.');
+			this.errorMessage.set('Elige al menos un asiento.');
 			return;
 		}
 		if (this.registerForm.invalid) {
 			this.registerForm.markAllAsTouched();
-			this.errorMessage.set('Completá tus datos.');
+			this.errorMessage.set('Completa tus datos.');
 			return;
 		}
 
@@ -1752,18 +1752,18 @@ export class PublicEventComponent implements OnInit {
 			}
 			if (attendeeType === 'SOCIO' && this.guestDrafts().length) {
 				if (this.guestDrafts().some((g) => !g.name.trim() || !g.lastname.trim() || !g.phone.trim())) {
-					this.attendeeError.set('Completá nombre, apellido y teléfono de cada invitado (el email es opcional).');
+					this.attendeeError.set('Completa nombre, apellido y teléfono de cada invitado (el email es opcional).');
 					return;
 				}
 				if (this.selectedSeatIds().size !== 1 + this.guestDrafts().length) {
-					this.errorMessage.set(`Elegí ${1 + this.guestDrafts().length} asientos: el tuyo y uno por cada invitado.`);
+					this.errorMessage.set(`Elige ${1 + this.guestDrafts().length} asientos: el tuyo y uno por cada invitado.`);
 					return;
 				}
 			}
 		}
 
 		if (event.tenantType === 'CHURCH' && this.childrenDraft().some((c) => !c.name.trim())) {
-			this.errorMessage.set('Completá el nombre de cada hijo/a agregado, o quitá la fila.');
+			this.errorMessage.set('Completa el nombre de cada hijo/a agregado, o quita la fila.');
 			return;
 		}
 
@@ -1821,19 +1821,19 @@ export class PublicEventComponent implements OnInit {
 		const { carnet, attendeeType, sponsorCarnet } = this.registerForm.getRawValue();
 		const usesAttendeeType = event.tenantType === 'CLUB' && this.eventUsesAttendeeTypeTickets(event);
 		if (usesAttendeeType) {
-			if (!attendeeType) return 'Elegí si sos socio o invitado.';
+			if (!attendeeType) return 'Elige si eres socio o invitado.';
 			if (this.sponsorBlocked()) return this.sponsorBlockMessage(sponsorCarnet?.trim() ?? '');
 			if (attendeeType === 'SOCIO' && this.memberBlockReason()) return this.memberBlockReason();
 			if (!this.activeTicketId()) {
-				return `Este evento no tiene un ticket de ${attendeeType === 'SOCIO' ? 'socio' : 'invitado'} disponible — contactá a la organización.`;
+				return `Este evento no tiene un ticket de ${attendeeType === 'SOCIO' ? 'socio' : 'invitado'} disponible — contacta a la organización.`;
 			}
 		} else if (!this.activeTicketId()) {
-			return 'Elegí un ticket.';
+			return 'Elige un ticket.';
 		}
-		if (!this.selectedSeatIds().size) return 'Elegí al menos un asiento.';
+		if (!this.selectedSeatIds().size) return 'Elige al menos un asiento.';
 		if (this.registerForm.invalid) {
 			this.registerForm.markAllAsTouched();
-			return 'Completá tus datos.';
+			return 'Completa tus datos.';
 		}
 		if (usesAttendeeType) {
 			if (attendeeType === 'SOCIO' && !carnet?.trim()) return 'Ingresá tu carnet de socio.';
@@ -1924,13 +1924,13 @@ export class PublicEventComponent implements OnInit {
 					onError: (err: unknown) => {
 						this.checkingOut.set(false);
 						console.error('Error de PayPal:', err);
-						// createOrder ya deja un mensaje específico (ej. "Elegí si sos socio o invitado")
+						// createOrder ya deja un mensaje específico (ej. "Elige si eres socio o invitado")
 						// y CANCELA el checkout tirando un Error a propósito — eso hace que el SDK de
 						// PayPal dispare este mismo onError, que antes pisaba ese mensaje puntual con uno
 						// genérico. Solo cae acá el genérico si de verdad no había ningún mensaje puesto
 						// (un error real de PayPal, no una validación nuestra).
 						if (!this.errorMessage()) {
-							this.errorMessage.set('Hubo un problema con PayPal — intentá de nuevo.');
+							this.errorMessage.set('Hubo un problema con PayPal — intenta de nuevo.');
 						}
 					},
 				})

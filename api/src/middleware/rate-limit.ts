@@ -9,5 +9,5 @@ export const checkoutRateLimiter = rateLimit({
 	limit: 20,
 	standardHeaders: true,
 	legacyHeaders: false,
-	message: { error: 'Demasiados intentos — esperá un momento y volvé a intentar.' },
+	message: { error: 'Demasiados intentos — espera un momento y vuelve a intentar.' },
 });

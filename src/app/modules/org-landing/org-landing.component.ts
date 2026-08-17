@@ -27,7 +27,7 @@ const DEFAULT_VISIBLE_FILTERS: FilterCategory[] = ['proximos', 'programados'];
 				@case ('not-found') {
 					<div class="center-msg">
 						<h4>No encontramos esta organización</h4>
-						<p class="text-body-secondary">Revisá el link que te compartieron.</p>
+						<p class="text-body-secondary">Revisa el link que te compartieron.</p>
 					</div>
 				}
 				@default {
@@ -66,7 +66,7 @@ const DEFAULT_VISIBLE_FILTERS: FilterCategory[] = ['proximos', 'programados'];
 									@if (o.events.length) {
 										Ningún evento coincide con tu búsqueda.
 									} @else {
-										Todavía no hay eventos programados — volvé a pasar más adelante.
+										Todavía no hay eventos programados — vuelve a pasar más adelante.
 									}
 								</p>
 							} @else {

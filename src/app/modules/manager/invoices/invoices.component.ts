@@ -10,7 +10,7 @@ import { centsToDollars } from '../../../shared/money';
 	template: `
 		<h2 class="section-title">Facturas</h2>
 		<p class="text-body-secondary small">
-			Facturas emitidas por INTEG por tu suscripción — el Super Admin las genera (a mano o automáticamente el día 1 de cada mes); acá solo las consultás y descargás.
+			Facturas emitidas por INTEG por tu suscripción — el Super Admin las genera (a mano o automáticamente el día 1 de cada mes); acá solo las consultas y descargas.
 		</p>
 
 		@if (loading()) {

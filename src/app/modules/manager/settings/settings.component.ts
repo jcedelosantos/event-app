@@ -33,7 +33,7 @@ const PRESETS = [
 		<div class="card" style="max-width: 480px;">
 			<div class="card-body">
 				<div class="d-flex align-items-center gap-3 mb-3">
-					<input type="color" class="form-control form-control-color" [value]="accent()" (input)="onColorInput($event)" title="Elegí el color de acento" />
+					<input type="color" class="form-control form-control-color" [value]="accent()" (input)="onColorInput($event)" title="Elige el color de acento" />
 					<div>
 						<div class="fw-semibold">Color actual</div>
 						<div class="text-body-secondary small">{{ accent() }}</div>
@@ -146,7 +146,7 @@ const PRESETS = [
 
 			<h2 class="section-title mt-4">Pagos</h2>
 			<p class="text-body-secondary small">
-				Cobro online en el portal público — configurá acá PayPal y/o un link de pago manual, y después elegí "Cobro" al crear/editar cada evento.
+				Cobro online en el portal público — configura acá PayPal y/o un link de pago manual, y después elige "Cobro" al crear/editar cada evento.
 			</p>
 
 			<div class="card" style="max-width: 480px;">
@@ -168,7 +168,7 @@ const PRESETS = [
 							class="form-control form-control-sm"
 							[value]="paypalSecret()"
 							(input)="paypalSecret.set($any($event.target).value)"
-							[placeholder]="paypalSecretConfigured() ? '•••• configurado — dejalo vacío para no cambiarlo' : 'Pegá tu Client Secret'"
+							[placeholder]="paypalSecretConfigured() ? '•••• configurado — déjalo vacío para no cambiarlo' : 'Pega tu Client Secret'"
 						/>
 					</div>
 					<div class="mb-3">
@@ -185,7 +185,7 @@ const PRESETS = [
 							class="form-control form-control-sm"
 							[value]="paypalWebhookId()"
 							(input)="paypalWebhookId.set($any($event.target).value)"
-							[placeholder]="paypalWebhookIdConfigured() ? '•••• configurado — dejalo vacío para no cambiarlo' : 'Opcional, pero recomendado'"
+							[placeholder]="paypalWebhookIdConfigured() ? '•••• configurado — déjalo vacío para no cambiarlo' : 'Opcional, pero recomendado'"
 						/>
 					</div>
 					<hr />
@@ -216,8 +216,8 @@ const PRESETS = [
 
 			<h2 class="section-title mt-4">WhatsApp</h2>
 			<p class="text-body-secondary small">
-				Le mandás por WhatsApp la foto de un flyer a tu número de WhatsApp Business y se crea el evento solo (IA lee la imagen, publica el
-				evento y te responde por WhatsApp con un resumen). Necesitás una App de WhatsApp Business Platform en
+				Le mandas por WhatsApp la foto de un flyer a tu número de WhatsApp Business y se crea el evento solo (IA lee la imagen, publica el
+				evento y te responde por WhatsApp con un resumen). Necesitas una App de WhatsApp Business Platform en
 				<a href="https://developers.facebook.com" target="_blank" rel="noopener">developers.facebook.com</a>.
 			</p>
 
@@ -251,17 +251,17 @@ const PRESETS = [
 							class="form-control form-control-sm"
 							[value]="whatsappAccessToken()"
 							(input)="whatsappAccessToken.set($any($event.target).value)"
-							[placeholder]="whatsappAccessTokenConfigured() ? '•••• configurado — dejalo vacío para no cambiarlo' : 'Pegá el token'"
+							[placeholder]="whatsappAccessTokenConfigured() ? '•••• configurado — déjalo vacío para no cambiarlo' : 'Pega el token'"
 						/>
 					</div>
 					<div class="mb-3">
-						<label class="small mb-1">Verify Token <span class="text-muted">(elegís vos cualquier texto — tiene que coincidir con el que pongas en Meta)</span></label>
+						<label class="small mb-1">Verify Token <span class="text-muted">(eliges tú cualquier texto — tiene que coincidir con el que pongas en Meta)</span></label>
 						<input
 							type="password"
 							class="form-control form-control-sm"
 							[value]="whatsappVerifyToken()"
 							(input)="whatsappVerifyToken.set($any($event.target).value)"
-							[placeholder]="whatsappVerifyTokenConfigured() ? '•••• configurado — dejalo vacío para no cambiarlo' : 'Ej. un texto random que inventes'"
+							[placeholder]="whatsappVerifyTokenConfigured() ? '•••• configurado — déjalo vacío para no cambiarlo' : 'Ej. un texto random que inventes'"
 						/>
 					</div>
 					<div class="mb-3">
@@ -271,7 +271,7 @@ const PRESETS = [
 							class="form-control form-control-sm"
 							[value]="whatsappAppSecret()"
 							(input)="whatsappAppSecret.set($any($event.target).value)"
-							[placeholder]="whatsappAppSecretConfigured() ? '•••• configurado — dejalo vacío para no cambiarlo' : 'Obligatorio — sin esto no se procesan los mensajes'"
+							[placeholder]="whatsappAppSecretConfigured() ? '•••• configurado — déjalo vacío para no cambiarlo' : 'Obligatorio — sin esto no se procesan los mensajes'"
 						/>
 					</div>
 					<div class="mb-3">
@@ -605,7 +605,7 @@ export class SettingsComponent implements OnInit {
 
 		if (frequencyToSave && (!dayOfMonthToSave || !recipientsToSave)) {
 			this.savingReports.set(false);
-			this.reportsError.set('Elegí un día del mes y al menos un destinatario para activar el reporte.');
+			this.reportsError.set('Elige un día del mes y al menos un destinatario para activar el reporte.');
 			return;
 		}
 

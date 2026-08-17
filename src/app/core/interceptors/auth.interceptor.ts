@@ -23,7 +23,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
 				// Antes este redirect era silencioso — al usuario le parecía que "la app se cerró" de la
 				// nada, en vez de entender que tenía que volver a loguearse (reportado en vivo: perdió el
 				// formulario de edición de evento a mitad de guardar, dos veces seguidas, sin ningún aviso).
-				Toast.fire({ icon: 'warning', title: 'Tu sesión expiró — iniciá sesión de nuevo.' });
+				Toast.fire({ icon: 'warning', title: 'Tu sesión expiró — inicia sesión de nuevo.' });
 				authService.logout();
 				router.navigate(['/login/sign-in']);
 			}

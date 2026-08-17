@@ -69,7 +69,7 @@ declare const bootstrap: any;
 						@if (!a.img) {
 							<p class="small text-body-secondary mb-1">
 								Esta área todavía no tiene una foto real del salón — se muestra un plano genérico como referencia. Doble click en cualquier
-								punto para ubicar un asiento, o subí la foto real desde "Edit" en la lista de la derecha.
+								punto para ubicar un asiento, o sube la foto real desde "Edit" en la lista de la derecha.
 							</p>
 						}
 						<div class="scrollimg">
@@ -148,7 +148,7 @@ declare const bootstrap: any;
 										</li>
 									} @empty {
 										@if (!tables().length) {
-											<li class="list-group-item text-muted">Sin asientos — usá el botón "Agregar Asiento" arriba (o doble click sobre la imagen para ubicarlo en un punto exacto).</li>
+											<li class="list-group-item text-muted">Sin asientos — usa el botón "Agregar Asiento" arriba (o doble click sobre la imagen para ubicarlo en un punto exacto).</li>
 										}
 									}
 									<collapse-tables [tables]="tablesWithSeats()" [id]="a.id" (deleteTable)="deleteTable($event)" />

@@ -9,25 +9,25 @@ type FaqItem = { question: string; answerHtml: string };
 const FAQ: FaqItem[] = [
 	{
 		question: '¿Cómo creo mi primer evento?',
-		answerHtml: `Tenés dos formas: <strong>Evento flash</strong> (botón en el Panel) para cargar nombre, lugar y cupo esperado en segundos, o
+		answerHtml: `Tienes dos formas: <strong>Evento flash</strong> (botón en el Panel) para cargar nombre, lugar y cupo esperado en segundos, o
 			<strong>Crear con guía</strong> (en Eventos) para un paso a paso completo con mapa y tickets incluidos. Cualquiera de las dos te deja el evento
 			100% editable después desde su ficha.`,
 	},
 	{
 		question: '¿Necesito un mapa de asientos para vender entradas?',
-		answerHtml: `No. Un mapa (con mesas y asientos numerados) es para eventos con ubicación asignada. Si tu evento es de entrada libre/general, podés
+		answerHtml: `No. Un mapa (con mesas y asientos numerados) es para eventos con ubicación asignada. Si tu evento es de entrada libre/general, puedes
 			vender tickets sin asignar un mapa — el evento igual queda completo.`,
 	},
 	{
 		question: '¿Cómo genero y entrego un ticket a un cliente?',
-		answerHtml: `Desde <strong>QRs</strong>, botón "Nuevo" — cargás los datos del comprador (o elegís uno ya existente) y el sistema genera el
-			código QR automáticamente. Se le manda por correo con el QR y el PDF adjunto; también podés reenviarlo o descargarlo vos mismo desde la
+		answerHtml: `Desde <strong>QRs</strong>, botón "Nuevo" — cargas los datos del comprador (o eliges uno ya existente) y el sistema genera el
+			código QR automáticamente. Se le manda por correo con el QR y el PDF adjunto; también puedes reenviarlo o descargarlo tú mismo desde la
 			misma pantalla.`,
 	},
 	{
 		question: '¿Cómo escaneo los tickets en la puerta el día del evento?',
 		answerHtml: `Desde <strong>QRs → Scanner</strong> (o el ícono de escáner en el evento). Cada ticket es válido una sola vez — si alguien intenta
-			entrar dos veces con el mismo código, el sistema lo marca como ya usado. Si tenés varias puertas configuradas, elegís por cuál estás
+			entrar dos veces con el mismo código, el sistema lo marca como ya usado. Si tienes varias puertas configuradas, eliges por cuál estás
 			escaneando para que las estadísticas de tráfico por puerta salgan correctas.`,
 	},
 	{
@@ -37,13 +37,13 @@ const FAQ: FaqItem[] = [
 	},
 	{
 		question: '¿Puedo cobrar las entradas online?',
-		answerHtml: `Sí, configurando PayPal y/o un link de pago manual en <strong>Configuración → Pagos</strong>. Después, en cada evento elegís el modo de
-			cobro (ninguno, PayPal, link, o que el comprador elija). Esta función depende de tu plan — si no la ves disponible, revisá tu plan actual en
+		answerHtml: `Sí, configurando PayPal y/o un link de pago manual en <strong>Configuración → Pagos</strong>. Después, en cada evento eliges el modo de
+			cobro (ninguno, PayPal, link, o que el comprador elija). Esta función depende de tu plan — si no la ves disponible, revisa tu plan actual en
 			el badge del menú lateral.`,
 	},
 	{
 		question: '¿Cómo cambio de plan o veo mi factura?',
-		answerHtml: `Tu plan y estado aparecen siempre en el menú lateral — hacé clic ahí para ver el detalle y actualizar. El historial de facturas
+		answerHtml: `Tu plan y estado aparecen siempre en el menú lateral — haz clic ahí para ver el detalle y actualizar. El historial de facturas
 			está en <strong>Facturas</strong>.`,
 	},
 	{
@@ -53,7 +53,7 @@ const FAQ: FaqItem[] = [
 	},
 	{
 		question: '¿Puedo tener varios usuarios manejando la cuenta?',
-		answerHtml: `Sí, desde <strong>Usuarios</strong> podés crear cuentas adicionales para tu equipo (por ejemplo, alguien que solo escanea en la puerta
+		answerHtml: `Sí, desde <strong>Usuarios</strong> puedes crear cuentas adicionales para tu equipo (por ejemplo, alguien que solo escanea en la puerta
 			el día del evento).`,
 	},
 ];

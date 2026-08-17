@@ -55,7 +55,7 @@ export type PublicTicket = {
 	areaId: number | null;
 	count: number;
 	// Solo viene seteado en tenants CLUB — el picker público lo usa para auto-elegir el ticket según
-	// la respuesta a "¿Sos socio o invitado?" (ver public-event.component.ts).
+	// la respuesta a "¿Eres socio o invitado?" (ver public-event.component.ts).
 	attendeeType: 'SOCIO' | 'INVITADO' | null;
 };
 
@@ -107,7 +107,7 @@ export type RegisterInput = { name: string; lastname: string; email: string; pho
 
 export type AttendeeType = 'SOCIO' | 'INVITADO';
 
-// Solo se manda en tenants CHURCH — ver public-event.component.ts, sección "¿Venís con hijos?".
+// Solo se manda en tenants CHURCH — ver public-event.component.ts, sección "¿Vienes con hijos?".
 export type ChildDraftInput = { name: string; age?: number; wantsMeal?: boolean };
 
 // Solo se manda en tenants CLUB, dentro de la compra de un SOCIO (ver public-event.component.ts,

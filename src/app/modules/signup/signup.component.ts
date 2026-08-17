@@ -128,9 +128,9 @@ type Step = 'form' | 'bank-transfer' | 'pending-review';
 						</div>
 					}
 					@case ('bank-transfer') {
-						<h1 class="h3 mb-1">Transferí y subí tu comprobante</h1>
+						<h1 class="h3 mb-1">Transfiere y sube tu comprobante</h1>
 						<p class="mb-1" style="color: #b9b9b9;">
-							Primer mes: <strong>USD {{ selectedPlanPrice() }}</strong>. Transferí a esta cuenta y subí una foto del comprobante —
+							Primer mes: <strong>USD {{ selectedPlanPrice() }}</strong>. Transfiere a esta cuenta y sube una foto del comprobante —
 							activamos tu cuenta apenas lo confirmemos.
 						</p>
 						@if (dopAmount(); as dop) {
@@ -173,7 +173,7 @@ type Step = 'form' | 'bank-transfer' | 'pending-review';
 							@if (uploadingReceipt()) {
 								Subiendo...
 							} @else {
-								Ya transferí, subir comprobante
+								Ya transfiere, subir comprobante
 							}
 						</button>
 					}
@@ -285,7 +285,7 @@ export class SignupComponent {
 	private loadBankInfo() {
 		this.signupService.getBankInfo().subscribe({
 			next: (bank) => this.bankInfo.set(bank),
-			error: () => this.errorMessage.set('No se pudieron cargar los datos de la cuenta — recargá la página.'),
+			error: () => this.errorMessage.set('No se pudieron cargar los datos de la cuenta — recarga la página.'),
 		});
 	}
 

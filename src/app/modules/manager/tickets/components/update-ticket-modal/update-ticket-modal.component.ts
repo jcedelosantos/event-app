@@ -42,7 +42,7 @@ import { centsToDollars, dollarsToCents } from '../../../../../shared/money';
 								}
 						</select>
 							@if (isInvalid('eventId')) {
-								<div class="invalid-feedback">Elegí el evento al que pertenece este ticket.</div>
+								<div class="invalid-feedback">Elige el evento al que pertenece este ticket.</div>
 							}
 						</div>
 						<div class="mb-3">
@@ -53,7 +53,7 @@ import { centsToDollars, dollarsToCents } from '../../../../../shared/money';
 									<option [ngValue]="area.id">{{ area.name }}</option>
 								}
 							</select>
-							<div class="form-text">Si elegís un área, el comprador con este ticket solo va a poder elegir asientos de esa área.</div>
+							<div class="form-text">Si eliges un área, el comprador con este ticket solo va a poder elegir asientos de esa área.</div>
 						</div>
 						@if (isClubTenant()) {
 							<div class="mb-3">
@@ -97,7 +97,7 @@ import { centsToDollars, dollarsToCents } from '../../../../../shared/money';
 									}
 								</select>
 								@if (isInvalid('type')) {
-									<div class="invalid-feedback">Elegí un tipo de ticket.</div>
+									<div class="invalid-feedback">Elige un tipo de ticket.</div>
 								}
 							</div>
 							<div class="col-md-6 mb-3">

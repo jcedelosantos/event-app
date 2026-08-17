@@ -23,8 +23,8 @@ type Step = 'form' | 'payment' | 'bank-transfer' | 'pending-review' | 'entering'
 					@case ('form') {
 						<h1 class="h3 mb-1">Tu evento, sin suscripción</h1>
 						<p class="mb-4" style="color: #b9b9b9;">
-							Pagás una sola vez, montás y corrés tu evento con acceso completo. Después del evento tu cuenta queda en modo de
-							consulta — podés actualizarte a un plan recurrente cuando quieras. Si vendés más asistentes de los que pagaste acá,
+							Pagás una sola vez, montas y corres tu evento con acceso completo. Después del evento tu cuenta queda en modo de
+							consulta — puedes actualizarte a un plan recurrente cuando quieras. Si vendes más asistentes de los que pagaste acá,
 							no te bloqueamos la venta — se factura aparte a USD {{ overageFee }} por persona adicional.
 						</p>
 
@@ -139,7 +139,7 @@ type Step = 'form' | 'payment' | 'bank-transfer' | 'pending-review' | 'entering'
 						</form>
 					}
 					@case ('payment') {
-						<h1 class="h3 mb-1">Confirmá el pago</h1>
+						<h1 class="h3 mb-1">Confirma el pago</h1>
 						<p class="mb-4" style="color: #b9b9b9;">
 							Pago único de <strong>USD {{ selectedTierPrice() }}</strong> — tu cuenta se activa apenas PayPal confirme.
 						</p>
@@ -149,9 +149,9 @@ type Step = 'form' | 'payment' | 'bank-transfer' | 'pending-review' | 'entering'
 						}
 					}
 					@case ('bank-transfer') {
-						<h1 class="h3 mb-1">Transferí y subí tu comprobante</h1>
+						<h1 class="h3 mb-1">Transfiere y sube tu comprobante</h1>
 						<p class="mb-1" style="color: #b9b9b9;">
-							Pago único de <strong>USD {{ selectedTierPrice() }}</strong>. Transferí a esta cuenta y subí una foto del comprobante —
+							Pago único de <strong>USD {{ selectedTierPrice() }}</strong>. Transfiere a esta cuenta y sube una foto del comprobante —
 							activamos tu cuenta apenas lo confirmemos.
 						</p>
 						@if (dopAmount(); as dop) {
@@ -194,7 +194,7 @@ type Step = 'form' | 'payment' | 'bank-transfer' | 'pending-review' | 'entering'
 							@if (uploadingReceipt()) {
 								Subiendo...
 							} @else {
-								Ya transferí, subir comprobante
+								Ya transfiere, subir comprobante
 							}
 						</button>
 					}
@@ -211,7 +211,7 @@ type Step = 'form' | 'payment' | 'bank-transfer' | 'pending-review' | 'entering'
 					}
 					@case ('done') {
 						<h1 class="h4 text-success">¡Tu cuenta está lista!</h1>
-						<p class="mb-4" style="color: #b9b9b9;">El pago quedó confirmado. Ya podés iniciar sesión y crear tu evento.</p>
+						<p class="mb-4" style="color: #b9b9b9;">El pago quedó confirmado. Ya puedes iniciar sesión y crear tu evento.</p>
 						<a routerLink="/login/sign-in" class="btn btn-danger">Iniciar sesión</a>
 					}
 				}
@@ -315,7 +315,7 @@ export class SignupEventComponent {
 	private loadBankInfo() {
 		this.signupEventService.getBankInfo().subscribe({
 			next: (bank) => this.bankInfo.set(bank),
-			error: () => this.errorMessage.set('No se pudieron cargar los datos de la cuenta — recargá la página.'),
+			error: () => this.errorMessage.set('No se pudieron cargar los datos de la cuenta — recarga la página.'),
 		});
 	}
 
@@ -380,7 +380,7 @@ export class SignupEventComponent {
 					onError: (err: unknown) => {
 						console.error('Error de PayPal:', err);
 						if (!this.errorMessage()) {
-							this.errorMessage.set('Hubo un problema con PayPal — intentá de nuevo.');
+							this.errorMessage.set('Hubo un problema con PayPal — intenta de nuevo.');
 						}
 					},
 				})
@@ -405,6 +405,6 @@ export class SignupEventComponent {
 				script.addEventListener('load', render, { once: true });
 				document.body.appendChild(script);
 			})
-			.catch(() => this.errorMessage.set('No se pudo cargar PayPal — intentá de nuevo en un momento.'));
+			.catch(() => this.errorMessage.set('No se pudo cargar PayPal — intenta de nuevo en un momento.'));
 	}
 }

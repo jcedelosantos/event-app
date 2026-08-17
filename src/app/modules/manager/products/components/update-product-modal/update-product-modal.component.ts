@@ -34,7 +34,7 @@ import { centsToDollars, dollarsToCents } from '../../../../../shared/money';
 							<input type="text" class="form-control" formControlName="description" />
 						</div>
 						<div class="mb-3">
-							<label for="img">URL de foto <span class="text-muted">(opcional — pegá el link de una imagen online)</span></label>
+							<label for="img">URL de foto <span class="text-muted">(opcional — pega el link de una imagen online)</span></label>
 							<input type="text" class="form-control" formControlName="img" placeholder="https://..." />
 							<div class="form-text">Sin foto, se muestra una imagen genérica en la tarjeta del producto.</div>
 						</div>
@@ -47,7 +47,7 @@ import { centsToDollars, dollarsToCents } from '../../../../../shared/money';
 								}
 							</select>
 							@if (isInvalid('eventId')) {
-								<div class="invalid-feedback">Elegí el evento al que pertenece este producto.</div>
+								<div class="invalid-feedback">Elige el evento al que pertenece este producto.</div>
 							}
 						</div>
 						<div class="row">

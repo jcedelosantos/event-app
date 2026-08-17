@@ -160,7 +160,7 @@ const REQUEST_STATUS_LABEL: Record<ServiceRequestStatus, string> = {
 					} @empty {
 						<tr>
 							<td colspan="9" class="text-center text-muted py-4">
-								{{ archivedCount() > 0 && !showArchived() ? 'Todas las organizaciones están archivadas — activá el toggle para verlas.' : 'Todavía no hay organizaciones creadas.' }}
+								{{ archivedCount() > 0 && !showArchived() ? 'Todas las organizaciones están archivadas — activa el toggle para verlas.' : 'Todavía no hay organizaciones creadas.' }}
 							</td>
 						</tr>
 					}
@@ -300,7 +300,7 @@ const REQUEST_STATUS_LABEL: Record<ServiceRequestStatus, string> = {
 							<span class="badge text-bg-warning ms-2">{{ pendingReceipts().length }} sin revisar</span>
 						}
 					</h2>
-					<p class="text-muted small mb-0">Evento único o suscripción recurrente pagados por transferencia — confirmá el pago a mano para activar la cuenta.</p>
+					<p class="text-muted small mb-0">Evento único o suscripción recurrente pagados por transferencia — confirma el pago a mano para activar la cuenta.</p>
 				</div>
 			</div>
 			<div class="table-responsive">

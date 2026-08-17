@@ -346,7 +346,7 @@ export class EventDetailsComponent implements OnInit {
 	// El QR/link de acá abajo apuntan a la misma página pública que el link de Settings — sujeta al
 	// mismo bloqueo por plan (ver public.ts GET /events/:code). Mismo criterio que
 	// settings.component.ts: se avisa acá en vez de tocar la respuesta pública, para no romper el
-	// anti-enumeration (un tenant Básico responde 404 genérico, no un mensaje de "necesitás upgrade").
+	// anti-enumeration (un tenant Básico responde 404 genérico, no un mensaje de "necesitas upgrade").
 	publicPortalBlocked = computed(() => {
 		const plan = this.authService.currentUser()?.tenant?.plan;
 		if (!plan || isEventPlanCode(plan)) return false;

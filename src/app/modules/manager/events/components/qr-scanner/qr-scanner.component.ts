@@ -77,7 +77,7 @@ export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
 		try {
 			const devices = await Html5Qrcode.getCameras();
 			if (!devices.length) {
-				this.cameraError.set('No se encontró ninguna cámara — usá el código manual.');
+				this.cameraError.set('No se encontró ninguna cámara — usa el código manual.');
 				return;
 			}
 			this.scanner = new Html5Qrcode('qr-reader');
@@ -88,7 +88,7 @@ export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
 				() => {},
 			);
 		} catch {
-			this.cameraError.set('No se pudo acceder a la cámara — usá el código manual.');
+			this.cameraError.set('No se pudo acceder a la cámara — usa el código manual.');
 		}
 	}
 

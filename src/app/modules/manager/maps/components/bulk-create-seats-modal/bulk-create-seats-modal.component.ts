@@ -72,11 +72,11 @@ import { closeModal } from '../../../../../utils/modal';
 								<div class="form-text">
 									Se crean {{ form.controls.count.value || 0 }} mesas ("{{ nextTablePreview() }}", "{{ nextTablePreview(1) }}"...) con
 									{{ form.controls.seatsPerTable.value }} asientos cada una, acomodados en anillo alrededor del ícono de la mesa — cada asiento se vende por separado. Después
-									podés arrastrar cada mesa (y cada asiento) para ajustar la posición exacta.
+									puedes arrastrar cada mesa (y cada asiento) para ajustar la posición exacta.
 								</div>
 							} @else {
 								<div class="form-text">
-									Se crean como "{{ nextSeatPreview() }}", "{{ nextSeatPreview(1) }}", etc., acomodados en una cuadrícula — después podés arrastrar cada uno para ajustar su
+									Se crean como "{{ nextSeatPreview() }}", "{{ nextSeatPreview(1) }}", etc., acomodados en una cuadrícula — después puedes arrastrar cada uno para ajustar su
 									posición exacta.
 								</div>
 							}

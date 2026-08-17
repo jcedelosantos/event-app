@@ -21,7 +21,7 @@ type ProductRow = { name: string; sold: number; revenue: number; stock: number }
 			<div class="col-sm-5">
 				<label class="form-label small text-body-secondary mb-1">Evento</label>
 				<select class="form-select form-select-sm" [ngModel]="selectedEventId()" (ngModelChange)="onEventChange($event)">
-					<option [ngValue]="null">Elegí un evento...</option>
+					<option [ngValue]="null">Elige un evento...</option>
 					@for (event of events(); track event.id) {
 						<option [ngValue]="event.id">{{ event.name }}</option>
 					}
@@ -30,7 +30,7 @@ type ProductRow = { name: string; sold: number; revenue: number; stock: number }
 		</div>
 
 		@if (!selectedEventId()) {
-			<p class="text-body-secondary">Elegí un evento para ver su reporte de ventas.</p>
+			<p class="text-body-secondary">Elige un evento para ver su reporte de ventas.</p>
 		} @else if (loading()) {
 			<p class="text-body-secondary">Cargando...</p>
 		} @else {

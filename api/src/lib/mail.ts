@@ -418,7 +418,7 @@ export async function sendBankTransferReceiptNotification(args: { tenantName: st
 			<p style="color:#ccc;"><strong style="color:#fff;">${args.tenantName}</strong> — ${args.tierName}</p>
 			<p style="color:#ccc;">Monto esperado: <strong style="color:#fff;">USD ${centsToDollars(args.amountCents)}</strong></p>
 			<p><a href="${frontendUrl}${args.receiptUrl}" style="color:#dc3545;">Ver comprobante</a></p>
-			<p style="color:#666;font-size:12px;">Revisalo y confirmá el pago desde el panel de Super Admin.</p>
+			<p style="color:#666;font-size:12px;">Revísalo y confirma el pago desde el panel de Super Admin.</p>
 		</div>
 	`;
 
@@ -478,9 +478,9 @@ export async function sendOverageCrossedNotification(args: { to: string; tenantN
 			<p style="color:#ccc;"><strong style="color:#fff;">${args.eventName}</strong></p>
 			<p style="color:#ccc;">Vendiste <strong style="color:#fff;">${args.soldCount}</strong> entradas — tu plan incluye
 			<strong style="color:#fff;">${args.includedCount}</strong> por evento.</p>
-			<p style="color:#ccc;">El excedente se factura aparte al cierre del evento. Podés seguir vendiendo sin límite,
+			<p style="color:#ccc;">El excedente se factura aparte al cierre del evento. Puedes seguir vendiendo sin límite,
 			esto es solo un aviso.</p>
-			<p style="color:#666;font-size:12px;">Si te pasa seguido, puede convenirte actualizar de plan — revisalo desde el
+			<p style="color:#666;font-size:12px;">Si te pasa seguido, puede convenirte actualizar de plan — revísalo desde el
 			menú lateral de tu cuenta.</p>
 		</div>
 	`;
@@ -567,7 +567,7 @@ export async function sendPeriodicReport(args: { to: string[]; tenantName: strin
 			<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#111;border-radius:8px;border:1px solid #2a2a2a;">${topRows(stats.revenueByProduct)}</table>`
 					: ''
 			}
-			<p style="color:#666;font-size:12px;margin-top:16px;">Reporte automático generado por Seat App. Podés cambiar la frecuencia o los destinatarios desde Configuración.</p>
+			<p style="color:#666;font-size:12px;margin-top:16px;">Reporte automático generado por Seat App. Puedes cambiar la frecuencia o los destinatarios desde Configuración.</p>
 		</div>
 	`;
 

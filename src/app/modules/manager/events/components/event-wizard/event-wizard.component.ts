@@ -44,14 +44,14 @@ type WizardStep = 'evento' | 'mapa' | 'tickets' | 'productos' | 'listo';
 
 		@switch (step()) {
 			@case ('evento') {
-				<p class="text-body-secondary">Completá los datos del evento — al guardarlo, seguimos con el mapa y los tickets.</p>
+				<p class="text-body-secondary">Completa los datos del evento — al guardarlo, seguimos con el mapa y los tickets.</p>
 			}
 			@case ('mapa') {
 				<div class="card" style="max-width: 480px;">
 					<div class="card-body">
 						<h5 class="card-title">Este evento todavía no tiene mapa asignado</h5>
 						<p class="card-text text-body-secondary small">
-							Necesitás un mapa para vender tickets con asiento. Podés crear uno ahora, o hacerlo más tarde desde Maps.
+							Necesitas un mapa para vender tickets con asiento. Puedes crear uno ahora, o hacerlo más tarde desde Maps.
 						</p>
 						<div class="d-flex gap-2">
 							<button type="button" class="btn btn-danger btn-sm" (click)="startMapCreation()">Crear mapa</button>
@@ -90,7 +90,7 @@ type WizardStep = 'evento' | 'mapa' | 'tickets' | 'productos' | 'listo';
 						@if (createdProducts().length) {
 							<p class="card-text small">Ya creaste {{ createdProducts().length }} producto(s).</p>
 						} @else {
-							<p class="card-text text-body-secondary small">¿Vendés merchandising, bebidas u otra cosa en este evento?</p>
+							<p class="card-text text-body-secondary small">¿Vendes merchandising, bebidas u otra cosa en este evento?</p>
 						}
 						<div class="d-flex gap-2 flex-wrap">
 							<button type="button" class="btn btn-danger btn-sm" (click)="openProductModal()">

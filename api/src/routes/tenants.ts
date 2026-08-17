@@ -53,7 +53,7 @@ tenantsRouter.post('/', asyncHandler(async (req, res) => {
 	// Mismo chequeo que las altas públicas (signup.ts/signup-event.ts): el formato ya lo valida el
 	// schema, esto confirma que el dominio existe antes de crear la cuenta.
 	if (!(await hasValidMxRecord(admin.email))) {
-		res.status(400).json({ error: 'El dominio del correo no parece existir — revisá que esté bien escrito.' });
+		res.status(400).json({ error: 'El dominio del correo no parece existir — revisa que esté bien escrito.' });
 		return;
 	}
 

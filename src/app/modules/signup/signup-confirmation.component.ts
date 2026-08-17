@@ -20,7 +20,7 @@ const POLL_INTERVAL_MS = 3000;
 					}
 					@case ('active') {
 						<h1 class="h4 text-success">¡Tu cuenta está lista!</h1>
-						<p class="mb-4" style="color: #b9b9b9;">Tu plan quedó activo. Ya podés iniciar sesión y empezar a crear tu primer evento.</p>
+						<p class="mb-4" style="color: #b9b9b9;">Tu plan quedó activo. Ya puedes iniciar sesión y empezar a crear tu primer evento.</p>
 						<a routerLink="/login/sign-in" class="btn btn-danger">Iniciar sesión</a>
 					}
 					@case ('entering') {
@@ -30,12 +30,12 @@ const POLL_INTERVAL_MS = 3000;
 					}
 					@case ('blocked') {
 						<h1 class="h4 text-warning">Tu pago no se completó</h1>
-						<p class="mb-4" style="color: #b9b9b9;">Tu organización ya está creada, pero la suscripción no quedó activa. Contactanos para resolverlo o intentá suscribirte de nuevo.</p>
+						<p class="mb-4" style="color: #b9b9b9;">Tu organización ya está creada, pero la suscripción no quedó activa. Contactanos para resolverlo o intenta suscribirte de nuevo.</p>
 						<a routerLink="/signup" class="btn btn-outline-danger">Volver a intentar</a>
 					}
 					@case ('not-found') {
 						<h1 class="h4">No encontramos esta suscripción</h1>
-						<p style="color: #b9b9b9;">Revisá el link o volvé a empezar el alta.</p>
+						<p style="color: #b9b9b9;">Revisa el link o vuelve a empezar el alta.</p>
 					}
 				}
 			</div>

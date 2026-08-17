@@ -53,8 +53,8 @@ const DEFAULT_LNG = -70.0412847;
 							<div class="mb-3">
 								<label>Imagen del plano <span class="text-muted">(opcional)</span></label>
 								<div class="form-text mb-1">
-									Es distinto de la ubicación de arriba: esta imagen es el plano o foto del salón/venue que vas a usar más adelante como fondo para ubicar las áreas y asientos. Podés dejarlo vacío por
-									ahora — igual vas a poder crear áreas y asientos sin foto, solo que sin ese fondo visual. Si tenés una imagen en internet, pegá su URL directa (termina en .jpg/.png/etc).
+									Es distinto de la ubicación de arriba: esta imagen es el plano o foto del salón/venue que vas a usar más adelante como fondo para ubicar las áreas y asientos. Puedes dejarlo vacío por
+									ahora — igual vas a poder crear áreas y asientos sin foto, solo que sin ese fondo visual. Si tienes una imagen en internet, pega su URL directa (termina en .jpg/.png/etc).
 								</div>
 								<input type="text" class="form-control" formControlName="img" placeholder="https://... (opcional)" (input)="onImgChange()" />
 								@if (imgPreviewValid()) {

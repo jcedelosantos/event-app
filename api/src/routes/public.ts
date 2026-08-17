@@ -83,7 +83,7 @@ publicRouter.get('/org/:slug', asyncHandler(async (req, res) => {
 		return;
 	}
 	// El portal público es una feature de Intermedio para arriba — un tenant Básico responde 404
-	// acá, igual que una organización que no existe, en vez de un mensaje de "necesitás upgrade" que
+	// acá, igual que una organización que no existe, en vez de un mensaje de "necesitas upgrade" que
 	// le confirmaría a cualquiera que el slug SÍ corresponde a un tenant real.
 	const planCheck = await getTenantPlanFeatures(tenant.id);
 	if (planCheck.blocked || (planCheck.features && !planCheck.features.publicPortal)) {
@@ -514,7 +514,7 @@ publicRouter.post('/purchase', checkoutRateLimiter, asyncHandler(async (req, res
 
 	const alreadySold = await prisma.saleTicket.findMany({ where: { eventId: event.id, seatId: { in: seatIds }, tenantId } });
 	if (alreadySold.length) {
-		res.status(409).json({ error: 'Uno o más asientos elegidos ya no están disponibles. Volvé a intentarlo.' });
+		res.status(409).json({ error: 'Uno o más asientos elegidos ya no están disponibles. Vuelve a intentarlo.' });
 		return;
 	}
 
@@ -812,7 +812,7 @@ publicRouter.post('/purchase', checkoutRateLimiter, asyncHandler(async (req, res
 			return;
 		}
 		if (err.code === 'P2002') {
-			res.status(409).json({ error: 'Uno o más asientos elegidos ya no están disponibles. Volvé a intentarlo.' });
+			res.status(409).json({ error: 'Uno o más asientos elegidos ya no están disponibles. Vuelve a intentarlo.' });
 			return;
 		}
 		throw err;
@@ -877,7 +877,7 @@ publicRouter.post('/checkout/hold', checkoutRateLimiter, asyncHandler(async (req
 
 	const alreadySold = await prisma.saleTicket.findMany({ where: { eventId: event.id, seatId: { in: seatIds }, tenantId } });
 	if (alreadySold.length) {
-		res.status(409).json({ error: 'Uno o más asientos elegidos ya no están disponibles. Volvé a intentarlo.' });
+		res.status(409).json({ error: 'Uno o más asientos elegidos ya no están disponibles. Vuelve a intentarlo.' });
 		return;
 	}
 
@@ -1020,7 +1020,7 @@ publicRouter.post('/checkout/hold', checkoutRateLimiter, asyncHandler(async (req
 			return;
 		}
 		if (err.code === 'P2002') {
-			res.status(409).json({ error: 'Uno o más asientos elegidos ya no están disponibles. Volvé a intentarlo.' });
+			res.status(409).json({ error: 'Uno o más asientos elegidos ya no están disponibles. Vuelve a intentarlo.' });
 			return;
 		}
 		throw err;
@@ -1044,11 +1044,11 @@ publicRouter.post('/checkout/paypal/order', checkoutRateLimiter, asyncHandler(as
 		!holds.length ||
 		holds.some((h) => h.paymentStatus !== 'PENDING' || h.paymentProvider !== 'PAYPAL' || h.holdToken !== parsed.data.holdToken)
 	) {
-		res.status(409).json({ error: 'Esta reserva ya no es válida — volvé a elegir tu asiento.' });
+		res.status(409).json({ error: 'Esta reserva ya no es válida — vuelve a elegir tu asiento.' });
 		return;
 	}
 	if (holds.some((h) => !h.paymentExpiresAt || h.paymentExpiresAt < new Date())) {
-		res.status(409).json({ error: 'El tiempo para pagar esta reserva venció — volvé a elegir tu asiento.' });
+		res.status(409).json({ error: 'El tiempo para pagar esta reserva venció — vuelve a elegir tu asiento.' });
 		return;
 	}
 
@@ -1092,7 +1092,7 @@ publicRouter.post('/checkout/paypal/capture', checkoutRateLimiter, asyncHandler(
 		}
 		const capture = await capturePaypalOrder(tenantId, parsed.data.orderId);
 		if (capture.status !== 'COMPLETED') {
-			res.status(409).json({ error: 'PayPal todavía no confirmó el pago — esperá un momento y volvé a intentar.' });
+			res.status(409).json({ error: 'PayPal todavía no confirmó el pago — espera un momento y vuelve a intentar.' });
 			return;
 		}
 		const result = await finalizePaidSaleTickets(tenantId, holds.map((h) => h.id));
@@ -1375,7 +1375,7 @@ publicRouter.post('/webhooks/whatsapp/:slug', asyncHandler(async (req, res) => {
 				ticketsSummary,
 				`🔗 ${publicUrl}`,
 				'',
-				`Se publica solo el ${publishAtLabel} (24hs de margen). Revisalo en el manager antes de esa hora por si algo salió mal (fechas, precios, mapa) — desde ahí también podés adelantar o quitar esa fecha.`,
+				`Se publica solo el ${publishAtLabel} (24hs de margen). Revísalo en el manager antes de esa hora por si algo salió mal (fechas, precios, mapa) — desde ahí también puedes adelantar o quitar esa fecha.`,
 			].join('\n'),
 		);
 	} catch (err) {
@@ -1383,7 +1383,7 @@ publicRouter.post('/webhooks/whatsapp/:slug', asyncHandler(async (req, res) => {
 		if (config && from) {
 			const message =
 				err instanceof AnthropicNotConfiguredError || err instanceof AnthropicRequestError
-					? 'No pude leer la imagen con IA — probá de nuevo en un rato.'
+					? 'No pude leer la imagen con IA — prueba de nuevo en un rato.'
 					: 'Algo salió mal creando el evento a partir de esa imagen.';
 			await sendTextMessage(config, from, `❌ ${message}`).catch(() => {});
 		}

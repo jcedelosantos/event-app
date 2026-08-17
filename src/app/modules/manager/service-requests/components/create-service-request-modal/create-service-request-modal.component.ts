@@ -26,7 +26,7 @@ type SelectedItem = { catalogCode: AddOnServiceCode; quantity: number };
 				</div>
 				<div class="modal-body">
 					<p class="text-muted small">
-						Elegí un paquete sugerido como punto de partida (opcional) o armá tu combinación desde el catálogo. Esto no cobra nada automáticamente — el
+						Elige un paquete sugerido como punto de partida (opcional) o arma tu combinación desde el catálogo. Esto no cobra nada automáticamente — el
 						equipo te contacta para cotizar y coordinar.
 					</p>
 
@@ -62,7 +62,7 @@ type SelectedItem = { catalogCode: AddOnServiceCode; quantity: number };
 						</div>
 					</div>
 
-					<label class="mb-1">Servicios a cotizar <span class="text-muted">(sin precio de lista — marcá los que te interesen)</span></label>
+					<label class="mb-1">Servicios a cotizar <span class="text-muted">(sin precio de lista — marca los que te interesen)</span></label>
 					<div class="mb-3">
 						@for (svc of quotableCatalog; track svc.code) {
 							<div class="form-check">

@@ -94,7 +94,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 					<h6 class="mb-3">Áreas de "{{ map()?.name }}"</h6>
 					<div class="scroll-list">
 						@if (!areas().length) {
-							<p class="text-muted">Sin áreas — usá el botón "Agregar Área" arriba para crear la primera.</p>
+							<p class="text-muted">Sin áreas — usa el botón "Agregar Área" arriba para crear la primera.</p>
 						}
 						<div class="row">
 							@for (area of areas(); track area.id; let idx = $index) {

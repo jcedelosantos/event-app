@@ -52,13 +52,13 @@ const REVIEW_POLL_INTERVAL_MS = 10000;
 					<strong>{{ statusLabel(tenant.planStatus) }}.</strong>
 					@if (tenant.planStatus === 'PENDING') {
 						Todavía no confirmamos tu primer pago — no vas a poder crear ni editar nada hasta que se
-						active. Si ya pagaste y seguís viendo esto, esperá unos segundos o contactanos.
+						active. Si ya pagaste y sigues viendo esto, espera unos segundos o contactanos.
 					} @else if (tenant.planStatus === 'PENDING_REVIEW') {
 						Tu comprobante de transferencia está en revisión — te confirmamos por correo apenas lo
 						validemos. No vas a poder crear ni editar nada hasta entonces.
 					} @else if (tenant.planStatus === 'EVENT_ENDED') {
-						Tu evento ya finalizó — podés seguir viendo tu dashboard, historial y reportes, pero no
-						crear ni vender nada nuevo. Actualizate a un plan recurrente abajo para seguir usando la
+						Tu evento ya finalizó — puedes seguir viendo tu dashboard, historial y reportes, pero no
+						crear ni vender nada nuevo. Actualízate a un plan recurrente abajo para seguir usando la
 						plataforma con normalidad.
 					} @else {
 						No vas a poder crear ni editar nada mientras tu cuenta esté en este estado. Actualizá tu

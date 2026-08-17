@@ -46,7 +46,7 @@ const LIVE_REFRESH_MS = 20_000;
 						<h5 class="mb-1">Primeros pasos</h5>
 						<button type="button" class="btn-close" aria-label="Cerrar" (click)="dismissOnboarding()"></button>
 					</div>
-					<p class="text-body-secondary small mb-3">Tu cuenta está lista — completá esto para arrancar a vender entradas.</p>
+					<p class="text-body-secondary small mb-3">Tu cuenta está lista — completa esto para arrancar a vender entradas.</p>
 					<div class="row g-2">
 						<div class="col-md-3 col-sm-6">
 							<a routerLink="/manager/events" class="btn btn-outline-light btn-sm w-100 text-start">
@@ -55,12 +55,12 @@ const LIVE_REFRESH_MS = 20_000;
 						</div>
 						<div class="col-md-3 col-sm-6">
 							<a routerLink="/manager/maps" class="btn btn-outline-light btn-sm w-100 text-start">
-								<i class="bi bi-map"></i> Armá un mapa de asientos
+								<i class="bi bi-map"></i> Arma un mapa de asientos
 							</a>
 						</div>
 						<div class="col-md-3 col-sm-6">
 							<a routerLink="/manager/qrs" class="btn btn-outline-light btn-sm w-100 text-start">
-								<i class="bi bi-ticket-perforated"></i> Generá y vendé tickets
+								<i class="bi bi-ticket-perforated"></i> Generá y vende tickets
 							</a>
 						</div>
 						<div class="col-md-3 col-sm-6">
@@ -411,7 +411,7 @@ export class DashBoardComponent implements OnInit, OnDestroy {
 					eventName: event.name,
 					eventTotal: stats.eventTotal,
 					gates,
-					alert: concentratedGate ? `"${concentratedGate.name}" concentra el ${concentratedGate.sharePct}% del tráfico reciente — considerá mover personal ahí.` : null,
+					alert: concentratedGate ? `"${concentratedGate.name}" concentra el ${concentratedGate.sharePct}% del tráfico reciente — considera mover personal ahí.` : null,
 				};
 			});
 	});

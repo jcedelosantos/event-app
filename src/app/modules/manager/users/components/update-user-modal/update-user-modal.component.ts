@@ -78,14 +78,14 @@ import { Events } from '../../../../../models/events/events';
 										<option value="SCANNER">Escáner</option>
 									</select>
 									@if (isInvalid('userType')) {
-										<div class="invalid-feedback">Elegí un tipo de usuario.</div>
+										<div class="invalid-feedback">Elige un tipo de usuario.</div>
 									}
 								</div>
 								@if (form.controls.userType.value === 'SCANNER') {
 									<div class="col-md-6 mb-3">
 										<label for="scannerEventId">Evento asignado *</label>
 										<select class="custom-select d-block w-100" [class.is-invalid]="isInvalid('scannerEventId')" formControlName="scannerEventId">
-											<option [ngValue]="null">Elegí un evento...</option>
+											<option [ngValue]="null">Elige un evento...</option>
 											@for (event of events(); track event.id) {
 												<option [ngValue]="event.id">{{ event.name }}</option>
 											}

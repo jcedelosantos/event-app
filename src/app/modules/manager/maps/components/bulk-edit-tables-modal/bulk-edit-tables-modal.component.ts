@@ -35,7 +35,7 @@ import { closeModal } from '../../../../../utils/modal';
 									@if (isInvalid('seatSize')) {
 										<div class="invalid-feedback">Entre 4 y 100.</div>
 									}
-									<div class="form-text">Se ajusta solo con el tamaño de mesa (misma proporción que usa "Generar varios") — cambialo a mano si querés otra relación.</div>
+									<div class="form-text">Se ajusta solo con el tamaño de mesa (misma proporción que usa "Generar varios") — cambialo a mano si quieres otra relación.</div>
 								</div>
 							</div>
 							<div class="mb-3">

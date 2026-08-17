@@ -42,7 +42,7 @@ import { centsToDollars } from '../../../../../shared/money';
 									}
 								</select>
 								@if (isInvalid('eventId')) {
-									<div class="invalid-feedback">Elegí el evento.</div>
+									<div class="invalid-feedback">Elige el evento.</div>
 								}
 							</div>
 							<div class="row">
@@ -55,7 +55,7 @@ import { centsToDollars } from '../../../../../shared/money';
 										}
 									</select>
 									@if (isInvalid('ticketId')) {
-										<div class="invalid-feedback">Elegí el tipo de ticket.</div>
+										<div class="invalid-feedback">Elige el tipo de ticket.</div>
 									}
 									@if (form.controls.eventId.value && !tickets().length) {
 										<div class="form-text">Este evento todavía no tiene tickets creados.</div>
@@ -85,7 +85,7 @@ import { centsToDollars } from '../../../../../shared/money';
 									}
 								</select>
 								@if (isInvalid('seatId')) {
-									<div class="invalid-feedback">Elegí un asiento.</div>
+									<div class="invalid-feedback">Elige un asiento.</div>
 								}
 								@if (areaControl.value) {
 									<div class="form-text">{{ availableSeats().length }} disponible(s) de {{ seats().length }} en esta área.</div>
@@ -104,7 +104,7 @@ import { centsToDollars } from '../../../../../shared/money';
 										<button type="button" class="btn btn-outline-danger text-nowrap" (click)="toggleQuickClient(true)">+ Nuevo cliente</button>
 									</div>
 									@if (isInvalid('clientId')) {
-										<div class="invalid-feedback">Elegí el comprador — tiene que ser un usuario de tipo Client.</div>
+										<div class="invalid-feedback">Elige el comprador — tiene que ser un usuario de tipo Client.</div>
 									}
 								</div>
 							} @else {
@@ -195,7 +195,7 @@ import { centsToDollars } from '../../../../../shared/money';
 									<div class="col-md-6 mb-3">
 										<label>Socio o invitado *</label>
 										<select class="custom-select d-block w-100" [class.is-invalid]="attendeeError() && !form.controls.attendeeType.value" formControlName="attendeeType">
-											<option value="">Elegí...</option>
+											<option value="">Elige...</option>
 											<option value="SOCIO">Socio</option>
 											<option value="INVITADO">Invitado</option>
 										</select>
@@ -226,7 +226,7 @@ import { centsToDollars } from '../../../../../shared/money';
 										<option value="Invitado">Invitado (sin cargo)</option>
 									</select>
 									@if (isInvalid('paidType')) {
-										<div class="invalid-feedback">Elegí la forma de pago.</div>
+										<div class="invalid-feedback">Elige la forma de pago.</div>
 									}
 								</div>
 								<div class="col-md-6 mb-3">
@@ -429,7 +429,7 @@ export class CreateQrModalComponent implements OnInit {
 		}
 
 		if (this.isChurchTenant() && this.childrenDraft().some((c) => !c.name.trim())) {
-			this.errorMessage.set('Completá el nombre de cada hijo/a agregado, o quitalo.');
+			this.errorMessage.set('Completa el nombre de cada hijo/a agregado, o quitalo.');
 			return;
 		}
 
@@ -475,7 +475,7 @@ export class CreateQrModalComponent implements OnInit {
 
 		if (this.isClubTenant()) {
 			if (!value.attendeeType) {
-				this.attendeeError.set('Elegí si la reserva es de un socio o de un invitado.');
+				this.attendeeError.set('Elige si la reserva es de un socio o de un invitado.');
 				return;
 			}
 			if (value.attendeeType === 'INVITADO' && !value.sponsorCarnet?.trim()) {

@@ -34,7 +34,7 @@ import { centsToDollars } from '../../../../../shared/money';
 									}
 								</select>
 								@if (isInvalid('eventId')) {
-									<div class="invalid-feedback">Elegí el evento.</div>
+									<div class="invalid-feedback">Elige el evento.</div>
 								}
 							</div>
 							<div class="mb-3">
@@ -46,7 +46,7 @@ import { centsToDollars } from '../../../../../shared/money';
 									}
 								</select>
 								@if (isInvalid('productId')) {
-									<div class="invalid-feedback">Elegí el producto.</div>
+									<div class="invalid-feedback">Elige el producto.</div>
 								}
 								@if (form.controls.eventId.value && !products().length) {
 									<div class="form-text">Este evento todavía no tiene productos creados.</div>
@@ -63,7 +63,7 @@ import { centsToDollars } from '../../../../../shared/money';
 									}
 								</select>
 								@if (isInvalid('clientId')) {
-									<div class="invalid-feedback">Elegí el comprador — tiene que ser un usuario de tipo Client.</div>
+									<div class="invalid-feedback">Elige el comprador — tiene que ser un usuario de tipo Client.</div>
 								}
 							</div>
 							<div class="row">
@@ -84,7 +84,7 @@ import { centsToDollars } from '../../../../../shared/money';
 										<option value="Invitado">Invitado (sin cargo)</option>
 									</select>
 									@if (isInvalid('paidType')) {
-										<div class="invalid-feedback">Elegí la forma de pago.</div>
+										<div class="invalid-feedback">Elige la forma de pago.</div>
 									}
 								</div>
 								<div class="col-md-4 mb-3">
