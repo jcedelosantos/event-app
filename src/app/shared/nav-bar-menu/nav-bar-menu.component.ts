@@ -353,6 +353,6 @@ export class NavBarMenuComponent implements AfterViewInit, OnDestroy {
 
 	logout() {
 		this.authService.logout();
-		this.router.navigate(['/site-web']);
+		this.router.navigate(['/login/sign-in']);
 	}
 }

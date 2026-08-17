@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, model, OnInit, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, effect, inject, model, OnInit, output, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { User } from '../../../../../models/users/user';
 import { UserService, UserTypeCode } from '../../services/user.service';
@@ -6,7 +6,6 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { confirm } from '../../../../../utils/messages';
 import { extractErrorMessage } from '../../../../../utils/api-error';
 import { closeModal } from '../../../../../utils/modal';
-import { AuthService } from '../../../../../core/services/auth.service';
 import { EventsService } from '../../../events/services/events.service';
 import { Events } from '../../../../../models/events/events';
 
@@ -104,7 +103,7 @@ import { Events } from '../../../../../models/events/events';
 									</select>
 								</div>
 								<div class="col-md-6 mb-3">
-									<label for="zip">Carnet{{ isChurchTenant() ? ' (opcional)' : ' *' }}</label>
+									<label for="zip">Carnet{{ userTypeValue() === 'CLIENT' ? ' *' : ' (opcional)' }}</label>
 									<input type="text" class="form-control" [class.is-invalid]="isInvalid('carnet')" formControlName="carnet" />
 									@if (isInvalid('carnet')) {
 										<div class="invalid-feedback">El carnet/cédula es obligatorio.</div>
@@ -137,7 +136,6 @@ import { Events } from '../../../../../models/events/events';
 })
 export class UpdateUserModalComponent implements OnInit {
 	userService = inject(UserService);
-	private readonly authService = inject(AuthService);
 	private readonly eventsService = inject(EventsService);
 
 	user = model.required<User | null>();
@@ -147,13 +145,13 @@ export class UpdateUserModalComponent implements OnInit {
 	// create-qr-modal.component.ts).
 	errorMessage = signal('');
 
-	// Solo CLUB depende del carnet para identificar socios al vender un ticket (validateAttendeeRule)
-	// — en el resto de los tenants es un dato de referencia, no algo que deba bloquear el alta.
-	isChurchTenant = computed(() => this.authService.currentUser()?.tenant?.type === 'CHURCH');
-
 	// Para el selector "Evento asignado" que solo aparece cuando userType === 'SCANNER' (ver
 	// User.scannerEventId en la API).
 	events = signal<Events[]>([]);
+
+	// Espejo de userType para el template (un FormControl no se puede leer directo ahí porque OnPush
+	// no repinta solo con sus cambios) — decide si el carnet es obligatorio (solo Cliente).
+	userTypeValue = signal<UserTypeCode | ''>('');
 
 	form = new FormGroup({
 		userName: new FormControl<string>('', [Validators.required]),
@@ -168,7 +166,7 @@ export class UpdateUserModalComponent implements OnInit {
 		// al backend.
 		gender: new FormControl<string>(''),
 		email: new FormControl<string>('', [Validators.required, Validators.email]),
-		carnet: new FormControl<string>('', this.isChurchTenant() ? [] : [Validators.required]),
+		carnet: new FormControl<string>(''),
 		address: new FormControl<string>(''),
 		phone: new FormControl<string>('', [Validators.required, Validators.pattern('^[- +()0-9]+$')]),
 		scannerEventId: new FormControl<number | null>(null),
@@ -197,13 +195,19 @@ export class UpdateUserModalComponent implements OnInit {
 			}
 		});
 
-		// scannerEventId solo es obligatorio mientras userType sea 'SCANNER' — se recalcula cada vez
-		// que el tipo cambia (ej. el usuario prueba "Escáner", se arrepiente y elige "User" antes de
-		// guardar).
+		// scannerEventId solo es obligatorio mientras userType sea 'SCANNER', y carnet solo mientras
+		// sea 'CLIENT' — se recalculan cada vez que el tipo cambia (ej. el usuario prueba "Escáner",
+		// se arrepiente y elige "User" antes de guardar).
 		this.form.controls.userType.valueChanges.subscribe((type) => {
-			const control = this.form.controls.scannerEventId;
-			control.setValidators(type === 'SCANNER' ? [Validators.required] : []);
-			control.updateValueAndValidity({ emitEvent: false });
+			this.userTypeValue.set(type ?? '');
+
+			const scannerControl = this.form.controls.scannerEventId;
+			scannerControl.setValidators(type === 'SCANNER' ? [Validators.required] : []);
+			scannerControl.updateValueAndValidity({ emitEvent: false });
+
+			const carnetControl = this.form.controls.carnet;
+			carnetControl.setValidators(type === 'CLIENT' ? [Validators.required] : []);
+			carnetControl.updateValueAndValidity({ emitEvent: false });
 		});
 	}
 

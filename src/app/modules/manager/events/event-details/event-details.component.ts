@@ -20,25 +20,36 @@ import { ProductSalesService, SaleProduct } from '../../qrs/services/product-sal
 import { DatePipe } from '@angular/common';
 import { centsToDollars } from '../../../../shared/money';
 
-import { QRCodeComponent } from 'angularx-qrcode';
 import { CardMapComponent } from '../../maps/components/card-map/card-map.component';
-import { AuthService } from '../../../../core/services/auth.service';
-import { PLAN_FEATURES } from '../../../../shared/pricing-plans';
-import { isEventPlanCode } from '../../../../shared/event-plans';
 import { EventTransaction } from '../../../../models/event-transactions/event-transaction';
 import { EventTransactionsService } from '../../event-transactions/services/event-transactions.service';
 import { CreateTransactionModalComponent } from '../../event-transactions/components/create-transaction-modal/create-transaction-modal.component';
+import { EventQrModalComponent } from '../components/event-qr-modal/event-qr-modal.component';
 
 declare const bootstrap: any;
 
 @Component({
 	selector: 'app-event-details',
-	imports: [QRCodeComponent, CardMapComponent, FormsModule, RouterLink, UpdateTicketModalComponent, UpdateProductModalComponent, UpdateGateModalComponent, CreateTransactionModalComponent, DatePipe],
+	imports: [
+		CardMapComponent,
+		FormsModule,
+		RouterLink,
+		UpdateTicketModalComponent,
+		UpdateProductModalComponent,
+		UpdateGateModalComponent,
+		CreateTransactionModalComponent,
+		EventQrModalComponent,
+		DatePipe,
+	],
 	template: `
 		@if (event(); as ev) {
-			<h4 class="pb-2">
-				{{ ev.name }}
-			</h4>
+			<div class="d-flex justify-content-between align-items-center pb-2">
+				<h4 class="mb-0">{{ ev.name }}</h4>
+				<button type="button" class="btn btn-outline-danger btn-sm" (click)="openQrModal()">
+					<i class="bi bi-qr-code" aria-hidden="true"></i>
+					Ver QR / Link público
+				</button>
+			</div>
 
 			<div class="row">
 				<div class="col-3">
@@ -87,41 +98,30 @@ declare const bootstrap: any;
 			<br />
 
 			<div class="row">
-				<div class="col-8">
+				<div class="col-12">
 					<div class="card">
 						<div class="card-body">
 							<h6>Detalles</h6>
-							<p>{{ ev.description }}</p>
+							<p class="mb-0">{{ ev.description }}</p>
 						</div>
 					</div>
-				</div>
-				<div class="col-4 text-center">
-					@if (publicPortalBlocked()) {
-						<div class="alert alert-warning small text-start mb-2">
-							<i class="bi bi-lock-fill" aria-hidden="true"></i>
-							Tu plan actual no incluye portada pública — este link no va a cargar hasta que actualices a un plan Intermedio o superior.
-						</div>
-					}
-					<qrcode [qrdata]="publicEventUrl(ev.publicSlug)" [width]="130" [errorCorrectionLevel]="'M'"></qrcode>
-					<p class="small text-body-secondary mb-0">Compartí este QR o link para que el público se anote solo</p>
-					<a [href]="publicEventUrl(ev.publicSlug)" target="_blank" class="small">{{ publicEventUrl(ev.publicSlug) }}</a>
 				</div>
 			</div>
 
 			<br />
 
-			<div class="row">
+			<div class="row g-3">
 				@if (ev.map) {
-					<div class="col-8">
+					<div class="col-lg-6">
 						<card-map [map]="ev.map" />
 						<a class="btn btn-outline-danger btn-sm mt-2" [routerLink]="['/manager/maps', ev.map.id, 'areas']">Configurar áreas de este mapa</a>
 					</div>
 				}
 
-				<div class="col-4">
-					<div class="card">
+				<div class="col-lg-3 col-md-6">
+					<div class="card h-100">
 						<div class="card-body">
-							<h5>Información</h5>
+							<h6>Datos</h6>
 							<hr />
 
 							<div class="row row-cols-2 g-2 kv-grid">
@@ -146,20 +146,26 @@ declare const bootstrap: any;
 									<div>{{ ev.type }}</div>
 								</div>
 							</div>
+						</div>
+					</div>
+				</div>
+
+				<div class="col-lg-3 col-md-6">
+					<div class="card h-100">
+						<div class="card-body">
+							<h6>Configuración</h6>
 							<hr />
 
-							<div class="d-flex flex-row mb-2 justify-content-between align-items-center">
-								<div class="p-1">Estado del evento:</div>
-								<div class="p-1 d-flex gap-2 align-items-center">
-									<select class="form-select form-select-sm" [ngModel]="selectedStatus()" (ngModelChange)="selectedStatus.set($event)">
-										<option value="ACTIVE">Activo</option>
-										<option value="CANCELLED">Cancelado</option>
-										<option value="POSTPONED">Pospuesto</option>
-									</select>
-									@if (selectedStatus() !== ev.status) {
-										<button type="button" class="btn btn-danger btn-sm" (click)="saveStatus(ev.id)">Guardar</button>
-									}
-								</div>
+							<label class="text-body-secondary small d-block mb-1">Estado del evento</label>
+							<div class="d-flex gap-2 align-items-center mb-1">
+								<select class="form-select form-select-sm" [ngModel]="selectedStatus()" (ngModelChange)="selectedStatus.set($event)">
+									<option value="ACTIVE">Activo</option>
+									<option value="CANCELLED">Cancelado</option>
+									<option value="POSTPONED">Pospuesto</option>
+								</select>
+								@if (selectedStatus() !== ev.status) {
+									<button type="button" class="btn btn-danger btn-sm" (click)="saveStatus(ev.id)">Guardar</button>
+								}
 							</div>
 							@if (ev.status !== 'ACTIVE') {
 								<p class="text-body-secondary small mb-2">
@@ -168,24 +174,29 @@ declare const bootstrap: any;
 							}
 							<hr />
 
-							<div class="d-flex flex-row mb-2 justify-content-between align-items-center">
-								<div class="p-1">Mapa:</div>
-								<div class="p-1 d-flex gap-2 align-items-center">
-									<select class="form-select form-select-sm" [ngModel]="selectedMapId()" (ngModelChange)="selectedMapId.set($event)">
-										<option [ngValue]="null">Sin asignar</option>
-										@for (map of maps(); track map.id) {
-											<option [ngValue]="map.id">{{ map.name }}</option>
-										}
-									</select>
-									@if (selectedMapId() !== (ev.map?.id ?? null)) {
-										<button type="button" class="btn btn-danger btn-sm" (click)="saveMap(ev.id)">Guardar</button>
+							<label class="text-body-secondary small d-block mb-1">Mapa</label>
+							<div class="d-flex gap-2 align-items-center">
+								<select class="form-select form-select-sm" [ngModel]="selectedMapId()" (ngModelChange)="selectedMapId.set($event)">
+									<option [ngValue]="null">Sin asignar</option>
+									@for (map of maps(); track map.id) {
+										<option [ngValue]="map.id">{{ map.name }}</option>
 									}
-								</div>
+								</select>
+								@if (selectedMapId() !== (ev.map?.id ?? null)) {
+									<button type="button" class="btn btn-danger btn-sm" (click)="saveMap(ev.id)">Guardar</button>
+								}
 							</div>
-							<hr />
+						</div>
+					</div>
+				</div>
+			</div>
 
+			<div class="row g-3 mt-1">
+				<div class="col-md-4">
+					<div class="card h-100">
+						<div class="card-body">
 							<div class="d-flex flex-row mb-2 justify-content-between align-items-center">
-								<div class="p-1">Tickets:</div>
+								<h6 class="mb-0">Tickets</h6>
 								<button type="button" class="btn btn-outline-danger btn-sm" (click)="openCreateTicketModal()"><i class="bi bi-plus-lg"></i> Ticket</button>
 							</div>
 							@if (!ev.tickets.length) {
@@ -198,10 +209,15 @@ declare const bootstrap: any;
 									</div>
 								}
 							}
-							<hr />
+						</div>
+					</div>
+				</div>
 
+				<div class="col-md-4">
+					<div class="card h-100">
+						<div class="card-body">
 							<div class="d-flex flex-row mb-2 justify-content-between align-items-center">
-								<div class="p-1">Productos:</div>
+								<h6 class="mb-0">Productos</h6>
 								<button type="button" class="btn btn-outline-danger btn-sm" (click)="openCreateProductModal()"><i class="bi bi-plus-lg"></i> Producto</button>
 							</div>
 							@if (!ev.products.length) {
@@ -214,10 +230,15 @@ declare const bootstrap: any;
 									</div>
 								}
 							}
-							<hr />
+						</div>
+					</div>
+				</div>
 
+				<div class="col-md-4">
+					<div class="card h-100">
+						<div class="card-body">
 							<div class="d-flex flex-row mb-2 justify-content-between align-items-center">
-								<div class="p-1">Puertas:</div>
+								<h6 class="mb-0">Puertas</h6>
 								<button type="button" class="btn btn-outline-danger btn-sm" (click)="openCreateGateModal()"><i class="bi bi-plus-lg"></i> Puerta</button>
 							</div>
 							@if (!accessPoints().length) {
@@ -392,6 +413,7 @@ declare const bootstrap: any;
 			<app-update-product-modal [(product)]="productToEdit" [defaultEventId]="ev.id" (productSaved)="onProductSaved()" />
 			<app-update-gate-modal [(gate)]="gateToEdit" [defaultEventId]="ev.id" [availableTickets]="ev.tickets" (gateSaved)="onGateSaved()" />
 			<app-create-transaction-modal [(transaction)]="transactionToEdit" [eventId]="ev.id" (transactionSaved)="onTransactionSaved()" />
+			<app-event-qr-modal [event]="ev" />
 		} @else {
 			<p>Cargando evento...</p>
 		}
@@ -409,7 +431,6 @@ export class EventDetailsComponent implements OnInit {
 	private readonly scanConflictsService = inject(ScanConflictsService);
 	private readonly productSalesService = inject(ProductSalesService);
 	private readonly eventTransactionsService = inject(EventTransactionsService);
-	private readonly authService = inject(AuthService);
 	readonly centsToDollars = centsToDollars;
 
 	event = signal<Events | null>(null);
@@ -430,16 +451,6 @@ export class EventDetailsComponent implements OnInit {
 		const ev = this.event();
 		if (!ev) return [];
 		return this.allSales().filter((sale) => sale.eventId === ev.id);
-	});
-
-	// El QR/link de acá abajo apuntan a la misma página pública que el link de Settings — sujeta al
-	// mismo bloqueo por plan (ver public.ts GET /events/:code). Mismo criterio que
-	// settings.component.ts: se avisa acá en vez de tocar la respuesta pública, para no romper el
-	// anti-enumeration (un tenant Básico responde 404 genérico, no un mensaje de "necesitas upgrade").
-	publicPortalBlocked = computed(() => {
-		const plan = this.authService.currentUser()?.tenant?.plan;
-		if (!plan || isEventPlanCode(plan)) return false;
-		return !PLAN_FEATURES[plan]?.publicPortal;
 	});
 
 	soldCount = computed(() => this.sales().length);
@@ -526,8 +537,11 @@ export class EventDetailsComponent implements OnInit {
 		this.scanConflictsService.resolve(conflict.id).subscribe(() => this.scanConflicts.update((list) => list.filter((c) => c.id !== conflict.id)));
 	}
 
-	publicEventUrl(code: string): string {
-		return `${window.location.origin}/e/${code}`;
+	openQrModal() {
+		const modalEl = document.getElementById('eventQrModal');
+		if (modalEl) {
+			bootstrap.Modal.getOrCreateInstance(modalEl).show();
+		}
 	}
 
 	saveMap(eventId: number) {

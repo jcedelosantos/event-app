@@ -47,10 +47,12 @@ const REQUEST_STATUS_LABEL: Record<ServiceRequestStatus, string> = {
 		<div class="container-fluid py-4" data-bs-theme="dark">
 			<div class="d-flex justify-content-between align-items-center mb-4">
 				<div>
-					<h2 class="section-title mb-0">
+					<h2 class="section-title mb-0" style="color: #e2e8f0;">
 						Organizaciones
 						@if (totalPendingReviewCount() > 0) {
-							<span class="badge text-bg-warning ms-2"><i class="bi bi-bell-fill"></i> {{ totalPendingReviewCount() }} pendiente{{ totalPendingReviewCount() === 1 ? '' : 's' }} de revisar</span>
+							<button type="button" class="btn badge text-bg-warning ms-2 border-0" (click)="scrollToPending()">
+								<i class="bi bi-bell-fill"></i> {{ totalPendingReviewCount() }} pendiente{{ totalPendingReviewCount() === 1 ? '' : 's' }} de revisar
+							</button>
 						}
 					</h2>
 					<p class="text-muted small mb-0">Panel de Super Admin — alta de clubes/iglesias que usan la plataforma.</p>
@@ -168,7 +170,7 @@ const REQUEST_STATUS_LABEL: Record<ServiceRequestStatus, string> = {
 			</table>
 			</div>
 
-			<div class="d-flex justify-content-between align-items-center mb-3 mt-5">
+			<div id="serviceRequestsSection" class="d-flex justify-content-between align-items-center mb-3 mt-5">
 				<div>
 					<h2 class="section-title mb-0">
 						Solicitudes de servicios adicionales
@@ -236,7 +238,7 @@ const REQUEST_STATUS_LABEL: Record<ServiceRequestStatus, string> = {
 			</table>
 			</div>
 
-			<div class="d-flex justify-content-between align-items-center mb-3 mt-5">
+			<div id="enterpriseLeadsSection" class="d-flex justify-content-between align-items-center mb-3 mt-5">
 				<div>
 					<h2 class="section-title mb-0">
 						Contactos Pro Enterprise
@@ -292,7 +294,7 @@ const REQUEST_STATUS_LABEL: Record<ServiceRequestStatus, string> = {
 			</table>
 			</div>
 
-			<div class="d-flex justify-content-between align-items-center mb-3 mt-5">
+			<div id="pendingReceiptsSection" class="d-flex justify-content-between align-items-center mb-3 mt-5">
 				<div>
 					<h2 class="section-title mb-0">
 						Comprobantes de transferencia pendientes
@@ -415,6 +417,14 @@ export class SuperAdminComponent implements AfterViewInit {
 			next: () => this.loadEnterpriseLeads(),
 			error: (err: HttpErrorResponse) => error(extractErrorMessage(err)),
 		});
+	}
+
+	// Baja hasta la PRIMERA sección con pendientes, en el mismo orden en que aparecen en la página
+	// — así el badge del header siempre lleva a algo relevante, sin importar cuál de las 3 tenga
+	// items sin revisar.
+	scrollToPending() {
+		const sectionId = this.pendingServiceRequestsCount() > 0 ? 'serviceRequestsSection' : this.pendingEnterpriseLeadsCount() > 0 ? 'enterpriseLeadsSection' : 'pendingReceiptsSection';
+		document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 	}
 
 	loadPendingReceipts() {

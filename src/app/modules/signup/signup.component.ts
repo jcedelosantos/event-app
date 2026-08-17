@@ -34,38 +34,6 @@ type Step = 'form' | 'bank-transfer' | 'pending-review';
 
 							<div class="col-12"><hr /></div>
 
-							<div class="col-12">
-								<label class="form-label small">Método de pago</label>
-								<div class="d-flex gap-2">
-									<button
-										type="button"
-										class="btn flex-fill"
-										[class.btn-danger]="form.controls.paymentMethod.value === 'PAYPAL'"
-										[class.btn-outline-secondary]="form.controls.paymentMethod.value !== 'PAYPAL'"
-										(click)="form.controls.paymentMethod.setValue('PAYPAL')"
-									>
-										PayPal
-									</button>
-									<button
-										type="button"
-										class="btn flex-fill"
-										[class.btn-danger]="form.controls.paymentMethod.value === 'BANK_TRANSFER'"
-										[class.btn-outline-secondary]="form.controls.paymentMethod.value !== 'BANK_TRANSFER'"
-										(click)="form.controls.paymentMethod.setValue('BANK_TRANSFER')"
-									>
-										Transferencia bancaria
-									</button>
-								</div>
-								@if (form.controls.paymentMethod.value === 'BANK_TRANSFER') {
-									<div class="form-text">
-										Con transferencia, tu cuenta queda activa una vez que confirmemos el pago a mano — no es automático como PayPal. Las
-										renovaciones mensuales siguientes también se coordinan por transferencia.
-									</div>
-								}
-							</div>
-
-							<div class="col-12"><hr /></div>
-
 							<div class="col-md-8">
 								<label class="form-label small">Nombre de tu organización</label>
 								<input type="text" class="form-control" formControlName="orgName" placeholder="Ej. Club Deportivo Naco" />
@@ -104,6 +72,38 @@ type Step = 'form' | 'bank-transfer' | 'pending-review';
 							<div class="col-md-6">
 								<label class="form-label small">Contraseña</label>
 								<input type="password" class="form-control" formControlName="adminPassword" />
+							</div>
+
+							<div class="col-12"><hr /></div>
+
+							<div class="col-12">
+								<label class="form-label small">Método de pago</label>
+								<div class="d-flex gap-2">
+									<button
+										type="button"
+										class="btn flex-fill"
+										[class.btn-danger]="form.controls.paymentMethod.value === 'PAYPAL'"
+										[class.btn-outline-secondary]="form.controls.paymentMethod.value !== 'PAYPAL'"
+										(click)="form.controls.paymentMethod.setValue('PAYPAL')"
+									>
+										PayPal
+									</button>
+									<button
+										type="button"
+										class="btn flex-fill"
+										[class.btn-danger]="form.controls.paymentMethod.value === 'BANK_TRANSFER'"
+										[class.btn-outline-secondary]="form.controls.paymentMethod.value !== 'BANK_TRANSFER'"
+										(click)="form.controls.paymentMethod.setValue('BANK_TRANSFER')"
+									>
+										Transferencia bancaria
+									</button>
+								</div>
+								@if (form.controls.paymentMethod.value === 'BANK_TRANSFER') {
+									<div class="form-text">
+										Con transferencia, tu cuenta queda activa una vez que confirmemos el pago a mano — no es automático como PayPal. Las
+										renovaciones mensuales siguientes también se coordinan por transferencia.
+									</div>
+								}
 							</div>
 
 							@if (errorMessage()) {

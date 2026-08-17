@@ -7,7 +7,8 @@ import { RouterLink } from '@angular/router';
 	template: `
 		<nav class="navbar navbar-light bg-light">
 			<div class="container-fluid">
-				<a class="navbar-brand">
+				<a class="navbar-brand d-flex align-items-center gap-2">
+					<img src="assets/images/integ-icon.png" alt="" height="32" />
 					{{ title }}
 					<small class="d-none d-sm-inline text-body-secondary fw-normal">— Infraestructura Tecnológica de Gestión de Eventos</small>
 				</a>

@@ -61,7 +61,13 @@ export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
 	selectedAccessPointId = signal<number | null>(typeof localStorage !== 'undefined' ? Number(localStorage.getItem(GATE_SELECTION_KEY)) || null : null);
 
 	ngOnInit(): void {
-		this.accessPointsService.getAll().subscribe((accessPoints) => this.accessPoints.set(accessPoints));
+		// Un usuario tipo Escáner tiene un solo evento asignado (User.scannerEventId) — mostrarle
+		// puertas de otros eventos no tiene sentido y confunde en el momento de elegir. El resto de
+		// los usuarios (Admin/Usuario) no tienen un evento único al que acotarse acá, así que siguen
+		// viendo todas las puertas del tenant.
+		const scannerEventId = this.authService.currentUser()?.scannerEventId;
+		const accessPoints$ = scannerEventId ? this.accessPointsService.getByEvent(scannerEventId) : this.accessPointsService.getAll();
+		accessPoints$.subscribe((accessPoints) => this.accessPoints.set(accessPoints));
 	}
 
 	onGateChange(accessPointId: string) {
