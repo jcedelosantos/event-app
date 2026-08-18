@@ -9,3 +9,11 @@
 	padding: 0.45rem 0.6rem;
 	vertical-align: middle;
 }
+/* Sin esto "Super Admin" partía en dos líneas (la columna se angostaba para darle espacio a
+   Detalle, que sí necesita ancho) — cada fila terminaba ocupando el doble de alto de lo
+   necesario, multiplicando el scroll de la tabla completa. */
+.history-table td.col-user,
+.history-table th.col-user {
+	white-space: nowrap;
+	min-width: 140px;
+}

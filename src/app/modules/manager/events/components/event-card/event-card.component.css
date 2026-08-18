@@ -36,6 +36,14 @@
 	-webkit-box-orient: vertical;
 	overflow: hidden;
 	text-overflow: ellipsis;
+	/* -webkit-line-clamp solo recorta lo que pasa de 2 líneas, no reserva el alto de 2 líneas para
+	   texto más corto — con dos tarjetas donde una descripción/lugar ocupaba 1 línea y otra 2, los
+	   badges Socio/Invitado de abajo quedaban a distinta altura entre tarjetas de la misma fila (bug
+	   real reportado). line-height fijo + height de exactamente 2 líneas asegura el mismo espacio
+	   siempre, tenga el texto 1 línea o 2.
+	*/
+	line-height: 1.3rem;
+	height: 2.6rem;
 }
 
 /* rounded-circle por sí solo no fuerza ancho == alto — con un ícono más ancho (ej. bi-qr-code) el

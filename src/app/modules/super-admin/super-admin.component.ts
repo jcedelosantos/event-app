@@ -122,7 +122,7 @@ const REQUEST_STATUS_LABEL: Record<ServiceRequestStatus, string> = {
 							</td>
 							<td>
 								@if (tenant.plan) {
-									<button type="button" class="btn btn-sm btn-outline-light" data-bs-toggle="modal" data-bs-target="#subscriptionModal" (click)="selectedSubscriptionTenant.set(tenant)">
+									<button type="button" class="btn btn-sm btn-outline-light plan-btn" data-bs-toggle="modal" data-bs-target="#subscriptionModal" (click)="selectedSubscriptionTenant.set(tenant)">
 										{{ tenant.plan }}
 										<span
 											class="badge ms-1"
@@ -134,7 +134,7 @@ const REQUEST_STATUS_LABEL: Record<ServiceRequestStatus, string> = {
 										</span>
 									</button>
 								} @else {
-									<span class="text-muted small">sin suscripción</span>
+									<span class="text-muted small plan-empty d-inline-block">sin suscripción</span>
 								}
 							</td>
 							<td class="text-end text-nowrap">
@@ -155,7 +155,7 @@ const REQUEST_STATUS_LABEL: Record<ServiceRequestStatus, string> = {
 										<i class="bi bi-arrow-counterclockwise"></i> Reactivar
 									</button>
 								} @else {
-									<button type="button" class="btn btn-sm" [class.btn-outline-danger]="tenant.active" [class.btn-outline-success]="!tenant.active" (click)="toggleActive(tenant)">
+									<button type="button" class="btn btn-sm toggle-active-btn" [class.btn-outline-danger]="tenant.active" [class.btn-outline-success]="!tenant.active" (click)="toggleActive(tenant)">
 										{{ tenant.active ? 'Desactivar' : 'Activar' }}
 									</button>
 								}
@@ -428,6 +428,21 @@ const REQUEST_STATUS_LABEL: Record<ServiceRequestStatus, string> = {
 		<app-service-requests-admin-modal [(request)]="selectedServiceRequest" (requestUpdated)="loadServiceRequests()" />
 		<app-bank-transfer-review-modal [(tenant)]="selectedReceiptTenant" (reviewed)="onReceiptReviewed()" />
 		<app-account-modal />
+	`,
+	styles: `
+		/* Ancho fijo para que el botón no cambie de tamaño según el plan (INTERMEDIO vs BASICO) ni
+		   el estado (ACTIVE vs PENDING) — antes cada fila tenía un ancho distinto y la columna de
+		   acciones (Entrar/lápiz/Activar-Desactivar) quedaba dando bandazos. */
+		.plan-btn,
+		.plan-empty {
+			min-width: 168px;
+			text-align: left;
+		}
+		/* Mismo criterio — "Desactivar" es más largo que "Activar", sin esto el botón (y por lo
+		   tanto el resto de la fila) angostaba/ensanchaba según el estado de cada organización. */
+		.toggle-active-btn {
+			min-width: 104px;
+		}
 	`,
 	changeDetection: ChangeDetectionStrategy.OnPush,
 })

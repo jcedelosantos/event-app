@@ -40,11 +40,11 @@ import { isEventPlanCode } from '../../../../../shared/event-plans';
 							</div>
 							<div class="row g-2 mb-3">
 								<div class="col-sm-6">
-									<label for="flashDate" class="form-label small">Fecha <span class="text-muted">(opcional, hoy si se deja vacío)</span></label>
+									<label for="flashDate" class="form-label small field-label-2l">Fecha <span class="text-muted">(opcional, hoy si se deja vacío)</span></label>
 									<input type="date" id="flashDate" class="form-control" formControlName="date" />
 								</div>
 								<div class="col-sm-6">
-									<label for="flashTime" class="form-label small">Hora <span class="text-muted">(opcional)</span></label>
+									<label for="flashTime" class="form-label small field-label-2l">Hora <span class="text-muted">(opcional)</span></label>
 									<input type="time" id="flashTime" class="form-control" formControlName="time" />
 								</div>
 							</div>
@@ -81,6 +81,20 @@ import { isEventPlanCode } from '../../../../../shared/event-plans';
 			</div>
 		</div>
 	`,
+	styles: [
+		`
+			/* Fecha/Hora tienen labels de distinto largo ("Fecha (opcional, hoy si se deja vacío)" vs
+			   "Hora (opcional)") — sin esto el input de una columna quedaba más arriba que el de la
+			   otra (bug real reportado). Alto fijo de 2 líneas reserva siempre el mismo espacio,
+			   tenga el label 1 línea o 2 (mismo criterio que create-event-modal).
+			*/
+			.field-label-2l {
+				display: block;
+				min-height: 2.4rem;
+				line-height: 1.2rem;
+			}
+		`,
+	],
 	changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class FlashEventModalComponent {

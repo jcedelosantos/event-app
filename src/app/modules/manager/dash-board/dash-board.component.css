@@ -1,5 +1,13 @@
 .stat-card {
 	border-left: 4px solid var(--app-accent);
+	/* Sin esto, las tarjetas con label de 2 líneas ("Gasto promedio por evento", "Margen promedio
+	   por evento") quedaban más altas que las de label corto — combinado con el stretch por fila de
+	   Bootstrap (que solo iguala altura DENTRO de la misma fila, no entre filas), las últimas 2
+	   tarjetas de la grilla terminaban viéndose más grandes que el resto (bug real reportado: "los
+	   dos últimos se muestran más grandes"). Alto mínimo fijo iguala TODAS las tarjetas entre sí, sin
+	   importar en qué fila caigan.
+	*/
+	min-height: 92px;
 }
 .stat-card-link {
 	display: block;
@@ -20,6 +28,13 @@
 	color: #adb5bd;
 	text-transform: uppercase;
 	letter-spacing: 0.03em;
+	/* Reserva el alto de 2 líneas siempre, tenga el label 1 línea ("Tickets vendidos") o 2 ("Gasto
+	   promedio por evento") — mismo criterio que min-height en .stat-card, para que el ícono y el
+	   valor de abajo arranquen siempre a la misma altura entre tarjetas.
+	*/
+	display: block;
+	min-height: 2.1rem;
+	line-height: 1.05rem;
 }
 .stat-value {
 	font-size: 1.75rem;

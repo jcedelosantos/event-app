@@ -10,6 +10,8 @@ import { closeModal } from '../../../../../utils/modal';
 import { AuthService } from '../../../../../core/services/auth.service';
 import { UploadsService } from '../../../../../core/services/uploads.service';
 import { environment } from '../../../../../../environments/environment';
+import { PLAN_FEATURES } from '../../../../../shared/pricing-plans';
+import { isEventPlanCode } from '../../../../../shared/event-plans';
 
 declare const bootstrap: any;
 
@@ -139,6 +141,14 @@ function toDateTimeInputValue(date: Date): string {
 									portal público hasta ese momento.
 								</div>
 							</div>
+							@if (waitingRoomOrCapacityBlocked()) {
+								<div class="col-md-12">
+									<div class="alert alert-warning small text-start mb-2">
+										<i class="bi bi-lock-fill" aria-hidden="true"></i>
+										Tu plan actual no incluye sala de espera ni aforo máximo — estos campos no van a tener efecto hasta que actualices a un plan Avanzado o superior.
+									</div>
+								</div>
+							}
 							<div class="col-md-12 mb-2">
 								<div class="form-check">
 									<input type="checkbox" class="form-check-input" id="waitingRoomEnabled" formControlName="waitingRoomEnabled" />
@@ -166,13 +176,13 @@ function toDateTimeInputValue(date: Date): string {
 								}
 							</div>
 							<div class="col-md-6 mb-2">
-								<label for="maxCapacity" class="small mb-1">Aforo máximo <span class="text-muted">(opcional — cupo total compartido entre todos los tickets)</span></label>
+								<label for="maxCapacity" class="small mb-1 field-label-2l">Aforo máximo <span class="text-muted">(opcional — cupo total compartido entre todos los tickets)</span></label>
 								<input type="number" id="maxCapacity" min="1" class="form-control form-control-sm" formControlName="maxCapacity" placeholder="Sin tope" />
 								<div class="form-text">Se suma vendidos de Socio + Invitado + cualquier otro ticket, no cada uno por separado.</div>
 							</div>
 							@if (isClubTenant()) {
 								<div class="col-md-6 mb-2">
-									<label for="maxGuestsPerSponsor" class="small mb-1">Máx. invitados por socio <span class="text-muted">(opcional)</span></label>
+									<label for="maxGuestsPerSponsor" class="small mb-1 field-label-2l">Máx. invitados por socio <span class="text-muted">(opcional)</span></label>
 									<input type="number" id="maxGuestsPerSponsor" min="0" class="form-control form-control-sm" formControlName="maxGuestsPerSponsor" placeholder="Por defecto: 2" />
 								</div>
 							}
@@ -287,6 +297,16 @@ function toDateTimeInputValue(date: Date): string {
 				border-radius: 0.375rem;
 				flex-shrink: 0;
 			}
+			/* Labels de distinto largo (ej. "Aforo máximo (opcional — cupo total...)" vs "Máx.
+			   invitados por socio (opcional)") ocupan distinta cantidad de líneas — sin esto el input
+			   de abajo de cada columna quedaba a distinta altura entre sí (bug real reportado). Alto
+			   fijo de 2 líneas reserva siempre el mismo espacio, tenga el label 1 línea o 2.
+			*/
+			.field-label-2l {
+				display: block;
+				min-height: 2.4rem;
+				line-height: 1.2rem;
+			}
 		`,
 	],
 	changeDetection: ChangeDetectionStrategy.OnPush,
@@ -317,6 +337,12 @@ export class CreateEventModalComponent {
 
 	isChurchTenant = computed(() => this.authService.currentUser()?.tenant?.type === 'CHURCH');
 	isClubTenant = computed(() => this.authService.currentUser()?.tenant?.type === 'CLUB');
+
+	waitingRoomOrCapacityBlocked = computed(() => {
+		const plan = this.authService.currentUser()?.tenant?.plan;
+		if (!plan || isEventPlanCode(plan)) return false;
+		return !PLAN_FEATURES[plan]?.waitingRoomAndCapacity;
+	});
 
 	// El evento que se está editando no puede vincularse consigo mismo.
 	otherEvents = computed(() => this.events.filter((e) => e.id !== this.event()?.id));
