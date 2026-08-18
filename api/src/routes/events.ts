@@ -82,7 +82,16 @@ const eventInputSchema = z.object({
 	surveyUrl: z.string().max(500).nullable().optional(),
 });
 
+// Shallow a propósito — usado en el listado (GET /), donde event-card.component.ts no necesita
+// mesas/asientos por área, solo el texto de event.map?.description. Traer eso para CADA evento de
+// la lista sería mucho payload de más (un tenant con muchos eventos y mapas grandes).
 const include = { map: { include: { areas: true } }, tickets: true, products: true };
+// Profundo — usado en los endpoints de un solo evento (GET /:id, y las respuestas de create/update)
+// para que card-map.component.ts pueda calcular Mesas/Asientos igual que en la lista de mapas (ver
+// routes/maps.ts, mismo include). Sin esto, event-details mostraba siempre 0/0 aunque el mapa
+// tuviera datos reales (bug real reportado: "en el detalle del evento no se actualizan las
+// cantidades de mesas y asientos").
+const includeDetail = { map: { include: { areas: { include: { seats: true, tables: { include: { seats: true } } } } } }, tickets: true, products: true };
 
 // A diferencia de requirePlan (gatea una ruta entera), acá el plan solo importa si el payload
 // puntual prende una feature premium — un tenant Básico sigue pudiendo crear/editar eventos
@@ -129,7 +138,7 @@ eventsRouter.get('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
 eventsRouter.get('/:id', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const id = Number(req.params.id);
 	const tenantId = req.user!.tenantId!;
-	const event = await prisma.event.findUnique({ where: { id, tenantId }, include });
+	const event = await prisma.event.findUnique({ where: { id, tenantId }, include: includeDetail });
 	if (!event) {
 		res.status(404).json({ error: 'Evento no encontrado' });
 		return;
@@ -203,7 +212,7 @@ eventsRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const event = await prisma.event.update({
 		where: { id: created.id, tenantId },
 		data: { code: code || `EVT-${String(created.id).padStart(4, '0')}` },
-		include,
+		include: includeDetail,
 	});
 	await logAudit({ tenantId, userId: req.user!.userId, action: 'CREATE', entity: 'Event', entityId: event.id, summary: `Creó el evento "${event.name}"` });
 	res.status(201).json(event);
@@ -259,7 +268,7 @@ eventsRouter.put('/:id', asyncHandler(async (req: AuthenticatedRequest, res) => 
 				const groupKey = target.duplicateGroupKey ?? current.duplicateGroupKey ?? randomUUID();
 				await tx.event.updateMany({ where: { tenantId, id: { in: [id, linkedEventId] } }, data: { duplicateGroupKey: groupKey } });
 			}
-			return tx.event.update({ where: { id, tenantId }, data: eventData, include });
+			return tx.event.update({ where: { id, tenantId }, data: eventData, include: includeDetail });
 		});
 		await logAudit({ tenantId, userId: req.user!.userId, action: 'UPDATE', entity: 'Event', entityId: event.id, summary: `Editó el evento "${event.name}"` });
 		res.json(event);

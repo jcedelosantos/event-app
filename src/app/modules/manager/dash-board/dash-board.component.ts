@@ -16,6 +16,7 @@ import { AuthService } from '../../../core/services/auth.service';
 import { centsToDollars } from '../../../shared/money';
 import { EventTransaction } from '../../../models/event-transactions/event-transaction';
 import { EventTransactionsService } from '../event-transactions/services/event-transactions.service';
+import { ScheduleComponent } from '../../../shared/schedule/schedule.component';
 
 // Una puerta "concentra" tráfico cuando se lleva más de este % de las entradas recientes del
 // evento — el umbral de "recientes" mínimas (ver GATE_ALERT_MIN_RECENT) evita que 1 de 1 escaneos
@@ -30,7 +31,7 @@ const LIVE_REFRESH_MS = 20_000;
 
 @Component({
 	selector: 'app-dash-board',
-	imports: [RouterLink, MiniBarChartComponent, FlashEventModalComponent],
+	imports: [RouterLink, MiniBarChartComponent, FlashEventModalComponent, ScheduleComponent],
 	template: `
 		<div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
 			<h2 class="section-title mb-0">Panel</h2>
@@ -347,6 +348,12 @@ const LIVE_REFRESH_MS = 20_000;
 							}
 						</div>
 					</div>
+				</div>
+			</div>
+
+			<div class="row g-3 mt-1">
+				<div class="col-lg-6">
+					<app-schedule [events]="events()" />
 				</div>
 			</div>
 	`,

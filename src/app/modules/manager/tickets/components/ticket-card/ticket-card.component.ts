@@ -33,11 +33,11 @@ import { centsToDollars } from '../../../../../shared/money';
 					</div>
 				</div>
 				<div class="card-body d-flex flex-column flex-grow-1">
-					<h6 class="card-title mb-1">{{ ticket().name }}</h6>
+					<h6 class="card-title mb-1 ticket-name" [title]="ticket().name">{{ ticket().name }}</h6>
 					<p class="card-text ticket-description small text-body-secondary mb-1">{{ ticket().description }}</p>
 					<p class="ticket-scope small text-body-secondary mb-1">
-						<i class="bi bi-calendar-event"></i> {{ ticket().event?.name ?? '—' }}<br />
-						<i class="bi bi-geo-alt"></i> {{ ticket().area?.name ?? 'Todas las áreas' }}
+						<span class="ticket-scope-line" [title]="ticket().event?.name ?? ''"><i class="bi bi-calendar-event"></i> {{ ticket().event?.name ?? '—' }}</span>
+						<span class="ticket-scope-line" [title]="ticket().area?.name ?? 'Todas las áreas'"><i class="bi bi-geo-alt"></i> {{ ticket().area?.name ?? 'Todas las áreas' }}</span>
 					</p>
 					<hr class="my-1" />
 					<div class="d-flex justify-content-between align-items-center small mb-1">

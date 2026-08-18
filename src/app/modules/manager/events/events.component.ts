@@ -1,7 +1,6 @@
 import { AfterViewInit, ChangeDetectionStrategy, Component, computed, inject, OnInit, signal, viewChild } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { CreateEventModalComponent } from './components/create-event-modal/create-event-modal.component';
-import { ScheduleComponent } from '../../../shared/schedule/schedule.component';
 import { Events } from '../../../models/events/events';
 import { EventsService } from './services/events.service';
 import { EventCardComponent } from './components/event-card/event-card.component';
@@ -22,7 +21,7 @@ declare const bootstrap: any;
 
 @Component({
 	selector: 'app-events',
-	imports: [RouterLink, CreateEventModalComponent, ScheduleComponent, EventCardComponent, CreateMapModalComponent, EventQrModalComponent, QRCodeComponent],
+	imports: [RouterLink, CreateEventModalComponent, EventCardComponent, CreateMapModalComponent, EventQrModalComponent, QRCodeComponent],
 	template: `
 			<h2 class="section-title">Gestión de Eventos</h2>
 			<nav class="navbar border-bottom border-body">
@@ -107,7 +106,7 @@ declare const bootstrap: any;
 				</div>
 			}
 			<div class="row">
-				<div class="col-12 col-lg-8">
+				<div class="col-12">
 					<div class="d-flex flex-column vh-85">
 						<div class="text-white p-1" style="flex: 0 0 45%;">
 							<h5>En curso <span class="badge text-bg-secondary">{{ eventsNow().length }}</span></h5>
@@ -148,9 +147,6 @@ declare const bootstrap: any;
 							}
 						</div>
 					</div>
-				</div>
-				<div class="col-12 col-lg-4">
-					<app-schedule [events]="events()" />
 				</div>
 			</div>
 
