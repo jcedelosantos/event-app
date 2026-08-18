@@ -95,12 +95,16 @@ export class QrsComponent implements OnInit, AfterViewInit, OnDestroy {
   selectedEventId = signal<number | null>(null);
   searchText = signal<string>('');
 
-  // Oculta por defecto cancelados/pospuestos del selector de Evento — el tenant puede acumular
-  // decenas de eventos viejos y verlos todos mezclados con el de hoy hace difícil encontrar el
-  // que importa (el staff prende el toggle a mano si de verdad necesita filtrar por uno viejo).
+  // Oculta por defecto del selector de Evento: cancelados/pospuestos, Y eventos cuya fecha ya pasó
+  // (dateOff < hoy) — status ACTIVE por sí solo no alcanza, un evento de hace 6 meses sigue siendo
+  // ACTIVE (nunca se cancela/pospone), así que sin el filtro de fecha seguía apareciendo mezclado
+  // con el de hoy (bug real reportado: "aun siguen saliendo todos los eventos, aun los no
+  // activos"). El tenant puede acumular decenas de eventos viejos — el staff prende el toggle a
+  // mano si de verdad necesita filtrar por uno viejo.
   showInactiveEvents = signal(false);
   visibleEvents = computed(() => {
-    const list = this.showInactiveEvents() ? this.events() : this.events().filter((e) => e.status === 'ACTIVE');
+    const today = todayKey();
+    const list = this.showInactiveEvents() ? this.events() : this.events().filter((e) => e.status === 'ACTIVE' && eventDateKey(e.dateOff) >= today);
     // Si el evento ya seleccionado (ej. vino por ?eventId=X, o es "el de hoy") quedó afuera del
     // filtro, se lo agrega igual — si no, el <select> se queda sin ninguna opción resaltada y el
     // nombre del evento elegido desaparece de la vista aunque los datos filtrados abajo sigan
