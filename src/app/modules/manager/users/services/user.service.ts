@@ -22,6 +22,8 @@ export type UserInput = {
 	scannerEventId?: number | null;
 	// Opcional incluso para SCANNER — ver User.accessPointId en la API.
 	accessPointId?: number | null;
+	// Restringe a este usuario (cualquier rol) a una sede — ver User.locationId en la API.
+	locationId?: number | null;
 };
 
 @Injectable({

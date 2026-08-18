@@ -1,6 +1,7 @@
 import { Map } from '../maps/map';
 import { Ticket } from '../tickets/ticket';
 import { Product } from '../products/product';
+import { Location } from '../locations/location';
 
 export interface Events {
 	id: number;
@@ -49,6 +50,10 @@ export interface Events {
 	// incluye ningún link en el email.
 	surveyUrl?: string | null;
 	map?: Map;
+	// Sede a la que pertenece este evento (ver Location) — solo tiene efecto real en tenants
+	// Enterprise con varias sedes.
+	locationId?: number | null;
+	location?: Location | null;
 	tickets: Array<Ticket>;
 	products: Array<Product>;
 	// Solo viene en GET /events/:id (no en la lista) — excedente sobre el cupo incluido en el plan

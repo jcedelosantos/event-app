@@ -5,6 +5,7 @@ import { requireAuth, requireTenant, blockScannerRole, AuthenticatedRequest } fr
 import { requireActiveSubscription } from '../middleware/plan';
 import { asyncHandler } from '../lib/async-handler';
 import { logAudit } from '../lib/audit';
+import { locationScope } from '../lib/location-scope';
 
 export const accessPointsRouter = Router();
 accessPointsRouter.use(requireAuth, requireTenant, requireActiveSubscription);
@@ -38,8 +39,11 @@ function toPublicAccessPoint<T extends { allowedTickets: { ticketId: number }[] 
 accessPointsRouter.get('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const tenantId = req.user!.tenantId!;
 	const eventId = req.query.eventId ? Number(req.query.eventId) : undefined;
+	// AccessPoint no tiene locationId propio (ver location-scope.ts) — el filtro de sede pasa por un
+	// join al evento dueño de la puerta.
+	const locationFilter = locationScope(req.user!);
 	const accessPoints = await prisma.accessPoint.findMany({
-		where: eventId ? { eventId, tenantId } : { tenantId },
+		where: { tenantId, ...(eventId ? { eventId } : {}), ...(locationFilter.locationId != null ? { event: { locationId: locationFilter.locationId } } : {}) },
 		include,
 		orderBy: { id: 'asc' },
 	});
@@ -58,6 +62,14 @@ accessPointsRouter.get('/stats', blockScannerRole, asyncHandler(async (req: Auth
 	if (!eventId) {
 		res.status(400).json({ error: 'Falta eventId' });
 		return;
+	}
+	const locationFilter = locationScope(req.user!);
+	if (locationFilter.locationId != null) {
+		const event = await prisma.event.findUnique({ where: { id: eventId, tenantId, locationId: locationFilter.locationId }, select: { id: true } });
+		if (!event) {
+			res.status(404).json({ error: 'Evento no encontrado' });
+			return;
+		}
 	}
 
 	const recentSince = new Date(Date.now() - RECENT_WINDOW_MINUTES * 60 * 1000);

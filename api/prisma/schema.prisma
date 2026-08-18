@@ -49,7 +49,7 @@ model Tenant {
   // suscripción" (ver lib/event-plans.ts), un código con prefijo EVENT_ (EVENT_100 | EVENT_300 |
   // EVENT_500 | EVENT_1000 | EVENT_2500 | EVENT_5000). Este último tipo paga una vez y no tiene
   // fila de Subscription — el prefijo es lo único que lo distingue de un tenant recurrente.
-  plan       String?
+  plan         String?
   // ACTIVE | PAST_DUE | SUSPENDED | CANCELLED — null junto con plan null. EVENT_ENDED es propio
   // de un tenant de evento único (ver arriba): su evento ya pasó y quedó en modo de solo consulta
   // (requireActiveSubscription, ver middleware/plan.ts, ya trata cualquier valor que no sea ACTIVE
@@ -60,29 +60,30 @@ model Tenant {
   // más allá de EVENT_ENDED (ver lib/event-plan-expiry.ts): a los 30 días en EVENT_ENDED sin que
   // nadie lo reactive, además de solo-lectura se bloquea el LOGIN (routes/auth.ts) — nada se borra,
   // los datos quedan intactos para auditoría o reactivación manual a mano desde Super Admin.
-  planStatus String?
+  planStatus   String?
   subscription Subscription?
 
-  users         User[]
-  events        Event[]
-  maps          Map[]
-  areas         Area[]
-  tables        Table[]
-  seats         Seat[]
-  tickets       Ticket[]
-  products      Product[]
-  saleTickets   SaleTicket[]
-  saleProducts  SaleProduct[]
-  auditLogs     AuditLog[]
-  appSettings   AppSetting[]
-  children      Child[]
-  clubMembers   ClubMember[]
-  accessPoints  AccessPoint[]
-  scanConflicts ScanConflict[]
-  serviceRequests ServiceRequest[]
-  invoices      Invoice[]
-  paymentReceipts PaymentReceipt[]
+  users             User[]
+  events            Event[]
+  maps              Map[]
+  areas             Area[]
+  tables            Table[]
+  seats             Seat[]
+  tickets           Ticket[]
+  products          Product[]
+  saleTickets       SaleTicket[]
+  saleProducts      SaleProduct[]
+  auditLogs         AuditLog[]
+  appSettings       AppSetting[]
+  children          Child[]
+  clubMembers       ClubMember[]
+  accessPoints      AccessPoint[]
+  scanConflicts     ScanConflict[]
+  serviceRequests   ServiceRequest[]
+  invoices          Invoice[]
+  paymentReceipts   PaymentReceipt[]
   eventTransactions EventTransaction[]
+  locations         Location[]
 }
 
 // La mensualidad que el TENANT le paga a la agencia (no confundir con SaleTicket, que es la venta
@@ -132,18 +133,18 @@ model Subscription {
 // de emitir (no recalculados después), igual que una factura real: si el plan del tenant cambia
 // más adelante, las facturas viejas no deben mostrar el precio nuevo.
 model Invoice {
-  id            Int      @id @default(autoincrement())
-  tenantId      Int
-  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  id       Int    @id @default(autoincrement())
+  tenantId Int
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
 
   // INV-<tenantId>-<yyyymm>-<id> — incluye el id autoincrement de esta misma fila (único de
   // verdad) desde que se corrigió el hueco de numeración de más abajo; antes era solo
   // tenant+mes, así que dos facturas MANUALes del mismo tenant en el mismo mes terminaban con la
   // misma referencia interna (distinto NCF/id, pero confuso para administración).
-  invoiceNumber String
-  ncf           String? // comprobante fiscal de DGII — null si el Super Admin no configuró el rango al momento de emitir, o si la emisión falló antes de consumirlo
-  billingPeriod String // "2026-08", el mes que factura (no necesariamente el mes en que se generó)
-  planCode      String?
+  invoiceNumber  String
+  ncf            String? // comprobante fiscal de DGII — null si el Super Admin no configuró el rango al momento de emitir, o si la emisión falló antes de consumirlo
+  billingPeriod  String // "2026-08", el mes que factura (no necesariamente el mes en que se generó)
+  planCode       String?
   // Centavos enteros, no dólares (ver lib/money.ts) — evita el drift de redondeo float al sumar
   // plan+overage+ITBIS que antes podía dejar el total de la factura un centavo desalineado.
   planPriceCents Int
@@ -153,11 +154,11 @@ model Invoice {
   // (antes de tocar el NCF), así que un NCF consumido por una emisión que falla después (PDF,
   // disco, etc.) queda registrado en una fila FAILED en vez de perderse como un hueco silencioso
   // en la numeración fiscal (ver lib/invoice-generation.ts).
-  pdfUrl        String?
-  status        String   @default("GENERATED")
+  pdfUrl         String?
+  status         String   @default("GENERATED")
   // MANUAL (Super Admin la generó a mano) | AUTO (cron mensual, ver lib/invoice-cron.ts)
-  generatedBy   String
-  createdAt     DateTime @default(now())
+  generatedBy    String
+  createdAt      DateTime @default(now())
 
   @@index([tenantId])
 }
@@ -172,8 +173,8 @@ model PaymentReceipt {
   tenantId Int
   tenant   Tenant @relation(fields: [tenantId], references: [id])
 
-  url      String
-  planCode String
+  url         String
+  planCode    String
   // Centavos enteros (ver lib/money.ts) — snapshot del precio del plan al momento del submit,
   // mismo criterio que ServiceRequestItem.unitPriceDOPSnapshot (no un join al catálogo de planes,
   // que puede cambiar de precio más adelante).
@@ -234,13 +235,13 @@ model User {
   tenantId Int?
   tenant   Tenant? @relation(fields: [tenantId], references: [id])
 
-  eventsCreated       Event[]       @relation("EventCreatedBy")
-  salesAsSeller       SaleProduct[] @relation("SaleProductSeller")
-  salesAsClient       SaleProduct[] @relation("SaleProductClient")
-  ticketSalesAsSeller SaleTicket[]  @relation("SaleTicketSeller")
-  ticketSalesAsClient SaleTicket[]  @relation("SaleTicketClient")
-  auditLogs           AuditLog[]    @relation("AuditLogUser")
-  childrenRegistered  Child[]       @relation("ChildParent")
+  eventsCreated       Event[]          @relation("EventCreatedBy")
+  salesAsSeller       SaleProduct[]    @relation("SaleProductSeller")
+  salesAsClient       SaleProduct[]    @relation("SaleProductClient")
+  ticketSalesAsSeller SaleTicket[]     @relation("SaleTicketSeller")
+  ticketSalesAsClient SaleTicket[]     @relation("SaleTicketClient")
+  auditLogs           AuditLog[]       @relation("AuditLogUser")
+  childrenRegistered  Child[]          @relation("ChildParent")
   serviceRequestsMade ServiceRequest[]
 
   // Solo tiene sentido para type.type === 'SCANNER' (ver routes/users.ts) — un usuario de este rol
@@ -254,6 +255,13 @@ model User {
   // (ver qr-scanner.component.ts). null = puede elegir cualquier puerta del evento asignado.
   accessPointId Int?
   accessPoint   AccessPoint? @relation("ScannerAssignedAccessPoint", fields: [accessPointId], references: [id])
+
+  // Restringe a este usuario (cualquier rol, no solo SCANNER) a la sede asignada — a diferencia de
+  // scannerEventId/accessPointId, disponible para staff normal (ROOT/USER) de un tenant Enterprise
+  // con varias sedes (ver Location). null = sin restricción, ve todo el tenant (comportamiento de
+  // siempre para cualquier tenant que nunca haya dado de alta una sede).
+  locationId Int?
+  location   Location? @relation("UserAssignedLocation", fields: [locationId], references: [id])
 
   @@unique([tenantId, email])
 }
@@ -321,6 +329,12 @@ model Event {
   tenantId Int
   tenant   Tenant @relation(fields: [tenantId], references: [id])
 
+  // Sede física a la que pertenece este evento (ver Location) — solo tiene sentido en tenants
+  // Enterprise con varias sedes. null = tenant sin sedes o evento sin asignar, comportamiento
+  // idéntico al de siempre.
+  locationId Int?
+  location   Location? @relation(fields: [locationId], references: [id])
+
   // Solo tiene sentido en tenants tipo CHURCH (ver Tenant.type) — el anfitrión de un evento (una
   // boda, quinceañero, etc. armado en el salón de la iglesia) puede invitar gente sin costo, hasta
   // este máximo (ver SaleTicket.isHostGuest y la validación en sale-tickets.ts). maxHostGuests sin
@@ -385,19 +399,41 @@ model Event {
   // secreto, es un flag de "ya procesado".
   overageSummarySentAt DateTime?
 
-  tickets         Ticket[]
-  products        Product[]
-  saleProducts    SaleProduct[]
-  saleTickets     SaleTicket[]
-  children        Child[]
-  accessPoints    AccessPoint[]
-  serviceRequests ServiceRequest[]
+  tickets           Ticket[]
+  products          Product[]
+  saleProducts      SaleProduct[]
+  saleTickets       SaleTicket[]
+  children          Child[]
+  accessPoints      AccessPoint[]
+  serviceRequests   ServiceRequest[]
   eventTransactions EventTransaction[]
   // Back-relation de User.scannerEventId (ver ese campo) — nunca se recorre desde acá, existe solo
   // porque Prisma exige declarar los dos lados de la relación.
-  scannerUsers    User[]           @relation("ScannerAssignedEvent")
+  scannerUsers      User[]             @relation("ScannerAssignedEvent")
 
   @@index([tenantId, duplicateGroupKey])
+}
+
+// Sede física de un tenant Enterprise con varias sucursales (ej. una cadena de clubes) — puramente
+// opt-in: un tenant que nunca da de alta una fila acá se comporta exactamente igual que antes de
+// esta feature (Event/User sin locationId, sin filtro alguno). La suscripción sigue viviendo en
+// Tenant/Subscription — las sedes NO tienen billing propio, comparten el plan del tenant.
+model Location {
+  id        Int      @id @default(autoincrement())
+  name      String
+  address   String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  tenantId Int
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+
+  events Event[]
+  // Back-relation de User.locationId (ver ese campo) — restringe staff a esta sede.
+  users  User[]  @relation("UserAssignedLocation")
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
 }
 
 // Puerta física de entrada a un evento (Entrada Principal, VIP, Staff...) — puramente opt-in: un
@@ -843,14 +879,14 @@ model ScanConflict {
 // criterio que el overage y las suscripciones hoy. status como String (no enum nativo de Prisma)
 // por consistencia con el resto del schema (ver Subscription.status/SaleTicket.paymentStatus).
 model ServiceRequest {
-  id          Int       @id @default(autoincrement())
-  status      String    @default("PENDING") // PENDING | QUOTED | FULFILLED | REJECTED
+  id             Int       @id @default(autoincrement())
+  status         String    @default("PENDING") // PENDING | QUOTED | FULFILLED | REJECTED
   // Código del paquete sugerido si la solicitud partió de uno (ver lib/addon-services.ts,
   // AddOnPackageCode) — null si el tenant armó la combinación de ítems a mano.
-  packageCode String?
-  notes       String    @default("")
-  createdAt   DateTime  @default(now())
-  resolvedAt  DateTime?
+  packageCode    String?
+  notes          String    @default("")
+  createdAt      DateTime  @default(now())
+  resolvedAt     DateTime?
   resolutionNote String?
 
   eventId Int?
@@ -862,7 +898,7 @@ model ServiceRequest {
   tenantId Int
   tenant   Tenant @relation(fields: [tenantId], references: [id])
 
-  items ServiceRequestItem[]
+  items            ServiceRequestItem[]
   // Back-relation de EventTransaction.serviceRequestId — la línea de gasto automática que se crea
   // cuando esta solicitud pasa a FULFILLED con un evento vinculado (ver PUT /:id/status).
   eventTransaction EventTransaction?
@@ -906,10 +942,10 @@ model EventTransaction {
 // congelan el nombre/precio del catálogo AL MOMENTO de la solicitud, para que un cambio de precio
 // después no reescriba silenciosamente el historial de lo que el tenant pidió.
 model ServiceRequestItem {
-  id               Int    @id @default(autoincrement())
-  catalogCode      String
-  nameSnapshot     String
-  quantity         Int    @default(1)
+  id                   Int    @id @default(autoincrement())
+  catalogCode          String
+  nameSnapshot         String
+  quantity             Int    @default(1)
   unitPriceDOPSnapshot Int?
 
   serviceRequestId Int

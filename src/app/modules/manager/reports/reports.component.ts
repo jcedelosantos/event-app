@@ -9,6 +9,8 @@ import { ProductSalesService, SaleProduct } from '../qrs/services/product-sales.
 import { ProductsService } from '../products/services/products.service';
 import { EventTransactionsService } from '../event-transactions/services/event-transactions.service';
 import { centsToDollars } from '../../../shared/money';
+import { Location } from '../../../models/locations/location';
+import { LocationsService } from '../locations/services/locations.service';
 
 type TicketRow = { name: string; sold: number; revenue: number };
 type ProductRow = { name: string; sold: number; revenue: number; stock: number };
@@ -20,12 +22,23 @@ type TransactionRow = { category: string; type: 'INCOME' | 'EXPENSE'; count: num
 	template: `
 		<h2 class="section-title">Reportería</h2>
 
-		<div class="row my-3">
+		<div class="row my-3 g-2">
+			@if (locations().length) {
+				<div class="col-sm-3">
+					<label class="form-label small text-body-secondary mb-1">Sede</label>
+					<select class="form-select form-select-sm" [ngModel]="selectedLocationId()" (ngModelChange)="selectedLocationId.set($event)">
+						<option [ngValue]="null">Todas</option>
+						@for (location of locations(); track location.id) {
+							<option [ngValue]="location.id">{{ location.name }}</option>
+						}
+					</select>
+				</div>
+			}
 			<div class="col-sm-5">
 				<label class="form-label small text-body-secondary mb-1">Evento</label>
 				<select class="form-select form-select-sm" [ngModel]="selectedEventId()" (ngModelChange)="onEventChange($event)">
 					<option [ngValue]="null">Elige un evento...</option>
-					@for (event of events(); track event.id) {
+					@for (event of visibleEvents(); track event.id) {
 						<option [ngValue]="event.id">{{ event.name }}</option>
 					}
 				</select>
@@ -223,10 +236,19 @@ export class ReportsComponent implements OnInit {
 	private readonly productSalesService = inject(ProductSalesService);
 	private readonly productsService = inject(ProductsService);
 	private readonly eventTransactionsService = inject(EventTransactionsService);
+	private readonly locationsService = inject(LocationsService);
 	readonly centsToDollars = centsToDollars;
 
 	events = signal<Events[]>([]);
 	selectedEventId = signal<number | null>(null);
+	// Vacío para cualquier tenant que nunca dio de alta una sede — el selector se auto-oculta y
+	// visibleEvents() no filtra nada en ese caso.
+	locations = signal<Location[]>([]);
+	selectedLocationId = signal<number | null>(null);
+	visibleEvents = computed(() => {
+		const locationId = this.selectedLocationId();
+		return locationId == null ? this.events() : this.events().filter((e) => e.locationId === locationId);
+	});
 	loading = signal(false);
 
 	saleTickets = signal<SaleTicket[]>([]);
@@ -299,6 +321,7 @@ export class ReportsComponent implements OnInit {
 
 	ngOnInit(): void {
 		this.eventsService.getEvents().subscribe((events) => this.events.set(events));
+		this.locationsService.getLocations().subscribe((locations) => this.locations.set(locations));
 	}
 
 	onEventChange(eventId: number | null) {

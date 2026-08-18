@@ -37,6 +37,7 @@ export type PlanFeatures = {
 	onlinePayment: boolean;
 	waitingRoomAndCapacity: boolean;
 	productsModule: boolean;
+	multiLocation: boolean;
 };
 
 export type PlanCatalogEntry = {

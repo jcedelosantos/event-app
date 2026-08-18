@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, OnDestroy, OnInit, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { FormsModule } from '@angular/forms';
 import { forkJoin, map } from 'rxjs';
 import { EventsService } from '../events/services/events.service';
 import { QRService, SaleTicket } from '../qrs/services/qr.service';
@@ -17,6 +18,8 @@ import { centsToDollars } from '../../../shared/money';
 import { EventTransaction } from '../../../models/event-transactions/event-transaction';
 import { EventTransactionsService } from '../event-transactions/services/event-transactions.service';
 import { ScheduleComponent } from '../../../shared/schedule/schedule.component';
+import { Location } from '../../../models/locations/location';
+import { LocationsService } from '../locations/services/locations.service';
 
 // Una puerta "concentra" tráfico cuando se lleva más de este % de las entradas recientes del
 // evento — el umbral de "recientes" mínimas (ver GATE_ALERT_MIN_RECENT) evita que 1 de 1 escaneos
@@ -31,7 +34,7 @@ const LIVE_REFRESH_MS = 20_000;
 
 @Component({
 	selector: 'app-dash-board',
-	imports: [RouterLink, MiniBarChartComponent, FlashEventModalComponent, ScheduleComponent],
+	imports: [RouterLink, FormsModule, MiniBarChartComponent, FlashEventModalComponent, ScheduleComponent],
 	template: `
 		<div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
 			<h2 class="section-title mb-0">Panel</h2>
@@ -39,6 +42,19 @@ const LIVE_REFRESH_MS = 20_000;
 				<i class="bi bi-lightning-charge-fill"></i> Evento flash
 			</button>
 		</div>
+		@if (locations().length) {
+			<div class="row my-2">
+				<div class="col-sm-3">
+					<label class="form-label small text-body-secondary mb-1">Sede</label>
+					<select class="form-select form-select-sm" [ngModel]="selectedLocationId()" (ngModelChange)="selectedLocationId.set($event)">
+						<option [ngValue]="null">Todas</option>
+						@for (location of locations(); track location.id) {
+							<option [ngValue]="location.id">{{ location.name }}</option>
+						}
+					</select>
+				</div>
+			</div>
+		}
 		<app-flash-event-modal />
 		<br />
 
@@ -369,6 +385,7 @@ export class DashBoardComponent implements OnInit, OnDestroy {
 	private readonly accessPointsService = inject(AccessPointsService);
 	private readonly eventTransactionsService = inject(EventTransactionsService);
 	private readonly authService = inject(AuthService);
+	private readonly locationsService = inject(LocationsService);
 	private refreshTimer: ReturnType<typeof setInterval> | null = null;
 
 	loading = signal(true);
@@ -381,11 +398,26 @@ export class DashBoardComponent implements OnInit, OnDestroy {
 
 	clients = computed(() => this.users().filter((u) => u.type?.type === 'CLIENT'));
 
+	// Vacío para cualquier tenant que nunca dio de alta una sede — el selector se auto-oculta y los
+	// computed "scoped*" de abajo devuelven exactamente los signals base sin filtrar en ese caso.
+	locations = signal<Location[]>([]);
+	selectedLocationId = signal<number | null>(null);
+	scopedEvents = computed(() => {
+		const locationId = this.selectedLocationId();
+		return locationId == null ? this.events() : this.events().filter((e) => e.locationId === locationId);
+	});
+	private scopedEventIds = computed(() => new Set(this.scopedEvents().map((e) => e.id)));
+	scopedSaleTickets = computed(() => (this.selectedLocationId() == null ? this.saleTickets() : this.saleTickets().filter((s) => this.scopedEventIds().has(s.eventId))));
+	scopedSaleProducts = computed(() => (this.selectedLocationId() == null ? this.saleProducts() : this.saleProducts().filter((s) => this.scopedEventIds().has(s.eventId))));
+	scopedEventTransactions = computed(() =>
+		this.selectedLocationId() == null ? this.eventTransactions() : this.eventTransactions().filter((t) => this.scopedEventIds().has(t.eventId)),
+	);
+
 	// Checklist de "primeros pasos" — vive en localStorage (no AppSetting) a propósito: es una
 	// preferencia de UI liviana sin ningún valor de negocio, y así cualquier cuenta del tenant puede
 	// cerrarlo sin necesitar permiso de Admin (PUT /settings/:key es Admin-only, ver settings.ts).
 	onboardingDismissed = signal(false);
-	showOnboarding = computed(() => !this.loading() && this.events().length === 0 && !this.onboardingDismissed());
+	showOnboarding = computed(() => !this.loading() && this.scopedEvents().length === 0 && !this.onboardingDismissed());
 
 	constructor() {
 		effect(() => {
@@ -408,18 +440,18 @@ export class DashBoardComponent implements OnInit, OnDestroy {
 
 	upcomingEvents = computed(() => {
 		const today = todayKey();
-		return this.events()
+		return this.scopedEvents()
 			.filter((e) => eventDateKey(e.dateOn) >= today)
 			.sort((a, b) => a.dateOn.getTime() - b.dateOn.getTime());
 	});
 
 	todayEventStats = computed(() => {
 		const today = todayKey();
-		return this.events()
+		return this.scopedEvents()
 			.filter((e) => eventDateKey(e.dateOn) === today)
 			.map((event) => {
 				const capacity = (event.tickets ?? []).reduce((sum, t) => sum + (t.count ?? 0), 0);
-				const eventSales = this.saleTickets().filter((s) => s.eventId === event.id);
+				const eventSales = this.scopedSaleTickets().filter((s) => s.eventId === event.id);
 				const sold = eventSales.length;
 				const checkedIn = eventSales.filter((s) => s.checkedInAt).length;
 				const available = Math.max(capacity - sold, 0);
@@ -455,8 +487,8 @@ export class DashBoardComponent implements OnInit, OnDestroy {
 
 	// Centavos enteros (ver shared/money.ts) — se convierte a dólares recién al mostrarse.
 	totalRevenue = computed(() => {
-		const ticketRevenue = this.saleTickets().reduce((sum, sale) => sum + (sale.priceCents ?? sale.ticket?.priceCents ?? 0), 0);
-		const productRevenue = this.saleProducts().reduce((sum, sale) => sum + (sale.unitPriceCents ?? sale.product?.priceCents ?? 0) * sale.quantity, 0);
+		const ticketRevenue = this.scopedSaleTickets().reduce((sum, sale) => sum + (sale.priceCents ?? sale.ticket?.priceCents ?? 0), 0);
+		const productRevenue = this.scopedSaleProducts().reduce((sum, sale) => sum + (sale.unitPriceCents ?? sale.product?.priceCents ?? 0) * sale.quantity, 0);
 		return ticketRevenue + productRevenue;
 	});
 
@@ -464,20 +496,20 @@ export class DashBoardComponent implements OnInit, OnDestroy {
 	// en event-details.component.ts) — el promedio de gasto/margen se calcula solo sobre estos, no
 	// sobre TODOS los eventos del tenant, porque un evento sin ningún movimiento cargado no aporta
 	// información real (no es "gasto cero", es "todavía no se cargó nada").
-	private financeEventIds = computed(() => new Set(this.eventTransactions().map((t) => t.eventId)));
+	private financeEventIds = computed(() => new Set(this.scopedEventTransactions().map((t) => t.eventId)));
 	eventsWithFinances = computed(() => this.financeEventIds().size);
 
-	totalExpenses = computed(() => this.eventTransactions().filter((t) => t.type === 'EXPENSE').reduce((sum, t) => sum + t.amountCents, 0));
-	totalExtraIncome = computed(() => this.eventTransactions().filter((t) => t.type === 'INCOME').reduce((sum, t) => sum + t.amountCents, 0));
+	totalExpenses = computed(() => this.scopedEventTransactions().filter((t) => t.type === 'EXPENSE').reduce((sum, t) => sum + t.amountCents, 0));
+	totalExtraIncome = computed(() => this.scopedEventTransactions().filter((t) => t.type === 'INCOME').reduce((sum, t) => sum + t.amountCents, 0));
 
 	// Ingresos de tickets+productos, pero acotados a los mismos eventos que financeEventIds — mezclar
 	// el margen con ingresos de eventos SIN ningún gasto cargado inflaría el promedio sin sentido.
 	private financeScopedRevenue = computed(() => {
 		const ids = this.financeEventIds();
-		const ticketRevenue = this.saleTickets()
+		const ticketRevenue = this.scopedSaleTickets()
 			.filter((s) => ids.has(s.eventId))
 			.reduce((sum, sale) => sum + (sale.priceCents ?? sale.ticket?.priceCents ?? 0), 0);
-		const productRevenue = this.saleProducts()
+		const productRevenue = this.scopedSaleProducts()
 			.filter((s) => ids.has(s.eventId))
 			.reduce((sum, sale) => sum + (sale.unitPriceCents ?? sale.product?.priceCents ?? 0) * sale.quantity, 0);
 		return ticketRevenue + productRevenue;
@@ -491,12 +523,12 @@ export class DashBoardComponent implements OnInit, OnDestroy {
 	});
 
 	recentSales = computed(() =>
-		[...this.saleTickets()].sort((a, b) => new Date(b.dateSold).getTime() - new Date(a.dateSold).getTime()).slice(0, 5),
+		[...this.scopedSaleTickets()].sort((a, b) => new Date(b.dateSold).getTime() - new Date(a.dateSold).getTime()).slice(0, 5),
 	);
 
 	revenueByEvent = computed<BarChartItem[]>(() => {
 		const totals = new Map<string, number>();
-		for (const sale of this.saleTickets()) {
+		for (const sale of this.scopedSaleTickets()) {
 			const label = sale.event?.name ?? 'Sin evento';
 			totals.set(label, (totals.get(label) ?? 0) + (sale.priceCents ?? sale.ticket?.priceCents ?? 0));
 		}
@@ -507,7 +539,7 @@ export class DashBoardComponent implements OnInit, OnDestroy {
 
 	salesByPaidType = computed<BarChartItem[]>(() => {
 		const totals = new Map<string, number>();
-		for (const sale of this.saleTickets()) {
+		for (const sale of this.scopedSaleTickets()) {
 			const label = sale.paidType || 'Sin especificar';
 			totals.set(label, (totals.get(label) ?? 0) + 1);
 		}
@@ -516,7 +548,7 @@ export class DashBoardComponent implements OnInit, OnDestroy {
 
 	revenueByProduct = computed<BarChartItem[]>(() => {
 		const totals = new Map<string, number>();
-		for (const sale of this.saleProducts()) {
+		for (const sale of this.scopedSaleProducts()) {
 			const label = sale.product?.name ?? 'Sin producto';
 			totals.set(label, (totals.get(label) ?? 0) + (sale.unitPriceCents ?? sale.product?.priceCents ?? 0) * sale.quantity);
 		}
@@ -527,7 +559,7 @@ export class DashBoardComponent implements OnInit, OnDestroy {
 
 	unitsByProduct = computed<BarChartItem[]>(() => {
 		const totals = new Map<string, number>();
-		for (const sale of this.saleProducts()) {
+		for (const sale of this.scopedSaleProducts()) {
 			const label = sale.product?.name ?? 'Sin producto';
 			totals.set(label, (totals.get(label) ?? 0) + sale.quantity);
 		}
@@ -550,7 +582,7 @@ export class DashBoardComponent implements OnInit, OnDestroy {
 
 	private monthlyTotals(reducer: (sale: SaleTicket) => number): BarChartItem[] {
 		const totals = new Map<string, number>();
-		for (const sale of this.saleTickets()) {
+		for (const sale of this.scopedSaleTickets()) {
 			const key = this.monthKey(new Date(sale.dateSold));
 			totals.set(key, (totals.get(key) ?? 0) + reducer(sale));
 		}
@@ -569,9 +601,10 @@ export class DashBoardComponent implements OnInit, OnDestroy {
 		this.monthlyTotals((sale) => sale.priceCents ?? sale.ticket?.priceCents ?? 0).map((item) => ({ ...item, value: centsToDollars(item.value) })),
 	);
 	monthlyTicketsTrend = computed<BarChartItem[]>(() => this.monthlyTotals(() => 1));
-	monthsWithSalesCount = computed(() => new Set(this.saleTickets().map((s) => this.monthKey(new Date(s.dateSold)))).size);
+	monthsWithSalesCount = computed(() => new Set(this.scopedSaleTickets().map((s) => this.monthKey(new Date(s.dateSold)))).size);
 
 	ngOnInit(): void {
+		this.locationsService.getLocations().subscribe((locations) => this.locations.set(locations));
 		forkJoin({
 			events: this.eventsService.getEvents(),
 			saleTickets: this.qrService.getQRs(),
@@ -595,7 +628,7 @@ export class DashBoardComponent implements OnInit, OnDestroy {
 			}).subscribe(({ saleTickets, saleProducts }) => {
 				this.saleTickets.set(saleTickets);
 				this.saleProducts.set(saleProducts);
-				this.loadGateStats(this.todayEventIds(this.events()));
+				this.loadGateStats(this.todayEventIds(this.scopedEvents()));
 			});
 		}, LIVE_REFRESH_MS);
 	}

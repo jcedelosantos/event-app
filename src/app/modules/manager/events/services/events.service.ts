@@ -17,6 +17,7 @@ export type EventInput = {
 	active?: boolean;
 	status?: 'ACTIVE' | 'CANCELLED' | 'POSTPONED';
 	mapId?: number | null;
+	locationId?: number | null;
 	hostName?: string | null;
 	maxHostGuests?: number | null;
 	// Solo se usa al editar (ver PUT /events/:id) — número para vincular con ese evento, null para

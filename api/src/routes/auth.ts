@@ -49,6 +49,7 @@ authRouter.post('/login', asyncHandler(async (req, res) => {
 		tenantId: user.tenantId,
 		scannerEventId: user.scannerEventId,
 		accessPointId: user.accessPointId,
+		locationId: user.locationId,
 	});
 
 	res.json({ token, user: toPublicUser(user) });

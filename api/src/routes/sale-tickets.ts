@@ -18,6 +18,7 @@ import { finalizePaidSaleTickets } from '../lib/checkout';
 import { assertEventCapacity } from '../lib/capacity';
 import { serializableTransaction } from '../lib/serializable-tx';
 import { notifyIfOverageJustCrossed } from '../lib/overage';
+import { locationScope } from '../lib/location-scope';
 
 export const saleTicketsRouter = Router();
 saleTicketsRouter.use(requireAuth, requireTenant, blockScannerRole, requireActiveSubscription);
@@ -86,7 +87,14 @@ saleTicketsRouter.get('/', asyncHandler(async (req: AuthenticatedRequest, res) =
 	// ventas. Solo la tabla "todos los eventos" del panel de QRs (que sí es navegable/paginable, no
 	// un total) pide explícitamente la vista acotada.
 	const recent = !eventId && req.query.recent === '1';
-	const where = eventId ? { eventId, tenantId } : { tenantId };
+	// SaleTicket no tiene locationId propio (ver location-scope.ts) — el filtro de sede pasa por un
+	// join al evento vendido.
+	const locationFilter = locationScope(req.user!);
+	const where = {
+		tenantId,
+		...(eventId ? { eventId } : {}),
+		...(locationFilter.locationId != null ? { event: { locationId: locationFilter.locationId } } : {}),
+	};
 	const [saleTickets, totalCount] = await Promise.all([
 		prisma.saleTicket.findMany({ where, include: listInclude, orderBy: { id: 'desc' }, take: recent ? ALL_EVENTS_LIST_LIMIT : undefined }),
 		recent ? prisma.saleTicket.count({ where }) : Promise.resolve(null),

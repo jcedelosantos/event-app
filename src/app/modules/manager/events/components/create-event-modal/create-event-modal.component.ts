@@ -12,6 +12,8 @@ import { UploadsService } from '../../../../../core/services/uploads.service';
 import { environment } from '../../../../../../environments/environment';
 import { PLAN_FEATURES } from '../../../../../shared/pricing-plans';
 import { isEventPlanCode } from '../../../../../shared/event-plans';
+import { Location } from '../../../../../models/locations/location';
+import { LocationsService } from '../../../locations/services/locations.service';
 
 declare const bootstrap: any;
 
@@ -80,14 +82,14 @@ function toDateTimeInputValue(date: Date): string {
 								<label for="code" class="small mb-1">Start Date *</label>
 								<input type="date" class="form-control form-control-sm" [class.is-invalid]="isInvalid('dateOn')" formControlName="dateOn" />
 								@if (isInvalid('dateOn')) {
-									<div class="invalid-feedback">Elegí una fecha.</div>
+									<div class="invalid-feedback">Elige una fecha.</div>
 								}
 							</div>
 							<div class="col-md-4 mb-2">
 								<label for="startTime" class="small mb-1">Hora de inicio *</label>
 								<input type="time" class="form-control form-control-sm" [class.is-invalid]="isInvalid('startTime')" formControlName="startTime" />
 								@if (isInvalid('startTime')) {
-									<div class="invalid-feedback">Elegí una hora.</div>
+									<div class="invalid-feedback">Elige una hora.</div>
 								}
 							</div>
 							<div class="col-md-4 mb-2">
@@ -114,7 +116,7 @@ function toDateTimeInputValue(date: Date): string {
 									<option value="Normal">NORMAL</option>
 								</select>
 								@if (isInvalid('type')) {
-									<div class="invalid-feedback">Elegí un tipo de evento.</div>
+									<div class="invalid-feedback">Elige un tipo de evento.</div>
 								}
 							</div>
 							<div class="col-md-6 mb-2">
@@ -125,7 +127,7 @@ function toDateTimeInputValue(date: Date): string {
 									<option [ngValue]="false">Inactive</option>
 								</select>
 								@if (isInvalid('active')) {
-									<div class="invalid-feedback">Elegí un estado.</div>
+									<div class="invalid-feedback">Elige un estado.</div>
 								}
 							</div>
 							<div class="col-md-12 mb-2">
@@ -137,7 +139,7 @@ function toDateTimeInputValue(date: Date): string {
 									}
 								</div>
 								<div class="form-text">
-									Si lo dejás vacío, el evento queda visible/comprable apenas lo creás. Si elegís una fecha, se oculta del
+									Si lo dejas vacío, el evento queda visible/comprable apenas lo creas. Si eliges una fecha, se oculta del
 									portal público hasta ese momento.
 								</div>
 							</div>
@@ -191,10 +193,10 @@ function toDateTimeInputValue(date: Date): string {
 								<select class="form-select form-select-sm" formControlName="paymentMode">
 									<option value="NONE">Ninguno — registro gratis (como hoy)</option>
 									<option value="PAYPAL">PayPal</option>
-									<option value="LINK">Link de pago (transferencia, etc. — confirmás vos a mano)</option>
+									<option value="LINK">Link de pago (transferencia, etc. — confirmas tú a mano)</option>
 									<option value="BOTH">Ambos — el comprador elige</option>
 								</select>
-								<div class="form-text">Configurá las credenciales de PayPal y/o el link de pago en Settings → Pagos.</div>
+								<div class="form-text">Configura las credenciales de PayPal y/o el link de pago en Settings → Pagos.</div>
 							</div>
 							<div class="col-md-12 mb-2">
 								<label for="confirmationMessage" class="small mb-1">Mensaje personalizado en el email <span class="text-muted">(opcional)</span></label>
@@ -245,8 +247,19 @@ function toDateTimeInputValue(date: Date): string {
 									</select>
 									<button type="button" class="btn btn-outline-danger btn-sm text-nowrap" (click)="openMapModal()">+ Map</button>
 								</div>
-								<div class="form-text">¿No está el mapa que buscás? Creá uno con "+ Map" y elegilo acá al volver.</div>
+								<div class="form-text">¿No está el mapa que buscas? Crea uno con "+ Map" y elígelo acá al volver.</div>
 							</div>
+							@if (locations().length) {
+								<div class="col-md-12 mb-2">
+									<label for="locationId" class="small mb-1">Sede <span class="text-muted">(opcional)</span></label>
+									<select class="form-select form-select-sm" formControlName="locationId">
+										<option [ngValue]="null">Sin asignar</option>
+										@for (location of locations(); track location.id) {
+											<option [ngValue]="location.id">{{ location.name }}</option>
+										}
+									</select>
+								</div>
+							}
 							@if (isChurchTenant()) {
 								<div class="col-md-8 mb-2">
 									<label for="hostName" class="small mb-1">Anfitrión <span class="text-muted">(opcional — habilita invitados sin cargo con tope)</span></label>
@@ -316,6 +329,7 @@ export class CreateEventModalComponent {
 	private readonly eventsService = inject(EventsService);
 	private readonly authService = inject(AuthService);
 	private readonly uploadsService = inject(UploadsService);
+	private readonly locationsService = inject(LocationsService);
 
 	@Input() maps: Map[] = [];
 	@Input() events: Events[] = [];
@@ -337,6 +351,10 @@ export class CreateEventModalComponent {
 
 	isChurchTenant = computed(() => this.authService.currentUser()?.tenant?.type === 'CHURCH');
 	isClubTenant = computed(() => this.authService.currentUser()?.tenant?.type === 'CLUB');
+
+	// Vacío para cualquier tenant que nunca dio de alta una sede (la gran mayoría) — el selector de
+	// abajo se auto-oculta en ese caso, sin necesitar un flag de plan extra acá.
+	locations = signal<Location[]>([]);
 
 	waitingRoomOrCapacityBlocked = computed(() => {
 		const plan = this.authService.currentUser()?.tenant?.plan;
@@ -362,6 +380,7 @@ export class CreateEventModalComponent {
 		type: ['', Validators.required],
 		active: [true, Validators.required],
 		mapId: this.fb.control<number | null>(null),
+		locationId: this.fb.control<number | null>(null),
 		hostName: [''],
 		maxHostGuests: this.fb.control<number | null>(null),
 		linkedEventId: this.fb.control<number | null>(null),
@@ -377,6 +396,7 @@ export class CreateEventModalComponent {
 	});
 
 	constructor() {
+		this.locationsService.getLocations().subscribe((locations) => this.locations.set(locations));
 		effect(() => {
 			const current = this.event();
 			this.errorMessage.set('');
@@ -396,6 +416,7 @@ export class CreateEventModalComponent {
 					type: current.type,
 					active: current.active,
 					mapId: current.map?.id ?? null,
+					locationId: current.locationId ?? null,
 					hostName: current.hostName ?? '',
 					maxHostGuests: current.maxHostGuests ?? null,
 					linkedEventId: this.originalLinkedEventId,
@@ -414,6 +435,7 @@ export class CreateEventModalComponent {
 				this.eventForm.reset({
 					active: true,
 					mapId: null,
+					locationId: null,
 					hostName: '',
 					maxHostGuests: null,
 					linkedEventId: null,
@@ -442,6 +464,7 @@ export class CreateEventModalComponent {
 		this.eventForm.reset({
 			active: true,
 			mapId: source.map?.id ?? null,
+			locationId: source.locationId ?? null,
 			hostName: source.hostName ?? '',
 			maxHostGuests: source.maxHostGuests ?? null,
 			linkedEventId: null,
@@ -522,6 +545,7 @@ export class CreateEventModalComponent {
 			startTime: value.startTime!,
 			active: value.active!,
 			mapId: value.mapId,
+			locationId: value.locationId,
 			hostName: value.hostName?.trim() ? value.hostName.trim() : null,
 			maxHostGuests: value.maxHostGuests,
 			linkedEventId: linkedEventIdChanged ? value.linkedEventId : undefined,

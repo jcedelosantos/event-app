@@ -10,6 +10,8 @@ import { EventsService } from '../../../events/services/events.service';
 import { Events } from '../../../../../models/events/events';
 import { AccessPointsService } from '../../../access-points/services/access-points.service';
 import { AccessPoint } from '../../../../../models/access-points/access-point';
+import { LocationsService } from '../../../locations/services/locations.service';
+import { Location } from '../../../../../models/locations/location';
 
 @Component({
 	selector: 'app-update-user-modal',
@@ -108,6 +110,18 @@ import { AccessPoint } from '../../../../../models/access-points/access-point';
 										</div>
 									}
 								}
+								@if (locations().length) {
+									<div class="col-md-6 mb-3">
+										<label for="locationId">Sede <span class="text-muted">(opcional)</span></label>
+										<select class="custom-select d-block w-100" formControlName="locationId">
+											<option [ngValue]="null">Sin restricción</option>
+											@for (location of locations(); track location.id) {
+												<option [ngValue]="location.id">{{ location.name }}</option>
+											}
+										</select>
+										<div class="form-text">Si elegís una sede, este usuario solo va a ver eventos/tickets de esa sede.</div>
+									</div>
+								}
 								<div class="col-md-6 mb-3">
 									<label for="state">Género</label>
 									<select class="custom-select d-block w-100" formControlName="gender">
@@ -152,6 +166,7 @@ export class UpdateUserModalComponent implements OnInit {
 	userService = inject(UserService);
 	private readonly eventsService = inject(EventsService);
 	private readonly accessPointsService = inject(AccessPointsService);
+	private readonly locationsService = inject(LocationsService);
 
 	user = model.required<User | null>();
 	userSaved = output<void>();
@@ -167,6 +182,10 @@ export class UpdateUserModalComponent implements OnInit {
 	// Puertas del evento elegido, para el selector opcional "Puerta asignada" (ver
 	// User.accessPointId en la API) — se recarga cada vez que scannerEventId cambia.
 	accessPoints = signal<AccessPoint[]>([]);
+
+	// Vacío para cualquier tenant que nunca dio de alta una sede — el selector "Sede" se auto-oculta
+	// en ese caso (ver Location).
+	locations = signal<Location[]>([]);
 
 	// Espejo de userType para el template (un FormControl no se puede leer directo ahí porque OnPush
 	// no repinta solo con sus cambios) — decide si el carnet es obligatorio (solo Cliente).
@@ -190,6 +209,7 @@ export class UpdateUserModalComponent implements OnInit {
 		phone: new FormControl<string>('', [Validators.required, Validators.pattern('^[- +()0-9]+$')]),
 		scannerEventId: new FormControl<number | null>(null),
 		accessPointId: new FormControl<number | null>(null),
+		locationId: new FormControl<number | null>(null),
 	});
 
 	constructor() {
@@ -214,9 +234,10 @@ export class UpdateUserModalComponent implements OnInit {
 					// resetea accessPointId a null — esta clave posterior pisa ese reset con el valor
 					// real que trae el usuario.
 					accessPointId: current.accessPointId ?? null,
+					locationId: current.locationId ?? null,
 				});
 			} else {
-				this.form.reset({ userName: '', password: '', userType: '', name: '', lastName: '', gender: '', email: '', carnet: '', address: '', phone: '', scannerEventId: null, accessPointId: null });
+				this.form.reset({ userName: '', password: '', userType: '', name: '', lastName: '', gender: '', email: '', carnet: '', address: '', phone: '', scannerEventId: null, accessPointId: null, locationId: null });
 			}
 		});
 
@@ -250,6 +271,7 @@ export class UpdateUserModalComponent implements OnInit {
 
 	ngOnInit(): void {
 		this.eventsService.getEvents().subscribe((events) => this.events.set(events));
+		this.locationsService.getLocations().subscribe((locations) => this.locations.set(locations));
 	}
 
 	isInvalid(controlName: keyof typeof this.form.controls): boolean {
@@ -283,6 +305,7 @@ export class UpdateUserModalComponent implements OnInit {
 			phone: value.phone!,
 			scannerEventId: value.scannerEventId,
 			accessPointId: value.accessPointId,
+			locationId: value.locationId,
 			userType: value.userType as UserTypeCode,
 		};
 

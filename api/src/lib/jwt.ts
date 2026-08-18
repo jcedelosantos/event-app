@@ -24,6 +24,10 @@ export type AuthTokenPayload = {
 	// UNA sola puerta del evento (ver User.accessPointId). null/undefined = puede elegir cualquier
 	// puerta del evento asignado, comportamiento previo a este campo.
 	accessPointId?: number | null;
+	// Sede a la que queda restringido este usuario (ver User.locationId/Location) — a diferencia de
+	// scannerEventId, disponible para cualquier tipo de usuario, no solo SCANNER. null/undefined = sin
+	// restricción, ve todo el tenant (comportamiento de siempre para un tenant sin sedes).
+	locationId?: number | null;
 };
 
 export function signToken(payload: AuthTokenPayload): string {

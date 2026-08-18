@@ -9,27 +9,36 @@ export type TenantReportStats = {
 	totalProductsSold: number;
 	revenueByEvent: Array<{ label: string; value: number }>;
 	revenueByProduct: Array<{ label: string; value: number }>;
+	// Sin sede asignada cae bajo el label "Sin sede" — para un tenant sin ninguna Location dada de
+	// alta, todo termina ahí (un solo bucket), sin romper nada del lado del caller.
+	revenueByLocation: Array<{ label: string; value: number }>;
 };
+
+const SIN_SEDE_LABEL = 'Sin sede';
 
 // A diferencia del dashboard (que trae TODO el historial del tenant y agrega en el cliente,
 // ver dash-board.component.ts), acá el rango ya viene acotado a un solo mes/trimestre cerrado
 // (ver scheduled-reports.ts) — el volumen por período es chico incluso para un tenant con años
 // de historial, así que alcanza con un findMany + reduce en JS, sin necesitar groupBy/SQL crudo.
-export async function computeTenantReportStats(tenantId: number, dateFrom: Date, dateTo: Date): Promise<TenantReportStats> {
+// locationId opcional: sin caller pasándolo hoy (el correo periódico sigue siendo tenant-wide), solo
+// acota el resultado a una sede cuando alguien lo necesite más adelante (ver routes/locations.ts).
+export async function computeTenantReportStats(tenantId: number, dateFrom: Date, dateTo: Date, locationId?: number): Promise<TenantReportStats> {
+	const locationFilter = locationId != null ? { event: { locationId } } : {};
 	const [saleTickets, saleProducts] = await Promise.all([
 		prisma.saleTicket.findMany({
-			where: { tenantId, dateSold: { gte: dateFrom, lt: dateTo } },
-			select: { checkedInAt: true, priceCents: true, ticket: { select: { priceCents: true } }, event: { select: { id: true, name: true } } },
+			where: { tenantId, dateSold: { gte: dateFrom, lt: dateTo }, ...locationFilter },
+			select: { checkedInAt: true, priceCents: true, ticket: { select: { priceCents: true } }, event: { select: { id: true, name: true, location: { select: { name: true } } } } },
 		}),
 		prisma.saleProduct.findMany({
-			where: { tenantId, dateSold: { gte: dateFrom, lt: dateTo } },
-			select: { quantity: true, unitPriceCents: true, product: { select: { id: true, priceCents: true, name: true } } },
+			where: { tenantId, dateSold: { gte: dateFrom, lt: dateTo }, ...locationFilter },
+			select: { quantity: true, unitPriceCents: true, product: { select: { id: true, priceCents: true, name: true } }, event: { select: { location: { select: { name: true } } } } },
 		}),
 	]);
 
 	// Agrupado por id, no por nombre — dos eventos/productos con el mismo nombre (frecuente en
 	// eventos recurrentes) antes se fusionaban silenciosamente en una sola fila del reporte.
 	const revenueByEventMap = new Map<number, { label: string; value: number }>();
+	const revenueByLocationMap = new Map<string, { label: string; value: number }>();
 	let totalRevenueCents = 0;
 	let totalCheckIns = 0;
 	for (const sale of saleTickets) {
@@ -41,6 +50,11 @@ export async function computeTenantReportStats(tenantId: number, dateFrom: Date,
 		const entry = revenueByEventMap.get(sale.event.id);
 		if (entry) entry.value += priceCents;
 		else revenueByEventMap.set(sale.event.id, { label: sale.event.name, value: priceCents });
+
+		const locationLabel = sale.event.location?.name ?? SIN_SEDE_LABEL;
+		const locationEntry = revenueByLocationMap.get(locationLabel);
+		if (locationEntry) locationEntry.value += priceCents;
+		else revenueByLocationMap.set(locationLabel, { label: locationLabel, value: priceCents });
 	}
 
 	const revenueByProductMap = new Map<number, { label: string; value: number }>();
@@ -53,9 +67,14 @@ export async function computeTenantReportStats(tenantId: number, dateFrom: Date,
 		const entry = revenueByProductMap.get(sale.product.id);
 		if (entry) entry.value += revenueCents;
 		else revenueByProductMap.set(sale.product.id, { label: sale.product.name, value: revenueCents });
+
+		const locationLabel = sale.event.location?.name ?? SIN_SEDE_LABEL;
+		const locationEntry = revenueByLocationMap.get(locationLabel);
+		if (locationEntry) locationEntry.value += revenueCents;
+		else revenueByLocationMap.set(locationLabel, { label: locationLabel, value: revenueCents });
 	}
 
-	const toSortedItems = (map: Map<number, { label: string; value: number }>) =>
+	const toSortedItems = <K>(map: Map<K, { label: string; value: number }>) =>
 		Array.from(map.values()).sort((a, b) => b.value - a.value);
 
 	return {
@@ -65,5 +84,6 @@ export async function computeTenantReportStats(tenantId: number, dateFrom: Date,
 		totalProductsSold,
 		revenueByEvent: toSortedItems(revenueByEventMap),
 		revenueByProduct: toSortedItems(revenueByProductMap),
+		revenueByLocation: toSortedItems(revenueByLocationMap),
 	};
 }

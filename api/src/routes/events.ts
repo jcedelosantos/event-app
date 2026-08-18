@@ -10,6 +10,7 @@ import { getWaitingRoomStats } from '../lib/waiting-room';
 import { getTenantPlanFeatures, requireActiveSubscription } from '../middleware/plan';
 import { isEventPlanCode } from '../lib/event-plans';
 import { computeEventOverage } from '../lib/overage';
+import { locationScope } from '../lib/location-scope';
 
 export const eventsRouter = Router();
 eventsRouter.use(requireAuth, requireTenant, blockScannerRole, requireActiveSubscription);
@@ -43,6 +44,9 @@ const eventInputSchema = z.object({
 	// público), solo cambia cómo se muestra y bloquea la compra.
 	status: z.enum(['ACTIVE', 'CANCELLED', 'POSTPONED']).optional().default('ACTIVE'),
 	mapId: z.number().int().nullable().optional(),
+	// Sede a la que pertenece este evento (ver Location) — solo tiene efecto real en tenants
+	// Enterprise con varias sedes. null = sin asignar.
+	locationId: z.number().int().nullable().optional(),
 	// Solo tiene efecto en tenants CHURCH — habilita la venta manual "invitado del anfitrión" con
 	// tope (ver lib/host-guest.ts). Ambos deben venir juntos o ninguno; no hay gate por tipo de
 	// tenant acá, un club que los cargue simplemente no tendría dónde usarlos en la UI.
@@ -131,14 +135,14 @@ async function assertEventOncePlanCap(tenantId: number): Promise<string | null> 
 
 eventsRouter.get('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const tenantId = req.user!.tenantId!;
-	const events = await prisma.event.findMany({ where: { tenantId }, include, orderBy: { dateOn: 'asc' } });
+	const events = await prisma.event.findMany({ where: { tenantId, ...locationScope(req.user!) }, include, orderBy: { dateOn: 'asc' } });
 	res.json(events);
 }));
 
 eventsRouter.get('/:id', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const id = Number(req.params.id);
 	const tenantId = req.user!.tenantId!;
-	const event = await prisma.event.findUnique({ where: { id, tenantId }, include: includeDetail });
+	const event = await prisma.event.findUnique({ where: { id, tenantId, ...locationScope(req.user!) }, include: includeDetail });
 	if (!event) {
 		res.status(404).json({ error: 'Evento no encontrado' });
 		return;

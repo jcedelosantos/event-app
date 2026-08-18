@@ -21,6 +21,10 @@ export type PlanDefinition = {
 		onlinePayment: boolean;
 		waitingRoomAndCapacity: boolean;
 		productsModule: boolean;
+		// Alta de sedes (ver Location en el schema) — un tenant con varias sucursales bajo una misma
+		// cuenta. Solo PRO_MAX (Pro Enterprise): billing sigue siendo uno solo por tenant, las sedes
+		// no tienen suscripción propia.
+		multiLocation: boolean;
 	};
 };
 
@@ -32,21 +36,21 @@ export const PLANS: Record<PlanCode, PlanDefinition> = {
 		name: 'Básico',
 		priceCents: 4900,
 		attendeesPerEvent: 50,
-		features: { publicPortal: false, advancedReporting: false, onlinePayment: false, waitingRoomAndCapacity: false, productsModule: false },
+		features: { publicPortal: false, advancedReporting: false, onlinePayment: false, waitingRoomAndCapacity: false, productsModule: false, multiLocation: false },
 	},
 	INTERMEDIO: {
 		code: 'INTERMEDIO',
 		name: 'Intermedio',
 		priceCents: 9900,
 		attendeesPerEvent: 150,
-		features: { publicPortal: true, advancedReporting: true, onlinePayment: false, waitingRoomAndCapacity: false, productsModule: true },
+		features: { publicPortal: true, advancedReporting: true, onlinePayment: false, waitingRoomAndCapacity: false, productsModule: true, multiLocation: false },
 	},
 	AVANZADO: {
 		code: 'AVANZADO',
 		name: 'Avanzado',
 		priceCents: 19900,
 		attendeesPerEvent: 500,
-		features: { publicPortal: true, advancedReporting: true, onlinePayment: true, waitingRoomAndCapacity: true, productsModule: true },
+		features: { publicPortal: true, advancedReporting: true, onlinePayment: true, waitingRoomAndCapacity: true, productsModule: true, multiLocation: false },
 	},
 	// Code queda PRO_MAX por retrocompatibilidad (webhooks/env vars de PayPal, filas ya guardadas en
 	// Tenant.plan/Subscription.plan lo referencian por este string) — solo cambia el nombre público.
@@ -58,7 +62,7 @@ export const PLANS: Record<PlanCode, PlanDefinition> = {
 		name: 'Pro Enterprise',
 		priceCents: 65000,
 		attendeesPerEvent: 1000,
-		features: { publicPortal: true, advancedReporting: true, onlinePayment: true, waitingRoomAndCapacity: true, productsModule: true },
+		features: { publicPortal: true, advancedReporting: true, onlinePayment: true, waitingRoomAndCapacity: true, productsModule: true, multiLocation: true },
 	},
 };
 

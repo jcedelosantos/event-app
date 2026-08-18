@@ -16,6 +16,8 @@ import { ImportSalesModalComponent } from './components/import-sales-modal/impor
 import { confirm, error, promptSelect } from '../../../utils/messages';
 import { extractErrorMessage } from '../../../utils/api-error';
 import { eventDateKey, todayKey } from '../../../utils/dates';
+import { Location } from '../../../models/locations/location';
+import { LocationsService } from '../locations/services/locations.service';
 import { HttpErrorResponse } from '@angular/common/http';
 import * as bootstrap from "bootstrap";
 import { centsToDollars } from '../../../shared/money';
@@ -67,6 +69,7 @@ export class QrsComponent implements OnInit, AfterViewInit, OnDestroy {
   productSalesService = inject(ProductSalesService);
   childrenService = inject(ChildrenService);
   private readonly eventsService = inject(EventsService);
+  private readonly locationsService = inject(LocationsService);
   private readonly authService = inject(AuthService);
   readonly centsToDollars = centsToDollars;
   private readonly route = inject(ActivatedRoute);
@@ -102,9 +105,16 @@ export class QrsComponent implements OnInit, AfterViewInit, OnDestroy {
   // activos"). El tenant puede acumular decenas de eventos viejos — el staff prende el toggle a
   // mano si de verdad necesita filtrar por uno viejo.
   showInactiveEvents = signal(false);
+  // Vacío para cualquier tenant que nunca dio de alta una sede — el selector se auto-oculta y este
+  // filtro no acota nada en ese caso.
+  locations = signal<Location[]>([]);
+  selectedLocationId = signal<number | null>(null);
   visibleEvents = computed(() => {
     const today = todayKey();
-    const list = this.showInactiveEvents() ? this.events() : this.events().filter((e) => e.status === 'ACTIVE' && eventDateKey(e.dateOff) >= today);
+    const locationId = this.selectedLocationId();
+    const list = (this.showInactiveEvents() ? this.events() : this.events().filter((e) => e.status === 'ACTIVE' && eventDateKey(e.dateOff) >= today)).filter(
+      (e) => locationId == null || e.locationId === locationId,
+    );
     // Si el evento ya seleccionado (ej. vino por ?eventId=X, o es "el de hoy") quedó afuera del
     // filtro, se lo agrega igual — si no, el <select> se queda sin ninguna opción resaltada y el
     // nombre del evento elegido desaparece de la vista aunque los datos filtrados abajo sigan
@@ -281,6 +291,7 @@ export class QrsComponent implements OnInit, AfterViewInit, OnDestroy {
     // El botón "Sale" de la tarjeta de un evento (events.component) trae acá con ?eventId=X — ese
     // evento puntual tiene prioridad sobre el default de "el que está corriendo hoy".
     const eventIdParam = Number(this.route.snapshot.queryParamMap.get('eventId'));
+    this.locationsService.getLocations().subscribe((locations) => this.locations.set(locations));
     this.eventsService.getEvents().subscribe((events) => {
       this.events.set(events);
       if (eventIdParam && events.some((e) => e.id === eventIdParam)) {

@@ -37,6 +37,9 @@ const userInputSchema = z.object({
 	// Opcional incluso para SCANNER — fija al operador a UNA puerta del evento asignado (kiosco
 	// fijo) en vez de dejarlo elegir. Ver validateAccessPointId.
 	accessPointId: z.number().int().nullable().optional(),
+	// Restringe a este usuario a UNA sede (ver Location) — a diferencia de scannerEventId/
+	// accessPointId, disponible para CUALQUIER userType, no solo SCANNER. Ver validateLocationId.
+	locationId: z.number().int().nullable().optional(),
 });
 
 // Devuelve el error a mostrar, o null si está todo bien. effectiveUserType es el tipo que el
@@ -68,6 +71,15 @@ async function validateAccessPointId(
 	return { accessPointId };
 }
 
+// Más simple que validateScannerEventId: sin rama condicional por rol, cualquier tipo de usuario
+// puede quedar restringido a una sede. undefined/null = sin restricción (comportamiento de siempre).
+async function validateLocationId(tenantId: number, locationId: number | null | undefined): Promise<{ error: string } | { locationId: number | null }> {
+	if (locationId == null) return { locationId: null };
+	const location = await prisma.location.findFirst({ where: { id: locationId, tenantId }, select: { id: true } });
+	if (!location) return { error: 'La sede asignada no existe en esta organización.' };
+	return { locationId };
+}
+
 usersRouter.get('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	const tenantId = req.user!.tenantId!;
 	const users = await prisma.user.findMany({ where: { tenantId }, include: { type: true }, orderBy: { id: 'asc' } });
@@ -93,7 +105,7 @@ usersRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
 	}
 
 	const tenantId = req.user!.tenantId!;
-	const { userType, password, scannerEventId, accessPointId, ...data } = parsed.data;
+	const { userType, password, scannerEventId, accessPointId, locationId, ...data } = parsed.data;
 	const type = await prisma.userType.findFirst({ where: { type: userType } });
 	if (!type) {
 		res.status(400).json({ error: `Tipo de usuario desconocido: ${userType}` });
@@ -109,11 +121,24 @@ usersRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res) => {
 		res.status(400).json({ error: accessPointResult.error });
 		return;
 	}
+	const locationResult = await validateLocationId(tenantId, locationId);
+	if ('error' in locationResult) {
+		res.status(400).json({ error: locationResult.error });
+		return;
+	}
 
 	try {
 		const hashed = await bcrypt.hash(password, 10);
 		const user = await prisma.user.create({
-			data: { ...data, password: hashed, typeId: type.id, tenantId, scannerEventId: scannerResult.scannerEventId, accessPointId: accessPointResult.accessPointId },
+			data: {
+				...data,
+				password: hashed,
+				typeId: type.id,
+				tenantId,
+				scannerEventId: scannerResult.scannerEventId,
+				accessPointId: accessPointResult.accessPointId,
+				locationId: locationResult.locationId,
+			},
 			include: { type: true },
 		});
 		await logAudit({ tenantId, userId: req.user!.userId, action: 'CREATE', entity: 'User', entityId: user.id, summary: `Creó el usuario "${user.username}"` });
@@ -142,7 +167,7 @@ usersRouter.put('/:id', asyncHandler(async (req: AuthenticatedRequest, res) => {
 		return;
 	}
 
-	const { userType, password, scannerEventId, accessPointId, ...data } = parsed.data;
+	const { userType, password, scannerEventId, accessPointId, locationId, ...data } = parsed.data;
 	const typeId = userType ? (await prisma.userType.findFirst({ where: { type: userType } }))?.id : undefined;
 	// Un PUT parcial puede no tocar userType (ej. solo cambia el nombre) — el tipo "efectivo" para
 	// decidir si scannerEventId aplica es el que va a quedar DESPUÉS de este request: el nuevo si
@@ -158,6 +183,11 @@ usersRouter.put('/:id', asyncHandler(async (req: AuthenticatedRequest, res) => {
 		res.status(400).json({ error: accessPointResult.error });
 		return;
 	}
+	const locationResult = await validateLocationId(tenantId, locationId ?? existing.locationId);
+	if ('error' in locationResult) {
+		res.status(400).json({ error: locationResult.error });
+		return;
+	}
 
 	try {
 		// `tenantId` en el where (además del `findFirst` de arriba) — User no está en tenant-guard
@@ -171,6 +201,7 @@ usersRouter.put('/:id', asyncHandler(async (req: AuthenticatedRequest, res) => {
 				...(typeId ? { typeId } : {}),
 				scannerEventId: scannerResult.scannerEventId,
 				accessPointId: accessPointResult.accessPointId,
+				locationId: locationResult.locationId,
 			},
 			include: { type: true },
 		});
