@@ -95,6 +95,24 @@ export class QrsComponent implements OnInit, AfterViewInit, OnDestroy {
   selectedEventId = signal<number | null>(null);
   searchText = signal<string>('');
 
+  // Oculta por defecto cancelados/pospuestos del selector de Evento — el tenant puede acumular
+  // decenas de eventos viejos y verlos todos mezclados con el de hoy hace difícil encontrar el
+  // que importa (el staff prende el toggle a mano si de verdad necesita filtrar por uno viejo).
+  showInactiveEvents = signal(false);
+  visibleEvents = computed(() => {
+    const list = this.showInactiveEvents() ? this.events() : this.events().filter((e) => e.status === 'ACTIVE');
+    // Si el evento ya seleccionado (ej. vino por ?eventId=X, o es "el de hoy") quedó afuera del
+    // filtro, se lo agrega igual — si no, el <select> se queda sin ninguna opción resaltada y el
+    // nombre del evento elegido desaparece de la vista aunque los datos filtrados abajo sigan
+    // siendo los correctos.
+    const selectedId = this.selectedEventId();
+    if (selectedId && !list.some((e) => e.id === selectedId)) {
+      const selected = this.events().find((e) => e.id === selectedId);
+      if (selected) return [selected, ...list];
+    }
+    return list;
+  });
+
   // Distinto de null solo cuando la vista "todos los eventos" viene truncada (ver
   // ALL_EVENTS_LIST_LIMIT en sale-tickets.ts/sale-products.ts) — filtrar por un evento puntual
   // siempre trae el total real, así que esto vuelve a null apenas se elige un evento.
@@ -152,7 +170,7 @@ export class QrsComponent implements OnInit, AfterViewInit, OnDestroy {
     carnet: true,
     client: true,
     time: false,
-    event: true,
+    event: false,
     seat: true,
     price: true,
     status: true,

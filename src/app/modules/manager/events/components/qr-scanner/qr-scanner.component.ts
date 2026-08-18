@@ -1,5 +1,6 @@
 import { AfterViewInit, ChangeDetectionStrategy, Component, computed, inject, OnDestroy, OnInit, signal } from '@angular/core';
 import { FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
 import { DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Html5Qrcode } from 'html5-qrcode';
@@ -37,6 +38,7 @@ export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
 	private readonly scanService = inject(ScanService);
 	private readonly authService = inject(AuthService);
 	private readonly accessPointsService = inject(AccessPointsService);
+	private readonly route = inject(ActivatedRoute);
 	readonly connectivity = inject(ConnectivityService);
 	readonly offlineQueue = inject(OfflineScanQueueService);
 	isChurchTenant = computed(() => this.authService.currentUser()?.tenant?.type === 'CHURCH');
@@ -69,13 +71,34 @@ export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
 	ngOnInit(): void {
 		// Un usuario tipo Escáner tiene un solo evento asignado (User.scannerEventId) — mostrarle
 		// puertas de otros eventos no tiene sentido y confunde en el momento de elegir. El resto de
-		// los usuarios (Admin/Usuario) no tienen un evento único al que acotarse acá, así que siguen
-		// viendo todas las puertas del tenant.
+		// los usuarios (Admin/Usuario) no tienen un evento único al que acotarse por rol, pero el
+		// botón "Escáner QR" de la pantalla de QRs (ver qrs.component.html) manda el evento que
+		// tenían filtrado ahí como ?eventId=X — se usa lo mismo para acotar acá y evitar que quede
+		// precargada (por el localStorage de la puerta anterior, ver GATE_SELECTION_KEY) una puerta
+		// de OTRO evento, algo que podría pasar desapercibido para quien está escaneando.
 		const scannerEventId = this.authService.currentUser()?.scannerEventId;
-		const accessPoints$ = scannerEventId ? this.accessPointsService.getByEvent(scannerEventId) : this.accessPointsService.getAll();
+		const eventIdParam = Number(this.route.snapshot.queryParamMap.get('eventId')) || null;
+		const scopedEventId = scannerEventId ?? eventIdParam;
+		const accessPoints$ = scopedEventId ? this.accessPointsService.getByEvent(scopedEventId) : this.accessPointsService.getAll();
 		accessPoints$.subscribe((accessPoints) => {
 			this.accessPoints.set(accessPoints);
-			if (this.lockedAccessPointId() != null) this.selectedAccessPointId.set(this.lockedAccessPointId());
+			if (this.lockedAccessPointId() != null) {
+				this.selectedAccessPointId.set(this.lockedAccessPointId());
+				return;
+			}
+			if (eventIdParam) {
+				const currentId = this.selectedAccessPointId();
+				if (currentId != null && !accessPoints.some((ap) => ap.id === currentId)) {
+					// La puerta recordada en este dispositivo no pertenece al evento que se está por
+					// escanear — mejor forzar una elección explícita que arriesgar que quede
+					// seleccionada la de otro evento sin que nadie lo note.
+					this.onGateChange('');
+				}
+				// Con una sola puerta para el evento no tiene sentido obligar a elegirla a mano.
+				if (this.selectedAccessPointId() == null && accessPoints.length === 1) {
+					this.onGateChange(String(accessPoints[0].id));
+				}
+			}
 		});
 	}
 
