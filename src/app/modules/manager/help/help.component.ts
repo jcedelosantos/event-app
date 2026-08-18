@@ -26,9 +26,10 @@ const FAQ: FaqItem[] = [
 	},
 	{
 		question: '¿Cómo escaneo los tickets en la puerta el día del evento?',
-		answerHtml: `Desde <strong>QRs → Scanner</strong> (o el ícono de escáner en el evento). Cada ticket es válido una sola vez — si alguien intenta
-			entrar dos veces con el mismo código, el sistema lo marca como ya usado. Si tienes varias puertas configuradas, eliges por cuál estás
-			escaneando para que las estadísticas de tráfico por puerta salgan correctas.`,
+		answerHtml: `Desde <strong>QRs → Scanner</strong> (o el ícono de escáner en el evento) — si entras con el evento ya seleccionado en QRs, la puerta
+			asignada a ese evento se precarga sola, para evitar escanear por error con la puerta de otro evento. Cada ticket es válido una sola vez — si
+			alguien intenta entrar dos veces con el mismo código, el sistema lo marca como ya usado. Si tienes varias puertas configuradas, eliges por
+			cuál estás escaneando para que las estadísticas de tráfico por puerta salgan correctas.`,
 	},
 	{
 		question: '¿Qué pasa si no tengo internet el día del evento?',
