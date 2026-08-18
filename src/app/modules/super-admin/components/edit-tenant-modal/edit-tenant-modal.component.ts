@@ -57,6 +57,15 @@ import { closeModal } from '../../../../utils/modal';
 								<label for="editOrgAddress">Dirección</label>
 								<input type="text" class="form-control" id="editOrgAddress" formControlName="address" />
 							</div>
+							<hr />
+							<div class="mb-3">
+								<label for="editOrgCustomDomain">Dominio propio <span class="text-muted">(opcional — Enterprise)</span></label>
+								<input type="text" class="form-control" id="editOrgCustomDomain" placeholder="ej. entradas.suclub.com" formControlName="customDomain" />
+								<div class="form-text">
+									El cliente apunta este dominio por CNAME al servicio de Railway. Una vez que el DNS propague, su portal público carga
+									directo en ese dominio (sin integ.cedanet.net en la URL).
+								</div>
+							</div>
 							@if (errorMessage) {
 								<div class="text-danger">{{ errorMessage }}</div>
 							}
@@ -101,6 +110,7 @@ export class EditTenantModalComponent {
 		rnc: new FormControl<string>('', { nonNullable: true }),
 		phone: new FormControl<string>('', { nonNullable: true }),
 		address: new FormControl<string>('', { nonNullable: true }),
+		customDomain: new FormControl<string>('', { nonNullable: true }),
 	});
 
 	constructor() {
@@ -113,6 +123,7 @@ export class EditTenantModalComponent {
 				rnc: t?.rnc ?? '',
 				phone: t?.phone ?? '',
 				address: t?.address ?? '',
+				customDomain: t?.customDomain ?? '',
 			});
 		});
 	}
@@ -135,7 +146,16 @@ export class EditTenantModalComponent {
 		const value = this.form.getRawValue();
 		confirm('¿Guardar los cambios de esta organización?', {
 			onConfirm: () =>
-				this.tenantService.updateTenant(current.id, { name: value.name!, type: value.type, rnc: value.rnc, address: value.address, phone: value.phone }).subscribe({
+				this.tenantService
+					.updateTenant(current.id, {
+						name: value.name!,
+						type: value.type,
+						rnc: value.rnc,
+						address: value.address,
+						phone: value.phone,
+						customDomain: value.customDomain?.trim() || null,
+					})
+					.subscribe({
 					next: () => {
 						this.tenantUpdated.emit();
 						closeModal('editTenantModal');

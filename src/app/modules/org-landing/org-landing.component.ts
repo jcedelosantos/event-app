@@ -396,7 +396,11 @@ export class OrgLandingComponent implements OnInit {
 	}
 
 	ngOnInit(): void {
-		const slug = this.route.snapshot.paramMap.get('slug');
+		// En un dominio propio de un tenant Enterprise (ver Tenant.customDomain, api/src/app.ts) esta
+		// pantalla se renderiza en la ruta raíz ('/'), sin :slug en la URL — el backend ya inyectó el
+		// slug en window al servir index.html. Fuera de ese caso (integ.cedanet.net/o/:slug, el de
+		// siempre), route.data no trae nada y se usa el param normal.
+		const slug = (this.route.snapshot.data['customDomainSlug'] as string | undefined) ?? this.route.snapshot.paramMap.get('slug');
 		if (!slug) {
 			this.step.set('not-found');
 			return;

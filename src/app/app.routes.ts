@@ -45,11 +45,29 @@ export const routes: Routes = [
 		path: 'encuesta/:code',
 		loadComponent: () => import('./modules/survey/survey-redirect.component').then((m) => m.SurveyRedirectComponent),
 	},
-	{
-		path: '',
-		redirectTo: 'site-web',
-		pathMatch: 'full',
-	},
+	// Dominio propio de un tenant Enterprise (ver Tenant.customDomain, api/src/app.ts) — el backend
+	// ya inyectó window.__CUSTOM_DOMAIN_TENANT_SLUG__ en index.html antes de que este archivo se
+	// evalúe (el script queda en <head>, antes del bundle de Angular), así que leerlo acá alcanza:
+	// la raíz del dominio del cliente renderiza directo su portal público (OrgLandingComponent),
+	// SIN redirigir a /o/:slug — la URL en la barra del navegador nunca cambia. Cualquier otro
+	// dominio (integ.cedanet.net, localhost) no tiene esta variable seteada y cae al comportamiento
+	// de siempre.
+	...(typeof window !== 'undefined' && (window as unknown as { __CUSTOM_DOMAIN_TENANT_SLUG__?: string }).__CUSTOM_DOMAIN_TENANT_SLUG__
+		? [
+				{
+					path: '',
+					pathMatch: 'full' as const,
+					loadComponent: () => import('./modules/org-landing/org-landing.component').then((m) => m.OrgLandingComponent),
+					data: { customDomainSlug: (window as unknown as { __CUSTOM_DOMAIN_TENANT_SLUG__?: string }).__CUSTOM_DOMAIN_TENANT_SLUG__ },
+				},
+			]
+		: [
+				{
+					path: '',
+					redirectTo: 'site-web',
+					pathMatch: 'full' as const,
+				},
+			]),
 	{
 		path: '**',
 		loadComponent: () => import('./modules/page-not-found/page-not-found.component').then((m) => m.PageNotFoundComponent),

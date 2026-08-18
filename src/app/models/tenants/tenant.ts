@@ -25,5 +25,8 @@ export interface Tenant {
 	rnc: string | null;
 	address: string | null;
 	phone: string | null;
+	// Dominio propio (ver Tenant.customDomain en la API) — null = sin dominio propio, portal público
+	// solo accesible en integ.cedanet.net/o/:slug.
+	customDomain: string | null;
 	_count?: { users: number; events: number };
 }

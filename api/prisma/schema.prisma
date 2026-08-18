@@ -12,21 +12,28 @@ datasource db {
 // clientes comparten la misma base sin poder ver ni interferir con los datos del otro. La única
 // cuenta sin tenant es el Super Admin (ver User.tenantId), que da de alta nuevos tenants.
 model Tenant {
-  id        Int      @id @default(autoincrement())
-  name      String
-  slug      String   @unique
-  active    Boolean  @default(true)
+  id           Int      @id @default(autoincrement())
+  name         String
+  slug         String   @unique
+  active       Boolean  @default(true)
   // URL del logo de la organización (mismo mecanismo que las imágenes de evento, ver
   // lib/uploads.ts) — se muestra en pantallas públicas de marca propia (ej. sala de espera
   // virtual, ver lib/waiting-room.ts). null = sin logo cargado, cae a un ícono genérico.
-  logoUrl   String?
+  logoUrl      String?
+  // Dominio propio del cliente (ej. entradas.suclub.com) apuntado por CNAME al mismo servicio de
+  // Railway — ver api/src/app.ts, que resuelve el Host header de cada request contra este campo
+  // para inyectar el slug del tenant en index.html y así el portal público carga en la raíz ("/")
+  // del dominio del cliente, sin redirigir a integ.cedanet.net/o/:slug (blanqueo real, la URL nunca
+  // muestra la marca de la plataforma). Solo Enterprise (PRO_MAX) — ver plan.multiLocation para el
+  // mismo criterio de gating. null = sin dominio propio, comportamiento de siempre.
+  customDomain String?  @unique
   // GENERAL | CLUB | CHURCH | ONG | PRIVADA | PUBLICA | INDEPENDIENTE — condiciona reglas de
   // negocio propias de cada tipo de organización. Por ahora solo CLUB tiene una: exigir carnet de
   // socio o del socio que invita al reservar un asiento (ver SaleTicket.attendeeType/sponsorCarnet
   // y la validación en sale-tickets.ts/public.ts). Los 4 tipos nuevos no tienen reglas propias
   // todavía — caen al comportamiento general, igual que cualquier tipo distinto de CLUB/CHURCH.
-  type      String   @default("GENERAL")
-  createdAt DateTime @default(now())
+  type         String   @default("GENERAL")
+  createdAt    DateTime @default(now())
 
   // Datos fiscales/de contacto del cliente para el bloque "Para" de la factura (ver
   // lib/invoice-pdf.ts) — opcionales porque no todo tenant existente los tiene cargados todavía.

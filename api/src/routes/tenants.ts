@@ -105,6 +105,9 @@ const updateTenantSchema = z.object({
 	rnc: z.string().max(50).optional(),
 	address: z.string().max(300).optional(),
 	phone: z.string().max(50).optional(),
+	// Dominio propio (ver Tenant.customDomain, api/src/app.ts) — null/"" = sin dominio propio, cae
+	// al comportamiento de siempre (portal en integ.cedanet.net/o/:slug).
+	customDomain: z.string().max(255).nullable().optional(),
 });
 
 tenantsRouter.put('/:id', asyncHandler(async (req, res) => {
@@ -115,12 +118,24 @@ tenantsRouter.put('/:id', asyncHandler(async (req, res) => {
 		return;
 	}
 
+	const { customDomain, ...data } = parsed.data;
 	try {
-		const tenant = await prismaUnscoped.tenant.update({ where: { id }, data: parsed.data });
+		const tenant = await prismaUnscoped.tenant.update({
+			where: { id },
+			// Normalizado a minúsculas — el matching en app.ts compara contra req.hostname, que Express
+			// ya normaliza a minúsculas, así que sin esto un dominio guardado con mayúsculas nunca
+			// matchearía. "" se guarda como null (mismo criterio que otros campos opcionales de este
+			// modelo) para no dejar un dominio vacío "activo" por accidente.
+			data: { ...data, ...(customDomain !== undefined ? { customDomain: customDomain?.trim().toLowerCase() || null } : {}) },
+		});
 		res.json(tenant);
 	} catch (err: any) {
 		if (err.code === 'P2025') {
 			res.status(404).json({ error: 'Organización no encontrada' });
+			return;
+		}
+		if (err.code === 'P2002') {
+			res.status(400).json({ error: 'Ese dominio ya está en uso por otra organización.' });
 			return;
 		}
 		throw err;

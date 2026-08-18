@@ -1,7 +1,10 @@
 import 'dotenv/config';
 import path from 'node:path';
+import { readFileSync } from 'node:fs';
 import express from 'express';
 import cors from 'cors';
+import { prismaUnscoped } from './lib/prisma';
+import { asyncHandler } from './lib/async-handler';
 import { authRouter } from './routes/auth';
 import { usersRouter } from './routes/users';
 import { eventsRouter } from './routes/events';
@@ -93,16 +96,46 @@ app.use('/event-transactions', eventTransactionsRouter);
 // sin CORS, sin necesidad de un dominio aparte para el frontend). En dev, el frontend corre
 // aparte con `ng serve` y esta carpeta no existe, así que no interfiere.
 const frontendDist = path.join(__dirname, '../../dist/seat-app/browser');
+const indexHtmlPath = path.join(frontendDist, 'index.html');
+// Se lee una sola vez al arrancar (no en cada request) — mismo criterio que servir el resto del
+// build como estático, la única diferencia acá es que a ESTE archivo puntual a veces hay que
+// inyectarle una línea antes de mandarlo (ver más abajo).
+let indexHtmlTemplate: string | null = null;
+try {
+	indexHtmlTemplate = readFileSync(indexHtmlPath, 'utf-8');
+} catch {
+	// dev local sin build de Angular todavía generado — el catch-all de abajo cae a sendFile, que
+	// falla con next() igual que siempre si el archivo no existe.
+}
+
 app.use(express.static(frontendDist));
-app.get('*', (req, res, next) => {
+app.get('*', asyncHandler(async (req, res, next) => {
 	if (req.method !== 'GET' || req.path.startsWith('/uploads')) {
 		next();
 		return;
 	}
-	res.sendFile(path.join(frontendDist, 'index.html'), (err) => {
+
+	// Dominio propio de un tenant Enterprise (ver Tenant.customDomain) — si el Host de este request
+	// coincide, se inyecta el slug en window antes de mandar el index.html, para que Angular
+	// (ver app.routes.ts, ruta '') renderice el portal público de ESE tenant en la raíz del dominio
+	// del cliente, sin que la URL cambie a integ.cedanet.net/o/:slug. Sin match (el caso normal,
+	// siempre para integ.cedanet.net) esto es un no-op: cae exactamente al sendFile de siempre.
+	if (indexHtmlTemplate) {
+		const host = (req.hostname || '').toLowerCase();
+		if (host) {
+			const tenant = await prismaUnscoped.tenant.findUnique({ where: { customDomain: host }, select: { slug: true } });
+			if (tenant) {
+				const html = indexHtmlTemplate.replace('</head>', `<script>window.__CUSTOM_DOMAIN_TENANT_SLUG__=${JSON.stringify(tenant.slug)};</script></head>`);
+				res.type('html').send(html);
+				return;
+			}
+		}
+	}
+
+	res.sendFile(indexHtmlPath, (err) => {
 		if (err) next();
 	});
-});
+}));
 
 app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
 	console.error(err);
