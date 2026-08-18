@@ -255,6 +255,12 @@ signupEventRouter.post(
 		}
 
 		await prismaUnscoped.tenant.update({ where: { id: tenantId }, data: { paymentReceiptUrl: receiptUrl, planStatus: 'PENDING_REVIEW' } });
+		// Histórico aditivo (ver modelo PaymentReceipt) — Tenant.paymentReceiptUrl arriba sigue siendo
+		// la fuente de verdad para el gate de planStatus, esto es solo para poder ver después qué se
+		// revisó, cuándo y con qué resultado (se pisa/pierde en Tenant si llega un submit nuevo).
+		await prismaUnscoped.paymentReceipt.create({
+			data: { tenantId, url: receiptUrl, planCode: tenant.plan, amountCents: EVENT_PLANS[tenant.plan].priceCents },
+		});
 
 		sendBankTransferReceiptNotification({
 			tenantName: tenant.name,
@@ -279,6 +285,23 @@ signupEventRouter.get(
 			orderBy: { createdAt: 'desc' },
 		});
 		res.json(tenants);
+	}),
+);
+
+// Histórico completo de comprobantes (pendientes + ya revisados) — a diferencia de GET
+// /signup-event/admin de arriba (que sigue alimentando el modal de revisión tal cual, solo
+// pendientes), este endpoint es de solo lectura para la sección "Comprobantes recibidos" del
+// panel de Super Admin (ver modelo PaymentReceipt).
+signupEventRouter.get(
+	'/signup-event/admin/receipts',
+	requireAuth,
+	requireSuperAdmin,
+	asyncHandler(async (_req, res) => {
+		const receipts = await prismaUnscoped.paymentReceipt.findMany({
+			include: { tenant: { select: { id: true, name: true } } },
+			orderBy: { submittedAt: 'desc' },
+		});
+		res.json(receipts);
 	}),
 );
 
@@ -314,6 +337,14 @@ signupEventRouter.put(
 			if (isRecurring) {
 				await tx.subscription.update({ where: { tenantId }, data: { status: nextStatus } });
 			}
+			// Marca el comprobante PENDING de este tenant como resuelto (ver modelo PaymentReceipt) —
+			// updateMany porque este endpoint solo recibe tenantId, no el id del comprobante, pero el
+			// guard de arriba (planStatus !== 'PENDING_REVIEW') ya garantiza que hay como mucho uno
+			// PENDING a la vez por tenant.
+			await tx.paymentReceipt.updateMany({
+				where: { tenantId, status: 'PENDING' },
+				data: { status: nextStatus === 'ACTIVE' ? 'APPROVED' : 'REJECTED', reviewedAt: new Date() },
+			});
 			return tx.tenant.update({ where: { id: tenantId }, data: { planStatus: nextStatus } });
 		});
 

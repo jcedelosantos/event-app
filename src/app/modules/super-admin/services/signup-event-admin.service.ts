@@ -2,6 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../../environments/environment';
+import { PaymentReceipt } from '../../../models/payment-receipts/payment-receipt';
 
 export type PendingReceiptTenant = {
 	id: number;
@@ -21,6 +22,12 @@ export class SignupEventAdminService {
 
 	getAll(): Observable<PendingReceiptTenant[]> {
 		return this.httpClient.get<PendingReceiptTenant[]>(`${this.baseUrl}/admin`);
+	}
+
+	// Histórico completo (pendientes + revisados) — a diferencia de getAll() de arriba, que sigue
+	// alimentando el modal de revisión tal cual (solo pendientes).
+	getAllReceipts(): Observable<PaymentReceipt[]> {
+		return this.httpClient.get<PaymentReceipt[]>(`${this.baseUrl}/admin/receipts`);
 	}
 
 	review(tenantId: number, approve: boolean): Observable<{ tenantId: number; planStatus: string }> {

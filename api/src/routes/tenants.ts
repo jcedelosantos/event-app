@@ -224,6 +224,18 @@ tenantsRouter.get('/:id/invoices', asyncHandler(async (req, res) => {
 	res.json(invoices);
 }));
 
+// Historial de TODAS las facturas de TODOS los tenants — de solo lectura, para la sección
+// "Facturas emitidas" del panel de Super Admin (ver GET /:id/invoices arriba, que es lo mismo
+// pero acotado a un tenant). Sin filtrar status: incluye FAILED a propósito, es señal de que algo
+// salió mal al emitir (ver lib/invoice-generation.ts).
+tenantsRouter.get('/invoices', asyncHandler(async (_req, res) => {
+	const invoices = await prisma.invoice.findMany({
+		include: { tenant: { select: { id: true, name: true } } },
+		orderBy: { createdAt: 'desc' },
+	});
+	res.json(invoices);
+}));
+
 const cancelSubscriptionSchema = z.object({ reason: z.string().min(1).optional().default('Cancelado por la agencia') });
 
 // Cancela contra PayPal — el status local se actualiza recién cuando llegue el webhook

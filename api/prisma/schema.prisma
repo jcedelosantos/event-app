@@ -81,6 +81,7 @@ model Tenant {
   scanConflicts ScanConflict[]
   serviceRequests ServiceRequest[]
   invoices      Invoice[]
+  paymentReceipts PaymentReceipt[]
   eventTransactions EventTransaction[]
 }
 
@@ -157,6 +158,31 @@ model Invoice {
   // MANUAL (Super Admin la generó a mano) | AUTO (cron mensual, ver lib/invoice-cron.ts)
   generatedBy   String
   createdAt     DateTime @default(now())
+
+  @@index([tenantId])
+}
+
+// Histórico de comprobantes de transferencia bancaria (ver routes/signup-event.ts y routes/
+// signup.ts, POST .../submit-receipt) — puramente aditivo junto a Tenant.paymentReceiptUrl (que
+// sigue siendo la fuente de verdad para el gate de planStatus === PENDING_REVIEW, sin cambios):
+// antes de este modelo, apenas se aprobaba/rechazaba un comprobante no quedaba ningún registro de
+// qué se revisó, cuándo, ni con qué resultado — el campo en Tenant se pisa en el próximo submit.
+model PaymentReceipt {
+  id       Int    @id @default(autoincrement())
+  tenantId Int
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+
+  url      String
+  planCode String
+  // Centavos enteros (ver lib/money.ts) — snapshot del precio del plan al momento del submit,
+  // mismo criterio que ServiceRequestItem.unitPriceDOPSnapshot (no un join al catálogo de planes,
+  // que puede cambiar de precio más adelante).
+  amountCents Int
+
+  status      String    @default("PENDING") // PENDING | APPROVED | REJECTED
+  submittedAt DateTime  @default(now())
+  reviewedAt  DateTime?
+  reviewNote  String?
 
   @@index([tenantId])
 }

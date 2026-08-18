@@ -15,6 +15,8 @@ import { AccountModalComponent } from '../../shared/account-modal/account-modal.
 import { Tenant, TENANT_TYPE_LABELS } from '../../models/tenants/tenant';
 import { ServiceRequest, ServiceRequestStatus } from '../../models/service-requests/service-request';
 import { EnterpriseLead } from '../../models/enterprise-leads/enterprise-lead';
+import { Invoice } from '../../models/invoices/invoice';
+import { PaymentReceipt } from '../../models/payment-receipts/payment-receipt';
 import { EVENT_PLANS } from '../../shared/event-plans';
 import { PRICING_PLANS } from '../../shared/pricing-plans';
 import { AuthService } from '../../core/services/auth.service';
@@ -74,7 +76,7 @@ const REQUEST_STATUS_LABEL: Record<ServiceRequestStatus, string> = {
 						data-bs-target="#invoiceSettingsModal"
 						(click)="invoiceSettingsModal.onOpen()"
 					>
-						<i class="bi bi-receipt"></i> Facturación
+						<i class="bi bi-receipt"></i> Config. facturación
 					</button>
 					<button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#accountModal">
 						<i class="bi bi-person-circle"></i> Mi cuenta
@@ -170,74 +172,6 @@ const REQUEST_STATUS_LABEL: Record<ServiceRequestStatus, string> = {
 			</table>
 			</div>
 
-			<div id="serviceRequestsSection" class="d-flex justify-content-between align-items-center mb-3 mt-5">
-				<div>
-					<h2 class="section-title mb-0">
-						Solicitudes de servicios adicionales
-						@if (pendingServiceRequestsCount() > 0) {
-							<span class="badge text-bg-warning ms-2">{{ pendingServiceRequestsCount() }} sin revisar</span>
-						}
-					</h2>
-					<p class="text-muted small mb-0">Renta de equipos, personal presencial y demás — cotizar/coordinar y marcar el estado acá.</p>
-				</div>
-			</div>
-			<div class="table-responsive">
-			<table class="table table-hover align-middle">
-				<thead>
-					<tr>
-						<th scope="col">Organización</th>
-						<th scope="col">Evento</th>
-						<th scope="col">Servicios</th>
-						<th scope="col" class="text-end">Total estimado</th>
-						<th scope="col">Fecha</th>
-						<th scope="col">Estado</th>
-						<th scope="col"></th>
-					</tr>
-				</thead>
-				<tbody>
-					@for (r of serviceRequests(); track r.id) {
-						<tr>
-							<td>{{ r.tenant?.name }}</td>
-							<td class="text-muted">{{ r.event?.name ?? '—' }}</td>
-							<td>
-								@for (item of r.items; track item.id) {
-									<div class="small">{{ item.nameSnapshot }} × {{ item.quantity }}</div>
-								}
-							</td>
-							<td class="text-end">$ {{ r.totalDOP | number }}</td>
-							<td class="text-muted">{{ r.createdAt | date: 'short' }}</td>
-							<td>
-								<span
-									class="badge"
-									[class.text-bg-secondary]="r.status === 'PENDING'"
-									[class.text-bg-info]="r.status === 'QUOTED'"
-									[class.text-bg-success]="r.status === 'FULFILLED'"
-									[class.text-bg-danger]="r.status === 'REJECTED'"
-								>
-									{{ statusLabel(r.status) }}
-								</span>
-							</td>
-							<td class="text-end">
-								<button
-									type="button"
-									class="btn btn-sm btn-outline-light"
-									data-bs-toggle="modal"
-									data-bs-target="#serviceRequestsAdminModal"
-									(click)="selectedServiceRequest.set(r)"
-								>
-									<i class="bi bi-pencil"></i> Gestionar
-								</button>
-							</td>
-						</tr>
-					} @empty {
-						<tr>
-							<td colspan="7" class="text-center text-muted py-4">Todavía no hay solicitudes de servicios.</td>
-						</tr>
-					}
-				</tbody>
-			</table>
-			</div>
-
 			<div id="enterpriseLeadsSection" class="d-flex justify-content-between align-items-center mb-3 mt-5">
 				<div>
 					<h2 class="section-title mb-0">
@@ -294,14 +228,70 @@ const REQUEST_STATUS_LABEL: Record<ServiceRequestStatus, string> = {
 			</table>
 			</div>
 
-			<div id="pendingReceiptsSection" class="d-flex justify-content-between align-items-center mb-3 mt-5">
+			<h2 class="section-title mb-0 mt-5" style="color: #e2e8f0;">Facturación</h2>
+			<p class="text-muted small mb-4">Facturas que INTEG le emite a cada organización, comprobantes de pago que mandan, y cotizaciones de servicios adicionales.</p>
+
+			<div class="d-flex justify-content-between align-items-center mb-3">
+				<h5 class="mb-0">Facturas emitidas</h5>
+			</div>
+			<div class="table-responsive">
+			<table class="table table-hover align-middle">
+				<thead>
+					<tr>
+						<th scope="col">Organización</th>
+						<th scope="col">Período</th>
+						<th scope="col">N° factura</th>
+						<th scope="col">NCF</th>
+						<th scope="col" class="text-end">Total</th>
+						<th scope="col">Fecha</th>
+						<th scope="col">Estado</th>
+						<th scope="col"></th>
+					</tr>
+				</thead>
+				<tbody>
+					@for (inv of invoices(); track inv.id) {
+						<tr>
+							<td>{{ inv.tenant?.name }}</td>
+							<td class="text-muted">{{ inv.billingPeriod }}</td>
+							<td class="text-muted">{{ inv.invoiceNumber }}</td>
+							<td class="text-muted">{{ inv.ncf ?? '—' }}</td>
+							<td class="text-end">USD {{ centsToDollars(inv.totalCents) | number: '1.2-2' }}</td>
+							<td class="text-muted">{{ inv.createdAt | date: 'short' }}</td>
+							<td>
+								<span
+									class="badge"
+									[class.text-bg-success]="inv.status === 'GENERATED'"
+									[class.text-bg-secondary]="inv.status === 'PENDING'"
+									[class.text-bg-danger]="inv.status === 'FAILED'"
+								>
+									{{ inv.status }}
+								</span>
+							</td>
+							<td class="text-end">
+								@if (inv.pdfUrl) {
+									<a class="btn btn-sm btn-outline-light" [href]="inv.pdfUrl" target="_blank" rel="noopener">
+										<i class="bi bi-download"></i> Descargar
+									</a>
+								}
+							</td>
+						</tr>
+					} @empty {
+						<tr>
+							<td colspan="8" class="text-center text-muted py-4">Todavía no hay facturas emitidas.</td>
+						</tr>
+					}
+				</tbody>
+			</table>
+			</div>
+
+			<div id="pendingReceiptsSection" class="d-flex justify-content-between align-items-center mb-3 mt-4">
 				<div>
-					<h2 class="section-title mb-0">
-						Comprobantes de transferencia pendientes
+					<h5 class="mb-0">
+						Comprobantes recibidos
 						@if (pendingReceipts().length > 0) {
 							<span class="badge text-bg-warning ms-2">{{ pendingReceipts().length }} sin revisar</span>
 						}
-					</h2>
+					</h5>
 					<p class="text-muted small mb-0">Evento único o suscripción recurrente pagados por transferencia — confirma el pago a mano para activar la cuenta.</p>
 				</div>
 			</div>
@@ -312,32 +302,119 @@ const REQUEST_STATUS_LABEL: Record<ServiceRequestStatus, string> = {
 						<th scope="col">Organización</th>
 						<th scope="col">Plan</th>
 						<th scope="col" class="text-end">Monto</th>
-						<th scope="col">Fecha</th>
+						<th scope="col">Enviado</th>
+						<th scope="col">Estado</th>
+						<th scope="col">Revisado</th>
 						<th scope="col"></th>
 					</tr>
 				</thead>
 				<tbody>
-					@for (t of pendingReceipts(); track t.id) {
+					@for (r of receipts(); track r.id) {
 						<tr>
-							<td>{{ t.name }}</td>
-							<td class="text-muted">{{ tierName(t.plan) }}</td>
-							<td class="text-end">USD {{ tierPrice(t.plan) }}</td>
-							<td class="text-muted">{{ t.createdAt | date: 'short' }}</td>
+							<td>{{ r.tenant.name }}</td>
+							<td class="text-muted">{{ tierName(r.planCode) }}</td>
+							<td class="text-end">USD {{ centsToDollars(r.amountCents) | number: '1.2-2' }}</td>
+							<td class="text-muted">{{ r.submittedAt | date: 'short' }}</td>
+							<td>
+								<span
+									class="badge"
+									[class.text-bg-secondary]="r.status === 'PENDING'"
+									[class.text-bg-success]="r.status === 'APPROVED'"
+									[class.text-bg-danger]="r.status === 'REJECTED'"
+								>
+									{{ r.status === 'PENDING' ? 'Pendiente' : r.status === 'APPROVED' ? 'Aprobado' : 'Rechazado' }}
+								</span>
+							</td>
+							<td class="text-muted">{{ r.reviewedAt ? (r.reviewedAt | date: 'short') : '—' }}</td>
+							<td class="text-end">
+								@if (r.status === 'PENDING') {
+									<button
+										type="button"
+										class="btn btn-sm btn-outline-light"
+										data-bs-toggle="modal"
+										data-bs-target="#bankTransferReviewModal"
+										(click)="openReceiptReview(r)"
+									>
+										<i class="bi bi-image"></i> Gestionar
+									</button>
+								} @else {
+									<a class="btn btn-sm btn-outline-light" [href]="r.url" target="_blank" rel="noopener">
+										<i class="bi bi-image"></i> Ver comprobante
+									</a>
+								}
+							</td>
+						</tr>
+					} @empty {
+						<tr>
+							<td colspan="7" class="text-center text-muted py-4">Todavía no hay comprobantes.</td>
+						</tr>
+					}
+				</tbody>
+			</table>
+			</div>
+
+			<div id="serviceRequestsSection" class="d-flex justify-content-between align-items-center mb-3 mt-4">
+				<div>
+					<h5 class="mb-0">
+						Cotizaciones de servicios adicionales
+						@if (pendingServiceRequestsCount() > 0) {
+							<span class="badge text-bg-warning ms-2">{{ pendingServiceRequestsCount() }} sin revisar</span>
+						}
+					</h5>
+					<p class="text-muted small mb-0">Renta de equipos, personal presencial y demás — cotizar/coordinar y marcar el estado acá.</p>
+				</div>
+			</div>
+			<div class="table-responsive">
+			<table class="table table-hover align-middle">
+				<thead>
+					<tr>
+						<th scope="col" style="max-width: 140px;">Organización</th>
+						<th scope="col" style="max-width: 160px;">Evento</th>
+						<th scope="col" style="min-width: 320px;">Servicios</th>
+						<th scope="col" class="text-end">Total estimado</th>
+						<th scope="col">Fecha</th>
+						<th scope="col">Estado</th>
+						<th scope="col"></th>
+					</tr>
+				</thead>
+				<tbody>
+					@for (r of serviceRequests(); track r.id) {
+						<tr>
+							<td class="text-truncate" style="max-width: 140px;" [title]="r.tenant?.name ?? ''">{{ r.tenant?.name }}</td>
+							<td class="text-muted text-truncate" style="max-width: 160px;" [title]="r.event?.name ?? ''">{{ r.event?.name ?? '—' }}</td>
+							<td>
+								@for (item of r.items; track item.id) {
+									<div class="small">{{ item.nameSnapshot }} × {{ item.quantity }}</div>
+								}
+							</td>
+							<td class="text-end">$ {{ r.totalDOP | number }}</td>
+							<td class="text-muted">{{ r.createdAt | date: 'short' }}</td>
+							<td>
+								<span
+									class="badge"
+									[class.text-bg-secondary]="r.status === 'PENDING'"
+									[class.text-bg-info]="r.status === 'QUOTED'"
+									[class.text-bg-success]="r.status === 'FULFILLED'"
+									[class.text-bg-danger]="r.status === 'REJECTED'"
+								>
+									{{ statusLabel(r.status) }}
+								</span>
+							</td>
 							<td class="text-end">
 								<button
 									type="button"
 									class="btn btn-sm btn-outline-light"
 									data-bs-toggle="modal"
-									data-bs-target="#bankTransferReviewModal"
-									(click)="selectedReceiptTenant.set(t)"
+									data-bs-target="#serviceRequestsAdminModal"
+									(click)="selectedServiceRequest.set(r)"
 								>
-									<i class="bi bi-image"></i> Ver comprobante
+									<i class="bi bi-pencil"></i> Gestionar
 								</button>
 							</td>
 						</tr>
 					} @empty {
 						<tr>
-							<td colspan="5" class="text-center text-muted py-4">Todavía no hay comprobantes pendientes.</td>
+							<td colspan="7" class="text-center text-muted py-4">Todavía no hay solicitudes de servicios.</td>
 						</tr>
 					}
 				</tbody>
@@ -349,7 +426,7 @@ const REQUEST_STATUS_LABEL: Record<ServiceRequestStatus, string> = {
 		<app-subscription-modal [(tenant)]="selectedSubscriptionTenant" (subscriptionChanged)="loadTenants()" />
 		<app-invoice-settings-modal #invoiceSettingsModal />
 		<app-service-requests-admin-modal [(request)]="selectedServiceRequest" (requestUpdated)="loadServiceRequests()" />
-		<app-bank-transfer-review-modal [(tenant)]="selectedReceiptTenant" (reviewed)="loadPendingReceipts()" />
+		<app-bank-transfer-review-modal [(tenant)]="selectedReceiptTenant" (reviewed)="onReceiptReviewed()" />
 		<app-account-modal />
 	`,
 	changeDetection: ChangeDetectionStrategy.OnPush,
@@ -364,6 +441,7 @@ export class SuperAdminComponent implements AfterViewInit {
 
 	tenants = signal<Tenant[]>([]);
 	tenantTypeLabels = TENANT_TYPE_LABELS;
+	readonly centsToDollars = centsToDollars;
 	selectedTenant = signal<Tenant | null>(null);
 	selectedSubscriptionTenant = signal<Tenant | null>(null);
 
@@ -381,6 +459,12 @@ export class SuperAdminComponent implements AfterViewInit {
 
 	pendingReceipts = signal<PendingReceiptTenant[]>([]);
 	selectedReceiptTenant = signal<PendingReceiptTenant | null>(null);
+
+	invoices = signal<Invoice[]>([]);
+	// Histórico completo (pendientes + revisados) para la tabla "Comprobantes recibidos" — distinto
+	// de pendingReceipts de arriba, que sigue siendo solo la cola de pendientes (usada para el badge
+	// del header y para disparar el modal de revisión, sin tocar esa lógica).
+	receipts = signal<PaymentReceipt[]>([]);
 
 	// Suma de las 3 colas que requieren acción del Super Admin — se usa tanto para el badge general
 	// del encabezado como, cada una por separado, para el badge de su propia sección.
@@ -431,6 +515,35 @@ export class SuperAdminComponent implements AfterViewInit {
 		this.signupEventAdminSrv.getAll().subscribe((tenants) => this.pendingReceipts.set(tenants));
 	}
 
+	loadInvoices() {
+		this.tenantService.getAllInvoices().subscribe((invoices) => this.invoices.set(invoices));
+	}
+
+	loadReceipts() {
+		this.signupEventAdminSrv.getAllReceipts().subscribe((receipts) => this.receipts.set(receipts));
+	}
+
+	// El modal de revisión (BankTransferReviewModalComponent) espera un PendingReceiptTenant — se
+	// arma acá desde la fila de PaymentReceipt (distinto shape) en vez de duplicar el modal.
+	openReceiptReview(receipt: PaymentReceipt) {
+		this.selectedReceiptTenant.set({
+			id: receipt.tenantId,
+			name: receipt.tenant.name,
+			slug: '',
+			plan: receipt.planCode,
+			paymentReceiptUrl: receipt.url,
+			createdAt: receipt.submittedAt,
+		});
+	}
+
+	// Se dispara al cerrar el modal de revisión — refresca tanto la cola de pendientes (badge del
+	// header) como el histórico completo (para que la fila recién revisada pase de Pendiente a
+	// Aprobado/Rechazado en la tabla sin necesidad de recargar la página).
+	onReceiptReviewed() {
+		this.loadPendingReceipts();
+		this.loadReceipts();
+	}
+
 	ngAfterViewInit(): void {
 		// Los modales se abren con el data-API de Bootstrap (data-bs-toggle/data-bs-target), NO con
 		// .show() programático — así el botón "Guardar" de cada modal puede cerrarlo con la misma
@@ -445,6 +558,8 @@ export class SuperAdminComponent implements AfterViewInit {
 		this.loadServiceRequests();
 		this.loadEnterpriseLeads();
 		this.loadPendingReceipts();
+		this.loadInvoices();
+		this.loadReceipts();
 	}
 
 	loadTenants() {

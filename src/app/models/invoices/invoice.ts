@@ -2,8 +2,8 @@ export type InvoiceGeneratedBy = 'MANUAL' | 'AUTO' | 'WELCOME';
 
 // GENERATED (default histórico, la única que /invoices le devuelve al tenant) | PENDING/FAILED —
 // artefactos internos de una emisión que no terminó de completarse, ver lib/invoice-generation.ts
-// en la API. Solo se ven en la respuesta de Super Admin (GET /tenants/:id/invoices, sin frontend
-// propio todavía).
+// en la API. Solo se ven en las respuestas de Super Admin (GET /tenants/:id/invoices y GET
+// /tenants/invoices).
 export type InvoiceStatus = 'PENDING' | 'GENERATED' | 'FAILED';
 
 export interface Invoice {
@@ -22,4 +22,7 @@ export interface Invoice {
 	status: InvoiceStatus;
 	generatedBy: InvoiceGeneratedBy;
 	createdAt: string;
+	// Solo viene poblado en GET /tenants/invoices (listado global de Super Admin) — el endpoint
+	// por-tenant (GET /tenants/:id/invoices) y el del tenant mismo no lo necesitan.
+	tenant?: { id: number; name: string };
 }

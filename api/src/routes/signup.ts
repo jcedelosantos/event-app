@@ -227,6 +227,9 @@ signupRouter.post(
 		await prismaUnscoped.$transaction([
 			prismaUnscoped.tenant.update({ where: { id: tenantId }, data: { paymentReceiptUrl: receiptUrl, planStatus: 'PENDING_REVIEW' } }),
 			prismaUnscoped.subscription.update({ where: { tenantId }, data: { status: 'PENDING_REVIEW' } }),
+			// Histórico aditivo (ver modelo PaymentReceipt y el mismo patrón en signup-event.ts) — no
+			// reemplaza Tenant.paymentReceiptUrl, solo deja registro de qué se revisó y cuándo.
+			prismaUnscoped.paymentReceipt.create({ data: { tenantId, url: receiptUrl, planCode: plan, amountCents: PLANS[plan].priceCents } }),
 		]);
 
 		sendBankTransferReceiptNotification({

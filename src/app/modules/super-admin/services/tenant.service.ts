@@ -3,6 +3,7 @@ import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { Tenant, TenantType } from '../../../models/tenants/tenant';
 import { User } from '../../../models/users/user';
+import { Invoice } from '../../../models/invoices/invoice';
 import { environment } from '../../../../environments/environment';
 
 export type SubscriptionInfo = {
@@ -76,5 +77,11 @@ export class TenantService {
 	// no serviría acá (no manda el header) — hay que pedirlo por HttpClient y bajarlo a mano.
 	downloadInvoice(id: number): Observable<Blob> {
 		return this.httpClient.get(`${this.baseUrl}/${id}/invoice`, { responseType: 'blob' });
+	}
+
+	// Historial global (todos los tenants) para la sección "Facturas emitidas" del panel de Super
+	// Admin — ver GET /tenants/invoices en la API.
+	getAllInvoices(): Observable<Invoice[]> {
+		return this.httpClient.get<Invoice[]>(`${this.baseUrl}/invoices`);
 	}
 }
