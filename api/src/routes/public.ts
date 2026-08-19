@@ -1,7 +1,7 @@
 import { randomUUID, createHash } from 'node:crypto';
 import path from 'node:path';
 import fs from 'node:fs';
-import { Router } from 'express';
+import { Router, Request } from 'express';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import { prisma, prismaUnscoped } from '../lib/prisma';
@@ -18,7 +18,7 @@ import { checkDuplicateEventRegistration } from '../lib/duplicate-event-guard';
 import { createOrder as createPaypalOrder, captureOrder as capturePaypalOrder, verifyWebhookSignature, PayPalNotConfiguredError, PayPalRequestError } from '../lib/paypal';
 import { finalizePaidSaleTickets } from '../lib/checkout';
 import { findDuplicateEventSlot } from '../lib/find-duplicate-event-slot';
-import { extractEventFromImage, AnthropicNotConfiguredError, AnthropicRequestError } from '../lib/event-extraction';
+import { extractEventFromImage, extractEventFromText, ExtractedEvent, AnthropicNotConfiguredError, AnthropicRequestError } from '../lib/event-extraction';
 import { getTenantPlanFeatures } from '../middleware/plan';
 import { getTenantConfig as getWhatsAppConfig, verifySignature as verifyWhatsAppSignature, downloadMedia, sendTextMessage, WhatsAppNotConfiguredError } from '../lib/whatsapp';
 import { saveBuffer, uploadsDir } from '../lib/uploads';
@@ -1215,6 +1215,144 @@ async function resolveWhatsAppVenue(tenantId: number, venueNameGuess: string | n
 	return { mapId: maps[0].id, areaId: maps[0].areas[0]?.id ?? null };
 }
 
+// Plantilla sugerida para crear un evento por texto (sin flyer diseñado) — se manda como guía
+// cuando el mensaje entrante no es ni imagen ni texto, y sirve de referencia para el club. No es
+// obligatoria al pie de la letra: extractEventFromText interpreta texto suelto igual, pero seguirla
+// da resultados más confiables que un mensaje libre sin estructura.
+const WHATSAPP_TEXT_TEMPLATE = [
+	'Evento: Torneo de Playa 2026',
+	'Fecha: 23/08/2026',
+	'Hora: 09:00',
+	'Lugar: Cotomur',
+	'Entradas: General RD$500 (100 cupos)',
+	'Descripción: Liga Amateur, categorías C, D1 y D2.',
+].join('\n');
+
+// Común a la creación por imagen y por texto — desde acá se resuelve el mapa, se chequea duplicado,
+// se crea el Event+Tickets, se audita y se manda la confirmación. sourceLabel solo cambia el texto
+// del AuditLog (ver el summary más abajo), para poder distinguir después qué canal creó cada evento.
+async function createEventFromWhatsAppExtraction(args: {
+	req: Request;
+	tenant: { id: number };
+	config: NonNullable<Awaited<ReturnType<typeof getWhatsAppConfig>>>;
+	from: string;
+	extracted: ExtractedEvent;
+	img: string;
+	sourceLabel: string;
+}): Promise<void> {
+	const { req, tenant, config, from, extracted, img, sourceLabel } = args;
+
+	const venue = await resolveWhatsAppVenue(tenant.id, extracted.venueNameGuess);
+	if (!venue) {
+		await sendTextMessage(config, from, `No pude crear "${extracted.name}" porque este club todavía no tiene ningún mapa configurado en el sistema.`);
+		return;
+	}
+
+	const dateOn = new Date(extracted.dateOn);
+	const duplicate = await findDuplicateEventSlot(tenant.id, venue.mapId, dateOn);
+	if (duplicate) {
+		await sendTextMessage(
+			config,
+			from,
+			`No cargué "${extracted.name}" (${extracted.dateOn}) porque ya existe "${duplicate.name}" con esa misma fecha y mapa. Si son eventos distintos, cargalo a mano desde el manager.`,
+		);
+		return;
+	}
+
+	// Ninguna sesión está logueada en este flujo — se atribuye al primer usuario administrador del
+	// tenant, el mismo que tiene que haber cargado las credenciales de WhatsApp en Settings.
+	const adminUser = await prisma.user.findFirst({ where: { tenantId: tenant.id, type: { type: 'ROOT' } } });
+	if (!adminUser) {
+		await sendTextMessage(config, from, `No pude crear "${extracted.name}" porque no encontré un usuario administrador en este club.`);
+		return;
+	}
+
+	// Nadie revisó todavía lo que la IA extrajo (fechas, precios, mapa asignado por nombre) antes de
+	// publicarlo — a diferencia de un evento cargado a mano en el manager, acá se programa la
+	// publicación a futuro por default en vez de dejarlo visible al público de inmediato, dándole al
+	// encargado una ventana real para revisar y corregir antes de que alguien pueda comprar.
+	// Configurable por tenant (Settings → WhatsApp → "Margen de publicación",
+	// whatsapp.publishDelayHours) — 0 = sin ventana, publica de inmediato. Sigue siendo un evento
+	// normal: el encargado puede adelantar/quitar esta fecha desde el manager en cualquier momento.
+	const publishAt = config.publishDelayHours > 0 ? new Date(Date.now() + config.publishDelayHours * 60 * 60 * 1000) : null;
+
+	const created = await prisma.event.create({
+		data: {
+			name: extracted.name,
+			img,
+			code: '',
+			publicSlug: generatePublicSlug(),
+			type: 'Normal',
+			description: extracted.description,
+			dateSale: new Date(),
+			dateOn,
+			dateOff: new Date(extracted.dateOff),
+			startTime: extracted.startTime,
+			mapId: venue.mapId,
+			userId: adminUser.id,
+			tenantId: tenant.id,
+			publishAt,
+		},
+	});
+	// Código legible basado en el id (mismo patrón que POST /events autenticado).
+	const event = await prisma.event.update({ where: { id: created.id, tenantId: tenant.id }, data: { code: `EVT-${String(created.id).padStart(4, '0')}` } });
+
+	// Ticket.code también es único y se genera server-side desde el id — createMany no permite un
+	// update por fila después, así que van uno por uno (mismo patrón que POST /tickets autenticado).
+	for (const t of extracted.tickets) {
+		const createdTicket = await prisma.ticket.create({
+			data: {
+				name: t.name,
+				img: '',
+				code: '',
+				description: '',
+				type: 'Normal',
+				count: t.count,
+				priceCents: t.price,
+				eventId: event.id,
+				areaId: venue.areaId,
+				attendeeType: t.attendeeType,
+				tenantId: tenant.id,
+			},
+		});
+		await prisma.ticket.update({ where: { id: createdTicket.id, tenantId: tenant.id }, data: { code: `TCK-${String(createdTicket.id).padStart(4, '0')}` } });
+	}
+
+	await logAudit({
+		tenantId: tenant.id,
+		userId: adminUser.id,
+		action: 'CREATE',
+		entity: 'Event',
+		entityId: event.id,
+		summary: `Creó el evento "${event.name}" automáticamente desde ${sourceLabel}`,
+	});
+
+	const publicUrl = `${req.protocol}://${req.get('host')}/e/${event.publicSlug}`;
+	const ticketsSummary = extracted.tickets.map((t) => `• ${t.name}: RD$${t.price} (${t.count} cupos)`).join('\n');
+	const publishNotice = publishAt
+		? `Se publica solo el ${publishAt.toLocaleString('es-DO', {
+				timeZone: 'America/Santo_Domingo',
+				day: 'numeric',
+				month: 'long',
+				hour: 'numeric',
+				minute: '2-digit',
+				hour12: true,
+			})} (margen de ${config.publishDelayHours}h). Revísalo en el manager antes de esa hora por si algo salió mal (fechas, precios, mapa) — desde ahí también puedes adelantar o quitar esa fecha.`
+		: 'Ya está publicado y disponible para comprar — revísalo en el manager por si algo salió mal (fechas, precios, mapa).';
+	await sendTextMessage(
+		config,
+		from,
+		[
+			`✅ Evento creado: ${extracted.name}`,
+			`📅 ${extracted.dateOn}${extracted.dateOn !== extracted.dateOff ? ` al ${extracted.dateOff}` : ''}${extracted.startTime ? ` — ${extracted.startTime}` : ''}`,
+			ticketsSummary,
+			`🔗 ${publicUrl}`,
+			'',
+			publishNotice,
+		].join('\n'),
+	);
+}
+
 publicRouter.post('/webhooks/whatsapp/:slug', asyncHandler(async (req, res) => {
 	// Meta espera 200 rápido siempre que se pueda — el procesamiento real sigue después de responder,
 	// así que TODO lo que sigue va dentro de un único try/catch que nunca vuelve a tocar `res` ni
@@ -1260,151 +1398,54 @@ publicRouter.post('/webhooks/whatsapp/:slug', asyncHandler(async (req, res) => {
 			return;
 		}
 
-		if (message.type !== 'image') {
-			await sendTextMessage(config, from, 'Mandame una foto del flyer del evento y lo cargo automáticamente. 📸');
-			return;
-		}
+		if (message.type === 'image') {
+			const { buffer, mimeType } = await downloadMedia(message.image.id, config.accessToken);
 
-		const { buffer, mimeType } = await downloadMedia(message.image.id, config.accessToken);
-
-		// Reenvío accidental de la misma foto (pasó de verdad en pruebas: WhatsApp/el usuario la manda
-		// dos veces seguidas) — comparar el hash contra los eventos creados por este canal en los
-		// últimos 15 min, en vez de crear un evento duplicado con una fecha adivinada distinta cada vez.
-		const imageHash = createHash('sha256').update(buffer).digest('hex');
-		const recentEvents = await prisma.event.findMany({
-			where: { tenantId: tenant.id, createdAt: { gt: new Date(Date.now() - 15 * 60 * 1000) } },
-			select: { id: true, name: true, code: true, img: true },
-		});
-		for (const ev of recentEvents) {
-			if (!ev.img) continue;
-			const filePath = path.join(uploadsDir, path.basename(ev.img));
-			if (!fs.existsSync(filePath)) continue;
-			if (createHash('sha256').update(fs.readFileSync(filePath)).digest('hex') === imageHash) {
-				await sendTextMessage(config, from, `Ya había procesado esta misma foto hace un rato: "${ev.name}" (${ev.code}). Si es un evento distinto, mandame una versión editada del flyer.`);
-				return;
-			}
-		}
-
-		const maps = await prisma.map.findMany({ where: { tenantId: tenant.id }, select: { name: true } });
-		const extracted = await extractEventFromImage(buffer, mimeType, maps.map((m) => m.name));
-
-		const venue = await resolveWhatsAppVenue(tenant.id, extracted.venueNameGuess);
-		if (!venue) {
-			await sendTextMessage(config, from, `No pude crear "${extracted.name}" porque este club todavía no tiene ningún mapa configurado en el sistema.`);
-			return;
-		}
-
-		const dateOn = new Date(extracted.dateOn);
-		const duplicate = await findDuplicateEventSlot(tenant.id, venue.mapId, dateOn);
-		if (duplicate) {
-			await sendTextMessage(
-				config,
-				from,
-				`No cargué "${extracted.name}" (${extracted.dateOn}) porque ya existe "${duplicate.name}" con esa misma fecha y mapa. Si son eventos distintos, cargalo a mano desde el manager.`,
-			);
-			return;
-		}
-
-		// Ninguna sesión está logueada en este flujo — se atribuye al primer usuario administrador del
-		// tenant, el mismo que tiene que haber cargado las credenciales de WhatsApp en Settings.
-		const adminUser = await prisma.user.findFirst({ where: { tenantId: tenant.id, type: { type: 'ROOT' } } });
-		if (!adminUser) {
-			await sendTextMessage(config, from, `No pude crear "${extracted.name}" porque no encontré un usuario administrador en este club.`);
-			return;
-		}
-
-		// Nadie revisó todavía lo que la IA extrajo del flyer (fechas, precios, mapa asignado por
-		// nombre) antes de publicarlo — a diferencia de un evento cargado a mano en el manager, acá se
-		// programa la publicación a futuro por default en vez de dejarlo visible al público de
-		// inmediato, dándole al encargado una ventana real para revisar y corregir antes de que alguien
-		// pueda comprar. Configurable por tenant (Settings → WhatsApp → "Margen de publicación",
-		// whatsapp.publishDelayHours) — 0 = sin ventana, publica de inmediato. Sigue siendo un evento
-		// normal: el encargado puede adelantar/quitar esta fecha desde el manager en cualquier momento.
-		const publishAt = config.publishDelayHours > 0 ? new Date(Date.now() + config.publishDelayHours * 60 * 60 * 1000) : null;
-
-		const img = saveBuffer(buffer, mimeType);
-		const created = await prisma.event.create({
-			data: {
-				name: extracted.name,
-				img,
-				code: '',
-				publicSlug: generatePublicSlug(),
-				type: 'Normal',
-				description: extracted.description,
-				dateSale: new Date(),
-				dateOn,
-				dateOff: new Date(extracted.dateOff),
-				startTime: extracted.startTime,
-				mapId: venue.mapId,
-				userId: adminUser.id,
-				tenantId: tenant.id,
-				publishAt,
-			},
-		});
-		// Código legible basado en el id (mismo patrón que POST /events autenticado).
-		const event = await prisma.event.update({ where: { id: created.id, tenantId: tenant.id }, data: { code: `EVT-${String(created.id).padStart(4, '0')}` } });
-
-		// Ticket.code también es único y se genera server-side desde el id — createMany no permite un
-		// update por fila después, así que van uno por uno (mismo patrón que POST /tickets autenticado).
-		for (const t of extracted.tickets) {
-			const createdTicket = await prisma.ticket.create({
-				data: {
-					name: t.name,
-					img: '',
-					code: '',
-					description: '',
-					type: 'Normal',
-					count: t.count,
-					priceCents: t.price,
-					eventId: event.id,
-					areaId: venue.areaId,
-					attendeeType: t.attendeeType,
-					tenantId: tenant.id,
-				},
+			// Reenvío accidental de la misma foto (pasó de verdad en pruebas: WhatsApp/el usuario la manda
+			// dos veces seguidas) — comparar el hash contra los eventos creados por este canal en los
+			// últimos 15 min, en vez de crear un evento duplicado con una fecha adivinada distinta cada vez.
+			const imageHash = createHash('sha256').update(buffer).digest('hex');
+			const recentEvents = await prisma.event.findMany({
+				where: { tenantId: tenant.id, createdAt: { gt: new Date(Date.now() - 15 * 60 * 1000) } },
+				select: { id: true, name: true, code: true, img: true },
 			});
-			await prisma.ticket.update({ where: { id: createdTicket.id, tenantId: tenant.id }, data: { code: `TCK-${String(createdTicket.id).padStart(4, '0')}` } });
+			for (const ev of recentEvents) {
+				if (!ev.img) continue;
+				const filePath = path.join(uploadsDir, path.basename(ev.img));
+				if (!fs.existsSync(filePath)) continue;
+				if (createHash('sha256').update(fs.readFileSync(filePath)).digest('hex') === imageHash) {
+					await sendTextMessage(config, from, `Ya había procesado esta misma foto hace un rato: "${ev.name}" (${ev.code}). Si es un evento distinto, mandame una versión editada del flyer.`);
+					return;
+				}
+			}
+
+			const maps = await prisma.map.findMany({ where: { tenantId: tenant.id }, select: { name: true } });
+			const extracted = await extractEventFromImage(buffer, mimeType, maps.map((m) => m.name));
+			await createEventFromWhatsAppExtraction({ req, tenant, config, from, extracted, img: saveBuffer(buffer, mimeType), sourceLabel: 'una imagen de WhatsApp' });
+			return;
 		}
 
-		await logAudit({
-			tenantId: tenant.id,
-			userId: adminUser.id,
-			action: 'CREATE',
-			entity: 'Event',
-			entityId: event.id,
-			summary: `Creó el evento "${event.name}" automáticamente desde una imagen de WhatsApp`,
-		});
+		if (message.type === 'text') {
+			const text = (message.text?.body as string | undefined)?.trim();
+			if (!text) return;
+			const maps = await prisma.map.findMany({ where: { tenantId: tenant.id }, select: { name: true } });
+			const extracted = await extractEventFromText(text, maps.map((m) => m.name));
+			await createEventFromWhatsAppExtraction({ req, tenant, config, from, extracted, img: '', sourceLabel: 'un mensaje de texto de WhatsApp' });
+			return;
+		}
 
-		const publicUrl = `${req.protocol}://${req.get('host')}/e/${event.publicSlug}`;
-		const ticketsSummary = extracted.tickets.map((t) => `• ${t.name}: RD$${t.price} (${t.count} cupos)`).join('\n');
-		const publishNotice = publishAt
-			? `Se publica solo el ${publishAt.toLocaleString('es-DO', {
-					timeZone: 'America/Santo_Domingo',
-					day: 'numeric',
-					month: 'long',
-					hour: 'numeric',
-					minute: '2-digit',
-					hour12: true,
-				})} (margen de ${config.publishDelayHours}h). Revísalo en el manager antes de esa hora por si algo salió mal (fechas, precios, mapa) — desde ahí también puedes adelantar o quitar esa fecha.`
-			: 'Ya está publicado y disponible para comprar — revísalo en el manager por si algo salió mal (fechas, precios, mapa).';
 		await sendTextMessage(
 			config,
 			from,
-			[
-				`✅ Evento creado: ${extracted.name}`,
-				`📅 ${extracted.dateOn}${extracted.dateOn !== extracted.dateOff ? ` al ${extracted.dateOff}` : ''}${extracted.startTime ? ` — ${extracted.startTime}` : ''}`,
-				ticketsSummary,
-				`🔗 ${publicUrl}`,
-				'',
-				publishNotice,
-			].join('\n'),
+			['Mandame una foto del flyer del evento (lo cargo automáticamente 📸) o un mensaje de texto con este formato:', '', WHATSAPP_TEXT_TEMPLATE].join('\n'),
 		);
 	} catch (err) {
-		console.error(`Error procesando imagen de WhatsApp (slug ${req.params.slug}):`, err);
+		console.error(`Error procesando mensaje de WhatsApp (slug ${req.params.slug}):`, err);
 		if (config && from) {
 			const message =
 				err instanceof AnthropicNotConfiguredError || err instanceof AnthropicRequestError
-					? 'No pude leer la imagen con IA — prueba de nuevo en un rato.'
-					: 'Algo salió mal creando el evento a partir de esa imagen.';
+					? 'No pude leer los datos con IA — prueba de nuevo en un rato.'
+					: 'Algo salió mal creando el evento.';
 			await sendTextMessage(config, from, `❌ ${message}`).catch(() => {});
 		}
 	}

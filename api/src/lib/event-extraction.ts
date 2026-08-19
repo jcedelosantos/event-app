@@ -64,24 +64,25 @@ const EXTRACT_TOOL = {
 	},
 };
 
-export async function extractEventFromImage(imageBuffer: Buffer, mimeType: string, existingMapNames: string[]): Promise<ExtractedEvent> {
+// Reglas compartidas por ambos modos de extracción (imagen y texto) — completar datos que la fuente
+// no da explícitamente. El único punto donde difieren es qué le dice a la IA sobre CÓMO llegan los
+// datos (un flyer diseñado vs. un mensaje de texto tipeado a mano), ver los dos prompts abajo.
+function sharedRules(existingMapNames: string[]): string {
+	return [
+		'- Si no dice el año, asumí la próxima fecha futura que coincida con ese día y mes (si ya pasó este año, es el año que viene).',
+		'- Si da un aforo/capacidad total pero no el desglose por tipo de ticket, repartilo en partes iguales entre los tipos de ticket que sí menciona.',
+		'- Si no da ningún número de aforo, usa 300 como cupo por defecto para cada tipo de ticket.',
+		'- "No cover" o "gratis" significa price: 0.',
+		`- Mapas/salones ya existentes en este club (para venueNameGuess, elige el que mejor coincida, o null si ninguno aplica): ${existingMapNames.join(', ') || '(ninguno registrado)'}`,
+		'- No inventes artistas, nombres de personas ni datos que no estén escritos en la fuente.',
+	].join('\n');
+}
+
+async function callExtractTool(content: Array<{ type: 'image'; source: { type: 'base64'; media_type: string; data: string } } | { type: 'text'; text: string }>): Promise<ExtractedEvent> {
 	const apiKey = process.env.ANTHROPIC_API_KEY;
 	if (!apiKey) {
 		throw new AnthropicNotConfiguredError('ANTHROPIC_API_KEY no está configurada en el servidor.');
 	}
-
-	const today = new Date().toISOString().slice(0, 10);
-	const prompt = [
-		`Hoy es ${today}. Extraé los datos de este flyer de evento para cargarlo en un sistema de venta de tickets.`,
-		'',
-		'Reglas para completar datos que el flyer no da explícitamente:',
-		'- Si el flyer no dice el año, asumí la próxima fecha futura que coincida con ese día y mes (si ya pasó este año, es el año que viene).',
-		'- Si da un aforo/capacidad total pero no el desglose por tipo de ticket, repartilo en partes iguales entre los tipos de ticket que sí menciona.',
-		'- Si no da ningún número de aforo, usa 300 como cupo por defecto para cada tipo de ticket.',
-		'- "No cover" o "gratis" significa price: 0.',
-		`- Mapas/salones ya existentes en este club (para venueNameGuess, elige el que mejor coincida con lo que dice el flyer, o null si ninguno aplica): ${existingMapNames.join(', ') || '(ninguno registrado)'}`,
-		'- No inventes artistas, nombres de personas ni datos que no estén escritos en el flyer.',
-	].join('\n');
 
 	const res = await fetch('https://api.anthropic.com/v1/messages', {
 		method: 'POST',
@@ -95,20 +96,12 @@ export async function extractEventFromImage(imageBuffer: Buffer, mimeType: strin
 			max_tokens: 1024,
 			tools: [EXTRACT_TOOL],
 			tool_choice: { type: 'tool', name: 'extract_event' },
-			messages: [
-				{
-					role: 'user',
-					content: [
-						{ type: 'image', source: { type: 'base64', media_type: mimeType, data: imageBuffer.toString('base64') } },
-						{ type: 'text', text: prompt },
-					],
-				},
-			],
+			messages: [{ role: 'user', content }],
 		}),
 	});
 
 	if (!res.ok) {
-		throw new AnthropicRequestError(`No se pudo leer la imagen con IA (${res.status}): ${await res.text()}`);
+		throw new AnthropicRequestError(`No se pudo leer los datos con IA (${res.status}): ${await res.text()}`);
 	}
 
 	const data = (await res.json()) as { content: { type: string; input?: unknown }[] };
@@ -122,4 +115,31 @@ export async function extractEventFromImage(imageBuffer: Buffer, mimeType: strin
 		throw new AnthropicRequestError(`Datos extraídos con formato inválido: ${JSON.stringify(parsed.error.flatten())}`);
 	}
 	return parsed.data;
+}
+
+export async function extractEventFromImage(imageBuffer: Buffer, mimeType: string, existingMapNames: string[]): Promise<ExtractedEvent> {
+	const today = new Date().toISOString().slice(0, 10);
+	const prompt = [`Hoy es ${today}. Extraé los datos de este flyer de evento para cargarlo en un sistema de venta de tickets.`, '', 'Reglas:', sharedRules(existingMapNames)].join('\n');
+	return callExtractTool([
+		{ type: 'image', source: { type: 'base64', media_type: mimeType, data: imageBuffer.toString('base64') } },
+		{ type: 'text', text: prompt },
+	]);
+}
+
+// Mismo contrato de salida que extractEventFromImage — pensado para el mensaje de texto que manda un
+// club por WhatsApp cuando no tiene un flyer diseñado a mano (ver plantilla sugerida en
+// routes/public.ts). No exige que el texto siga la plantilla al pie de la letra: la IA sigue
+// pudiendo interpretar texto suelto, solo que sin plantilla el resultado es menos confiable.
+export async function extractEventFromText(text: string, existingMapNames: string[]): Promise<ExtractedEvent> {
+	const today = new Date().toISOString().slice(0, 10);
+	const prompt = [
+		`Hoy es ${today}. Extraé los datos de este mensaje de WhatsApp para cargar un evento en un sistema de venta de tickets. El mensaje es texto escrito a mano por el club, no un flyer diseñado — puede venir en cualquier formato, con o sin etiquetas tipo "Fecha:"/"Hora:".`,
+		'',
+		'Reglas:',
+		sharedRules(existingMapNames),
+		'',
+		'Mensaje:',
+		text,
+	].join('\n');
+	return callExtractTool([{ type: 'text', text: prompt }]);
 }
