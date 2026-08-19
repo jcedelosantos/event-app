@@ -4,7 +4,18 @@ import { prisma } from './prisma';
 // Credenciales de WhatsApp Cloud API por tenant, guardadas en AppSetting (mismo namespace/patrón
 // que "payments.*" en lib/paypal.ts). accessTokenSecret, verifyTokenSecret y appSecretSecret nunca
 // salen por GET /settings (ver el filtro de keys "*Secret" en settings.ts).
-const WHATSAPP_KEYS = ['whatsapp.phoneNumberId', 'whatsapp.accessTokenSecret', 'whatsapp.verifyTokenSecret', 'whatsapp.appSecretSecret', 'whatsapp.allowedSenders'] as const;
+const WHATSAPP_KEYS = [
+	'whatsapp.phoneNumberId',
+	'whatsapp.accessTokenSecret',
+	'whatsapp.verifyTokenSecret',
+	'whatsapp.appSecretSecret',
+	'whatsapp.allowedSenders',
+	'whatsapp.publishDelayHours',
+] as const;
+
+// Default histórico (ver el comentario original en routes/public.ts) — un tenant que nunca tocó
+// este campo nuevo sigue viendo exactamente el mismo comportamiento de siempre, sin sorpresas.
+const DEFAULT_PUBLISH_DELAY_HOURS = 24;
 
 const GRAPH_BASE = 'https://graph.facebook.com/v21.0';
 
@@ -20,6 +31,10 @@ type WhatsAppConfig = {
 	// crear eventos por esta vía — cualquier otro remitente se ignora, así el webhook no queda abierto
 	// para que cualquiera con el número de WhatsApp del club le mande un evento falso.
 	allowedSenders: string[];
+	// Horas de margen antes de que un evento creado por esta vía quede visible/comprable (ver
+	// Event.publishAt en routes/public.ts) — le da tiempo al encargado de revisar lo que la IA leyó
+	// del flyer antes de que el público pueda comprar. 0 = publicar de inmediato, sin ventana.
+	publishDelayHours: number;
 };
 
 export async function getTenantConfig(tenantId: number): Promise<WhatsAppConfig> {
@@ -42,7 +57,15 @@ export async function getTenantConfig(tenantId: number): Promise<WhatsAppConfig>
 			.split(',')
 			.map((s) => s.replace(/\D/g, ''))
 			.filter(Boolean),
+		publishDelayHours: parsePublishDelayHours(map['whatsapp.publishDelayHours']),
 	};
+}
+
+function parsePublishDelayHours(raw: string | undefined): number {
+	if (raw == null || raw.trim() === '') return DEFAULT_PUBLISH_DELAY_HOURS;
+	const hours = Number(raw);
+	if (!Number.isFinite(hours) || hours < 0) return DEFAULT_PUBLISH_DELAY_HOURS;
+	return hours;
 }
 
 // Confirma que el POST del webhook realmente vino de Meta (y no de cualquiera que le pegue a la

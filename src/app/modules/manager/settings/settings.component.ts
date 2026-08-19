@@ -197,6 +197,18 @@ const PRESETS = [
 									placeholder="18095551234, 18095556789"
 								/>
 							</div>
+							<div class="mb-3">
+								<label class="small mb-1">Margen de publicación <span class="text-muted">(horas antes de que el evento quede visible/comprable — 0 = de inmediato)</span></label>
+								<input
+									type="number"
+									min="0"
+									class="form-control form-control-sm"
+									style="max-width: 140px"
+									[value]="whatsappPublishDelayHours()"
+									(input)="whatsappPublishDelayHours.set($any($event.target).value)"
+								/>
+								<div class="form-text">Le da tiempo al encargado de revisar lo que la IA leyó del flyer antes de que el público pueda comprar.</div>
+							</div>
 
 							<div class="d-flex gap-2 align-items-center">
 								<button type="button" class="btn btn-danger btn-sm" [disabled]="savingWhatsapp()" (click)="saveWhatsapp()">
@@ -453,6 +465,10 @@ export class SettingsComponent implements OnInit {
 	whatsappAppSecret = signal('');
 	whatsappAppSecretConfigured = signal(false);
 	whatsappAllowedSenders = signal('');
+	// Vacío = todavía no lo tocó, la API lo trata como 24h (ver DEFAULT_PUBLISH_DELAY_HOURS en
+	// api/src/lib/whatsapp.ts) — se muestra "24" acá para no mentirle al club sobre el valor real
+	// que ya está en efecto.
+	whatsappPublishDelayHours = signal('24');
 	savingWhatsapp = signal(false);
 	whatsappSaved = signal(false);
 	whatsappError = signal('');
@@ -559,6 +575,7 @@ export class SettingsComponent implements OnInit {
 				this.whatsappVerifyTokenConfigured.set(settings['whatsapp.verifyTokenSecretConfigured'] === 'true');
 				this.whatsappAppSecretConfigured.set(settings['whatsapp.appSecretSecretConfigured'] === 'true');
 				this.whatsappAllowedSenders.set(settings['whatsapp.allowedSenders'] ?? '');
+				this.whatsappPublishDelayHours.set(settings['whatsapp.publishDelayHours'] ?? '24');
 				this.reportsFrequency.set(settings['reports.frequency'] ?? '');
 				this.reportsDayOfMonth.set(settings['reports.dayOfMonth'] ?? '');
 				this.reportsRecipients.set(settings['reports.recipients'] ?? '');
@@ -621,9 +638,14 @@ export class SettingsComponent implements OnInit {
 		const accessTokenToSave = this.whatsappAccessToken().trim();
 		const verifyTokenToSave = this.whatsappVerifyToken().trim();
 		const appSecretToSave = this.whatsappAppSecret().trim();
+		// "0" es un valor válido a propósito (publicar de inmediato) — a diferencia de los demás
+		// campos, acá el string vacío es lo único que no se manda (el trim de "0" sigue siendo "0",
+		// truthy, así que sí viaja).
+		const publishDelayHoursToSave = this.whatsappPublishDelayHours().trim();
 		const calls: Observable<unknown>[] = [];
 		if (phoneNumberIdToSave) calls.push(this.settingsService.setSetting('whatsapp.phoneNumberId', phoneNumberIdToSave));
 		if (allowedSendersToSave) calls.push(this.settingsService.setSetting('whatsapp.allowedSenders', allowedSendersToSave));
+		if (publishDelayHoursToSave) calls.push(this.settingsService.setSetting('whatsapp.publishDelayHours', publishDelayHoursToSave));
 		if (accessTokenToSave) calls.push(this.settingsService.setSetting('whatsapp.accessTokenSecret', accessTokenToSave));
 		if (verifyTokenToSave) calls.push(this.settingsService.setSetting('whatsapp.verifyTokenSecret', verifyTokenToSave));
 		if (appSecretToSave) calls.push(this.settingsService.setSetting('whatsapp.appSecretSecret', appSecretToSave));

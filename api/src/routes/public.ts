@@ -1315,11 +1315,12 @@ publicRouter.post('/webhooks/whatsapp/:slug', asyncHandler(async (req, res) => {
 
 		// Nadie revisó todavía lo que la IA extrajo del flyer (fechas, precios, mapa asignado por
 		// nombre) antes de publicarlo — a diferencia de un evento cargado a mano en el manager, acá se
-		// programa la publicación 24hs a futuro por default en vez de dejarlo visible al público de
+		// programa la publicación a futuro por default en vez de dejarlo visible al público de
 		// inmediato, dándole al encargado una ventana real para revisar y corregir antes de que alguien
-		// pueda comprar. Sigue siendo un evento normal: el encargado puede adelantar/quitar esta fecha
-		// desde el manager en cualquier momento si quiere publicarlo antes.
-		const publishAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+		// pueda comprar. Configurable por tenant (Settings → WhatsApp → "Margen de publicación",
+		// whatsapp.publishDelayHours) — 0 = sin ventana, publica de inmediato. Sigue siendo un evento
+		// normal: el encargado puede adelantar/quitar esta fecha desde el manager en cualquier momento.
+		const publishAt = config.publishDelayHours > 0 ? new Date(Date.now() + config.publishDelayHours * 60 * 60 * 1000) : null;
 
 		const img = saveBuffer(buffer, mimeType);
 		const created = await prisma.event.create({
@@ -1375,14 +1376,16 @@ publicRouter.post('/webhooks/whatsapp/:slug', asyncHandler(async (req, res) => {
 
 		const publicUrl = `${req.protocol}://${req.get('host')}/e/${event.publicSlug}`;
 		const ticketsSummary = extracted.tickets.map((t) => `• ${t.name}: RD$${t.price} (${t.count} cupos)`).join('\n');
-		const publishAtLabel = publishAt.toLocaleString('es-DO', {
-			timeZone: 'America/Santo_Domingo',
-			day: 'numeric',
-			month: 'long',
-			hour: 'numeric',
-			minute: '2-digit',
-			hour12: true,
-		});
+		const publishNotice = publishAt
+			? `Se publica solo el ${publishAt.toLocaleString('es-DO', {
+					timeZone: 'America/Santo_Domingo',
+					day: 'numeric',
+					month: 'long',
+					hour: 'numeric',
+					minute: '2-digit',
+					hour12: true,
+				})} (margen de ${config.publishDelayHours}h). Revísalo en el manager antes de esa hora por si algo salió mal (fechas, precios, mapa) — desde ahí también puedes adelantar o quitar esa fecha.`
+			: 'Ya está publicado y disponible para comprar — revísalo en el manager por si algo salió mal (fechas, precios, mapa).';
 		await sendTextMessage(
 			config,
 			from,
@@ -1392,7 +1395,7 @@ publicRouter.post('/webhooks/whatsapp/:slug', asyncHandler(async (req, res) => {
 				ticketsSummary,
 				`🔗 ${publicUrl}`,
 				'',
-				`Se publica solo el ${publishAtLabel} (24hs de margen). Revísalo en el manager antes de esa hora por si algo salió mal (fechas, precios, mapa) — desde ahí también puedes adelantar o quitar esa fecha.`,
+				publishNotice,
 			].join('\n'),
 		);
 	} catch (err) {
