@@ -1,7 +1,8 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
+import * as bootstrap from 'bootstrap';
 import { NavBarInitComponent } from '../../shared/nav-bar-init/nav-bar-init.component';
 import { PRICING_PLANS, PricingPlan } from '../../shared/pricing-plans';
 import { EnterpriseLeadService } from './services/enterprise-lead.service';
@@ -184,8 +185,9 @@ type LeadFormState = 'closed' | 'open' | 'success';
 	`,
 	changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class SiteWebComponent {
+export class SiteWebComponent implements OnInit {
 	private readonly enterpriseLeadService = inject(EnterpriseLeadService);
+	private readonly route = inject(ActivatedRoute);
 	readonly centsToDollars = centsToDollars;
 
 	plans = PRICING_PLANS;
@@ -195,6 +197,21 @@ export class SiteWebComponent {
 	leadSubmitting = signal(false);
 	leadError = signal('');
 	leadForm = { orgName: '', contactName: '', email: '', phone: '', message: '' };
+
+	// Deep link directo al formulario de contacto de Enterprise (?plan=PRO_MAX) — mismo espíritu que
+	// /signup?plan=CODE para los otros planes (ver create-event-modal... no, ver el link "Comenzar
+	// con {{ plan.name }}" más abajo), pero acá el "checkout" es dejar los datos de contacto, no un
+	// signup: sin esto, alguien que llega desde un link externo (ej. la guía comercial) tenía que
+	// hacer 3 clicks (entrar al sitio, abrir la tarjeta de Pro Enterprise, tocar "Quiero que me
+	// contacten") en vez de llegar directo al formulario abierto.
+	ngOnInit(): void {
+		if (this.route.snapshot.queryParamMap.get('plan') !== 'PRO_MAX') return;
+		const proMax = this.plans.find((p) => p.code === 'PRO_MAX');
+		if (!proMax) return;
+		this.openPlan(proMax);
+		this.leadFormState.set('open');
+		queueMicrotask(() => bootstrap.Modal.getOrCreateInstance('#planDetailModal').show());
+	}
 
 	openPlan(plan: PricingPlan) {
 		this.selectedPlan.set(plan);
