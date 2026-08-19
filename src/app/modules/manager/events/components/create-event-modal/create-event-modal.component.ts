@@ -48,15 +48,15 @@ function toDateTimeInputValue(date: Date): string {
 		<div class="modal-dialog">
 			<div class="modal-content">
 				<div class="modal-header">
-					<h1 class="modal-title fs-5" id="createEventModalLabel">{{ event() ? 'Update' : 'Create' }} event</h1>
-					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+					<h1 class="modal-title fs-5" id="createEventModalLabel">{{ event() ? 'Editar' : 'Crear' }} evento</h1>
+					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
 				</div>
 				<div class="modal-body">
 					<form class="needs-validation" [formGroup]="eventForm" novalidate>
 						<div class="row">
 							<div class="col-md-12 mb-2">
-								<label for="name" class="small mb-1">Event Name *</label>
-								<input type="text" class="form-control form-control-sm" [class.is-invalid]="isInvalid('name')" placeholder="eventName" formControlName="name" />
+								<label for="name" class="small mb-1">Nombre del evento *</label>
+								<input type="text" class="form-control form-control-sm" [class.is-invalid]="isInvalid('name')" placeholder="Ej. Noche de trivia" formControlName="name" />
 								@if (isInvalid('name')) {
 									<div class="invalid-feedback">El nombre es obligatorio.</div>
 								}
@@ -79,7 +79,7 @@ function toDateTimeInputValue(date: Date): string {
 								</div>
 							</div>
 							<div class="col-md-4 mb-2">
-								<label for="code" class="small mb-1">Start Date *</label>
+								<label for="dateOn" class="small mb-1">Fecha de inicio *</label>
 								<input type="date" class="form-control form-control-sm" [class.is-invalid]="isInvalid('dateOn')" formControlName="dateOn" />
 								@if (isInvalid('dateOn')) {
 									<div class="invalid-feedback">Elige una fecha.</div>
@@ -93,42 +93,49 @@ function toDateTimeInputValue(date: Date): string {
 								}
 							</div>
 							<div class="col-md-4 mb-2">
-								<label for="dateOff" class="small mb-1">End Date <span class="text-muted">(opcional)</span></label>
+								<label for="dateOff" class="small mb-1">Fecha de fin <span class="text-muted">(opcional)</span></label>
 								<input type="date" class="form-control form-control-sm" formControlName="dateOff" />
 								<div class="form-text">Si no se llena, se usa la misma fecha de inicio.</div>
 							</div>
 							<div class="col-md-4 mb-2">
-								<label for="code" class="small mb-1">Code </label>
+								<label for="code" class="small mb-1">Código</label>
 								<input type="text" class="form-control form-control-sm" formControlName="code" />
 							</div>
 						</div>
 						<div class="mb-2">
-							<label for="description" class="small mb-1">Description </label>
+							<label for="description" class="small mb-1">Descripción</label>
 							<input type="text" class="form-control form-control-sm" formControlName="description" />
 						</div>
 
 						<div class="row">
-							<div class="col-md-6 mb-2">
-								<label for="type" class="small mb-1">Type *</label>
+							<div class="col-md-4 mb-2">
+								<label for="type" class="small mb-1">Tipo *</label>
 								<select class="form-select form-select-sm" [class.is-invalid]="isInvalid('type')" formControlName="type">
-									<option value="">Choose...</option>
+									<option value="">Elige...</option>
 									<option value="VIP">VIP</option>
-									<option value="Normal">NORMAL</option>
+									<option value="Normal">Normal</option>
 								</select>
 								@if (isInvalid('type')) {
 									<div class="invalid-feedback">Elige un tipo de evento.</div>
 								}
 							</div>
-							<div class="col-md-6 mb-2">
-								<label for="state" class="small mb-1">Statu *</label>
+							<div class="col-md-4 mb-2">
+								<label for="active" class="small mb-1">Visible en el sistema *</label>
 								<select class="form-select form-select-sm" [class.is-invalid]="isInvalid('active')" formControlName="active">
-									<option value="">Choose...</option>
-									<option [ngValue]="true">Active</option>
-									<option [ngValue]="false">Inactive</option>
+									<option [ngValue]="true">Activo</option>
+									<option [ngValue]="false">Inactivo</option>
 								</select>
 								@if (isInvalid('active')) {
 									<div class="invalid-feedback">Elige un estado.</div>
 								}
+							</div>
+							<div class="col-md-4 mb-2">
+								<label for="status" class="small mb-1">Estado del evento *</label>
+								<select class="form-select form-select-sm" formControlName="status">
+									<option value="ACTIVE">Activo</option>
+									<option value="CANCELLED">Cancelado</option>
+									<option value="POSTPONED">Pospuesto</option>
+								</select>
 							</div>
 							<div class="col-md-12 mb-2">
 								<label for="publishAt" class="small mb-1">Publicar en el portal público <span class="text-muted">(opcional — programar fecha y hora)</span></label>
@@ -237,7 +244,7 @@ function toDateTimeInputValue(date: Date): string {
 								<div class="form-text">El scanner rechaza el ingreso antes de esta ventana (default 1 hora).</div>
 							</div>
 							<div class="col-md-12 mb-2">
-								<label for="map" class="small mb-1">Map <span class="text-muted">(opcional — necesario para vender tickets con asiento)</span></label>
+								<label for="map" class="small mb-1">Mapa <span class="text-muted">(opcional — necesario para vender tickets con asiento)</span></label>
 								<div class="d-flex gap-2">
 									<select class="form-select form-select-sm" formControlName="mapId">
 										<option [ngValue]="null">Sin asignar</option>
@@ -245,9 +252,9 @@ function toDateTimeInputValue(date: Date): string {
 											<option [ngValue]="map.id">{{ map.name }}</option>
 										}
 									</select>
-									<button type="button" class="btn btn-outline-danger btn-sm text-nowrap" (click)="openMapModal()">+ Map</button>
+									<button type="button" class="btn btn-outline-danger btn-sm text-nowrap" (click)="openMapModal()">+ Mapa</button>
 								</div>
-								<div class="form-text">¿No está el mapa que buscas? Crea uno con "+ Map" y elígelo acá al volver.</div>
+								<div class="form-text">¿No está el mapa que buscas? Crea uno con "+ Mapa" y elígelo acá al volver.</div>
 							</div>
 							@if (locations().length) {
 								<div class="col-md-12 mb-2">
@@ -293,9 +300,9 @@ function toDateTimeInputValue(date: Date): string {
 					</form>
 				</div>
 				<div class="modal-footer">
-					<button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+					<button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cerrar</button>
 					<button type="button" class="btn btn-danger btn-sm" [disabled]="uploading() || submitting()" (click)="submit()">
-						{{ submitting() ? 'Guardando...' : event() ? 'Update' : 'Create' }}
+						{{ submitting() ? 'Guardando...' : event() ? 'Guardar' : 'Crear' }}
 					</button>
 				</div>
 			</div>
@@ -379,6 +386,7 @@ export class CreateEventModalComponent {
 		startTime: ['', Validators.required],
 		type: ['', Validators.required],
 		active: [true, Validators.required],
+		status: this.fb.control<'ACTIVE' | 'CANCELLED' | 'POSTPONED'>('ACTIVE', { nonNullable: true }),
 		mapId: this.fb.control<number | null>(null),
 		locationId: this.fb.control<number | null>(null),
 		hostName: [''],
@@ -415,6 +423,7 @@ export class CreateEventModalComponent {
 					startTime: current.startTime ?? '',
 					type: current.type,
 					active: current.active,
+					status: current.status ?? 'ACTIVE',
 					mapId: current.map?.id ?? null,
 					locationId: current.locationId ?? null,
 					hostName: current.hostName ?? '',
@@ -434,6 +443,7 @@ export class CreateEventModalComponent {
 				this.originalLinkedEventId = null;
 				this.eventForm.reset({
 					active: true,
+					status: 'ACTIVE',
 					mapId: null,
 					locationId: null,
 					hostName: '',
@@ -463,6 +473,7 @@ export class CreateEventModalComponent {
 		this.uploadError.set('');
 		this.eventForm.reset({
 			active: true,
+			status: 'ACTIVE',
 			mapId: source.map?.id ?? null,
 			locationId: source.locationId ?? null,
 			hostName: source.hostName ?? '',
@@ -544,6 +555,7 @@ export class CreateEventModalComponent {
 			dateOff: value.dateOff?.trim() ? value.dateOff : undefined,
 			startTime: value.startTime!,
 			active: value.active!,
+			status: value.status!,
 			mapId: value.mapId,
 			locationId: value.locationId,
 			hostName: value.hostName?.trim() ? value.hostName.trim() : null,
