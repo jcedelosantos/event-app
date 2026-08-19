@@ -38,6 +38,7 @@ export type PlanFeatures = {
 	waitingRoomAndCapacity: boolean;
 	productsModule: boolean;
 	multiLocation: boolean;
+	apiAccess: boolean;
 };
 
 export type PlanCatalogEntry = {

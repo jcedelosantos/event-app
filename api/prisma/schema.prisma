@@ -91,6 +91,34 @@ model Tenant {
   paymentReceipts   PaymentReceipt[]
   eventTransactions EventTransaction[]
   locations         Location[]
+  apiKeys           ApiKey[]
+}
+
+// API pública de solo lectura para integraciones de un tenant Enterprise (ver routes/public-api.ts)
+// — no confundir con el JWT de sesión (User, 8h de expiración, pensado para el manager logueado).
+// Solo se guarda el hash de la clave (mismo mecanismo que Subscription.claimTokenHash, ver
+// signup.ts): el valor en texto plano se muestra UNA sola vez al crearla (routes/api-keys.ts POST)
+// y nunca se puede volver a consultar, ni siquiera desde este mismo panel.
+model ApiKey {
+  id       Int    @id @default(autoincrement())
+  tenantId Int
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+
+  // Etiqueta libre para que el tenant identifique para qué integración es cada clave (ej. "ERP
+  // interno", "Zapier") — no tiene efecto funcional.
+  name String
+
+  keyHash String @unique
+  // Primeros caracteres de la clave en texto plano (ej. "ik_live_a1b2c3d4") — permite reconocer cuál
+  // es cuál en la lista sin poder reconstruir el resto (mismo patrón que Stripe/GitHub).
+  keyPrefix String
+
+  active     Boolean   @default(true)
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime?
+  revokedAt  DateTime?
+
+  @@index([tenantId])
 }
 
 // La mensualidad que el TENANT le paga a la agencia (no confundir con SaleTicket, que es la venta

@@ -10,6 +10,7 @@ import { SeatsComponent } from './maps/seats/seats.component';
 import { TicketsComponent } from './tickets/tickets.component';
 import { UsersComponent } from './users/users.component';
 import { LocationsComponent } from './locations/locations.component';
+import { ApiKeysComponent } from './api-keys/api-keys.component';
 import { ReportsComponent } from './reports/reports.component';
 import { HistoryComponent } from './history/history.component';
 import { QrsComponent } from './qrs/qrs.component';
@@ -87,6 +88,11 @@ const routes: Routes = [
 			{
 				path: 'locations',
 				component: LocationsComponent,
+				canActivate: [activeSubscriptionGuard, scannerRoleGuard],
+			},
+			{
+				path: 'api-keys',
+				component: ApiKeysComponent,
 				canActivate: [activeSubscriptionGuard, scannerRoleGuard],
 			},
 			{

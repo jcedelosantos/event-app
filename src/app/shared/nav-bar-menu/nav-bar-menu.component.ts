@@ -17,6 +17,7 @@ const MENU_ITEM_FEATURE: Partial<Record<string, keyof PlanFeatures>> = {
 	Reportes: 'advancedReporting',
 	Historial: 'advancedReporting',
 	Sedes: 'multiLocation',
+	API: 'apiAccess',
 };
 
 const PLAN_NAME: Record<PlanCode, string> = { BASICO: 'Básico', INTERMEDIO: 'Intermedio', AVANZADO: 'Avanzado', PRO_MAX: 'Pro Enterprise' };
@@ -300,6 +301,7 @@ export class NavBarMenuComponent implements AfterViewInit, OnDestroy {
 		{ title: 'QRs', icon: 'bi bi-qr-code', url: '/manager/qrs' },
 		{ title: 'Usuarios', icon: 'bi bi-people-fill', url: '/manager/users' },
 		{ title: 'Sedes', icon: 'bi bi-geo-alt-fill', url: '/manager/locations' },
+		{ title: 'API', icon: 'bi bi-code-slash', url: '/manager/api-keys' },
 		{ title: 'Facturas', icon: 'bi bi-receipt', url: '/manager/invoices' },
 		{ title: 'Productos', icon: 'bi bi-calendar2-event-fill', url: '/manager/products' },
 		{ title: 'Reportes', icon: 'bi bi-flag-fill', url: '/manager/reports' },

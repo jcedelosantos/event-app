@@ -25,6 +25,9 @@ export type PlanDefinition = {
 		// cuenta. Solo PRO_MAX (Pro Enterprise): billing sigue siendo uno solo por tenant, las sedes
 		// no tienen suscripción propia.
 		multiLocation: boolean;
+		// Generar API keys para integraciones externas de solo lectura (ver ApiKey en el schema y
+		// routes/public-api.ts) — igual que multiLocation, solo PRO_MAX.
+		apiAccess: boolean;
 	};
 };
 
@@ -36,21 +39,21 @@ export const PLANS: Record<PlanCode, PlanDefinition> = {
 		name: 'Básico',
 		priceCents: 4900,
 		attendeesPerEvent: 50,
-		features: { publicPortal: false, advancedReporting: false, onlinePayment: false, waitingRoomAndCapacity: false, productsModule: false, multiLocation: false },
+		features: { publicPortal: false, advancedReporting: false, onlinePayment: false, waitingRoomAndCapacity: false, productsModule: false, multiLocation: false, apiAccess: false },
 	},
 	INTERMEDIO: {
 		code: 'INTERMEDIO',
 		name: 'Intermedio',
 		priceCents: 9900,
 		attendeesPerEvent: 150,
-		features: { publicPortal: true, advancedReporting: true, onlinePayment: false, waitingRoomAndCapacity: false, productsModule: true, multiLocation: false },
+		features: { publicPortal: true, advancedReporting: true, onlinePayment: false, waitingRoomAndCapacity: false, productsModule: true, multiLocation: false, apiAccess: false },
 	},
 	AVANZADO: {
 		code: 'AVANZADO',
 		name: 'Avanzado',
 		priceCents: 19900,
 		attendeesPerEvent: 500,
-		features: { publicPortal: true, advancedReporting: true, onlinePayment: true, waitingRoomAndCapacity: true, productsModule: true, multiLocation: false },
+		features: { publicPortal: true, advancedReporting: true, onlinePayment: true, waitingRoomAndCapacity: true, productsModule: true, multiLocation: false, apiAccess: false },
 	},
 	// Code queda PRO_MAX por retrocompatibilidad (webhooks/env vars de PayPal, filas ya guardadas en
 	// Tenant.plan/Subscription.plan lo referencian por este string) — solo cambia el nombre público.
@@ -62,7 +65,7 @@ export const PLANS: Record<PlanCode, PlanDefinition> = {
 		name: 'Pro Enterprise',
 		priceCents: 65000,
 		attendeesPerEvent: 1000,
-		features: { publicPortal: true, advancedReporting: true, onlinePayment: true, waitingRoomAndCapacity: true, productsModule: true, multiLocation: true },
+		features: { publicPortal: true, advancedReporting: true, onlinePayment: true, waitingRoomAndCapacity: true, productsModule: true, multiLocation: true, apiAccess: true },
 	},
 };
 
