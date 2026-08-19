@@ -116,7 +116,7 @@ async function main() {
 			name: 'Super',
 			lastname: 'Admin',
 			gender: '',
-			email: 'superadmin@seat-app.local',
+			email: 'superadmin@integ.local',
 			carnet: '',
 			adress: '',
 			phone: '',

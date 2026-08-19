@@ -103,7 +103,7 @@ import { environment } from '../../../../../environments/environment';
 										<label for="ncfNext">Próximo NCF (solo el número, sin el prefijo)</label>
 										<input type="text" inputmode="numeric" class="form-control" id="ncfNext" formControlName="invoiceNcfNext" placeholder="Ej. 507" />
 										<div class="form-text">
-											Vacío = las facturas se generan sin NCF fiscal (solo con número de referencia interno de seat-app).
+											Vacío = las facturas se generan sin NCF fiscal (solo con número de referencia interno de INTEG).
 										</div>
 									</div>
 								</div>

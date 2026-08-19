@@ -241,7 +241,7 @@ export async function sendProductEmail(args: { to: string; clientName: string; e
 			<h2 style="color:#fff;">¡Hola ${args.clientName}!</h2>
 			<p style="color:#ccc;">Tu compra de productos para <strong style="color:#fff;">${args.event.name}</strong> quedó confirmada. Presentá el código QR (o el PDF adjunto) en el stand de entrega — es válido una sola vez.</p>
 			${cards.map((c) => c.html).join('')}
-			<p style="color:#666;font-size:12px;">Este correo fue generado automáticamente por Seat App.</p>
+			<p style="color:#666;font-size:12px;">Este correo fue generado automáticamente por INTEG.</p>
 		</div>
 	`;
 
@@ -303,7 +303,7 @@ export async function sendTicketEmail(args: { to: string; clientName: string; ev
 			${locationHtml}
 			${cards.map((c) => c.html).join('')}
 			${surveyHtml}
-			<p style="color:#666;font-size:12px;">Este correo fue generado automáticamente por Seat App.</p>
+			<p style="color:#666;font-size:12px;">Este correo fue generado automáticamente por INTEG.</p>
 		</div>
 	`;
 
@@ -567,7 +567,7 @@ export async function sendPeriodicReport(args: { to: string[]; tenantName: strin
 			<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#111;border-radius:8px;border:1px solid #2a2a2a;">${topRows(stats.revenueByProduct)}</table>`
 					: ''
 			}
-			<p style="color:#666;font-size:12px;margin-top:16px;">Reporte automático generado por Seat App. Puedes cambiar la frecuencia o los destinatarios desde Configuración.</p>
+			<p style="color:#666;font-size:12px;margin-top:16px;">Reporte automático generado por INTEG. Puedes cambiar la frecuencia o los destinatarios desde Configuración.</p>
 		</div>
 	`;
 

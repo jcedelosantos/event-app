@@ -49,5 +49,5 @@ cron.schedule('*/5 * * * *', () => {
 
 const port = Number(process.env.PORT ?? 3001);
 app.listen(port, () => {
-	console.log(`seat-app-api listening on http://localhost:${port}`);
+	console.log(`integ-api listening on http://localhost:${port}`);
 });

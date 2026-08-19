@@ -11,7 +11,6 @@ import { AuthService } from './core/services/auth.service';
 	styleUrl: './app.component.css',
 })
 export class AppComponent implements OnInit {
-	title = 'seat-app';
 	private readonly themeService = inject(ThemeService);
 	protected readonly authService = inject(AuthService);
 	private readonly router = inject(Router);

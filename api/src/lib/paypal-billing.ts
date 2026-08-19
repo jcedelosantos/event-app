@@ -99,7 +99,7 @@ export async function createSubscription(
 			plan_id: getBillingPlanId(plan),
 			custom_id: String(tenantId),
 			application_context: {
-				brand_name: 'Seat App',
+				brand_name: 'INTEG',
 				user_action: 'SUBSCRIBE_NOW',
 				return_url: returnUrl,
 				cancel_url: cancelUrl,
@@ -147,7 +147,7 @@ export async function reviseSubscription(
 		headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
 		body: JSON.stringify({
 			plan_id: getBillingPlanId(plan),
-			application_context: { brand_name: 'Seat App', return_url: returnUrl, cancel_url: cancelUrl },
+			application_context: { brand_name: 'INTEG', return_url: returnUrl, cancel_url: cancelUrl },
 		}),
 	});
 	if (!res.ok) {

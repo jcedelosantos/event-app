@@ -13,7 +13,7 @@ export type InvoiceInput = {
 	plan: string | null;
 	subscription: { currentPeriodEnd: Date | null } | null;
 	overage: { totalCents: number; events: EventOverage[] };
-	invoiceNumber: string; // referencia interna de seat-app — siempre existe
+	invoiceNumber: string; // referencia interna de INTEG — siempre existe
 	ncf: string | null; // comprobante fiscal real de DGII — null si el Super Admin no configuró el rango
 	issuedAt: Date;
 	dueAt: Date;
