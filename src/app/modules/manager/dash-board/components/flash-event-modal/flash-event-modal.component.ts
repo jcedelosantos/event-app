@@ -29,7 +29,7 @@ import { isEventPlanCode } from '../../../../../shared/event-plans';
 							<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
 						</div>
 						<div class="modal-body">
-							<p class="text-body-secondary small">Cargá lo mínimo ahora — el resto (mapa, tickets) lo completás después desde la ficha del evento.</p>
+							<p class="text-body-secondary small">Carga lo mínimo ahora — el resto (mapa, tickets) lo completas después desde la ficha del evento.</p>
 							<div class="mb-3">
 								<label for="flashName" class="form-label small">Nombre del evento</label>
 								<input type="text" id="flashName" class="form-control" formControlName="name" [class.is-invalid]="isInvalid('name')" placeholder="Ej. Noche de trivia" />
@@ -60,7 +60,7 @@ import { isEventPlanCode } from '../../../../../shared/event-plans';
 							}
 							<div class="mb-3">
 								<label for="flashCapacity" class="form-label small">Cantidad de personas esperada <span class="text-muted">(opcional)</span></label>
-								<input type="number" id="flashCapacity" class="form-control" formControlName="capacity" min="1" placeholder="Sin tope si lo dejás vacío" />
+								<input type="number" id="flashCapacity" class="form-control" formControlName="capacity" min="1" placeholder="Sin tope si lo dejas vacío" />
 							</div>
 							@if (errorMessage()) {
 								<div class="alert alert-danger mb-0">{{ errorMessage() }}</div>
