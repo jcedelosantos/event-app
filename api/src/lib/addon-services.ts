@@ -87,7 +87,11 @@ export const ADDON_SERVICES: Record<AddOnServiceCode, AddOnServiceDefinition> = 
 	EMAIL_CAMPAIGN: { code: 'EMAIL_CAMPAIGN', name: 'Campaña de correo electrónico', category: 'COMUNICACION', modality: 'Por volumen', pricingType: 'FIXED', unitPriceDOP: 25 },
 	QR_CUSTOM_DESIGN: { code: 'QR_CUSTOM_DESIGN', name: 'Diseño/personalización de QR', category: 'PERSONALIZACION', modality: 'Por evento', pricingType: 'FIXED', unitPriceDOP: 35 },
 	CUSTOM_EVENT_PORTAL: { code: 'CUSTOM_EVENT_PORTAL', name: 'Portal del evento personalizado', category: 'PERSONALIZACION', modality: 'Por evento', pricingType: 'FIXED', unitPriceDOP: 80 },
-	WHITE_LABEL: { code: 'WHITE_LABEL', name: 'Branding / White Label', category: 'PERSONALIZACION', modality: 'Mensual o evento', pricingType: 'FIXED', unitPriceDOP: 85 },
+	// No confundir con el dominio propio (Tenant.customDomain, ver api/src/app.ts) — ese ya viene
+	// incluido en el plan Enterprise (PRO_MAX), no es un addon. Este ítem es branding visual básico
+	// (logo/color) para tenants de un plan menor que igual lo quieren — el logo en sí ya es gratis
+	// desde Configuración, esto es para trabajo de diseño/ajuste manual a pedido.
+	WHITE_LABEL: { code: 'WHITE_LABEL', name: 'Branding visual a medida (logo/color)', category: 'PERSONALIZACION', modality: 'Mensual o evento', pricingType: 'FIXED', unitPriceDOP: 85 },
 	GUEST_LIST_IMPORT: { code: 'GUEST_LIST_IMPORT', name: 'Importación/depuración de invitados', category: 'CONFIGURACION_SOPORTE', modality: 'Por base de datos', pricingType: 'FIXED', unitPriceDOP: 45 },
 	POST_EVENT_REPORT: {
 		code: 'POST_EVENT_REPORT',

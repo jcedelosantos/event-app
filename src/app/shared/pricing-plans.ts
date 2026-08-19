@@ -43,8 +43,8 @@ const PLAN_COPY: Record<PlanCode, Pick<PricingPlan, 'features' | 'description' |
 	// tier y el signup público lo rechaza (ver POST /public/signup) — lo activa un Super Admin a
 	// mano tras cotizar.
 	PRO_MAX: {
-		features: ['Todo lo de Avanzado', 'Hasta 1,000 asistentes por evento', 'Integración con base de datos externa (setup aparte)', 'Contratos a medida (multi-sede, API, white label, SLA)'],
-		description: 'Para operaciones grandes con necesidades a medida — multi-sede, integración API, white label completo o SLA. Nuestro equipo cotiza y activa tu cuenta directamente.',
+		features: ['Todo lo de Avanzado', 'Hasta 1,000 asistentes por evento', 'Multi-sede: varias sucursales bajo una cuenta', 'Dominio propio (white label completo)', 'API pública para tu propio sistema'],
+		description: 'Para operaciones grandes con varias sucursales o necesidades a medida — multi-sede, dominio propio y API pública ya incluidos. Nuestro equipo cotiza el alcance exacto y activa tu cuenta directamente.',
 	},
 };
 
