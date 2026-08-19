@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import * as bootstrap from 'bootstrap';
 import { NavBarInitComponent } from '../../shared/nav-bar-init/nav-bar-init.component';
@@ -48,11 +48,9 @@ type LeadFormState = 'closed' | 'open' | 'success';
 								[class.border-danger]="plan.highlighted"
 								role="button"
 								tabindex="0"
-								[attr.aria-label]="'Ver detalle de ' + plan.name"
-								(click)="openPlan(plan)"
-								(keydown.enter)="openPlan(plan)"
-								data-bs-toggle="modal"
-								data-bs-target="#planDetailModal"
+								[attr.aria-label]="plan.code === 'PRO_MAX' ? 'Pedir cotización de ' + plan.name : 'Comenzar con ' + plan.name"
+								(click)="selectPlan(plan)"
+								(keydown.enter)="selectPlan(plan)"
 							>
 								<div class="card-body d-flex flex-column py-2">
 									<div class="d-flex justify-content-between align-items-start">
@@ -67,7 +65,15 @@ type LeadFormState = 'closed' | 'open' | 'success';
 										<p class="mb-0 mt-1"><span class="fs-4 fw-bold">USD {{ centsToDollars(plan.priceCents) }}</span><span style="color: #b9b9b9;">/mes</span></p>
 									}
 									<p class="small mb-0 flex-grow-1" style="color: #b9b9b9;">Hasta {{ plan.attendeesPerEvent }} asistentes por evento</p>
-									<span class="small text-danger mt-1">Ver detalle <i class="bi bi-arrow-right"></i></span>
+									<button
+										type="button"
+										class="btn btn-link btn-sm text-danger p-0 text-start mt-1 align-self-start"
+										data-bs-toggle="modal"
+										data-bs-target="#planDetailModal"
+										(click)="$event.stopPropagation(); openPlan(plan)"
+									>
+										Ver detalle <i class="bi bi-arrow-right"></i>
+									</button>
 								</div>
 							</div>
 						</div>
@@ -188,6 +194,7 @@ type LeadFormState = 'closed' | 'open' | 'success';
 export class SiteWebComponent implements OnInit {
 	private readonly enterpriseLeadService = inject(EnterpriseLeadService);
 	private readonly route = inject(ActivatedRoute);
+	private readonly router = inject(Router);
 	readonly centsToDollars = centsToDollars;
 
 	plans = PRICING_PLANS;
@@ -208,15 +215,31 @@ export class SiteWebComponent implements OnInit {
 		if (this.route.snapshot.queryParamMap.get('plan') !== 'PRO_MAX') return;
 		const proMax = this.plans.find((p) => p.code === 'PRO_MAX');
 		if (!proMax) return;
-		this.openPlan(proMax);
-		this.leadFormState.set('open');
-		queueMicrotask(() => bootstrap.Modal.getOrCreateInstance('#planDetailModal').show());
+		this.openLeadFormDirect(proMax);
 	}
 
 	openPlan(plan: PricingPlan) {
 		this.selectedPlan.set(plan);
 		this.leadFormState.set('closed');
 		this.leadError.set('');
+	}
+
+	// Click en el cuerpo general de la tarjeta (no en "Ver detalle") — va directo a la acción, sin
+	// pasar por el detalle. Para los planes de autoservicio eso es /signup con el plan ya elegido
+	// (mismo checkout que "Comenzar con {{ plan.name }}" del modal); Pro Enterprise no tiene
+	// checkout propio, así que "ir directo" es abrir el modal ya en el formulario de contacto.
+	selectPlan(plan: PricingPlan) {
+		if (plan.code === 'PRO_MAX') {
+			this.openLeadFormDirect(plan);
+			return;
+		}
+		this.router.navigate(['/signup'], { queryParams: { plan: plan.code } });
+	}
+
+	private openLeadFormDirect(plan: PricingPlan) {
+		this.openPlan(plan);
+		this.leadFormState.set('open');
+		queueMicrotask(() => bootstrap.Modal.getOrCreateInstance('#planDetailModal').show());
 	}
 
 	submitLead() {
