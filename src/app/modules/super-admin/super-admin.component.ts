@@ -122,10 +122,16 @@ const REQUEST_STATUS_LABEL: Record<ServiceRequestStatus, string> = {
 							</td>
 							<td>
 								@if (tenant.plan) {
-									<button type="button" class="btn btn-sm btn-outline-light plan-btn" data-bs-toggle="modal" data-bs-target="#subscriptionModal" (click)="selectedSubscriptionTenant.set(tenant)">
-										{{ tenant.plan }}
+									<button
+										type="button"
+										class="btn btn-sm btn-outline-light plan-btn d-flex justify-content-between align-items-center"
+										data-bs-toggle="modal"
+										data-bs-target="#subscriptionModal"
+										(click)="selectedSubscriptionTenant.set(tenant)"
+									>
+										<span>{{ tenant.plan }}</span>
 										<span
-											class="badge ms-1"
+											class="badge ms-2"
 											[class.text-bg-success]="tenant.planStatus === 'ACTIVE'"
 											[class.text-bg-warning]="tenant.planStatus === 'PAST_DUE' || tenant.planStatus === 'PENDING'"
 											[class.text-bg-secondary]="tenant.planStatus === 'SUSPENDED' || tenant.planStatus === 'CANCELLED'"

@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, inject, output } from '@angular/cor
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { TenantService } from '../../services/tenant.service';
-import { TenantType } from '../../../../models/tenants/tenant';
+import { PlanCode, TenantType } from '../../../../models/tenants/tenant';
 import { extractErrorMessage } from '../../../../utils/api-error';
 import { confirm } from '../../../../utils/messages';
 import { closeModal } from '../../../../utils/modal';
@@ -40,6 +40,19 @@ import { closeModal } from '../../../../utils/modal';
 								</select>
 								<div class="form-text">
 									Un club pide carnet de socio (o del socio que invita) al reservar un asiento, con máximo 2 invitados por socio por evento.
+								</div>
+							</div>
+							<div class="mb-3">
+								<label for="orgPlan">Plan</label>
+								<select class="form-select" id="orgPlan" formControlName="plan">
+									<option [ngValue]="null">Sin plan (asignar después)</option>
+									<option value="BASICO">Básico</option>
+									<option value="INTERMEDIO">Intermedio</option>
+									<option value="AVANZADO">Avanzado</option>
+									<option value="PRO_MAX">Pro Enterprise</option>
+								</select>
+								<div class="form-text">
+									Único lugar donde se activa Pro Enterprise (es cotizable, no autoservicio) — queda ACTIVE de inmediato, facturado fuera del sistema (transferencia o factura directa), sin pasar por PayPal.
 								</div>
 							</div>
 							<hr />
@@ -107,6 +120,7 @@ export class CreateTenantModalComponent {
 	form = new FormGroup({
 		name: new FormControl<string>('', Validators.required),
 		type: new FormControl<TenantType>('GENERAL', { nonNullable: true }),
+		plan: new FormControl<PlanCode | null>(null),
 		adminName: new FormControl<string>('', Validators.required),
 		adminLastname: new FormControl<string>('', Validators.required),
 		adminEmail: new FormControl<string>('', [Validators.required, Validators.email]),
@@ -133,6 +147,7 @@ export class CreateTenantModalComponent {
 					.createTenant({
 						name: value.name!,
 						type: value.type,
+						...(value.plan ? { plan: value.plan } : {}),
 						admin: {
 							username: value.adminUsername!,
 							password: value.adminPassword!,
@@ -144,7 +159,7 @@ export class CreateTenantModalComponent {
 					.subscribe({
 						next: () => {
 							this.tenantCreated.emit();
-							this.form.reset({ name: '', type: 'GENERAL', adminName: '', adminLastname: '', adminEmail: '', adminUsername: '', adminPassword: '' });
+							this.form.reset({ name: '', type: 'GENERAL', plan: null, adminName: '', adminLastname: '', adminEmail: '', adminUsername: '', adminPassword: '' });
 							closeModal('createTenantModal');
 						},
 						error: (err: HttpErrorResponse) => (this.errorMessage = extractErrorMessage(err)),

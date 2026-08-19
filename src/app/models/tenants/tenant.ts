@@ -10,6 +10,15 @@ export const TENANT_TYPE_LABELS: Record<TenantType, string> = {
 	INDEPENDIENTE: 'Independiente',
 };
 
+export type PlanCode = 'BASICO' | 'INTERMEDIO' | 'AVANZADO' | 'PRO_MAX';
+
+export const PLAN_CODE_LABELS: Record<PlanCode, string> = {
+	BASICO: 'Básico',
+	INTERMEDIO: 'Intermedio',
+	AVANZADO: 'Avanzado',
+	PRO_MAX: 'Pro Enterprise',
+};
+
 export interface Tenant {
 	id: number;
 	name: string;
@@ -18,7 +27,7 @@ export interface Tenant {
 	type: TenantType;
 	createdAt: string;
 	// null = tenant sin suscripción propia (dado de alta a mano antes de que existiera este
-	// sistema) — ver middleware/plan.ts en la API.
+	// sistema, o creado sin plan todavía) — ver middleware/plan.ts en la API.
 	plan: string | null;
 	planStatus: string | null;
 	// Datos fiscales/de contacto para el bloque "Para" de la factura (ver invoice-pdf.ts en la API).

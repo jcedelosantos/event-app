@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
-import { Tenant, TenantType } from '../../../models/tenants/tenant';
+import { PlanCode, Tenant, TenantType } from '../../../models/tenants/tenant';
 import { User } from '../../../models/users/user';
 import { Invoice } from '../../../models/invoices/invoice';
 import { environment } from '../../../../environments/environment';
@@ -21,6 +21,9 @@ export type TenantSubscriptionDetail = { subscription: SubscriptionInfo; overage
 export type CreateTenantInput = {
 	name: string;
 	type?: TenantType;
+	// Único plan que se puede asignar acá sin pasar por PayPal (ver comentario en
+	// routes/tenants.ts) — omitido = queda sin plan, igual que antes de que existiera este campo.
+	plan?: PlanCode;
 	admin: {
 		username: string;
 		password: string;
@@ -49,7 +52,7 @@ export class TenantService {
 		return this.httpClient.put<Tenant>(`${this.baseUrl}/${id}`, { active });
 	}
 
-	updateTenant(id: number, data: { name: string; type: TenantType; rnc?: string; address?: string; phone?: string; customDomain?: string | null }): Observable<Tenant> {
+	updateTenant(id: number, data: { name: string; type: TenantType; rnc?: string; address?: string; phone?: string; customDomain?: string | null; plan?: PlanCode | null }): Observable<Tenant> {
 		return this.httpClient.put<Tenant>(`${this.baseUrl}/${id}`, data);
 	}
 

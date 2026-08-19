@@ -3,7 +3,7 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { TenantService } from '../../services/tenant.service';
-import { Tenant, TenantType } from '../../../../models/tenants/tenant';
+import { PlanCode, Tenant, TenantType } from '../../../../models/tenants/tenant';
 import { extractErrorMessage } from '../../../../utils/api-error';
 import { confirm } from '../../../../utils/messages';
 import { closeModal } from '../../../../utils/modal';
@@ -59,6 +59,20 @@ import { closeModal } from '../../../../utils/modal';
 							</div>
 							<hr />
 							<div class="mb-3">
+								<label for="editOrgPlan">Plan</label>
+								<select class="form-select" id="editOrgPlan" formControlName="plan">
+									<option [ngValue]="null">Sin plan</option>
+									<option value="BASICO">Básico</option>
+									<option value="INTERMEDIO">Intermedio</option>
+									<option value="AVANZADO">Avanzado</option>
+									<option value="PRO_MAX">Pro Enterprise</option>
+								</select>
+								<div class="form-text">
+									Cambiarlo acá lo deja ACTIVE al instante, facturado fuera del sistema (transferencia o factura directa) — no toca la suscripción de PayPal si el tenant ya tenía una activa.
+								</div>
+							</div>
+							<hr />
+							<div class="mb-3">
 								<label for="editOrgCustomDomain">Dominio propio <span class="text-muted">(opcional — Enterprise)</span></label>
 								<input type="text" class="form-control" id="editOrgCustomDomain" placeholder="ej. entradas.suclub.com" formControlName="customDomain" />
 								<div class="form-text">
@@ -107,6 +121,7 @@ export class EditTenantModalComponent {
 	form = new FormGroup({
 		name: new FormControl<string>('', Validators.required),
 		type: new FormControl<TenantType>('GENERAL', { nonNullable: true }),
+		plan: new FormControl<PlanCode | null>(null),
 		rnc: new FormControl<string>('', { nonNullable: true }),
 		phone: new FormControl<string>('', { nonNullable: true }),
 		address: new FormControl<string>('', { nonNullable: true }),
@@ -120,6 +135,7 @@ export class EditTenantModalComponent {
 			this.form.reset({
 				name: t?.name ?? '',
 				type: t?.type ?? 'GENERAL',
+				plan: (t?.plan as PlanCode | null) ?? null,
 				rnc: t?.rnc ?? '',
 				phone: t?.phone ?? '',
 				address: t?.address ?? '',
@@ -150,6 +166,7 @@ export class EditTenantModalComponent {
 					.updateTenant(current.id, {
 						name: value.name!,
 						type: value.type,
+						plan: value.plan ?? null,
 						rnc: value.rnc,
 						address: value.address,
 						phone: value.phone,

@@ -30,10 +30,16 @@ tenantsRouter.get('/', asyncHandler(async (_req, res) => {
 }));
 
 const tenantTypeSchema = z.enum(['GENERAL', 'CLUB', 'CHURCH', 'ONG', 'PRIVADA', 'PUBLICA', 'INDEPENDIENTE']);
+const planCodeSchema = z.enum(['BASICO', 'INTERMEDIO', 'AVANZADO', 'PRO_MAX']);
 
 const createTenantSchema = z.object({
 	name: z.string().min(1),
 	type: tenantTypeSchema.optional().default('GENERAL'),
+	// Único lugar donde un tenant Enterprise (PRO_MAX) puede terminar con un plan real sin pasar por
+	// PayPal — el resto de la app lo bloquea a propósito (ver signup.ts/subscription.ts) porque es
+	// "cotizable, no autoservicio" (ver comentario en lib/plans.ts). Opcional: sin esto, el tenant
+	// queda con plan null como antes (dado de alta a mano sin cobrar todavía, o para desarrollo).
+	plan: planCodeSchema.optional(),
 	admin: z.object({
 		username: z.string().min(1),
 		password: z.string().min(4),
@@ -49,7 +55,7 @@ tenantsRouter.post('/', asyncHandler(async (req, res) => {
 		res.status(400).json({ error: parsed.error.flatten() });
 		return;
 	}
-	const { name, type, admin } = parsed.data;
+	const { name, type, plan, admin } = parsed.data;
 	// Mismo chequeo que las altas públicas (signup.ts/signup-event.ts): el formato ya lo valida el
 	// schema, esto confirma que el dominio existe antes de crear la cuenta.
 	if (!(await hasValidMxRecord(admin.email))) {
@@ -68,7 +74,11 @@ tenantsRouter.post('/', asyncHandler(async (req, res) => {
 	try {
 		const hashed = await bcrypt.hash(admin.password, 10);
 		const tenant = await prismaUnscoped.$transaction(async (tx) => {
-			const newTenant = await tx.tenant.create({ data: { name, slug, type } });
+			// Sin Subscription: ese modelo es específico del ciclo de cobro por PayPal (ver comentario en
+			// schema.prisma) — un plan asignado acá a mano se factura fuera del sistema (transferencia,
+			// factura directa), invoice-generation.ts ya sabe leer el precio de PLANS[tenant.plan] sin
+			// necesitar una fila de Subscription.
+			const newTenant = await tx.tenant.create({ data: { name, slug, type, plan: plan ?? null, planStatus: plan ? 'ACTIVE' : null } });
 			await tx.user.create({
 				data: {
 					username: admin.username,
@@ -108,6 +118,9 @@ const updateTenantSchema = z.object({
 	// Dominio propio (ver Tenant.customDomain, api/src/app.ts) — null/"" = sin dominio propio, cae
 	// al comportamiento de siempre (portal en integ.cedanet.net/o/:slug).
 	customDomain: z.string().max(255).nullable().optional(),
+	// Mismo criterio que en createTenantSchema — asignar/cambiar el plan de un tenant a mano (típico
+	// para Enterprise, cotizable) siempre lo deja en planStatus ACTIVE; null limpia ambos campos.
+	plan: planCodeSchema.nullable().optional(),
 });
 
 tenantsRouter.put('/:id', asyncHandler(async (req, res) => {
@@ -118,7 +131,7 @@ tenantsRouter.put('/:id', asyncHandler(async (req, res) => {
 		return;
 	}
 
-	const { customDomain, ...data } = parsed.data;
+	const { customDomain, plan, ...data } = parsed.data;
 	try {
 		const tenant = await prismaUnscoped.tenant.update({
 			where: { id },
@@ -126,7 +139,11 @@ tenantsRouter.put('/:id', asyncHandler(async (req, res) => {
 			// ya normaliza a minúsculas, así que sin esto un dominio guardado con mayúsculas nunca
 			// matchearía. "" se guarda como null (mismo criterio que otros campos opcionales de este
 			// modelo) para no dejar un dominio vacío "activo" por accidente.
-			data: { ...data, ...(customDomain !== undefined ? { customDomain: customDomain?.trim().toLowerCase() || null } : {}) },
+			data: {
+				...data,
+				...(customDomain !== undefined ? { customDomain: customDomain?.trim().toLowerCase() || null } : {}),
+				...(plan !== undefined ? { plan, planStatus: plan ? 'ACTIVE' : null } : {}),
+			},
 		});
 		res.json(tenant);
 	} catch (err: any) {
