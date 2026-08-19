@@ -167,8 +167,11 @@ export class SubscriptionComponent {
 	statusLabel(status: string | null): string {
 		return status ? (STATUS_LABEL[status] ?? status) : '';
 	}
+	// Pro Enterprise no es autoservicio (se cotiza y lo activa un Super Admin a mano, ver
+	// routes/subscription.ts) — no debe aparecer como destino de auto-upgrade acá, mismo criterio que
+	// ya aplica en signup.component.ts para el alta inicial.
 	otherPlans(current: PlanCode | EventPlanCode | null) {
-		return Object.values(PLANS_BY_CODE).filter((p) => p.code !== current);
+		return Object.values(PLANS_BY_CODE).filter((p) => p.code !== current && p.code !== 'PRO_MAX');
 	}
 
 	onSelectPlan(event: Event) {

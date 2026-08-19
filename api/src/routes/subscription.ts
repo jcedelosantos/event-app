@@ -34,7 +34,9 @@ subscriptionRouter.get('/overage-nudge', asyncHandler(async (req: AuthenticatedR
 		return;
 	}
 	const nextPlan = PLAN_ORDER[PLAN_ORDER.indexOf(tenant.plan) + 1];
-	if (!nextPlan) {
+	// PRO_MAX no es autoservicio (se cotiza a mano) — un tenant en AVANZADO tampoco tiene "a dónde
+	// subir" solo, mismo caso que ya estar en PRO_MAX.
+	if (!nextPlan || nextPlan === 'PRO_MAX') {
 		res.json({ shouldUpgrade: false });
 		return;
 	}
@@ -60,6 +62,12 @@ subscriptionRouter.post(
 		}
 		if (!isPlanCode(parsed.data.plan)) {
 			res.status(400).json({ error: 'Plan inválido' });
+			return;
+		}
+		// Mismo bloqueo que POST /public/signup (ver comentario en lib/plans.ts) — Pro Enterprise se
+		// cotiza y lo activa un Super Admin a mano, nunca por auto-upgrade desde acá.
+		if (parsed.data.plan === 'PRO_MAX') {
+			res.status(400).json({ error: 'El plan Pro Enterprise se cotiza y activa a medida — contactá a nuestro equipo.' });
 			return;
 		}
 		const tenantId = req.user!.tenantId!;

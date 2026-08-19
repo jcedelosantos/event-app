@@ -27,12 +27,12 @@ export const PLAN_FEATURES: Record<PlanCode, PlanFeatures> = Object.fromEntries(
 
 const PLAN_COPY: Record<PlanCode, Pick<PricingPlan, 'features' | 'description' | 'highlighted'>> = {
 	BASICO: {
-		features: ['Eventos ilimitados por mes', 'Hasta 50 asistentes por evento', 'Creación de eventos, mapas y asientos', 'Venta manual + scanner de check-in', 'Panel de QRs y correo automático'],
+		features: ['Eventos ilimitados por mes', 'Hasta 75 asistentes por evento', 'Creación de eventos, mapas y asientos', 'Venta manual + scanner de check-in', 'Panel de QRs y correo automático'],
 		description: 'Ideal para clubes y organizaciones que recién empiezan a digitalizar sus eventos — todo lo esencial para vender entradas y controlar el acceso, sin complicarte.',
 	},
 	INTERMEDIO: {
 		highlighted: true,
-		features: ['Todo lo de Básico', 'Hasta 150 asistentes por evento', 'Portal público de auto-registro', 'Reportería y auditoría avanzada', 'Venta de productos / comida del día'],
+		features: ['Todo lo de Básico', 'Hasta 200 asistentes por evento', 'Portal público de auto-registro', 'Reportería y auditoría avanzada', 'Venta de productos / comida del día'],
 		description: 'Para organizaciones que ya venden entradas seguido y quieren que sus socios se registren solos, además de entender mejor qué está pasando con reportes y auditoría.',
 	},
 	AVANZADO: {

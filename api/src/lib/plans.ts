@@ -38,14 +38,14 @@ export const PLANS: Record<PlanCode, PlanDefinition> = {
 		code: 'BASICO',
 		name: 'Básico',
 		priceCents: 4900,
-		attendeesPerEvent: 50,
+		attendeesPerEvent: 75,
 		features: { publicPortal: false, advancedReporting: false, onlinePayment: false, waitingRoomAndCapacity: false, productsModule: false, multiLocation: false, apiAccess: false },
 	},
 	INTERMEDIO: {
 		code: 'INTERMEDIO',
 		name: 'Intermedio',
 		priceCents: 9900,
-		attendeesPerEvent: 150,
+		attendeesPerEvent: 200,
 		features: { publicPortal: true, advancedReporting: true, onlinePayment: false, waitingRoomAndCapacity: false, productsModule: true, multiLocation: false, apiAccess: false },
 	},
 	AVANZADO: {
@@ -57,9 +57,15 @@ export const PLANS: Record<PlanCode, PlanDefinition> = {
 	},
 	// Code queda PRO_MAX por retrocompatibilidad (webhooks/env vars de PayPal, filas ya guardadas en
 	// Tenant.plan/Subscription.plan lo referencian por este string) — solo cambia el nombre público.
-	// priceCents acá es solo de referencia interna (facturas manuales, Super Admin) — YA NO es
-	// autoservicio: POST /public/signup rechaza este plan (ver signup.ts), la marketing page no
-	// muestra precio para este tier, y el alta la hace un Super Admin a mano tras cotizar.
+	// priceCents NO es un precio de lista — es 100% cotizable, decisión explícita del usuario
+	// (2026-08-19): ningún lugar de cara al cliente/prospecto debe mostrar este número (marketing,
+	// panel de auto-upgrade, documento comercial). Sigue existiendo acá porque la maquinaria de
+	// facturación interna (invoice-generation.ts, el Billing Plan ya creado en PayPal vía
+	// setup-paypal-plans.ts) necesita un monto real para los tenants YA activos en este plan — es la
+	// tarifa de referencia que se usa hasta que se cotiza algo distinto a mano, no una que se anuncie.
+	// YA NO es autoservicio: POST /public/signup y POST /subscription/upgrade rechazan este plan (ver
+	// signup.ts y subscription.ts), la marketing page no muestra precio para este tier, y el alta la
+	// hace un Super Admin a mano tras cotizar.
 	PRO_MAX: {
 		code: 'PRO_MAX',
 		name: 'Pro Enterprise',
