@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { PublicEventService, PublicOrg, PublicOrgEvent } from '../public-event/services/public-event.service';
-import { effectiveSalesCloseAt } from '../../utils/dates';
+import { effectiveSalesCloseAt, eventDateKey, todayKey } from '../../utils/dates';
 
 type FilterCategory = 'proximos' | 'vencidos' | 'cancelados' | 'pospuestos' | 'inactivos' | 'programados';
 
@@ -120,6 +120,9 @@ const DEFAULT_VISIBLE_FILTERS: FilterCategory[] = ['proximos', 'programados'];
 														</div>
 													}
 													<span class="event-date-badge">{{ formatShortDate(event.dateOn) }}</span>
+													@if (isToday(event.dateOn)) {
+														<span class="event-today-badge">Hoy</span>
+													}
 												</div>
 												<div class="event-info">
 													<h3 class="event-name">{{ event.name }}</h3>
@@ -332,6 +335,20 @@ const DEFAULT_VISIBLE_FILTERS: FilterCategory[] = ['proximos', 'programados'];
 				border-radius: 0.25rem;
 				text-transform: uppercase;
 			}
+			/* Mismo lugar que .event-status-badge (top-right) — libre acá porque un evento comprable
+			   (única rama donde se muestra esta insignia) no tiene status badge que lo ocupe. */
+			.event-today-badge {
+				position: absolute;
+				top: 0.5rem;
+				right: 0.5rem;
+				background: var(--app-accent);
+				color: #fff;
+				font-size: 0.7rem;
+				font-weight: 700;
+				padding: 0.2rem 0.5rem;
+				border-radius: 0.25rem;
+				text-transform: uppercase;
+			}
 			.event-info {
 				padding: 0.75rem 0.9rem 1rem;
 			}
@@ -444,6 +461,13 @@ export class OrgLandingComponent implements OnInit {
 		if (event.inactive) return 'inactivos';
 		if (effectiveSalesCloseAt(event) < this.now()) return 'vencidos';
 		return 'proximos';
+	}
+
+	// eventDateKey lee dateOn con getters UTC (día calendario) y todayKey lee "hoy" en hora local del
+	// visitante (ver comentario en utils/dates.ts) — misma pareja que ya usa el resto de la app, para
+	// que un evento no aparezca/desaparezca del badge "HOY" un día antes/después según el timezone.
+	isToday(dateOn: string): boolean {
+		return eventDateKey(new Date(dateOn)) === todayKey();
 	}
 
 	// Lee `now()` a propósito — al tickear (ver constructor) esto se recalcula solo en cada render, sin
