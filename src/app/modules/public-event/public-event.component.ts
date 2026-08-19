@@ -21,6 +21,7 @@ import { extractErrorMessage } from '../../utils/api-error';
 import { shortSeatLabel } from '../../utils/seat-label';
 import { warning } from '../../utils/messages';
 import { centsToDollars, formatDualCurrency } from '../../shared/money';
+import { effectiveSalesCloseAt } from '../../utils/dates';
 
 // Formato real del carnet (ver create-qr-modal / lib/attendee.ts): una letra (inicial del primer
 // apellido) + 4 dígitos para el socio accionista — ej. "C6735". Los dependientes agregan "-N": "-0"
@@ -1029,7 +1030,7 @@ export class PublicEventComponent implements OnInit {
 		if (ev.status === 'POSTPONED') {
 			return 'Este evento fue pospuesto — todavía no hay una nueva fecha confirmada.';
 		}
-		if (new Date() > new Date(ev.dateOff)) {
+		if (new Date() > effectiveSalesCloseAt(ev)) {
 			return 'Las ventas para este evento ya cerraron.';
 		}
 		if (ev.publishAt && new Date() < new Date(ev.publishAt)) {

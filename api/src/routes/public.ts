@@ -27,6 +27,7 @@ import { logAudit } from '../lib/audit';
 import { joinWaitingRoom, getWaitingRoomStatus } from '../lib/waiting-room';
 import { serializableTransaction } from '../lib/serializable-tx';
 import { generatePublicSlug } from './events';
+import { effectiveSalesCloseAt } from '../lib/event-time';
 
 export const publicRouter = Router();
 
@@ -511,7 +512,7 @@ publicRouter.post('/purchase', checkoutRateLimiter, asyncHandler(async (req, res
 	// chequea dateSale acá — hoy siempre es igual a dateOn (nadie lo edita, la UI no lo expone), así
 	// que tratarlo como "inicio de venta" bloquearía la compra de eventos vigentes hasta el mismo día
 	// del evento. El gate real de "inicio de venta" es Event.publishAt (opcional, ver abajo).
-	if (event.dateOff < new Date()) {
+	if (effectiveSalesCloseAt(event) < new Date()) {
 		res.status(409).json({ error: 'Las ventas para este evento ya cerraron.' });
 		return;
 	}
@@ -872,7 +873,7 @@ publicRouter.post('/checkout/hold', checkoutRateLimiter, asyncHandler(async (req
 		res.status(400).json({ error: 'Este evento no acepta ese método de pago.' });
 		return;
 	}
-	if (event.dateOff < new Date()) {
+	if (effectiveSalesCloseAt(event) < new Date()) {
 		res.status(409).json({ error: 'Las ventas para este evento ya cerraron.' });
 		return;
 	}

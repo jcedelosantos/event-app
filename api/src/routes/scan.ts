@@ -7,24 +7,10 @@ import { asyncHandler } from '../lib/async-handler';
 import { saleTicketInclude, toPublicSaleTicket } from './sale-tickets';
 import { saleProductInclude, toPublicSaleProduct } from './sale-products';
 import { childInclude, toPublicChild } from './children';
+import { eventStartInstant } from '../lib/event-time';
 
 export const scanRouter = Router();
 scanRouter.use(requireAuth, requireTenant, requireActiveSubscription);
-
-const CLUB_UTC_OFFSET_HOURS = 4; // República Dominicana, AST fijo todo el año (sin horario de verano)
-
-// dateOn es el día calendario del evento (medianoche UTC, ver utils/dates.ts). El horario real de
-// inicio vive aparte en startTime ("HH:mm", hora local del club) porque mezclar hora-de-reloj
-// dentro de dateOn rompería la lógica de "día calendario" que usa el resto de la app (dashboard,
-// calendario). Si el evento no tiene startTime cargado (eventos viejos, campo opcional), no hay
-// forma de saber la hora real de inicio — se deja pasar el check-in sin restricción.
-function eventStartInstant(eventDateOn: Date, startTime: string | null): Date | null {
-	if (!startTime) return null;
-	const [hours, minutes] = startTime.split(':').map(Number);
-	return new Date(
-		Date.UTC(eventDateOn.getUTCFullYear(), eventDateOn.getUTCMonth(), eventDateOn.getUTCDate(), hours + CLUB_UTC_OFFSET_HOURS, minutes),
-	);
-}
 
 // checkInWindowHours es configurable por evento (Event.checkInWindowHours, default 1) — antes era un
 // valor fijo igual para todos los eventos, ver create-event-modal para el campo del form.

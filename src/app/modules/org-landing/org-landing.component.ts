@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { PublicEventService, PublicOrg, PublicOrgEvent } from '../public-event/services/public-event.service';
+import { effectiveSalesCloseAt } from '../../utils/dates';
 
 type FilterCategory = 'proximos' | 'vencidos' | 'cancelados' | 'pospuestos' | 'inactivos' | 'programados';
 
@@ -433,15 +434,15 @@ export class OrgLandingComponent implements OnInit {
 
 	// Un evento cae en exactamente un balde para el filtro de la portada — mismo orden de prioridad
 	// que statusLabel() (cancelado/pospuesto pesa más que cualquier otra cosa), salvo que acá
-	// "vencido" (ya pasó dateOff) también cuenta como balde propio en vez de perderse dentro de
-	// "próximos". "Inactivo" (sin tickets cargados) y "programado" (publishAt a futuro) son los mismos
-	// casos que ya calcula el backend.
+	// "vencido" (ya pasó el cierre de ventas, ver effectiveSalesCloseAt en utils/dates.ts) también
+	// cuenta como balde propio en vez de perderse dentro de "próximos". "Inactivo" (sin tickets
+	// cargados) y "programado" (publishAt a futuro) son los mismos casos que ya calcula el backend.
 	eventCategory(event: PublicOrgEvent): FilterCategory {
 		if (event.status === 'CANCELLED') return 'cancelados';
 		if (event.status === 'POSTPONED') return 'pospuestos';
 		if (event.scheduled) return 'programados';
 		if (event.inactive) return 'inactivos';
-		if (new Date(event.dateOff) < this.now()) return 'vencidos';
+		if (effectiveSalesCloseAt(event) < this.now()) return 'vencidos';
 		return 'proximos';
 	}
 
