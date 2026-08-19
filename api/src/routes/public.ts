@@ -98,9 +98,12 @@ publicRouter.get('/org/:slug', asyncHandler(async (req, res) => {
 	// cuando el visitante activa ese chip. `take` es la red de seguridad para no traer un histórico
 	// sin límite en un tenant con muchos años de eventos — 300 eventos alcanza de sobra para
 	// cualquier club real y evita un query sin acotar en un endpoint público.
+	// asc (no desc): el visitante quiere ver primero lo más cercano a hoy — el de hoy mismo, después
+	// el que sigue, etc. — no lo más lejano en el futuro. Los vencidos quedan al final del listado
+	// completo (el frontend los saca del balde visible por default de todos modos).
 	const events = await prisma.event.findMany({
 		where: { tenantId: tenant.id, active: true },
-		orderBy: { dateOn: 'desc' },
+		orderBy: { dateOn: 'asc' },
 		take: 300,
 		select: {
 			id: true,
