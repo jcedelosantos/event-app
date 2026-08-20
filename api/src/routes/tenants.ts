@@ -13,6 +13,7 @@ import { EVENT_PLAN_CODES } from '../lib/event-plans';
 import { cancelSubscription } from '../lib/paypal-billing';
 import { generateAndStoreInvoice } from '../lib/invoice-generation';
 import { hasValidMxRecord } from '../lib/email-validation';
+import { generateWelcomeInvoiceOnce, notifyNewTenant } from './signup';
 
 // Panel de Super Admin: alta de nuevos clientes (clubes/iglesias) y su primer usuario admin. Usa
 // prismaUnscoped a propósito — el tenant-guard exige tenantId en cada query de los modelos de
@@ -228,6 +229,32 @@ tenantsRouter.get('/:id/subscription', asyncHandler(async (req, res) => {
 	const subscription = await prismaUnscoped.subscription.findUnique({ where: { tenantId: id } });
 	const overage = await computeTenantOverage(id);
 	res.json({ subscription, overage });
+}));
+
+// Fuerza la activación de una suscripción recurrente que quedó en PENDING sin que el webhook de
+// PayPal la haya confirmado nunca (visitante que abandonó el checkout, pruebas con sandbox sin
+// completar, etc.) — mismo efecto que el webhook real (BILLING.SUBSCRIPTION.ACTIVATED, ver
+// POST /webhooks/paypal-billing en signup.ts), incluida la factura de bienvenida y el aviso de alta
+// nueva, disparado a mano por el Super Admin en vez de esperar una confirmación de PayPal que puede
+// no llegar. A diferencia del selector de Plan de "Editar organización" (que solo deja el Tenant en
+// ACTIVE sin tocar Subscription, dejando las dos filas desincronizadas), esto sincroniza ambas.
+tenantsRouter.post('/:id/subscription/force-activate', asyncHandler(async (req, res) => {
+	const id = Number(req.params.id);
+	const subscription = await prismaUnscoped.subscription.findUnique({ where: { tenantId: id } });
+	if (!subscription || subscription.status !== 'PENDING') {
+		res.status(409).json({ error: 'Esta organización no tiene una suscripción pendiente de activar.' });
+		return;
+	}
+
+	await prismaUnscoped.$transaction([
+		prismaUnscoped.subscription.update({ where: { tenantId: id }, data: { status: 'ACTIVE' } }),
+		prismaUnscoped.tenant.update({ where: { id }, data: { planStatus: 'ACTIVE' } }),
+	]);
+
+	generateWelcomeInvoiceOnce(id).catch((err) => console.error('No se pudo generar la factura de bienvenida:', err));
+	notifyNewTenant(id).catch((err) => console.error('No se pudo avisar el alta del tenant:', err));
+
+	res.json({ ok: true });
 }));
 
 // Factura modelo (plan + overage del mes) para que la agencia le facture al club aparte — ver

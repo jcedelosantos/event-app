@@ -93,6 +93,11 @@ const STATUS_LABEL: Record<string, string> = {
 								{{ downloadingInvoice() ? 'Generando...' : 'Descargar factura' }}
 							</button>
 						}
+						@if (detail()?.subscription?.status === 'PENDING') {
+							<button type="button" class="btn btn-outline-warning" [disabled]="forcingActivation()" (click)="forceActivate()">
+								{{ forcingActivation() ? 'Activando...' : 'Forzar activación' }}
+							</button>
+						}
 						@if (detail()?.subscription?.paypalSubscriptionId) {
 							<button type="button" class="btn btn-outline-danger" (click)="cancel()">Cancelar suscripción</button>
 						}
@@ -111,6 +116,7 @@ export class SubscriptionModalComponent {
 	subscriptionChanged = output<void>();
 	detail = signal<TenantSubscriptionDetail | null>(null);
 	downloadingInvoice = signal(false);
+	forcingActivation = signal(false);
 
 	constructor() {
 		effect(() => {
@@ -156,5 +162,29 @@ export class SubscriptionModalComponent {
 					error: (err: HttpErrorResponse) => showError(extractErrorMessage(err)),
 				}),
 		});
+	}
+
+	forceActivate() {
+		const current = this.tenant();
+		if (!current) return;
+		confirm(
+			`¿Forzar la activación de "${current.name}"? Usalo solo si estás seguro de que el pago se hizo — PayPal nunca confirmó esta suscripción, así que no queda ningún cobro real verificado del otro lado.`,
+			{
+				onConfirm: () => {
+					this.forcingActivation.set(true);
+					this.tenantService.forceActivateSubscription(current.id).subscribe({
+						next: () => {
+							this.forcingActivation.set(false);
+							this.tenantService.getSubscription(current.id).subscribe((d) => this.detail.set(d));
+							this.subscriptionChanged.emit();
+						},
+						error: (err: HttpErrorResponse) => {
+							this.forcingActivation.set(false);
+							showError(extractErrorMessage(err));
+						},
+					});
+				},
+			},
+		);
 	}
 }

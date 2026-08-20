@@ -83,6 +83,12 @@ export class TenantService {
 		return this.httpClient.post<{ ok: boolean }>(`${this.baseUrl}/${id}/subscription/cancel`, { reason });
 	}
 
+	// Ver POST /tenants/:id/subscription/force-activate en la API — solo aplica a una suscripción
+	// que quedó en PENDING sin que el webhook de PayPal la haya confirmado nunca.
+	forceActivateSubscription(id: number): Observable<{ ok: boolean }> {
+		return this.httpClient.post<{ ok: boolean }>(`${this.baseUrl}/${id}/subscription/force-activate`, {});
+	}
+
 	// blob (no JSON): el interceptor de auth igual agrega el Bearer token, así que un <a href> plano
 	// no serviría acá (no manda el header) — hay que pedirlo por HttpClient y bajarlo a mano.
 	downloadInvoice(id: number): Observable<Blob> {
