@@ -18,11 +18,12 @@ type Step = 'form' | 'payment' | 'bank-transfer' | 'pending-review' | 'entering'
 	imports: [ReactiveFormsModule, RouterLink, DecimalPipe],
 	template: `
 		<div class="page" data-bs-theme="dark">
-			<div class="container py-5" style="max-width: 640px;">
+			<div class="auth-card">
+				<span class="brand-mark">INTEG</span>
 				@switch (step()) {
 					@case ('form') {
 						<h1 class="h3 mb-1">Tu evento, sin suscripción</h1>
-						<p class="mb-4" style="color: #b9b9b9;">
+						<p class="mb-4" style="color: #a3a3a3;">
 							Pagás una sola vez, montas y corres tu evento con acceso completo. Después del evento tu cuenta queda en modo de
 							consulta — puedes actualizarte a un plan recurrente cuando quieras. Si vendes más asistentes de los que pagaste acá,
 							no te bloqueamos la venta — se factura aparte a USD {{ overageFee }} por persona adicional.
@@ -37,7 +38,7 @@ type Step = 'form' | 'payment' | 'bank-transfer' | 'pending-review' | 'entering'
 											<button
 												type="button"
 												class="btn w-100 h-100 text-start tier-btn"
-												[class.btn-danger]="form.controls.eventPlanCode.value === tier.code"
+												[class.btn-brand]="form.controls.eventPlanCode.value === tier.code"
 												[class.btn-outline-secondary]="form.controls.eventPlanCode.value !== tier.code"
 												(click)="form.controls.eventPlanCode.setValue(tier.code)"
 											>
@@ -57,7 +58,7 @@ type Step = 'form' | 'payment' | 'bank-transfer' | 'pending-review' | 'entering'
 									<button
 										type="button"
 										class="btn flex-fill"
-										[class.btn-danger]="form.controls.paymentMethod.value === 'PAYPAL'"
+										[class.btn-brand]="form.controls.paymentMethod.value === 'PAYPAL'"
 										[class.btn-outline-secondary]="form.controls.paymentMethod.value !== 'PAYPAL'"
 										(click)="form.controls.paymentMethod.setValue('PAYPAL')"
 									>
@@ -66,7 +67,7 @@ type Step = 'form' | 'payment' | 'bank-transfer' | 'pending-review' | 'entering'
 									<button
 										type="button"
 										class="btn flex-fill"
-										[class.btn-danger]="form.controls.paymentMethod.value === 'BANK_TRANSFER'"
+										[class.btn-brand]="form.controls.paymentMethod.value === 'BANK_TRANSFER'"
 										[class.btn-outline-secondary]="form.controls.paymentMethod.value !== 'BANK_TRANSFER'"
 										(click)="form.controls.paymentMethod.setValue('BANK_TRANSFER')"
 									>
@@ -127,20 +128,20 @@ type Step = 'form' | 'payment' | 'bank-transfer' | 'pending-review' | 'entering'
 							}
 
 							<div class="col-12 d-flex align-items-center gap-3">
-								<button type="submit" class="btn btn-danger" [disabled]="submitting()">
+								<button type="submit" class="btn btn-brand" [disabled]="submitting()">
 									@if (submitting()) {
 										Creando cuenta...
 									} @else {
 										Continuar al pago
 									}
 								</button>
-								<a routerLink="/site-web" class="small" style="color: #b9b9b9;">Cancelar</a>
+								<a routerLink="/site-web" class="small" style="color: #a3a3a3;">Cancelar</a>
 							</div>
 						</form>
 					}
 					@case ('payment') {
 						<h1 class="h3 mb-1">Confirma el pago</h1>
-						<p class="mb-4" style="color: #b9b9b9;">
+						<p class="mb-4" style="color: #a3a3a3;">
 							Pago único de <strong>USD {{ selectedTierPrice() }}</strong> — tu cuenta se activa apenas PayPal confirme.
 						</p>
 						<div id="paypal-button-container"></div>
@@ -150,12 +151,12 @@ type Step = 'form' | 'payment' | 'bank-transfer' | 'pending-review' | 'entering'
 					}
 					@case ('bank-transfer') {
 						<h1 class="h3 mb-1">Transfiere y sube tu comprobante</h1>
-						<p class="mb-1" style="color: #b9b9b9;">
+						<p class="mb-1" style="color: #a3a3a3;">
 							Pago único de <strong>USD {{ selectedTierPrice() }}</strong>. Transfiere a esta cuenta y sube una foto del comprobante —
 							activamos tu cuenta apenas lo confirmemos.
 						</p>
 						@if (dopAmount(); as dop) {
-							<p class="mb-4 small" style="color: #b9b9b9;">
+							<p class="mb-4 small" style="color: #a3a3a3;">
 								≈ RD$ {{ dop.amount | number: '1.0-0' }} al tipo de cambio de hoy (1 USD = RD$ {{ dop.rate | number: '1.2-2' }})
 							</p>
 						} @else {
@@ -163,16 +164,16 @@ type Step = 'form' | 'payment' | 'bank-transfer' | 'pending-review' | 'entering'
 						}
 
 						@if (bankInfo(); as bank) {
-							<div class="card bg-dark border-secondary mb-4">
+							<div class="card bank-info-card mb-4">
 								<div class="card-body">
 									<dl class="row mb-0 small">
-										<dt class="col-5" style="color: #b9b9b9;">Banco</dt>
+										<dt class="col-5" style="color: #a3a3a3;">Banco</dt>
 										<dd class="col-7">{{ bank.bankName }}</dd>
-										<dt class="col-5" style="color: #b9b9b9;">Tipo de cuenta</dt>
+										<dt class="col-5" style="color: #a3a3a3;">Tipo de cuenta</dt>
 										<dd class="col-7">{{ bank.bankAccountType }}</dd>
-										<dt class="col-5" style="color: #b9b9b9;">Número de cuenta</dt>
+										<dt class="col-5" style="color: #a3a3a3;">Número de cuenta</dt>
 										<dd class="col-7">{{ bank.bankAccountNumber }}</dd>
-										<dt class="col-5" style="color: #b9b9b9;">Titular</dt>
+										<dt class="col-5" style="color: #a3a3a3;">Titular</dt>
 										<dd class="col-7 mb-0">{{ bank.bankAccountHolder }}</dd>
 									</dl>
 								</div>
@@ -190,7 +191,7 @@ type Step = 'form' | 'payment' | 'bank-transfer' | 'pending-review' | 'entering'
 							<div class="alert alert-danger mb-3">{{ errorMessage() }}</div>
 						}
 
-						<button type="button" class="btn btn-danger" [disabled]="!selectedFile() || uploadingReceipt()" (click)="submitReceipt()">
+						<button type="button" class="btn btn-brand" [disabled]="!selectedFile() || uploadingReceipt()" (click)="submitReceipt()">
 							@if (uploadingReceipt()) {
 								Subiendo...
 							} @else {
@@ -200,28 +201,86 @@ type Step = 'form' | 'payment' | 'bank-transfer' | 'pending-review' | 'entering'
 					}
 					@case ('pending-review') {
 						<h1 class="h4 text-info">Recibimos tu comprobante</h1>
-						<p class="mb-4" style="color: #b9b9b9;">
+						<p class="mb-4" style="color: #a3a3a3;">
 							Te confirmamos por correo apenas lo validemos — no hace falta que hagas nada más por ahora.
 						</p>
 					}
 					@case ('entering') {
 						<div class="spinner-border text-success mb-3" role="status"></div>
 						<h1 class="h4 text-success">¡Tu cuenta está lista!</h1>
-						<p style="color: #b9b9b9;">Entrando a tu panel...</p>
+						<p style="color: #a3a3a3;">Entrando a tu panel...</p>
 					}
 					@case ('done') {
 						<h1 class="h4 text-success">¡Tu cuenta está lista!</h1>
-						<p class="mb-4" style="color: #b9b9b9;">El pago quedó confirmado. Ya puedes iniciar sesión y crear tu evento.</p>
-						<a routerLink="/login/sign-in" class="btn btn-danger">Iniciar sesión</a>
+						<p class="mb-4" style="color: #a3a3a3;">El pago quedó confirmado. Ya puedes iniciar sesión y crear tu evento.</p>
+						<a routerLink="/login/sign-in" class="btn btn-brand">Iniciar sesión</a>
 					}
 				}
 			</div>
 		</div>
 	`,
 	styles: `
+		/* Misma línea visual que el login (ver layout-page/sign-in en src/app/modules/login) — fondo
+		   con degradado azul de marca + tarjeta centrada, en vez del formulario suelto de antes. */
 		.page {
 			min-height: 100vh;
-			background: #0a0a0a;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			padding: 2rem 1rem;
+			background:
+				radial-gradient(circle at 50% -10%, rgba(30, 58, 138, 0.28), transparent 55%),
+				#0a0a0a;
+			color: #fff;
+		}
+		.auth-card {
+			width: 100%;
+			max-width: 640px;
+			background: #161616;
+			border: 1px solid #2a2a2a;
+			border-radius: 0.75rem;
+			padding: 2.25rem 2rem;
+			box-shadow: 0 20px 50px -20px rgba(0, 0, 0, 0.6);
+		}
+		.brand-mark {
+			display: block;
+			text-align: center;
+			font-weight: 700;
+			font-size: 0.95rem;
+			letter-spacing: 0.16em;
+			color: #6f8ad6;
+			margin-bottom: 1.25rem;
+		}
+		.form-label {
+			color: #c9c9c9;
+		}
+		.form-control,
+		.form-select {
+			background-color: #0f0f0f;
+			border-color: #333;
+			color: #f5f5f5;
+		}
+		.form-control:focus,
+		.form-select:focus {
+			background-color: #0f0f0f;
+			border-color: #34509e;
+			color: #fff;
+			box-shadow: 0 0 0 0.2rem rgba(30, 58, 138, 0.35);
+		}
+		.bank-info-card {
+			background: #0f0f0f;
+			border-color: #333;
+		}
+		.btn-brand {
+			background: #1e3a8a;
+			border-color: #1e3a8a;
+			color: #fff;
+			font-weight: 600;
+		}
+		.btn-brand:hover,
+		.btn-brand:focus {
+			background: #19316f;
+			border-color: #19316f;
 			color: #fff;
 		}
 		.tier-btn {

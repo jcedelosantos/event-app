@@ -16,11 +16,12 @@ type Step = 'form' | 'bank-transfer' | 'pending-review';
 	imports: [ReactiveFormsModule, RouterLink, DecimalPipe],
 	template: `
 		<div class="page" data-bs-theme="dark">
-			<div class="container py-5" style="max-width: 640px;">
+			<div class="auth-card">
+				<span class="brand-mark">INTEG</span>
 				@switch (step()) {
 					@case ('form') {
 						<h1 class="h3 mb-1">Creá tu cuenta</h1>
-						<p class="mb-4" style="color: #b9b9b9;">Tu organización queda activa apenas confirmes el pago.</p>
+						<p class="mb-4" style="color: #a3a3a3;">Tu organización queda activa apenas confirmes el pago.</p>
 
 						<form [formGroup]="form" (ngSubmit)="submit()" class="row g-3">
 							<div class="col-12">
@@ -82,7 +83,7 @@ type Step = 'form' | 'bank-transfer' | 'pending-review';
 									<button
 										type="button"
 										class="btn flex-fill"
-										[class.btn-danger]="form.controls.paymentMethod.value === 'PAYPAL'"
+										[class.btn-brand]="form.controls.paymentMethod.value === 'PAYPAL'"
 										[class.btn-outline-secondary]="form.controls.paymentMethod.value !== 'PAYPAL'"
 										(click)="form.controls.paymentMethod.setValue('PAYPAL')"
 									>
@@ -91,7 +92,7 @@ type Step = 'form' | 'bank-transfer' | 'pending-review';
 									<button
 										type="button"
 										class="btn flex-fill"
-										[class.btn-danger]="form.controls.paymentMethod.value === 'BANK_TRANSFER'"
+										[class.btn-brand]="form.controls.paymentMethod.value === 'BANK_TRANSFER'"
 										[class.btn-outline-secondary]="form.controls.paymentMethod.value !== 'BANK_TRANSFER'"
 										(click)="form.controls.paymentMethod.setValue('BANK_TRANSFER')"
 									>
@@ -111,7 +112,7 @@ type Step = 'form' | 'bank-transfer' | 'pending-review';
 							}
 
 							<div class="col-12 d-flex align-items-center gap-3">
-								<button type="submit" class="btn btn-danger" [disabled]="submitting()">
+								<button type="submit" class="btn btn-brand" [disabled]="submitting()">
 									@if (submitting()) {
 										Creando cuenta...
 									} @else if (form.controls.paymentMethod.value === 'BANK_TRANSFER') {
@@ -120,21 +121,21 @@ type Step = 'form' | 'bank-transfer' | 'pending-review';
 										Continuar a PayPal
 									}
 								</button>
-								<a routerLink="/site-web" class="small" style="color: #b9b9b9;">Cancelar</a>
+								<a routerLink="/site-web" class="small" style="color: #a3a3a3;">Cancelar</a>
 							</div>
 						</form>
 						<div class="mt-3">
-							<a routerLink="/evento-unico" class="small" style="color: #b9b9b9;">Gestionar sin Suscripción</a>
+							<a routerLink="/evento-unico" class="small" style="color: #a3a3a3;">Gestionar sin Suscripción</a>
 						</div>
 					}
 					@case ('bank-transfer') {
 						<h1 class="h3 mb-1">Transfiere y sube tu comprobante</h1>
-						<p class="mb-1" style="color: #b9b9b9;">
+						<p class="mb-1" style="color: #a3a3a3;">
 							Primer mes: <strong>USD {{ selectedPlanPrice() }}</strong>. Transfiere a esta cuenta y sube una foto del comprobante —
 							activamos tu cuenta apenas lo confirmemos.
 						</p>
 						@if (dopAmount(); as dop) {
-							<p class="mb-4 small" style="color: #b9b9b9;">
+							<p class="mb-4 small" style="color: #a3a3a3;">
 								≈ RD$ {{ dop.amount | number: '1.0-0' }} al tipo de cambio de hoy (1 USD = RD$ {{ dop.rate | number: '1.2-2' }})
 							</p>
 						} @else {
@@ -142,16 +143,16 @@ type Step = 'form' | 'bank-transfer' | 'pending-review';
 						}
 
 						@if (bankInfo(); as bank) {
-							<div class="card bg-dark border-secondary mb-4">
+							<div class="card bank-info-card mb-4">
 								<div class="card-body">
 									<dl class="row mb-0 small">
-										<dt class="col-5" style="color: #b9b9b9;">Banco</dt>
+										<dt class="col-5" style="color: #a3a3a3;">Banco</dt>
 										<dd class="col-7">{{ bank.bankName }}</dd>
-										<dt class="col-5" style="color: #b9b9b9;">Tipo de cuenta</dt>
+										<dt class="col-5" style="color: #a3a3a3;">Tipo de cuenta</dt>
 										<dd class="col-7">{{ bank.bankAccountType }}</dd>
-										<dt class="col-5" style="color: #b9b9b9;">Número de cuenta</dt>
+										<dt class="col-5" style="color: #a3a3a3;">Número de cuenta</dt>
 										<dd class="col-7">{{ bank.bankAccountNumber }}</dd>
-										<dt class="col-5" style="color: #b9b9b9;">Titular</dt>
+										<dt class="col-5" style="color: #a3a3a3;">Titular</dt>
 										<dd class="col-7 mb-0">{{ bank.bankAccountHolder }}</dd>
 									</dl>
 								</div>
@@ -169,7 +170,7 @@ type Step = 'form' | 'bank-transfer' | 'pending-review';
 							<div class="alert alert-danger mb-3">{{ errorMessage() }}</div>
 						}
 
-						<button type="button" class="btn btn-danger" [disabled]="!selectedFile() || uploadingReceipt()" (click)="submitReceipt()">
+						<button type="button" class="btn btn-brand" [disabled]="!selectedFile() || uploadingReceipt()" (click)="submitReceipt()">
 							@if (uploadingReceipt()) {
 								Subiendo...
 							} @else {
@@ -179,7 +180,7 @@ type Step = 'form' | 'bank-transfer' | 'pending-review';
 					}
 					@case ('pending-review') {
 						<h1 class="h4 text-info">Recibimos tu comprobante</h1>
-						<p class="mb-4" style="color: #b9b9b9;">
+						<p class="mb-4" style="color: #a3a3a3;">
 							Te confirmamos por correo apenas lo validemos — no hace falta que hagas nada más por ahora.
 						</p>
 					}
@@ -188,9 +189,67 @@ type Step = 'form' | 'bank-transfer' | 'pending-review';
 		</div>
 	`,
 	styles: `
+		/* Misma línea visual que el login (ver layout-page/sign-in en src/app/modules/login) — fondo
+		   con degradado azul de marca + tarjeta centrada, en vez del formulario suelto de antes. */
 		.page {
 			min-height: 100vh;
-			background: #0a0a0a;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			padding: 2rem 1rem;
+			background:
+				radial-gradient(circle at 50% -10%, rgba(30, 58, 138, 0.28), transparent 55%),
+				#0a0a0a;
+			color: #fff;
+		}
+		.auth-card {
+			width: 100%;
+			max-width: 640px;
+			background: #161616;
+			border: 1px solid #2a2a2a;
+			border-radius: 0.75rem;
+			padding: 2.25rem 2rem;
+			box-shadow: 0 20px 50px -20px rgba(0, 0, 0, 0.6);
+		}
+		.brand-mark {
+			display: block;
+			text-align: center;
+			font-weight: 700;
+			font-size: 0.95rem;
+			letter-spacing: 0.16em;
+			color: #6f8ad6;
+			margin-bottom: 1.25rem;
+		}
+		.form-label {
+			color: #c9c9c9;
+		}
+		.form-control,
+		.form-select {
+			background-color: #0f0f0f;
+			border-color: #333;
+			color: #f5f5f5;
+		}
+		.form-control:focus,
+		.form-select:focus {
+			background-color: #0f0f0f;
+			border-color: #34509e;
+			color: #fff;
+			box-shadow: 0 0 0 0.2rem rgba(30, 58, 138, 0.35);
+		}
+		.bank-info-card {
+			background: #0f0f0f;
+			border-color: #333;
+		}
+		.btn-brand {
+			background: #1e3a8a;
+			border-color: #1e3a8a;
+			color: #fff;
+			font-weight: 600;
+		}
+		.btn-brand:hover,
+		.btn-brand:focus {
+			background: #19316f;
+			border-color: #19316f;
 			color: #fff;
 		}
 	`,
