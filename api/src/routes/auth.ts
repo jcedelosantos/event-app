@@ -132,20 +132,27 @@ authRouter.put('/me', requireAuth, asyncHandler(async (req: AuthenticatedRequest
 	}
 }));
 
-const forgotPasswordSchema = z.object({ username: z.string().min(1) });
+const forgotPasswordSchema = z.object({ identifier: z.string().min(1) });
 
-// Respuesta genérica SIEMPRE (exista o no el username) — sin esto, este endpoint dejaría enumerar
-// usernames reales de la plataforma probando uno por uno. El email en sí solo se manda si el
-// username existe de verdad; quien llama nunca se entera de la diferencia.
+// Respuesta genérica SIEMPRE (exista o no una cuenta con ese usuario/email) — sin esto, este
+// endpoint dejaría enumerar usernames/emails reales de la plataforma probando uno por uno. El email
+// en sí solo se manda si hay match de verdad; quien llama nunca se entera de la diferencia.
 authRouter.post('/forgot-password', passwordResetRateLimiter, asyncHandler(async (req, res) => {
 	const parsed = forgotPasswordSchema.safeParse(req.body);
 	if (!parsed.success) {
-		res.status(400).json({ error: 'Ingresa tu usuario' });
+		res.status(400).json({ error: 'Ingresa tu usuario o correo' });
 		return;
 	}
 
-	const user = await prisma.user.findUnique({ where: { username: parsed.data.username } });
-	if (user) {
+	const identifier = parsed.data.identifier.trim();
+	// Primero por username (el identificador real de login, único en toda la app — ver comentario en
+	// schema.prisma). Si no matchea, el usuario probablemente tipeó su email — pero el email NO es
+	// único globalmente (la misma persona puede comprar/trabajar en varios tenants con el mismo
+	// email), así que ahí puede haber más de una cuenta: se le manda su propio link a cada una.
+	const byUsername = await prisma.user.findUnique({ where: { username: identifier } });
+	const users = byUsername ? [byUsername] : await prisma.user.findMany({ where: { email: { equals: identifier, mode: 'insensitive' } } });
+
+	for (const user of users) {
 		const token = randomBytes(32).toString('hex');
 		await prisma.user.update({
 			where: { id: user.id },

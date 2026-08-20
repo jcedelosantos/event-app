@@ -16,18 +16,18 @@ import { extractErrorMessage } from '../../../utils/api-error';
 			<div class="col-12">
 				@if (sent()) {
 					<p class="form-text">
-						Si <strong>{{ formGroupInput.controls.username.value }}</strong> es un usuario válido, te mandamos un correo con un link para
-						elegir una nueva contraseña. Revisa tu bandeja (y spam) — el link vence en 30 minutos.
+						Si <strong>{{ formGroupInput.controls.identifier.value }}</strong> corresponde a una cuenta, te mandamos un correo con un link
+						para elegir una nueva contraseña. Revisa tu bandeja (y spam) — el link vence en 30 minutos.
 					</p>
 					<div class="d-grid gap-2">
 						<button type="button" class="btn btn-dark" routerLink="/login/sign-in">Volver a iniciar sesión</button>
 					</div>
 				} @else {
 					<form [formGroup]="formGroupInput" (submit)="$event.preventDefault(); forgetPassword()">
-						<p class="text-body-secondary small">Ingresa tu usuario y te mandamos un correo para elegir una nueva contraseña.</p>
+						<p class="text-body-secondary small">Ingresa tu usuario o tu correo y te mandamos un link para elegir una nueva contraseña.</p>
 						<div class="mb-3">
-							<label for="username" class="form-label">Usuario</label>
-							<input type="text" id="username" class="form-control" formControlName="username" required />
+							<label for="identifier" class="form-label">Usuario o correo electrónico</label>
+							<input type="text" id="identifier" class="form-control" formControlName="identifier" required />
 						</div>
 
 						@if (status()) {
@@ -54,7 +54,7 @@ export class ForgotPasswordComponent {
 	private readonly fb = inject(FormBuilder);
 
 	formGroupInput = this.fb.group({
-		username: new FormControl('', { nonNullable: true, validators: Validators.required }),
+		identifier: new FormControl('', { nonNullable: true, validators: Validators.required }),
 	});
 	submitting = signal(false);
 	sent = signal(false);
@@ -68,7 +68,7 @@ export class ForgotPasswordComponent {
 
 		this.submitting.set(true);
 		this.status.set('');
-		this.authService.forgotPassword(this.formGroupInput.getRawValue().username).subscribe({
+		this.authService.forgotPassword(this.formGroupInput.getRawValue().identifier).subscribe({
 			next: () => {
 				this.submitting.set(false);
 				this.sent.set(true);
