@@ -289,13 +289,19 @@ tenantsRouter.delete('/:id', asyncHandler(async (req: AuthenticatedRequest, res)
 		return;
 	}
 
-	// Si el tenant tiene una suscripción de PayPal activa, se cancela ANTES de tocar la base local —
-	// si esto falla, se aborta todo el borrado. Peor dejar el borrado a medias que dejar un cobro
-	// recurrente real vivo sin ningún tenant local que lo muestre para poder cancelarlo después.
+	// Si el tenant tiene una suscripción de PayPal con un cobro recurrente REAL en curso, se cancela
+	// ANTES de tocar la base local — si esto falla, se aborta todo el borrado. Peor dejar el borrado
+	// a medias que dejar un cobro recurrente real vivo sin ningún tenant local que lo muestre para
+	// poder cancelarlo después. PENDING/CANCELLED quedan afuera a propósito: PayPal solo deja
+	// cancelar una suscripción ACTIVE/SUSPENDED — una que quedó en PENDING (el visitante nunca
+	// terminó de aprobarla en PayPal, o el webhook nunca confirmó el primer pago) no tiene nada real
+	// que cancelar, y pedirle igual bloqueaba el borrado de organizaciones de prueba abandonadas a
+	// mitad del checkout (bug real reportado probando esto).
 	const subscription = await prismaUnscoped.subscription.findUnique({ where: { tenantId: id } });
-	if (subscription?.paypalSubscriptionId) {
+	const hasCancellableSubscription = subscription?.paypalSubscriptionId && (subscription.status === 'ACTIVE' || subscription.status === 'PAST_DUE' || subscription.status === 'SUSPENDED');
+	if (hasCancellableSubscription) {
 		try {
-			await cancelSubscription(subscription.paypalSubscriptionId, 'Organización eliminada desde Super Admin');
+			await cancelSubscription(subscription.paypalSubscriptionId!, 'Organización eliminada desde Super Admin');
 		} catch {
 			res.status(502).json({ error: 'Esta organización tiene una suscripción de PayPal activa y no se pudo cancelar — cancelala primero (ver detalle de suscripción) y volvé a intentar.' });
 			return;
