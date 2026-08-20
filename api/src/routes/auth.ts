@@ -145,12 +145,20 @@ authRouter.post('/forgot-password', passwordResetRateLimiter, asyncHandler(async
 	}
 
 	const identifier = parsed.data.identifier.trim();
+	// CLIENT (ver USER_TYPE_CODES en users.ts) es el registro que queda de quien compró un ticket —
+	// nunca es una cuenta pensada para loguearse al manager, aunque técnicamente tenga password. Sin
+	// excluirla acá, alguien cuyo email coincide con el de un comprador (bastante común: el mismo
+	// dueño/admin del club a veces compra sus propios eventos de prueba) recibía un link para "su"
+	// cuenta de comprador mezclado con el de su cuenta real de staff, sin ninguna forma de distinguir
+	// cuál es cuál antes de hacer click (pasó de verdad en esta sesión).
 	// Primero por username (el identificador real de login, único en toda la app — ver comentario en
 	// schema.prisma). Si no matchea, el usuario probablemente tipeó su email — pero el email NO es
 	// único globalmente (la misma persona puede comprar/trabajar en varios tenants con el mismo
-	// email), así que ahí puede haber más de una cuenta: se le manda su propio link a cada una.
-	const byUsername = await prisma.user.findUnique({ where: { username: identifier } });
-	const users = byUsername ? [byUsername] : await prisma.user.findMany({ where: { email: { equals: identifier, mode: 'insensitive' } } });
+	// email), así que ahí puede haber más de una cuenta de STAFF: se le manda su propio link a cada una.
+	const byUsername = await prisma.user.findFirst({ where: { username: identifier, type: { type: { not: 'CLIENT' } } } });
+	const users = byUsername
+		? [byUsername]
+		: await prisma.user.findMany({ where: { email: { equals: identifier, mode: 'insensitive' }, type: { type: { not: 'CLIENT' } } } });
 
 	for (const user of users) {
 		const token = randomBytes(32).toString('hex');
