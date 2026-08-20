@@ -38,7 +38,10 @@ type Step = 'form' | 'bank-transfer' | 'pending-review';
 
 							<div class="col-md-8">
 								<label class="form-label small">Nombre de tu organización</label>
-								<input type="text" class="form-control" formControlName="orgName" placeholder="Nombre de tu organización" />
+								<input type="text" class="form-control" [class.is-invalid]="isInvalid('orgName')" formControlName="orgName" placeholder="Nombre de tu organización" />
+								@if (isInvalid('orgName')) {
+									<div class="invalid-feedback d-block">El nombre de tu organización es obligatorio.</div>
+								}
 							</div>
 							<div class="col-md-4">
 								<label class="form-label small">Tipo</label>
@@ -57,23 +60,38 @@ type Step = 'form' | 'bank-transfer' | 'pending-review';
 
 							<div class="col-md-6">
 								<label class="form-label small">Tu nombre</label>
-								<input type="text" class="form-control" formControlName="adminName" />
+								<input type="text" class="form-control" [class.is-invalid]="isInvalid('adminName')" formControlName="adminName" />
+								@if (isInvalid('adminName')) {
+									<div class="invalid-feedback d-block">Tu nombre es obligatorio.</div>
+								}
 							</div>
 							<div class="col-md-6">
 								<label class="form-label small">Tu apellido</label>
-								<input type="text" class="form-control" formControlName="adminLastname" />
+								<input type="text" class="form-control" [class.is-invalid]="isInvalid('adminLastname')" formControlName="adminLastname" />
+								@if (isInvalid('adminLastname')) {
+									<div class="invalid-feedback d-block">Tu apellido es obligatorio.</div>
+								}
 							</div>
 							<div class="col-md-6">
 								<label class="form-label small">Email</label>
-								<input type="email" class="form-control" formControlName="adminEmail" />
+								<input type="email" class="form-control" [class.is-invalid]="isInvalid('adminEmail')" formControlName="adminEmail" />
+								@if (isInvalid('adminEmail')) {
+									<div class="invalid-feedback d-block">Ingresá un email válido.</div>
+								}
 							</div>
 							<div class="col-md-6">
 								<label class="form-label small">Usuario para iniciar sesión</label>
-								<input type="text" class="form-control" formControlName="adminUsername" />
+								<input type="text" class="form-control" [class.is-invalid]="isInvalid('adminUsername')" formControlName="adminUsername" />
+								@if (isInvalid('adminUsername')) {
+									<div class="invalid-feedback d-block">Mínimo 3 caracteres.</div>
+								}
 							</div>
 							<div class="col-md-6">
 								<label class="form-label small">Contraseña</label>
-								<input type="password" class="form-control" formControlName="adminPassword" />
+								<input type="password" class="form-control" [class.is-invalid]="isInvalid('adminPassword')" formControlName="adminPassword" />
+								@if (isInvalid('adminPassword')) {
+									<div class="invalid-feedback d-block">Mínimo 4 caracteres.</div>
+								}
 							</div>
 
 							<div class="col-12"><hr /></div>
@@ -181,9 +199,7 @@ type Step = 'form' | 'bank-transfer' | 'pending-review';
 					}
 					@case ('pending-review') {
 						<h1 class="h4 text-info">Recibimos tu comprobante</h1>
-						<p class="mb-4" style="color: #a3a3a3;">
-							Te confirmamos por correo apenas lo validemos — no hace falta que hagas nada más por ahora.
-						</p>
+						<p class="mb-4" style="color: #a3a3a3;">Luego de validarlo, recibirás la confirmación a tu correo.</p>
 					}
 				}
 			</div>
@@ -242,6 +258,17 @@ type Step = 'form' | 'bank-transfer' | 'pending-review';
 			border-color: #34509e;
 			color: #fff;
 			box-shadow: 0 0 0 0.2rem rgba(30, 58, 138, 0.35);
+		}
+		/* El borde/foco azul de acá arriba pisaría el rojo nativo de Bootstrap para .is-invalid (mismo
+		   selector, más específico por venir de un componente con encapsulation) — se reafirma acá para
+		   que el campo vacío se note de verdad, y no solo bloquee el submit en silencio. */
+		.form-control.is-invalid,
+		.form-select.is-invalid {
+			border-color: #dc3545;
+		}
+		.invalid-feedback {
+			color: #f19c9c;
+			font-size: 0.8rem;
 		}
 		.bank-info-card {
 			background: #0f0f0f;
@@ -313,9 +340,15 @@ export class SignupComponent {
 		return { rate, amount: this.selectedPlanPrice() * rate };
 	});
 
+	isInvalid(controlName: keyof typeof this.form.controls): boolean {
+		const control = this.form.controls[controlName];
+		return control.invalid && control.touched;
+	}
+
 	submit() {
 		if (this.form.invalid) {
 			this.form.markAllAsTouched();
+			this.errorMessage.set('Completa los campos marcados en rojo antes de continuar.');
 			return;
 		}
 		this.errorMessage.set('');
