@@ -29,18 +29,6 @@ type LeadFormState = 'closed' | 'open' | 'success';
 			<div class="container pt-2 pb-3">
 				<h2 class="text-center mb-2 h4">Planes</h2>
 				<div class="row g-2 justify-content-center">
-					<div class="col-12 col-md-6 col-lg-3">
-						<a routerLink="/evento-unico" class="card h-100 bg-dark-subtle-card plan-card text-decoration-none text-white d-block">
-							<div class="card-body d-flex flex-column py-2">
-								<div class="d-flex justify-content-between align-items-start">
-									<h3 class="h5 mb-0">Sin Suscripción</h3>
-								</div>
-								<p class="mb-0 mt-1"><span class="fs-4 fw-bold">Pago único</span></p>
-								<p class="small mb-0 flex-grow-1" style="color: #a3a3a3;">Para un evento suelto, sin mensualidad — desde 100 hasta 5,000 asistentes.</p>
-								<span class="small text-brand mt-1">Ver planes <i class="bi bi-arrow-right"></i></span>
-							</div>
-						</a>
-					</div>
 					@for (plan of plans; track plan.code) {
 						<div class="col-12 col-md-6 col-lg-3">
 							<div
@@ -78,6 +66,18 @@ type LeadFormState = 'closed' | 'open' | 'success';
 							</div>
 						</div>
 					}
+					<div class="col-12 col-md-6 col-lg-3">
+						<a routerLink="/evento-unico" class="card h-100 bg-dark-subtle-card plan-card text-decoration-none text-white d-block">
+							<div class="card-body d-flex flex-column py-2">
+								<div class="d-flex justify-content-between align-items-start">
+									<h3 class="h5 mb-0">Sin Suscripción</h3>
+								</div>
+								<p class="mb-0 mt-1"><span class="fs-4 fw-bold">Pago único</span></p>
+								<p class="small mb-0 flex-grow-1" style="color: #a3a3a3;">Para un evento suelto, sin mensualidad — desde 100 hasta 5,000 asistentes.</p>
+								<span class="small text-brand mt-1">Ver planes <i class="bi bi-arrow-right"></i></span>
+							</div>
+						</a>
+					</div>
 				</div>
 			</div>
 		</div>
