@@ -5,7 +5,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { TenantService } from '../../services/tenant.service';
 import { PlanCode, Tenant, TenantType } from '../../../../models/tenants/tenant';
 import { extractErrorMessage } from '../../../../utils/api-error';
-import { confirm, promptConfirmText, Toast } from '../../../../utils/messages';
+import { confirm, error, promptConfirmText, Toast } from '../../../../utils/messages';
 import { closeModal } from '../../../../utils/modal';
 import { EVENT_PLANS, isEventPlanCode } from '../../../../shared/event-plans';
 
@@ -223,6 +223,11 @@ export class EditTenantModalComponent {
 		const current = this.tenant();
 		if (!current) return;
 
+		// El modal de Bootstrap tiene su propia trampa de foco (para que Tab no se escape mientras
+		// está abierto) — si sigue abierto detrás, le roba el foco al input de SweetAlert apenas
+		// intenta enfocarse, y no deja escribir nada ahí (bug real reportado probando esto). Cerrarlo
+		// antes de mostrar la confirmación evita la pelea por el foco.
+		closeModal('editTenantModal');
 		this.errorMessage = '';
 		promptConfirmText(
 			'Eliminar organización',
@@ -234,9 +239,10 @@ export class EditTenantModalComponent {
 				next: () => {
 					Toast.fire({ icon: 'success', title: 'Organización eliminada' });
 					this.tenantUpdated.emit();
-					closeModal('editTenantModal');
 				},
-				error: (err: HttpErrorResponse) => (this.errorMessage = extractErrorMessage(err)),
+				// El modal ya está cerrado acá (se cerró arriba antes de confirmar) — this.errorMessage no
+				// se vería en ningún lado, por eso el error se muestra en su propio diálogo.
+				error: (err: HttpErrorResponse) => error(extractErrorMessage(err), 'No se pudo eliminar'),
 			});
 		});
 	}
