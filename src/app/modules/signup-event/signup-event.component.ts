@@ -20,14 +20,15 @@ type Step = 'form' | 'payment' | 'bank-transfer' | 'pending-review' | 'entering'
 		<div class="page" data-bs-theme="dark">
 			<div class="auth-card">
 				<span class="brand-mark">INTEG</span>
-				<p class="brand-tagline">Infraestructura tecnológica de gestión de eventos</p>
+				<p class="brand-tagline">Infraestructura Tecnológica de Gestión de Eventos</p>
 				@switch (step()) {
 					@case ('form') {
 						<h1 class="h3 mb-1">Tu evento, sin suscripción</h1>
 						<p class="mb-4" style="color: #a3a3a3;">
-							Pagás una sola vez, montas y corres tu evento con acceso completo. Después del evento tu cuenta queda en modo de
-							consulta — puedes actualizarte a un plan recurrente cuando quieras. Si vendes más asistentes de los que pagaste acá,
-							no te bloqueamos la venta — se factura aparte a USD {{ overageFee }} por persona adicional.
+							Desde USD {{ centsToDollars(tiers[0].priceCents) }}, montas tu evento y lo corres con acceso completo. Después del
+							evento tu cuenta queda en modo de consulta — puedes actualizarte a un plan recurrente cuando quieras. Si vendes más
+							asistentes de los que pagaste acá, no te bloqueamos la venta — se factura aparte a USD {{ overageFee }} por persona
+							adicional.
 						</p>
 
 						<form [formGroup]="form" (ngSubmit)="submit()" class="row g-3">
@@ -77,7 +78,7 @@ type Step = 'form' | 'payment' | 'bank-transfer' | 'pending-review' | 'entering'
 								</div>
 								@if (form.controls.paymentMethod.value === 'BANK_TRANSFER') {
 									<div class="form-text">
-										Con transferencia, tu cuenta queda activa una vez que confirmemos el pago a mano — no es automático como PayPal.
+										Con transferencia, tu cuenta queda activa una vez que confirmemos el pago a mano.
 									</div>
 								}
 							</div>
@@ -320,7 +321,7 @@ export class SignupEventComponent {
 
 	form = this.fb.group({
 		eventPlanCode: this.fb.control<EventPlanCode>('EVENT_100', Validators.required),
-		paymentMethod: this.fb.control<'PAYPAL' | 'BANK_TRANSFER'>('PAYPAL', Validators.required),
+		paymentMethod: this.fb.control<'PAYPAL' | 'BANK_TRANSFER'>('BANK_TRANSFER', Validators.required),
 		orgName: this.fb.control('', Validators.required),
 		orgType: this.fb.control<'GENERAL' | 'CLUB' | 'CHURCH' | 'ONG' | 'PRIVADA' | 'PUBLICA' | 'INDEPENDIENTE'>('GENERAL', Validators.required),
 		adminName: this.fb.control('', Validators.required),

@@ -21,8 +21,8 @@ type LeadFormState = 'closed' | 'open' | 'success';
 			<div class="hero text-center py-2">
 				<div class="container">
 					<h1 class="display-6 fw-bold mb-1">Gestioná tus eventos de manera eficiente</h1>
-					<p class="lead small mb-2" style="color: #b9b9b9;">Mapa de asientos, QR de entrada, portal público de auto-registro y cobro online — todo en un solo lugar.</p>
-					<a routerLink="/signup" class="btn btn-danger px-4">Empezar ahora</a>
+					<p class="lead small mb-2" style="color: #a3a3a3;">Mapa de asientos, QR de entrada, portal público de auto-registro y cobro online — todo en un solo lugar.</p>
+					<a routerLink="/signup" class="btn btn-brand px-4">Empezar ahora</a>
 				</div>
 			</div>
 
@@ -36,8 +36,8 @@ type LeadFormState = 'closed' | 'open' | 'success';
 									<h3 class="h5 mb-0">Sin Suscripción</h3>
 								</div>
 								<p class="mb-0 mt-1"><span class="fs-4 fw-bold">Pago único</span></p>
-								<p class="small mb-0 flex-grow-1" style="color: #b9b9b9;">Para un evento suelto, sin mensualidad — desde 100 hasta 5,000 asistentes.</p>
-								<span class="small text-danger mt-1">Ver planes <i class="bi bi-arrow-right"></i></span>
+								<p class="small mb-0 flex-grow-1" style="color: #a3a3a3;">Para un evento suelto, sin mensualidad — desde 100 hasta 5,000 asistentes.</p>
+								<span class="small text-brand mt-1">Ver planes <i class="bi bi-arrow-right"></i></span>
 							</div>
 						</a>
 					</div>
@@ -45,7 +45,7 @@ type LeadFormState = 'closed' | 'open' | 'success';
 						<div class="col-12 col-md-6 col-lg-3">
 							<div
 								class="card h-100 bg-dark-subtle-card plan-card"
-								[class.border-danger]="plan.highlighted"
+								[class.border-brand]="plan.highlighted"
 								role="button"
 								tabindex="0"
 								[attr.aria-label]="plan.code === 'PRO_MAX' ? 'Pedir cotización de ' + plan.name : 'Comenzar con ' + plan.name"
@@ -56,18 +56,18 @@ type LeadFormState = 'closed' | 'open' | 'success';
 									<div class="d-flex justify-content-between align-items-start">
 										<h3 class="h5 mb-0">{{ plan.name }}</h3>
 										@if (plan.highlighted) {
-											<span class="badge text-bg-danger ms-2">Más elegido</span>
+											<span class="badge badge-brand ms-2">Más elegido</span>
 										}
 									</div>
 									@if (plan.code === 'PRO_MAX') {
 										<p class="mb-0 mt-1"><span class="fs-4 fw-bold">Integrado a tu Medida</span></p>
 									} @else {
-										<p class="mb-0 mt-1"><span class="fs-4 fw-bold">USD {{ centsToDollars(plan.priceCents) }}</span><span style="color: #b9b9b9;">/mes</span></p>
+										<p class="mb-0 mt-1"><span class="fs-4 fw-bold">USD {{ centsToDollars(plan.priceCents) }}</span><span style="color: #a3a3a3;">/mes</span></p>
 									}
-									<p class="small mb-0 flex-grow-1" style="color: #b9b9b9;">Hasta {{ plan.attendeesPerEvent }} asistentes por evento</p>
+									<p class="small mb-0 flex-grow-1" style="color: #a3a3a3;">Hasta {{ plan.attendeesPerEvent }} asistentes por evento</p>
 									<button
 										type="button"
-										class="btn btn-link btn-sm text-danger p-0 text-start mt-1 align-self-start"
+										class="btn btn-link btn-sm text-brand p-0 text-start mt-1 align-self-start"
 										data-bs-toggle="modal"
 										data-bs-target="#planDetailModal"
 										(click)="$event.stopPropagation(); openPlan(plan)"
@@ -90,7 +90,7 @@ type LeadFormState = 'closed' | 'open' | 'success';
 							<h3 class="modal-title h5" id="planDetailModalLabel">
 								{{ plan.name }}
 								@if (plan.highlighted) {
-									<span class="badge text-bg-danger ms-2">Más elegido</span>
+									<span class="badge badge-brand ms-2">Más elegido</span>
 								}
 							</h3>
 							<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
@@ -130,7 +130,7 @@ type LeadFormState = 'closed' | 'open' | 'success';
 							<div class="modal-footer border-secondary-subtle">
 								@if (leadFormState() === 'open') {
 									<button type="button" class="btn btn-outline-light" (click)="leadFormState.set('closed')" [disabled]="leadSubmitting()">Volver</button>
-									<button type="button" class="btn btn-danger" (click)="submitLead()" [disabled]="leadSubmitting() || !leadForm.orgName || !leadForm.contactName || !leadForm.email">
+									<button type="button" class="btn btn-brand" (click)="submitLead()" [disabled]="leadSubmitting() || !leadForm.orgName || !leadForm.contactName || !leadForm.email">
 										@if (leadSubmitting()) {
 											Enviando...
 										} @else {
@@ -138,7 +138,7 @@ type LeadFormState = 'closed' | 'open' | 'success';
 										}
 									</button>
 								} @else {
-									<button type="button" class="btn btn-danger w-100" data-bs-dismiss="modal">Cerrar</button>
+									<button type="button" class="btn btn-brand w-100" data-bs-dismiss="modal">Cerrar</button>
 								}
 							</div>
 						} @else {
@@ -146,21 +146,21 @@ type LeadFormState = 'closed' | 'open' | 'success';
 								@if (plan.code === 'PRO_MAX') {
 									<p class="mb-1"><span class="fs-3 fw-bold">Integrado a tu Medida</span></p>
 								} @else {
-									<p class="mb-1"><span class="fs-3 fw-bold">USD {{ centsToDollars(plan.priceCents) }}</span><span style="color: #b9b9b9;">/mes</span></p>
+									<p class="mb-1"><span class="fs-3 fw-bold">USD {{ centsToDollars(plan.priceCents) }}</span><span style="color: #a3a3a3;">/mes</span></p>
 								}
-								<p class="small mb-3" style="color: #b9b9b9;">Hasta {{ plan.attendeesPerEvent }} asistentes por evento</p>
+								<p class="small mb-3" style="color: #a3a3a3;">Hasta {{ plan.attendeesPerEvent }} asistentes por evento</p>
 								<p style="color: #d0d0d0;">{{ plan.description }}</p>
 								<ul class="list-unstyled small">
 									@for (feature of plan.features; track feature) {
-										<li class="mb-2"><i class="bi bi-check2 text-danger"></i> {{ feature }}</li>
+										<li class="mb-2"><i class="bi bi-check2 text-brand"></i> {{ feature }}</li>
 									}
 								</ul>
 							</div>
 							<div class="modal-footer border-secondary-subtle">
 								@if (plan.code === 'PRO_MAX') {
-									<button type="button" class="btn btn-danger w-100" (click)="leadFormState.set('open')">Quiero que me contacten</button>
+									<button type="button" class="btn btn-brand w-100" (click)="leadFormState.set('open')">Quiero que me contacten</button>
 								} @else {
-									<a [routerLink]="['/signup']" [queryParams]="{ plan: plan.code }" class="btn btn-danger w-100" data-bs-dismiss="modal">Comenzar con {{ plan.name }}</a>
+									<a [routerLink]="['/signup']" [queryParams]="{ plan: plan.code }" class="btn btn-brand w-100" data-bs-dismiss="modal">Comenzar con {{ plan.name }}</a>
 								}
 							</div>
 						}
@@ -175,7 +175,7 @@ type LeadFormState = 'closed' | 'open' | 'success';
 			color: #fff;
 		}
 		.hero {
-			background: linear-gradient(180deg, rgba(220, 53, 69, 0.16), transparent);
+			background: linear-gradient(180deg, rgba(30, 58, 138, 0.28), transparent);
 		}
 		.bg-dark-subtle-card {
 			background: #161616;
@@ -186,7 +186,33 @@ type LeadFormState = 'closed' | 'open' | 'success';
 			transition: border-color 0.15s ease;
 		}
 		.plan-card:hover {
-			border-color: #dc3545;
+			border-color: #34509e;
+		}
+		/* Mismo azul de marca que login/signup/evento-unico — hardcodeado en vez de las utilidades
+		   -danger de Bootstrap (que acá quedaban remapeadas a --app-accent vía styles.css) por la
+		   misma razón: esta página es previa a cualquier tenant, --app-accent puede quedar pisado por
+		   el acento de un tenant visto antes en la misma sesión sin recargar. */
+		.btn-brand {
+			background: #1e3a8a;
+			border-color: #1e3a8a;
+			color: #fff;
+			font-weight: 600;
+		}
+		.btn-brand:hover,
+		.btn-brand:focus {
+			background: #19316f;
+			border-color: #19316f;
+			color: #fff;
+		}
+		.text-brand {
+			color: #6f8ad6 !important;
+		}
+		.border-brand {
+			border-color: #1e3a8a !important;
+		}
+		.badge-brand {
+			background: #1e3a8a;
+			color: #fff;
 		}
 	`,
 	changeDetection: ChangeDetectionStrategy.OnPush,

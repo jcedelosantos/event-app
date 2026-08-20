@@ -18,7 +18,7 @@ type Step = 'form' | 'bank-transfer' | 'pending-review';
 		<div class="page" data-bs-theme="dark">
 			<div class="auth-card">
 				<span class="brand-mark">INTEG</span>
-				<p class="brand-tagline">Infraestructura tecnológica de gestión de eventos</p>
+				<p class="brand-tagline">Infraestructura Tecnológica de Gestión de Eventos</p>
 				@switch (step()) {
 					@case ('form') {
 						<h1 class="h3 mb-1">Creá tu cuenta</h1>
@@ -102,8 +102,8 @@ type Step = 'form' | 'bank-transfer' | 'pending-review';
 								</div>
 								@if (form.controls.paymentMethod.value === 'BANK_TRANSFER') {
 									<div class="form-text">
-										Con transferencia, tu cuenta queda activa una vez que confirmemos el pago a mano — no es automático como PayPal. Las
-										renovaciones mensuales siguientes también se coordinan por transferencia.
+										Con transferencia, tu cuenta queda activa una vez que confirmemos el pago a mano. Las renovaciones mensuales
+										siguientes también se coordinan por transferencia.
 									</div>
 								}
 							</div>
@@ -283,7 +283,7 @@ export class SignupComponent {
 
 	form = this.fb.group({
 		plan: this.fb.control<PlanCode>('INTERMEDIO', Validators.required),
-		paymentMethod: this.fb.control<'PAYPAL' | 'BANK_TRANSFER'>('PAYPAL', Validators.required),
+		paymentMethod: this.fb.control<'PAYPAL' | 'BANK_TRANSFER'>('BANK_TRANSFER', Validators.required),
 		orgName: this.fb.control('', Validators.required),
 		orgType: this.fb.control<'GENERAL' | 'CLUB' | 'CHURCH' | 'ONG' | 'PRIVADA' | 'PUBLICA' | 'INDEPENDIENTE'>('GENERAL', Validators.required),
 		adminName: this.fb.control('', Validators.required),
