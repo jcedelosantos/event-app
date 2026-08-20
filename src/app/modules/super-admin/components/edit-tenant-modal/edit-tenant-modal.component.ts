@@ -7,6 +7,7 @@ import { PlanCode, Tenant, TenantType } from '../../../../models/tenants/tenant'
 import { extractErrorMessage } from '../../../../utils/api-error';
 import { confirm, promptConfirmText, Toast } from '../../../../utils/messages';
 import { closeModal } from '../../../../utils/modal';
+import { EVENT_PLANS, isEventPlanCode } from '../../../../shared/event-plans';
 
 @Component({
 	selector: 'app-edit-tenant-modal',
@@ -58,19 +59,30 @@ import { closeModal } from '../../../../utils/modal';
 								<input type="text" class="form-control" id="editOrgAddress" formControlName="address" />
 							</div>
 							<hr />
-							<div class="mb-3">
-								<label for="editOrgPlan">Plan</label>
-								<select class="form-select" id="editOrgPlan" formControlName="plan">
-									<option [ngValue]="null">Sin plan</option>
-									<option value="BASICO">Básico</option>
-									<option value="INTERMEDIO">Intermedio</option>
-									<option value="AVANZADO">Avanzado</option>
-									<option value="PRO_MAX">Pro Enterprise</option>
-								</select>
-								<div class="form-text">
-									Cambiarlo acá lo deja ACTIVE al instante, facturado fuera del sistema (transferencia o factura directa) — no toca la suscripción de PayPal si el tenant ya tenía una activa.
+							@if (isEventTenant()) {
+								<div class="mb-3">
+									<label>Plan</label>
+									<p class="form-control-plaintext py-0">{{ eventPlanName() }} <span class="text-muted small">(evento único)</span></p>
+									<div class="form-text">
+										Es un plan de pago único, no una suscripción — se gestiona desde la cola de comprobantes, no editable acá. Cambiar
+										otros datos de esta organización no toca su plan.
+									</div>
 								</div>
-							</div>
+							} @else {
+								<div class="mb-3">
+									<label for="editOrgPlan">Plan</label>
+									<select class="form-select" id="editOrgPlan" formControlName="plan">
+										<option [ngValue]="null">Sin plan</option>
+										<option value="BASICO">Básico</option>
+										<option value="INTERMEDIO">Intermedio</option>
+										<option value="AVANZADO">Avanzado</option>
+										<option value="PRO_MAX">Pro Enterprise</option>
+									</select>
+									<div class="form-text">
+										Cambiarlo acá lo deja ACTIVE al instante, facturado fuera del sistema (transferencia o factura directa) — no toca la suscripción de PayPal si el tenant ya tenía una activa.
+									</div>
+								</div>
+							}
 							<hr />
 							<div class="mb-3">
 								<label for="editOrgCustomDomain">Dominio propio <span class="text-muted">(opcional — Enterprise)</span></label>
@@ -158,6 +170,20 @@ export class EditTenantModalComponent {
 		return control.invalid && control.touched;
 	}
 
+	// Un tenant de evento único (EVENT_100, EVENT_300...) no es uno de los PlanCode recurrentes que
+	// entiende este selector — antes se cargaba igual en el FormControl (el <select> no tiene ningún
+	// <option> que matchee, así que queda visualmente en blanco) y al guardar CUALQUIER otro campo
+	// (nombre, teléfono...) el backend rechazaba el plan por no ser un PlanCode válido, bloqueando
+	// la edición entera de estos tenants. Ver isEventTenant()/eventPlanName() en el template.
+	isEventTenant(): boolean {
+		return isEventPlanCode(this.tenant()?.plan ?? null);
+	}
+
+	eventPlanName(): string {
+		const code = this.tenant()?.plan;
+		return EVENT_PLANS.find((p) => p.code === code)?.name ?? code ?? '';
+	}
+
 	saveForm() {
 		this.errorMessage = '';
 		if (this.form.invalid) {
@@ -175,7 +201,9 @@ export class EditTenantModalComponent {
 					.updateTenant(current.id, {
 						name: value.name!,
 						type: value.type,
-						plan: value.plan ?? null,
+						// Sin plan (undefined) para un tenant de evento único — así el backend no lo toca, ver
+						// isEventTenant() arriba.
+						...(this.isEventTenant() ? {} : { plan: value.plan ?? null }),
 						rnc: value.rnc,
 						address: value.address,
 						phone: value.phone,
