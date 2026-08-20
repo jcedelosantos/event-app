@@ -22,7 +22,7 @@ import { closeModal } from '../../../../utils/modal';
 						<form id="createTenantForm" (submit)="$event.preventDefault(); saveForm()" [formGroup]="form">
 							<div class="mb-3">
 								<label for="orgName">Nombre de la organización *</label>
-								<input type="text" class="form-control" id="orgName" [class.is-invalid]="isInvalid('name')" formControlName="name" placeholder="Club Deportivo Naco" />
+								<input type="text" class="form-control" id="orgName" [class.is-invalid]="isInvalid('name')" formControlName="name" placeholder="Nombre de la organización" />
 								@if (isInvalid('name')) {
 									<div class="invalid-feedback">El nombre es obligatorio.</div>
 								}

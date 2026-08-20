@@ -18,10 +18,11 @@ type Step = 'form' | 'bank-transfer' | 'pending-review';
 		<div class="page" data-bs-theme="dark">
 			<div class="auth-card">
 				<span class="brand-mark">INTEG</span>
+				<p class="brand-tagline">Infraestructura tecnológica de gestión de eventos</p>
 				@switch (step()) {
 					@case ('form') {
 						<h1 class="h3 mb-1">Creá tu cuenta</h1>
-						<p class="mb-4" style="color: #a3a3a3;">Tu organización queda activa apenas confirmes el pago.</p>
+						<p class="mb-4" style="color: #a3a3a3;">Tu cuenta queda lista en minutos.</p>
 
 						<form [formGroup]="form" (ngSubmit)="submit()" class="row g-3">
 							<div class="col-12">
@@ -37,7 +38,7 @@ type Step = 'form' | 'bank-transfer' | 'pending-review';
 
 							<div class="col-md-8">
 								<label class="form-label small">Nombre de tu organización</label>
-								<input type="text" class="form-control" formControlName="orgName" placeholder="Ej. Club Deportivo Naco" />
+								<input type="text" class="form-control" formControlName="orgName" placeholder="Nombre de tu organización" />
 							</div>
 							<div class="col-md-4">
 								<label class="form-label small">Tipo</label>
@@ -218,6 +219,12 @@ type Step = 'form' | 'bank-transfer' | 'pending-review';
 			font-size: 0.95rem;
 			letter-spacing: 0.16em;
 			color: #6f8ad6;
+			margin-bottom: 0.35rem;
+		}
+		.brand-tagline {
+			text-align: center;
+			font-size: 0.78rem;
+			color: #8a8a8a;
 			margin-bottom: 1.25rem;
 		}
 		.form-label {

@@ -20,6 +20,7 @@ type Step = 'form' | 'payment' | 'bank-transfer' | 'pending-review' | 'entering'
 		<div class="page" data-bs-theme="dark">
 			<div class="auth-card">
 				<span class="brand-mark">INTEG</span>
+				<p class="brand-tagline">Infraestructura tecnológica de gestión de eventos</p>
 				@switch (step()) {
 					@case ('form') {
 						<h1 class="h3 mb-1">Tu evento, sin suscripción</h1>
@@ -249,6 +250,12 @@ type Step = 'form' | 'payment' | 'bank-transfer' | 'pending-review' | 'entering'
 			font-size: 0.95rem;
 			letter-spacing: 0.16em;
 			color: #6f8ad6;
+			margin-bottom: 0.35rem;
+		}
+		.brand-tagline {
+			text-align: center;
+			font-size: 0.78rem;
+			color: #8a8a8a;
 			margin-bottom: 1.25rem;
 		}
 		.form-label {
