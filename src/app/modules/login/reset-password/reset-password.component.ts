@@ -9,48 +9,45 @@ import { extractErrorMessage } from '../../../utils/api-error';
 	selector: 'app-reset-password',
 	imports: [RouterLink, ReactiveFormsModule],
 	template: `
-		<div class="row container-sign-in">
-			<div class="col-12">
-				<h2>Elegir nueva contraseña</h2>
-			</div>
-			<div class="col-12">
-				@if (!token()) {
-					<p class="form-text text-danger">Este link no es válido — falta el token. Pedí uno nuevo.</p>
-					<div class="d-grid gap-2">
-						<button type="button" class="btn btn-dark" routerLink="/login/forgot-password">Pedir un link nuevo</button>
-					</div>
-				} @else if (done()) {
-					<p class="form-text">Listo, tu contraseña quedó actualizada.</p>
-					<div class="d-grid gap-2">
-						<button type="button" class="btn btn-dark" routerLink="/login/sign-in">Iniciar sesión</button>
-					</div>
-				} @else {
-					<form [formGroup]="formGroupInput" (submit)="$event.preventDefault(); submit()">
-						<div class="mb-3">
-							<label for="newPassword" class="form-label">Nueva contraseña</label>
-							<input type="password" id="newPassword" class="form-control" formControlName="newPassword" required />
-							@if (isInvalid('newPassword')) {
-								<div class="invalid-feedback d-block">Mínimo 4 caracteres.</div>
-							}
-						</div>
-						<div class="mb-3">
-							<label for="confirmPassword" class="form-label">Confirmar contraseña</label>
-							<input type="password" id="confirmPassword" class="form-control" formControlName="confirmPassword" required />
-							@if (formGroupInput.controls.confirmPassword.touched && passwordsMismatch()) {
-								<div class="invalid-feedback d-block">Las contraseñas no coinciden.</div>
-							}
-						</div>
-
-						@if (status()) {
-							<div class="form-text text-danger">{{ status() }}</div>
+		<div class="auth-card">
+			<span class="brand-mark">INTEG</span>
+			<h2>Elegir nueva contraseña</h2>
+			@if (!token()) {
+				<p class="form-text text-danger">Este link no es válido — falta el token. Pedí uno nuevo.</p>
+				<div class="d-grid gap-2">
+					<button type="button" class="btn btn-brand" routerLink="/login/forgot-password">Pedir un link nuevo</button>
+				</div>
+			} @else if (done()) {
+				<p class="form-text">Listo, tu contraseña quedó actualizada.</p>
+				<div class="d-grid gap-2">
+					<button type="button" class="btn btn-brand" routerLink="/login/sign-in">Iniciar sesión</button>
+				</div>
+			} @else {
+				<form [formGroup]="formGroupInput" (submit)="$event.preventDefault(); submit()">
+					<div class="mb-3">
+						<label for="newPassword" class="form-label">Nueva contraseña</label>
+						<input type="password" id="newPassword" class="form-control" formControlName="newPassword" required />
+						@if (isInvalid('newPassword')) {
+							<div class="invalid-feedback d-block">Mínimo 4 caracteres.</div>
 						}
+					</div>
+					<div class="mb-3">
+						<label for="confirmPassword" class="form-label">Confirmar contraseña</label>
+						<input type="password" id="confirmPassword" class="form-control" formControlName="confirmPassword" required />
+						@if (formGroupInput.controls.confirmPassword.touched && passwordsMismatch()) {
+							<div class="invalid-feedback d-block">Las contraseñas no coinciden.</div>
+						}
+					</div>
 
-						<div class="d-grid gap-2">
-							<button type="submit" class="btn btn-dark" [disabled]="submitting()">{{ submitting() ? 'Guardando...' : 'Guardar nueva contraseña' }}</button>
-						</div>
-					</form>
-				}
-			</div>
+					@if (status()) {
+						<div class="form-text text-danger">{{ status() }}</div>
+					}
+
+					<div class="d-grid gap-2">
+						<button type="submit" class="btn btn-brand" [disabled]="submitting()">{{ submitting() ? 'Guardando...' : 'Guardar nueva contraseña' }}</button>
+					</div>
+				</form>
+			}
 		</div>
 	`,
 	styleUrl: './reset-password.component.css',

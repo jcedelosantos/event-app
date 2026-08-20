@@ -7,7 +7,20 @@
    oscuro), no contra la redefinición de acá adentro — el texto plano (h2, label, span sin clase)
    terminaba heredando el gris oscuro pensado para fondo claro, casi invisible sobre el fondo negro
    global. Puesto directo en el elemento que trae data-bs-theme, y un poco más claro que el gris
-   default de Bootstrap para que resalte bien. */
-[data-bs-theme='dark'] {
+   default de Bootstrap para que resalte bien.
+   El azul es el mismo DEFAULT_ACCENT de la marca (theme.service.ts, #1e3a8a) — pero HARDCODEADO
+   acá, no leído de var(--app-accent): esa variable la pisa ThemeService en runtime con el acento
+   de cada tenant, y sigue viva en :root aunque el usuario cierre sesión sin recargar la página, así
+   que el login podría heredar el color de un tenant ajeno. El login es previo a cualquier tenant —
+   necesita SIEMPRE el azul de marca de INTEG, nunca uno prestado. */
+.auth-shell {
+	min-height: 100dvh;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 2rem 1rem;
+	background:
+		radial-gradient(circle at 50% -10%, rgba(30, 58, 138, 0.28), transparent 55%),
+		#0a0a0a;
 	color: rgba(255, 255, 255, 0.92);
 }

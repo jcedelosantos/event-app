@@ -1,6 +1,75 @@
-.container-sign-in {
-	max-width: 500px;
-	min-width: 150px;
-	margin: auto;
-	margin-top: 25dvh;
+.auth-card {
+	width: 100%;
+	max-width: 400px;
+	background: #161616;
+	border: 1px solid #2a2a2a;
+	border-radius: 0.75rem;
+	padding: 2.25rem 2rem;
+	box-shadow: 0 20px 50px -20px rgba(0, 0, 0, 0.6);
+}
+
+.brand-mark {
+	display: block;
+	text-align: center;
+	font-weight: 700;
+	font-size: 0.95rem;
+	letter-spacing: 0.16em;
+	color: #6f8ad6;
+	margin-bottom: 0.75rem;
+}
+
+h2 {
+	font-size: 1.35rem;
+	text-align: center;
+	margin-bottom: 1.75rem;
+}
+
+.form-label {
+	color: #c9c9c9;
+	font-size: 0.85rem;
+	font-weight: 500;
+}
+
+.form-control {
+	background-color: #0f0f0f;
+	border-color: #333;
+	color: #f5f5f5;
+}
+.form-control:focus {
+	background-color: #0f0f0f;
+	border-color: #34509e;
+	color: #fff;
+	box-shadow: 0 0 0 0.2rem rgba(30, 58, 138, 0.35);
+}
+.form-control::placeholder {
+	color: #6b6b6b;
+}
+
+.btn-brand {
+	background: #1e3a8a;
+	border-color: #1e3a8a;
+	color: #fff;
+	font-weight: 600;
+}
+.btn-brand:hover,
+.btn-brand:focus {
+	background: #19316f;
+	border-color: #19316f;
+	color: #fff;
+}
+
+.btn-link {
+	color: #6f8ad6;
+	text-decoration: none;
+}
+.btn-link:hover {
+	color: #9db3e8;
+	text-decoration: underline;
+}
+
+.signup-hint {
+	text-align: center;
+	font-size: 0.85rem;
+	color: #a3a3a3;
+	margin: 1.5rem 0 0;
 }
