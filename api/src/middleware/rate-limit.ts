@@ -25,3 +25,14 @@ export const publicApiRateLimiter = rateLimit({
 	keyGenerator: (req) => String((req as ApiKeyRequest).apiKeyId ?? req.ip),
 	message: { error: 'Demasiadas solicitudes — límite de 60 por minuto por API key.' },
 });
+
+// Recuperación de contraseña (POST /auth/forgot-password y /auth/reset-password) — sin sesión, así
+// que por IP. Frena tanto un script probando usernames al voleo (enumeración, aunque la respuesta ya
+// es genérica) como uno probando tokens de reset a fuerza bruta.
+export const passwordResetRateLimiter = rateLimit({
+	windowMs: 60_000,
+	limit: 10,
+	standardHeaders: true,
+	legacyHeaders: false,
+	message: { error: 'Demasiados intentos — espera un momento y vuelve a intentar.' },
+});

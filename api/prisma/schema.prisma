@@ -265,6 +265,13 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Recuperar contraseña (ver routes/auth.ts POST /forgot-password y /reset-password) — mismo
+  // mecanismo que Subscription.claimTokenHash: se guarda solo el hash SHA-256 de un token random,
+  // con expiración corta, y se pone en null apenas se usa (o al pedir uno nuevo, invalidando el
+  // anterior) para que no sirva una segunda vez ni quede vivo indefinidamente.
+  resetTokenHash      String?
+  resetTokenExpiresAt DateTime?
+
   // Nullable SOLO para la cuenta de Super Admin, que opera fuera de todos los tenants (gestiona el
   // panel /tenants). Cualquier otro usuario (staff o comprador) siempre pertenece a un tenant.
   tenantId Int?

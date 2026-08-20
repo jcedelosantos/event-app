@@ -1,6 +1,9 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
-import { RouterLink, Router } from '@angular/router';
-import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
+import { FormBuilder, FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
+import { HttpErrorResponse } from '@angular/common/http';
+import { AuthService } from '../../../core/services/auth.service';
+import { extractErrorMessage } from '../../../utils/api-error';
 
 @Component({
 	selector: 'app-forgot-password',
@@ -11,24 +14,35 @@ import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } 
 				<h2>Recuperar contraseña</h2>
 			</div>
 			<div class="col-12">
-				<form [formGroup]="formGroupInput">
-					<div class="mb-3">
-						<label for="email" class="form-label">Email</label>
-						<input type="email" id="email" class="form-control" formControlName="email" required />
-					</div>
-
-					@if (status) {
-						<div class="form-text">{{ status }}</div>
-					}
-
-					<div class="col-12 text-end">
-						<span> <button type="button" class="btn btn-link" routerLink="/login/sign-up">Iniciar sesión</button></span>
-					</div>
-					<br />
+				@if (sent()) {
+					<p class="form-text">
+						Si <strong>{{ formGroupInput.controls.username.value }}</strong> es un usuario válido, te mandamos un correo con un link para
+						elegir una nueva contraseña. Revisa tu bandeja (y spam) — el link vence en 30 minutos.
+					</p>
 					<div class="d-grid gap-2">
-						<button type="button" class="btn btn-dark" (click)="forgetPassword()">Restablecer contraseña</button>
+						<button type="button" class="btn btn-dark" routerLink="/login/sign-in">Volver a iniciar sesión</button>
 					</div>
-				</form>
+				} @else {
+					<form [formGroup]="formGroupInput" (submit)="$event.preventDefault(); forgetPassword()">
+						<p class="text-body-secondary small">Ingresa tu usuario y te mandamos un correo para elegir una nueva contraseña.</p>
+						<div class="mb-3">
+							<label for="username" class="form-label">Usuario</label>
+							<input type="text" id="username" class="form-control" formControlName="username" required />
+						</div>
+
+						@if (status()) {
+							<div class="form-text text-danger">{{ status() }}</div>
+						}
+
+						<div class="col-12 text-end">
+							<span><button type="button" class="btn btn-link" routerLink="/login/sign-in">Volver a iniciar sesión</button></span>
+						</div>
+						<br />
+						<div class="d-grid gap-2">
+							<button type="submit" class="btn btn-dark" [disabled]="submitting()">{{ submitting() ? 'Enviando...' : 'Restablecer contraseña' }}</button>
+						</div>
+					</form>
+				}
 			</div>
 		</div>
 	`,
@@ -36,22 +50,33 @@ import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } 
 	changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ForgotPasswordComponent {
-	formGroupInput: FormGroup;
-	status: string;
+	private readonly authService = inject(AuthService);
+	private readonly fb = inject(FormBuilder);
 
-	constructor(
-		private fb: FormBuilder,
-		private router: Router,
-	) {
-		this.formGroupInput = this.fb.group({
-			email: new FormControl('', Validators.required),
-		});
-		this.status = '';
-	}
+	formGroupInput = this.fb.group({
+		username: new FormControl('', { nonNullable: true, validators: Validators.required }),
+	});
+	submitting = signal(false);
+	sent = signal(false);
+	status = signal('');
+
 	forgetPassword() {
-		if (this.formGroupInput.valid) {
-			this['router'].navigate(['/login/sign-in']);
+		if (!this.formGroupInput.valid) {
+			this.formGroupInput.markAllAsTouched();
+			return;
 		}
-		this.status = 'Enviando...';
+
+		this.submitting.set(true);
+		this.status.set('');
+		this.authService.forgotPassword(this.formGroupInput.getRawValue().username).subscribe({
+			next: () => {
+				this.submitting.set(false);
+				this.sent.set(true);
+			},
+			error: (err: HttpErrorResponse) => {
+				this.submitting.set(false);
+				this.status.set(extractErrorMessage(err));
+			},
+		});
 	}
 }

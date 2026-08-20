@@ -53,6 +53,16 @@ export class AuthService {
 		);
 	}
 
+	// Respuesta siempre { ok: true } exista o no el username (ver auth.ts) — el frontend no puede
+	// distinguir "se mandó el correo" de "el usuario no existe", a propósito.
+	forgotPassword(username: string): Observable<{ ok: boolean }> {
+		return this.httpClient.post<{ ok: boolean }>(`${environment.apiUrl}/auth/forgot-password`, { username });
+	}
+
+	resetPassword(token: string, newPassword: string): Observable<{ ok: boolean }> {
+		return this.httpClient.post<{ ok: boolean }>(`${environment.apiUrl}/auth/reset-password`, { token, newPassword });
+	}
+
 	updateMe(input: UpdateMeInput): Observable<User> {
 		return this.httpClient.put<User>(`${environment.apiUrl}/auth/me`, input).pipe(tap((user) => this.currentUser.set(user)));
 	}

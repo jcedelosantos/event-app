@@ -1,3 +1,4 @@
+import { randomBytes, createHash } from 'node:crypto';
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
@@ -6,8 +7,18 @@ import { signToken } from '../lib/jwt';
 import { toPublicUser } from '../lib/serialize';
 import { asyncHandler } from '../lib/async-handler';
 import { requireAuth, AuthenticatedRequest } from '../middleware/auth';
+import { passwordResetRateLimiter } from '../middleware/rate-limit';
+import { sendPasswordResetEmail } from '../lib/mail';
 
 export const authRouter = Router();
+
+// Mismo criterio que el claim token de signup.ts (30 min, hash SHA-256, un solo uso) — ver
+// User.resetTokenHash en schema.prisma.
+const RESET_TOKEN_TTL_MS = 30 * 60 * 1000;
+
+function hashResetToken(token: string): string {
+	return createHash('sha256').update(token).digest('hex');
+}
 
 const loginSchema = z.object({
 	username: z.string().min(1),
@@ -119,4 +130,56 @@ authRouter.put('/me', requireAuth, asyncHandler(async (req: AuthenticatedRequest
 		}
 		throw err;
 	}
+}));
+
+const forgotPasswordSchema = z.object({ username: z.string().min(1) });
+
+// Respuesta genérica SIEMPRE (exista o no el username) — sin esto, este endpoint dejaría enumerar
+// usernames reales de la plataforma probando uno por uno. El email en sí solo se manda si el
+// username existe de verdad; quien llama nunca se entera de la diferencia.
+authRouter.post('/forgot-password', passwordResetRateLimiter, asyncHandler(async (req, res) => {
+	const parsed = forgotPasswordSchema.safeParse(req.body);
+	if (!parsed.success) {
+		res.status(400).json({ error: 'Ingresa tu usuario' });
+		return;
+	}
+
+	const user = await prisma.user.findUnique({ where: { username: parsed.data.username } });
+	if (user) {
+		const token = randomBytes(32).toString('hex');
+		await prisma.user.update({
+			where: { id: user.id },
+			data: { resetTokenHash: hashResetToken(token), resetTokenExpiresAt: new Date(Date.now() + RESET_TOKEN_TTL_MS) },
+		});
+		const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:4200';
+		await sendPasswordResetEmail({
+			to: user.email,
+			username: user.username,
+			resetUrl: `${frontendUrl}/login/reset-password?token=${token}`,
+		}).catch((err) => console.error('No se pudo enviar el correo de recuperación de contraseña:', err));
+	}
+
+	res.json({ ok: true });
+}));
+
+const resetPasswordSchema = z.object({ token: z.string().min(1), newPassword: z.string().min(4) });
+
+authRouter.post('/reset-password', passwordResetRateLimiter, asyncHandler(async (req, res) => {
+	const parsed = resetPasswordSchema.safeParse(req.body);
+	if (!parsed.success) {
+		res.status(400).json({ error: parsed.error.flatten() });
+		return;
+	}
+
+	const user = await prisma.user.findFirst({ where: { resetTokenHash: hashResetToken(parsed.data.token) } });
+	if (!user || !user.resetTokenExpiresAt || user.resetTokenExpiresAt < new Date()) {
+		res.status(400).json({ error: 'El link para restablecer la contraseña venció o ya se usó — pide uno nuevo.' });
+		return;
+	}
+
+	await prisma.user.update({
+		where: { id: user.id },
+		data: { password: await bcrypt.hash(parsed.data.newPassword, 10), resetTokenHash: null, resetTokenExpiresAt: null },
+	});
+	res.json({ ok: true });
 }));

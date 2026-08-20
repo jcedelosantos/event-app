@@ -578,3 +578,28 @@ export async function sendPeriodicReport(args: { to: string[]; tenantName: strin
 		html,
 	});
 }
+
+// Link de un solo uso para restablecer la contraseña (ver User.resetTokenHash en routes/auth.ts) —
+// vence a los 30 minutos, mismo criterio que el claim token de signup.ts.
+export async function sendPasswordResetEmail(args: { to: string; username: string; resetUrl: string }) {
+	const resend = getResendClient();
+	if (!resend) return;
+
+	const html = `
+		<div style="background:#000;padding:24px;font-family:Arial,Helvetica,sans-serif;">
+			<h2 style="color:#fff;">Restablecer tu contraseña</h2>
+			<p style="color:#ccc;">Recibimos una solicitud para restablecer la contraseña de la cuenta <strong style="color:#fff;">${args.username}</strong>.</p>
+			<p style="margin:24px 0;">
+				<a href="${args.resetUrl}" style="background:#dc3545;color:#fff;text-decoration:none;padding:10px 20px;border-radius:6px;display:inline-block;">Elegir nueva contraseña</a>
+			</p>
+			<p style="color:#666;font-size:12px;">Este link vence en 30 minutos y solo funciona una vez. Si no pediste esto, podés ignorar este correo — tu contraseña actual sigue siendo válida.</p>
+		</div>
+	`;
+
+	await resend.emails.send({
+		from: process.env.RESEND_FROM_EMAIL ?? 'onboarding@resend.dev',
+		to: args.to,
+		subject: 'Restablecer tu contraseña — INTEG',
+		html,
+	});
+}

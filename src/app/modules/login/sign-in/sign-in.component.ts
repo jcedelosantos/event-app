@@ -30,7 +30,7 @@ export class SignInComponent {
 
 	signIn() {
 		if (!this.formGroupInput.valid) {
-			this.status = 'Please fill in the fields';
+			this.status = 'Completa usuario y contraseña';
 			return;
 		}
 
@@ -38,7 +38,7 @@ export class SignInComponent {
 		this.authService.login(username, password).subscribe({
 			next: ({ user }) => this.router.navigate([user.tenant === null ? '/super-admin' : '/manager/dash-board']),
 			error: (err: HttpErrorResponse) => {
-				this.status = err.status === 401 ? 'username or password incorrect' : 'No se pudo conectar con el servidor';
+				this.status = err.status === 401 ? 'Usuario o contraseña incorrectos' : 'No se pudo conectar con el servidor';
 			},
 		});
 	}
