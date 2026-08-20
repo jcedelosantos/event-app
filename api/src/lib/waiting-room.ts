@@ -175,6 +175,17 @@ export async function joinWaitingRoom(code: string, sessionId: string): Promise<
 	};
 }
 
+// Se llama al confirmar una compra real (ver POST /purchase en public.ts) para soltar el cupo de
+// ESA persona apenas termina, en vez de dejarlo "ocupado" los ADMISSION_WINDOW_MS completos (20 min)
+// aunque ya haya cerrado la pestaña con su QR en la mano — reportado probando el flujo real: alguien
+// que ya compró y se fue seguía bloqueando la fila para el resto. sessionId puede venir vacío/undefined
+// (compra sin pasar por una sala de espera, o la sala de espera no estaba prendida) — no-op en ese
+// caso, y también si la fila ya no existe (limpiada por el cron, o nunca existió).
+export async function releaseWaitingRoomSlot(code: string, sessionId: string | null | undefined): Promise<void> {
+	if (!sessionId) return;
+	await prisma.waitingRoomEntry.deleteMany({ where: { eventCode: code, sessionId } });
+}
+
 // Polling del frontend mientras espera. Fail-open: si `waitingRoomEnabled` se apagó mientras alguien
 // ya estaba esperando, este chequeo lo libera en el siguiente poll en vez de dejarlo colgado.
 export async function getWaitingRoomStatus(code: string, sessionId: string): Promise<WaitingRoomResult> {

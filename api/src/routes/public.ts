@@ -24,7 +24,7 @@ import { getTenantConfig as getWhatsAppConfig, verifySignature as verifyWhatsApp
 import { saveBuffer, uploadsDir } from '../lib/uploads';
 import { checkoutRateLimiter } from '../middleware/rate-limit';
 import { logAudit } from '../lib/audit';
-import { joinWaitingRoom, getWaitingRoomStatus } from '../lib/waiting-room';
+import { joinWaitingRoom, getWaitingRoomStatus, releaseWaitingRoomSlot } from '../lib/waiting-room';
 import { serializableTransaction } from '../lib/serializable-tx';
 import { generatePublicSlug } from './events';
 import { effectiveSalesCloseAt } from '../lib/event-time';
@@ -476,6 +476,7 @@ const purchaseSchema = z.object({
 	sponsorCarnet: z.string().optional(),
 	children: z.array(childInputSchema).optional().default([]),
 	guests: z.array(guestInputSchema).max(MAX_SEATS_PER_ORDER - 1).optional(),
+	waitingRoomSessionId: z.string().optional(),
 });
 
 publicRouter.post('/purchase', checkoutRateLimiter, asyncHandler(async (req, res) => {
@@ -484,7 +485,7 @@ publicRouter.post('/purchase', checkoutRateLimiter, asyncHandler(async (req, res
 		res.status(400).json({ error: parsed.error.flatten() });
 		return;
 	}
-	const { eventCode, ticketId, client: clientData, seatIds, attendeeType, sponsorCarnet, children, guests } = parsed.data;
+	const { eventCode, ticketId, client: clientData, seatIds, attendeeType, sponsorCarnet, children, guests, waitingRoomSessionId } = parsed.data;
 
 	// Los invitados con datos propios (nombre/apellido/teléfono) solo tienen sentido dentro de la
 	// compra de un SOCIO — necesitan un sponsor, y acá el sponsor es la propia persona que compra.
@@ -811,6 +812,7 @@ publicRouter.post('/purchase', checkoutRateLimiter, asyncHandler(async (req, res
 		sendTicketEmail({ to: clientData.email, clientName: clientData.name, event, saleTickets: publicSaleTickets }).catch((err) =>
 			console.error('No se pudo enviar el email del ticket:', err),
 		);
+		releaseWaitingRoomSlot(eventCode, waitingRoomSessionId).catch((err) => console.error('No se pudo liberar el cupo de la sala de espera:', err));
 
 		res.status(201).json({
 			saleTickets: publicSaleTickets,

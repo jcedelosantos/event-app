@@ -127,6 +127,10 @@ export type PurchaseInput = {
 	sponsorCarnet?: string;
 	children?: ChildDraftInput[];
 	guests?: GuestDraftInput[];
+	// Si venía de la sala de espera (ver waitingRoomSessionId en public-event.component.ts), libera su
+	// cupo apenas la compra se confirma — sin esto, el cupo se mantenía "ocupado" los 20 minutos
+	// completos de ADMISSION_WINDOW_MS aunque la persona ya haya terminado y cerrado la pestaña.
+	waitingRoomSessionId?: string;
 };
 
 // Checkout con pago (ver Event.paymentMode) — sin `children`, a propósito: un evento con cobro

@@ -1793,6 +1793,7 @@ export class PublicEventComponent implements OnInit {
 				ticketId: this.activeTicketId()!,
 				client: { name: name!, lastname: lastname!, email: email!, phone: phone!, carnet: carnet ?? '' },
 				seatIds: Array.from(this.selectedSeatIds()),
+				waitingRoomSessionId: this.waitingRoomSessionId(this.eventSlug),
 				...(usesAttendeeType ? { attendeeType: attendeeType as AttendeeType, sponsorCarnet: sponsorCarnet ?? undefined } : {}),
 				...(usesAttendeeType && attendeeType === 'SOCIO' && this.guestDrafts().length
 					? {
