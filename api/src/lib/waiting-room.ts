@@ -44,11 +44,16 @@ async function getConfig(code: string): Promise<CachedConfig> {
 		return cached;
 	}
 	// tenant.name/logoUrl + name/img del propio evento viajan en el mismo query (sin JOIN nuevo, ya
-	// se resuelve el Event por code) — el frontend los usa para mostrar el evento al que se está
-	// esperando entrar (ver public-event.component.ts) sin tener que esperar a la query pesada de
-	// GET /events/:code.
+	// se resuelve el Event por publicSlug) — el frontend los usa para mostrar el evento al que se
+	// está esperando entrar (ver public-event.component.ts) sin tener que esperar a la query pesada
+	// de GET /events/:code.
+	// OJO: "code" acá es el valor de la URL pública (/e/:code), que en realidad es publicSlug, NUNCA
+	// el Event.code interno (EVT-0001, correlativo y adivinable) — ver GET /events/:code más abajo en
+	// public.ts, que resuelve exactamente igual. Buscar por Event.code acá era el bug real: la sala
+	// de espera nunca encontraba el evento con un link público de verdad, así que quedaba deshabilitada
+	// en silencio para cualquier visitante real (reportado probando el flujo end-to-end).
 	const event = await prismaUnscoped.event.findUnique({
-		where: { code },
+		where: { publicSlug: code },
 		select: {
 			name: true,
 			img: true,

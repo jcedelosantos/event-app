@@ -1013,8 +1013,11 @@ model EnterpriseLead {
 // Cola de la sala de espera virtual (ver lib/waiting-room.ts) — vive en Postgres, no en memoria del
 // proceso, para que la fila sea correcta con más de una réplica de la app corriendo a la vez (cada
 // réplica lee/escribe la misma fila en vez de tener su propia copia). eventCode alcanza como clave
-// (no eventId/tenantId) porque Event.code ya es único globalmente y es lo único que las rutas
-// públicas (sin tenant resuelto todavía) tienen a mano.
+// (no eventId/tenantId) porque Event.publicSlug ya es único globalmente y es lo único que las rutas
+// públicas (sin tenant resuelto todavía) tienen a mano — a pesar del nombre del campo, acá se guarda
+// publicSlug, NUNCA Event.code (ese es el correlativo interno EVT-0001, nunca debe usarse para
+// resolver nada de cara al público). Bug real corregido: lib/waiting-room.ts buscaba por Event.code,
+// así que la sala de espera nunca encontraba el evento con un link público de verdad.
 model WaitingRoomEntry {
   id         Int       @id @default(autoincrement())
   eventCode  String
