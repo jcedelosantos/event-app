@@ -557,12 +557,15 @@ export class SuperAdminComponent implements AfterViewInit {
 		});
 	}
 
-	// Se dispara al cerrar el modal de revisión — refresca tanto la cola de pendientes (badge del
-	// header) como el histórico completo (para que la fila recién revisada pase de Pendiente a
-	// Aprobado/Rechazado en la tabla sin necesidad de recargar la página).
+	// Se dispara al cerrar el modal de revisión — refresca la cola de pendientes (badge del header),
+	// el histórico completo (para que la fila recién revisada pase de Pendiente a Aprobado/Rechazado)
+	// y la tabla de Organizaciones (el tenant recién aprobado pasa de PENDING_REVIEW a Activa) — sin
+	// esto último, la organización se quedaba mostrando el aviso viejo hasta recargar la página a
+	// mano, aunque el backend ya la había activado (bug real reportado probando el flujo completo).
 	onReceiptReviewed() {
 		this.loadPendingReceipts();
 		this.loadReceipts();
+		this.loadTenants();
 	}
 
 	ngAfterViewInit(): void {
