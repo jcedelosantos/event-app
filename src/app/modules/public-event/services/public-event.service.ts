@@ -257,6 +257,12 @@ export class PublicEventService {
 		return this.httpClient.get<WaitingRoomResult>(`${this.baseUrl}/events/${code}/waiting-room/status`, { params: { sessionId } });
 	}
 
+	// Salida voluntaria (botón "Salir de la fila") — libera el cupo al toque en vez de esperar a que
+	// venza por tiempo.
+	leaveWaitingRoom(code: string, sessionId: string): Observable<{ ok: boolean }> {
+		return this.httpClient.post<{ ok: boolean }>(`${this.baseUrl}/events/${code}/waiting-room/leave`, { sessionId });
+	}
+
 	getOrg(slug: string): Observable<PublicOrg> {
 		return this.httpClient.get<PublicOrg>(`${this.baseUrl}/org/${slug}`);
 	}

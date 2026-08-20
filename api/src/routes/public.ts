@@ -431,6 +431,20 @@ publicRouter.get('/events/:code/waiting-room/status', asyncHandler(async (req, r
 	res.json(result);
 }));
 
+// Salida voluntaria de la fila (botón "Salir de la fila" en public-event.component.ts) — a
+// diferencia de simplemente cerrar la pestaña o navegar para atrás (que NO libera nada, para no
+// arriesgar que alguien le robe el lugar a quien solo se equivocó de clic o refrescó por accidente),
+// esto es una señal explícita de que la persona de verdad se va, así que sí se libera al toque.
+publicRouter.post('/events/:code/waiting-room/leave', asyncHandler(async (req, res) => {
+	const parsed = waitingRoomJoinSchema.safeParse(req.body);
+	if (!parsed.success) {
+		res.status(400).json({ error: 'Falta sessionId' });
+		return;
+	}
+	await releaseWaitingRoomSlot(req.params.code, parsed.data.sessionId);
+	res.json({ ok: true });
+}));
+
 const registerSchema = z.object({
 	name: z.string().min(1),
 	// Igual que la importación masiva de CSV: el nombre completo suele venir todo junto en `name`,

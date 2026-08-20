@@ -79,6 +79,15 @@ const MAX_INVITADO_SEATS = 2;
 							<span></span><span></span><span></span>
 						</div>
 						<p class="text-body-secondary small waiting-room-hint">Esta pantalla se actualiza sola — no hace falta que recargues ni cierres la pestaña.</p>
+						<button type="button" class="btn btn-link btn-sm waiting-room-leave" [disabled]="leavingWaitingRoom()" (click)="leaveWaitingRoom()">
+							{{ leavingWaitingRoom() ? 'Saliendo...' : 'Salir de la fila' }}
+						</button>
+					</div>
+				}
+				@case ('left-queue') {
+					<div class="center-msg">
+						<h4>Saliste de la fila</h4>
+						<p class="text-body-secondary">Si cambiás de opinión, volvé a entrar por el mismo link cuando quieras.</p>
 					</div>
 				}
 				@case ('not-found') {
@@ -747,6 +756,10 @@ const MAX_INVITADO_SEATS = 2;
 				max-width: 320px;
 				margin-top: 1.5rem;
 			}
+			.waiting-room-leave {
+				margin-top: 1rem;
+				color: var(--bs-secondary-color);
+			}
 			@media (prefers-reduced-motion: reduce) {
 				.waiting-room-ring,
 				.waiting-room-dots span {
@@ -961,7 +974,7 @@ export class PublicEventComponent implements OnInit {
 		}
 	}
 
-	step = signal<'loading' | 'waiting-room' | 'not-found' | 'ready' | 'confirmed' | 'link-pending'>('loading');
+	step = signal<'loading' | 'waiting-room' | 'left-queue' | 'not-found' | 'ready' | 'confirmed' | 'link-pending'>('loading');
 	event = signal<PublicEvent | null>(null);
 	// El slug de la URL (route param `:code`), NO event().code — ese es el código interno (EVT-XXXX,
 	// ver PublicEvent.code) que ya no sirve para armar requests a los endpoints públicos, todos
@@ -977,6 +990,10 @@ export class PublicEventComponent implements OnInit {
 	waitingRoomTenantLogoUrl = signal<string | null>(null);
 	waitingRoomEventName = signal<string | null>(null);
 	waitingRoomEventImg = signal<string | null>(null);
+	leavingWaitingRoom = signal(false);
+	// Guardado en la instancia (no local a startWaitingRoomPolling) para poder frenarlo desde
+	// leaveWaitingRoom() cuando la persona sale a propósito, no solo al destruirse el componente.
+	private waitingRoomIntervalId: ReturnType<typeof setInterval> | null = null;
 	// Se prenden si la portada del evento o el logo del club dan error al cargar (URL borrada, etc.) —
 	// sin esto, un `src` roto mostraba el ícono de imagen rota del navegador en vez de caer al ícono
 	// de reloj de arena que ya existe para el caso de "no hay imagen" (bug real, mismo patrón que
@@ -1650,7 +1667,34 @@ export class PublicEventComponent implements OnInit {
 				error: () => {},
 			});
 		}, 4000);
+		this.waitingRoomIntervalId = intervalId;
 		this.destroyRef.onDestroy(() => clearInterval(intervalId));
+	}
+
+	// Salida a propósito (botón "Salir de la fila") — a diferencia de cerrar la pestaña o navegar
+	// para atrás (que no avisa a nadie, para no arriesgar que otra persona le robe el lugar a quien
+	// solo se equivocó de clic), esto es una señal explícita: se corta el sondeo y se libera el cupo
+	// ya mismo en vez de esperar a que venza por tiempo.
+	leaveWaitingRoom(): void {
+		if (this.waitingRoomIntervalId) {
+			clearInterval(this.waitingRoomIntervalId);
+			this.waitingRoomIntervalId = null;
+		}
+		this.leavingWaitingRoom.set(true);
+		const sessionId = this.waitingRoomSessionId(this.eventSlug);
+		this.publicEventService.leaveWaitingRoom(this.eventSlug, sessionId).subscribe({
+			next: () => {
+				this.leavingWaitingRoom.set(false);
+				this.step.set('left-queue');
+			},
+			// Fail-open igual que el resto de la sala de espera: si el request falla, mostramos la
+			// confirmación igual — el cupo se libera solo por tiempo en el peor caso, no queda peor
+			// que como estaba antes de este botón.
+			error: () => {
+				this.leavingWaitingRoom.set(false);
+				this.step.set('left-queue');
+			},
+		});
 	}
 
 	private loadEvent(code: string): void {
