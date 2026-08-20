@@ -5,7 +5,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { TenantService } from '../../services/tenant.service';
 import { PlanCode, Tenant, TenantType } from '../../../../models/tenants/tenant';
 import { extractErrorMessage } from '../../../../utils/api-error';
-import { confirm } from '../../../../utils/messages';
+import { confirm, promptConfirmText, Toast } from '../../../../utils/messages';
 import { closeModal } from '../../../../utils/modal';
 
 @Component({
@@ -99,6 +99,15 @@ import { closeModal } from '../../../../utils/modal';
 								<dt class="col-5">Creada el</dt>
 								<dd class="col-7">{{ t.createdAt | date: 'medium' }}</dd>
 							</dl>
+							<hr />
+							<div class="border border-danger-subtle rounded p-3">
+								<p class="text-danger fw-semibold mb-1">Zona de peligro</p>
+								<p class="text-muted small mb-2">
+									Borra la organización y TODO lo que tenga adentro (eventos, tickets vendidos, usuarios, facturas...) — no se puede deshacer. Para
+									solo dejar de facturarla sin perder sus datos, usá el interruptor de "Activa/Inactiva" de la lista en vez de esto.
+								</p>
+								<button type="button" class="btn btn-outline-danger btn-sm" (click)="deleteTenant()">Eliminar organización</button>
+							</div>
 						}
 					</div>
 					<div class="modal-footer">
@@ -179,6 +188,28 @@ export class EditTenantModalComponent {
 					},
 					error: (err: HttpErrorResponse) => (this.errorMessage = extractErrorMessage(err)),
 				}),
+		});
+	}
+
+	deleteTenant() {
+		const current = this.tenant();
+		if (!current) return;
+
+		this.errorMessage = '';
+		promptConfirmText(
+			'Eliminar organización',
+			`Esto borra "${current.name}" y TODOS sus datos (eventos, tickets, usuarios, facturas) para siempre. Escribí el nombre exacto para confirmar.`,
+			current.name,
+		).then((confirmed) => {
+			if (!confirmed) return;
+			this.tenantService.deleteTenant(current.id, current.name).subscribe({
+				next: () => {
+					Toast.fire({ icon: 'success', title: 'Organización eliminada' });
+					this.tenantUpdated.emit();
+					closeModal('editTenantModal');
+				},
+				error: (err: HttpErrorResponse) => (this.errorMessage = extractErrorMessage(err)),
+			});
 		});
 	}
 }

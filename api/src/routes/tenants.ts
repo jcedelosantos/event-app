@@ -268,6 +268,86 @@ tenantsRouter.get('/invoices', asyncHandler(async (_req, res) => {
 	res.json(invoices);
 }));
 
+// Borrado real de una organización (a diferencia de `active: false` en PUT /:id, que solo la
+// desactiva sin tocar nada) — pedido para poder limpiar tenants de prueba desde el panel en vez de
+// necesitar un script contra la base de datos. Exige escribir el nombre exacto en el body como
+// defensa extra contra un click accidental o un llamado directo a la API sin pasar por el modal
+// de confirmación del frontend (ver edit-tenant-modal.component.ts).
+const deleteTenantSchema = z.object({ confirmName: z.string().min(1) });
+
+tenantsRouter.delete('/:id', asyncHandler(async (req: AuthenticatedRequest, res) => {
+	const id = Number(req.params.id);
+	const tenant = await prismaUnscoped.tenant.findUnique({ where: { id } });
+	if (!tenant) {
+		res.status(404).json({ error: 'Organización no encontrada' });
+		return;
+	}
+
+	const parsed = deleteTenantSchema.safeParse(req.body);
+	if (!parsed.success || parsed.data.confirmName !== tenant.name) {
+		res.status(400).json({ error: 'El nombre no coincide — escribilo exacto para confirmar el borrado.' });
+		return;
+	}
+
+	// Si el tenant tiene una suscripción de PayPal activa, se cancela ANTES de tocar la base local —
+	// si esto falla, se aborta todo el borrado. Peor dejar el borrado a medias que dejar un cobro
+	// recurrente real vivo sin ningún tenant local que lo muestre para poder cancelarlo después.
+	const subscription = await prismaUnscoped.subscription.findUnique({ where: { tenantId: id } });
+	if (subscription?.paypalSubscriptionId) {
+		try {
+			await cancelSubscription(subscription.paypalSubscriptionId, 'Organización eliminada desde Super Admin');
+		} catch {
+			res.status(502).json({ error: 'Esta organización tiene una suscripción de PayPal activa y no se pudo cancelar — cancelala primero (ver detalle de suscripción) y volvé a intentar.' });
+			return;
+		}
+	}
+
+	// Borrado en cascada a mano: casi todas las relaciones a Tenant son RESTRICT a propósito (para no
+	// perder datos de negocio por accidente en el borrado de otra fila cualquiera) — eliminar una
+	// organización de punta a punta significa vaciar sus tablas hijas en el orden correcto (hijos
+	// antes que padres) antes de poder borrar la fila de Tenant misma. Ver schema.prisma si el modelo
+	// cambia y este orden necesita ajustarse.
+	await prismaUnscoped.$transaction(async (tx) => {
+		// Rompe de antemano cualquier referencia circular User↔Event (un usuario puede ser tanto
+		// creador de un evento como scanner asignado a otro) antes de tocar ninguna de las dos tablas.
+		await tx.user.updateMany({ where: { tenantId: id }, data: { scannerEventId: null, accessPointId: null, locationId: null } });
+
+		await tx.auditLog.deleteMany({ where: { tenantId: id } });
+		await tx.scanConflict.deleteMany({ where: { tenantId: id } });
+		await tx.child.deleteMany({ where: { tenantId: id } });
+		await tx.saleTicket.deleteMany({ where: { tenantId: id } });
+		await tx.saleProduct.deleteMany({ where: { tenantId: id } });
+		await tx.eventTransaction.deleteMany({ where: { tenantId: id } });
+		await tx.serviceRequest.deleteMany({ where: { tenantId: id } }); // cascada: ServiceRequestItem
+		await tx.accessPoint.deleteMany({ where: { tenantId: id } }); // cascada: AccessPointTicket
+		await tx.ticket.deleteMany({ where: { tenantId: id } });
+		await tx.product.deleteMany({ where: { tenantId: id } });
+		await tx.event.deleteMany({ where: { tenantId: id } });
+		await tx.seat.deleteMany({ where: { tenantId: id } });
+		await tx.table.deleteMany({ where: { tenantId: id } });
+		await tx.area.deleteMany({ where: { tenantId: id } });
+		await tx.map.deleteMany({ where: { tenantId: id } });
+		await tx.location.deleteMany({ where: { tenantId: id } });
+		await tx.user.deleteMany({ where: { tenantId: id } });
+
+		await tx.apiKey.deleteMany({ where: { tenantId: id } });
+		await tx.subscription.deleteMany({ where: { tenantId: id } });
+		await tx.invoice.deleteMany({ where: { tenantId: id } });
+		await tx.paymentReceipt.deleteMany({ where: { tenantId: id } });
+		await tx.clubMember.deleteMany({ where: { tenantId: id } });
+		await tx.appSetting.deleteMany({ where: { tenantId: id } });
+
+		await tx.tenant.delete({ where: { id } });
+	});
+
+	// El AuditLog de la organización se borra junto con todo lo demás (arriba) — no tiene sentido
+	// dejar un rastro que ella misma podría consultar si ya no existe. Esto va al log del proceso
+	// (Railway) en vez de a un modelo propio, mismo criterio que el resto de las acciones puntuales
+	// de Super Admin que no tienen ya un lugar mejor para quedar registradas.
+	console.log(`[SuperAdmin] Organización eliminada: id=${id} name="${tenant.name}" por userId=${req.user!.userId}`);
+	res.json({ ok: true });
+}));
+
 const cancelSubscriptionSchema = z.object({ reason: z.string().min(1).optional().default('Cancelado por la agencia') });
 
 // Cancela contra PayPal — el status local se actualiza recién cuando llegue el webhook

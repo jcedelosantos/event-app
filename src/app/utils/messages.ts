@@ -73,6 +73,23 @@ export const promptText = (title: string, defaultValue: string = ''): Promise<st
   }).then((result) => (result.isConfirmed ? (result.value as string) : null));
 }
 
+// "Escribí X para confirmar" — para acciones destructivas donde un simple Sí/No (ver `confirm`
+// arriba) deja demasiado margen para un click apurado (ej. borrar una organización entera).
+export const promptConfirmText = (title: string, text: string, expectedValue: string, confirmButtonText: string = 'Eliminar'): Promise<boolean> => {
+	return Swal.fire({
+		title,
+		text,
+		input: 'text',
+		inputPlaceholder: expectedValue,
+		showCancelButton: true,
+		confirmButtonColor: '#d33',
+		cancelButtonColor: '#3085d6',
+		confirmButtonText,
+		cancelButtonText: 'Cancelar',
+		inputValidator: (value) => (value !== expectedValue ? `Escribí exactamente "${expectedValue}" para confirmar.` : undefined),
+	}).then((result) => result.isConfirmed);
+};
+
 export const promptSelect = (title: string, options: Record<string, string>, defaultValue: string = ''): Promise<string | null> => {
   return Swal.fire({
     title,

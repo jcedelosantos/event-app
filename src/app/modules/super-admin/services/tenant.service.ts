@@ -52,6 +52,13 @@ export class TenantService {
 		return this.httpClient.put<Tenant>(`${this.baseUrl}/${id}`, { active });
 	}
 
+	// Borrado real (no `active: false`) — ver DELETE /tenants/:id en la API para el detalle del
+	// borrado en cascada. confirmName tiene que ser el nombre exacto de la organización, misma
+	// defensa que ya exige el backend contra un llamado directo sin pasar por el modal.
+	deleteTenant(id: number, confirmName: string): Observable<{ ok: boolean }> {
+		return this.httpClient.delete<{ ok: boolean }>(`${this.baseUrl}/${id}`, { body: { confirmName } });
+	}
+
 	updateTenant(id: number, data: { name: string; type: TenantType; rnc?: string; address?: string; phone?: string; customDomain?: string | null; plan?: PlanCode | null }): Observable<Tenant> {
 		return this.httpClient.put<Tenant>(`${this.baseUrl}/${id}`, data);
 	}
