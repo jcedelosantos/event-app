@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, OnInit, signal } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
+import { Location } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { catchError, debounceTime, distinctUntilChanged, firstValueFrom, map, of, switchMap } from 'rxjs';
@@ -177,6 +178,11 @@ const MAX_INVITADO_SEATS = 2;
 							</p>
 							@if (ev.description) {
 								<p>{{ ev.description }}</p>
+							}
+							@if (cameFromWaitingRoom()) {
+								<button type="button" class="btn btn-link btn-sm p-0 mb-3 cancel-purchase-link" [disabled]="cancellingPurchase()" (click)="cancelAndGoBack()">
+									<i class="bi bi-arrow-left"></i> {{ cancellingPurchase() ? 'Volviendo...' : 'Cancelar y volver' }}
+								</button>
 							}
 
 							@if (purchaseBlockedReason(); as reason) {
@@ -760,6 +766,10 @@ const MAX_INVITADO_SEATS = 2;
 				margin-top: 1rem;
 				color: var(--bs-secondary-color);
 			}
+			.cancel-purchase-link {
+				display: inline-block;
+				color: var(--bs-secondary-color);
+			}
 			@media (prefers-reduced-motion: reduce) {
 				.waiting-room-ring,
 				.waiting-room-dots span {
@@ -946,6 +956,7 @@ export class PublicEventComponent implements OnInit {
 	private readonly publicEventService = inject(PublicEventService);
 	private readonly fb = inject(FormBuilder);
 	private readonly destroyRef = inject(DestroyRef);
+	private readonly location = inject(Location);
 	readonly centsToDollars = centsToDollars;
 	readonly formatDualCurrency = formatDualCurrency;
 
@@ -991,6 +1002,11 @@ export class PublicEventComponent implements OnInit {
 	waitingRoomEventName = signal<string | null>(null);
 	waitingRoomEventImg = signal<string | null>(null);
 	leavingWaitingRoom = signal(false);
+	cancellingPurchase = signal(false);
+	// true si este visitante pasó por la sala de espera (admitido de una o de otra) — controla si se
+	// muestra "Cancelar y volver" en la pantalla de compra (ver @default en el template). Un evento
+	// sin la sala de espera prendida nunca la pone en true, así que ese botón no aparece de más ahí.
+	cameFromWaitingRoom = signal(false);
 	// Guardado en la instancia (no local a startWaitingRoomPolling) para poder frenarlo desde
 	// leaveWaitingRoom() cuando la persona sale a propósito, no solo al destruirse el componente.
 	private waitingRoomIntervalId: ReturnType<typeof setInterval> | null = null;
@@ -1618,7 +1634,15 @@ export class PublicEventComponent implements OnInit {
 		const sessionId = this.waitingRoomSessionId(code);
 		this.publicEventService.joinWaitingRoom(code, sessionId).subscribe({
 			next: (result) => {
-				if (!result.enabled || result.admitted) {
+				if (!result.enabled) {
+					this.loadEvent(code);
+					return;
+				}
+				// De acá para abajo la sala de espera está prendida para este evento — admitido ya mismo
+				// o recién después de esperar, de las dos formas conviene mostrar "Cancelar y volver" en
+				// la pantalla de compra (ver cameFromWaitingRoom en el template).
+				this.cameFromWaitingRoom.set(true);
+				if (result.admitted) {
 					this.loadEvent(code);
 					return;
 				}
@@ -1694,6 +1718,22 @@ export class PublicEventComponent implements OnInit {
 				this.leavingWaitingRoom.set(false);
 				this.step.set('left-queue');
 			},
+		});
+	}
+
+	// "Cancelar y volver" en la pantalla de compra (solo visible si cameFromWaitingRoom) — pedido
+	// real: cancelar la compra y navegar para atrás NO liberaba nada, dejaba el cupo ocupado los 5
+	// min completos aunque la persona ya se haya ido. Esto libera y recién ahí vuelve a la pantalla
+	// anterior (Location.back(), no una ruta fija — no sabemos de dónde vino: portada del club, QR,
+	// WhatsApp...), en vez de simplemente confiar en que alguien use el botón "Atrás" del navegador.
+	cancelAndGoBack(): void {
+		this.cancellingPurchase.set(true);
+		const sessionId = this.waitingRoomSessionId(this.eventSlug);
+		this.publicEventService.leaveWaitingRoom(this.eventSlug, sessionId).subscribe({
+			next: () => this.location.back(),
+			// Fail-open: si el request falla, igual la dejamos volver — no queda peor que como estaba
+			// antes de este botón (el cupo se libera solo por tiempo en el peor caso).
+			error: () => this.location.back(),
 		});
 	}
 
