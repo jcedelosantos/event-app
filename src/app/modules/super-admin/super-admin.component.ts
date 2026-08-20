@@ -180,7 +180,7 @@ const REQUEST_STATUS_LABEL: Record<ServiceRequestStatus, string> = {
 
 			<div id="enterpriseLeadsSection" class="d-flex justify-content-between align-items-center mb-3 mt-5">
 				<div>
-					<h2 class="section-title mb-0">
+					<h2 class="section-title mb-0" style="color: #e2e8f0;">
 						Contactos Pro Enterprise
 						@if (pendingEnterpriseLeadsCount() > 0) {
 							<span class="badge text-bg-warning ms-2">{{ pendingEnterpriseLeadsCount() }} sin revisar</span>
@@ -238,7 +238,7 @@ const REQUEST_STATUS_LABEL: Record<ServiceRequestStatus, string> = {
 			<p class="text-muted small mb-4">Facturas que INTEG le emite a cada organización, comprobantes de pago que mandan, y cotizaciones de servicios adicionales.</p>
 
 			<div class="d-flex justify-content-between align-items-center mb-3">
-				<h5 class="mb-0">Facturas emitidas</h5>
+				<h5 class="mb-0" style="color: #e2e8f0;">Facturas emitidas</h5>
 			</div>
 			<div class="table-responsive">
 			<table class="table table-hover align-middle">
@@ -292,7 +292,7 @@ const REQUEST_STATUS_LABEL: Record<ServiceRequestStatus, string> = {
 
 			<div id="pendingReceiptsSection" class="d-flex justify-content-between align-items-center mb-3 mt-4">
 				<div>
-					<h5 class="mb-0">
+					<h5 class="mb-0" style="color: #e2e8f0;">
 						Comprobantes recibidos
 						@if (pendingReceipts().length > 0) {
 							<span class="badge text-bg-warning ms-2">{{ pendingReceipts().length }} sin revisar</span>
@@ -361,7 +361,7 @@ const REQUEST_STATUS_LABEL: Record<ServiceRequestStatus, string> = {
 
 			<div id="serviceRequestsSection" class="d-flex justify-content-between align-items-center mb-3 mt-4">
 				<div>
-					<h5 class="mb-0">
+					<h5 class="mb-0" style="color: #e2e8f0;">
 						Cotizaciones de servicios adicionales
 						@if (pendingServiceRequestsCount() > 0) {
 							<span class="badge text-bg-warning ms-2">{{ pendingServiceRequestsCount() }} sin revisar</span>
