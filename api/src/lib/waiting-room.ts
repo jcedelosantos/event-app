@@ -14,9 +14,12 @@ import { serializableTransaction } from './serializable-tx';
 // la query pesada de GET /events/:code sobre todos a la vez.
 
 export const DEFAULT_BATCH_SIZE = 50;
-// ~1.33x el hold de compra (15 min, ver public.ts) — da margen sin depender de un heartbeat
-// continuo del frontend para saber si alguien sigue activo.
-const ADMISSION_WINDOW_MS = 20 * 60_000;
+// Antes 20 min (~1.33x el hold de compra de 15 min) para dar margen sin depender de un heartbeat
+// continuo del frontend. Ahora que una compra confirmada libera el cupo al instante (ver
+// releaseWaitingRoomSlot, llamado desde POST /purchase) y hay un botón real de "Salir de la fila"
+// para quien se arrepiente, esta ventana es solo el resguardo para quien queda admitido y abandona
+// sin avisar (cierra la pestaña, pierde conexión) — 5 min alcanza de sobra para eso.
+const ADMISSION_WINDOW_MS = 5 * 60_000;
 // Colchón por throttling de setInterval en pestañas que pasan a background (Chrome puede bajar a
 // ~1 poll/min) — sin esto, alguien que cambia de pestaña un rato perdería su lugar en la cola.
 const QUEUE_INACTIVE_TIMEOUT_MS = 3 * 60_000;
