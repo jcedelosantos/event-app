@@ -222,6 +222,7 @@ type Step = 'form' | 'payment' | 'bank-transfer' | 'pending-review' | 'entering'
 					@case ('pending-review') {
 						<h1 class="h4 text-info">Recibimos tu comprobante</h1>
 						<p class="mb-4" style="color: #a3a3a3;">Luego de validarlo, recibirás la confirmación a tu correo.</p>
+						<a routerLink="/login/sign-in" class="btn btn-brand">Iniciar sesión</a>
 					}
 					@case ('entering') {
 						<div class="spinner-border text-success mb-3" role="status"></div>
