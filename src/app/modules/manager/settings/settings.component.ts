@@ -307,7 +307,7 @@ const PRESETS = [
 							</div>
 							<hr />
 							<div class="mb-3">
-								<label class="small mb-1">Link de pago manual <span class="text-muted">(Opción "Link" — PayPal.me, instrucciones de transferencia, etc.)</span></label>
+								<label class="small mb-1">Link de pago manual <span class="text-muted">(Opción "Link" — PayPal.me, etc.)</span></label>
 								<input
 									type="url"
 									class="form-control form-control-sm"
@@ -315,6 +315,47 @@ const PRESETS = [
 									(input)="linkUrl.set($any($event.target).value)"
 									placeholder="https://paypal.me/tuclub"
 								/>
+							</div>
+							<div class="mb-3">
+								<label class="small mb-1">Datos bancarios <span class="text-muted">(para pago por transferencia — se muestran en el checkout junto con el link de arriba)</span></label>
+								<div class="row g-2">
+									<div class="col-md-6">
+										<input
+											type="text"
+											class="form-control form-control-sm"
+											[value]="bankName()"
+											(input)="bankName.set($any($event.target).value)"
+											placeholder="Nombre del banco"
+										/>
+									</div>
+									<div class="col-md-6">
+										<input
+											type="text"
+											class="form-control form-control-sm"
+											[value]="bankAccountType()"
+											(input)="bankAccountType.set($any($event.target).value)"
+											placeholder="Tipo de cuenta (Ahorros, Corriente...)"
+										/>
+									</div>
+									<div class="col-md-6">
+										<input
+											type="text"
+											class="form-control form-control-sm"
+											[value]="bankAccountNumber()"
+											(input)="bankAccountNumber.set($any($event.target).value)"
+											placeholder="Número de cuenta"
+										/>
+									</div>
+									<div class="col-md-6">
+										<input
+											type="text"
+											class="form-control form-control-sm"
+											[value]="bankAccountHolder()"
+											(input)="bankAccountHolder.set($any($event.target).value)"
+											placeholder="Titular de la cuenta"
+										/>
+									</div>
+								</div>
 							</div>
 							<hr />
 							<div class="mb-3">
@@ -447,6 +488,15 @@ export class SettingsComponent implements OnInit {
 	paypalWebhookId = signal('');
 	paypalWebhookIdConfigured = signal(false);
 	linkUrl = signal('');
+	// Datos bancarios propios del club (no de INTEG) — se muestran en el checkout público junto con
+	// el link de arriba cuando el comprador elige pagar por transferencia (ver
+	// public-event.component.ts), y sirven para que suba el comprobante ahí mismo. No son secretos
+	// (viajan a GET /public/events/:code igual que linkUrl), así que se guardan/leen como cualquier
+	// setting normal, sin flag "Configured".
+	bankName = signal('');
+	bankAccountType = signal('');
+	bankAccountNumber = signal('');
+	bankAccountHolder = signal('');
 	// RD$ por 1 USD — a diferencia de PayPal/link, no es un secreto (viaja a GET /public/events/:code
 	// tal cual, ver public.ts), así que se guarda y se lee como cualquier setting normal, sin flag
 	// "Configured".
@@ -569,6 +619,10 @@ export class SettingsComponent implements OnInit {
 				this.paypalMode.set(settings['payments.paypalMode'] === 'live' ? 'live' : 'sandbox');
 				this.paypalWebhookIdConfigured.set(settings['payments.paypalWebhookIdConfigured'] === 'true');
 				this.linkUrl.set(settings['payments.linkUrl'] ?? '');
+			this.bankName.set(settings['payments.bankName'] ?? '');
+			this.bankAccountType.set(settings['payments.bankAccountType'] ?? '');
+			this.bankAccountNumber.set(settings['payments.bankAccountNumber'] ?? '');
+			this.bankAccountHolder.set(settings['payments.bankAccountHolder'] ?? '');
 				this.exchangeRateRD.set(settings['payments.exchangeRateRD'] ?? '');
 				this.whatsappPhoneNumberId.set(settings['whatsapp.phoneNumberId'] ?? '');
 				this.whatsappAccessTokenConfigured.set(settings['whatsapp.accessTokenSecretConfigured'] === 'true');
@@ -600,12 +654,20 @@ export class SettingsComponent implements OnInit {
 		const secretToSave = this.paypalSecret().trim();
 		const webhookIdToSave = this.paypalWebhookId().trim();
 		const exchangeRateToSave = this.exchangeRateRD().trim();
+		const bankNameToSave = this.bankName().trim();
+		const bankAccountTypeToSave = this.bankAccountType().trim();
+		const bankAccountNumberToSave = this.bankAccountNumber().trim();
+		const bankAccountHolderToSave = this.bankAccountHolder().trim();
 		const calls: Observable<unknown>[] = [this.settingsService.setSetting('payments.paypalMode', this.paypalMode())];
 		if (clientIdToSave) calls.push(this.settingsService.setSetting('payments.paypalClientId', clientIdToSave));
 		if (linkUrlToSave) calls.push(this.settingsService.setSetting('payments.linkUrl', linkUrlToSave));
 		if (secretToSave) calls.push(this.settingsService.setSetting('payments.paypalSecret', secretToSave));
 		if (webhookIdToSave) calls.push(this.settingsService.setSetting('payments.paypalWebhookId', webhookIdToSave));
 		if (exchangeRateToSave) calls.push(this.settingsService.setSetting('payments.exchangeRateRD', exchangeRateToSave));
+		if (bankNameToSave) calls.push(this.settingsService.setSetting('payments.bankName', bankNameToSave));
+		if (bankAccountTypeToSave) calls.push(this.settingsService.setSetting('payments.bankAccountType', bankAccountTypeToSave));
+		if (bankAccountNumberToSave) calls.push(this.settingsService.setSetting('payments.bankAccountNumber', bankAccountNumberToSave));
+		if (bankAccountHolderToSave) calls.push(this.settingsService.setSetting('payments.bankAccountHolder', bankAccountHolderToSave));
 
 		forkJoin(calls).subscribe({
 			next: () => {

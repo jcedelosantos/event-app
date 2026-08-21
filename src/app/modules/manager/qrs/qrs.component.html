@@ -192,6 +192,11 @@
                 <td scope="row">
                     @if (qr.paymentStatus === 'PENDING') {
                         <span class="badge text-bg-secondary" [title]="'Reservado por ' + (qr.paymentProvider === 'PAYPAL' ? 'PayPal' : 'link de pago') + ' — todavía sin confirmar'">Pendiente</span>
+                        @if (qr.paymentReceiptUrl) {
+                            <a [href]="qr.paymentReceiptUrl" target="_blank" rel="noopener" class="btn btn-link btn-sm p-0 ms-1" title="Ver comprobante subido">
+                                <i class="bi bi-image" aria-hidden="true"></i>
+                            </a>
+                        }
                         <button type="button" class="btn btn-link btn-sm p-0 ms-1" title="Marcar como pagado" (click)="markPaid(qr)">
                             <i class="bi bi-check-circle" aria-hidden="true"></i>
                         </button>

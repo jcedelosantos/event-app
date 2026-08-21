@@ -38,6 +38,10 @@ export type SaleTicket = {
 	// PayPal o "Marcar como pagado" acá mismo, ver Opción "Link").
 	paymentStatus: 'PAID' | 'PENDING';
 	paymentProvider: 'PAYPAL' | 'LINK' | null;
+	// Comprobante de transferencia que subió el comprador (Opción "Link" con datos bancarios
+	// cargados, ver public-event.component.ts) — solo informativo, no cambia paymentStatus por sí
+	// solo. null = pagó por PayPal, o por Link sin subir nada todavía.
+	paymentReceiptUrl: string | null;
 	// MANUAL (venta cargada por un staff desde el manager) | PUBLIC (el comprador se autogestionó
 	// desde el portal público) — ver columna "Origen" en el panel de QRs.
 	channel: 'MANUAL' | 'PUBLIC';

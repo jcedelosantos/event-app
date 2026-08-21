@@ -791,6 +791,13 @@ model SaleTicket {
   // seteado mientras paymentStatus = PENDING, null en cualquier venta manual/sin cobro online.
   holdToken        String?
 
+  // Comprobante de transferencia subido por el comprador durante la Opción "Link" con datos
+  // bancarios cargados (ver Settings → Pagos y POST /public/checkout/submit-receipt) — puramente
+  // informativo para que el manager lo revise antes de "Marcar como pagado" en el panel de QRs, NO
+  // cambia paymentStatus por sí solo (a diferencia del webhook de PayPal, acá sigue habiendo un
+  // humano confirmando a mano). null = pagó por PayPal, o por Link sin subir nada todavía.
+  paymentReceiptUrl String?
+
   // Qué puerta hizo el check-in (ver AccessPoint) — nullable porque la mayoría de los eventos no
   // configura puertas (feature opt-in) y porque una venta empieza sin check-in hecho todavía.
   // SetNull en vez de bloquear el borrado de la puerta: el historial de check-in ya hecho no se

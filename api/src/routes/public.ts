@@ -23,6 +23,7 @@ import { getTenantPlanFeatures } from '../middleware/plan';
 import { getTenantConfig as getWhatsAppConfig, verifySignature as verifyWhatsAppSignature, downloadMedia, sendTextMessage, WhatsAppNotConfiguredError } from '../lib/whatsapp';
 import { saveBuffer, uploadsDir } from '../lib/uploads';
 import { checkoutRateLimiter } from '../middleware/rate-limit';
+import { imageUpload, formatUploadError } from '../lib/uploads';
 import { logAudit } from '../lib/audit';
 import { joinWaitingRoom, getWaitingRoomStatus, releaseWaitingRoomSlot } from '../lib/waiting-room';
 import { serializableTransaction } from '../lib/serializable-tx';
@@ -199,17 +200,43 @@ publicRouter.get('/events/:code', asyncHandler(async (req, res) => {
 	// ticket" se muestra igual para eventos sin cobro online (paga en la puerta), así que la
 	// cotización en pesos tiene que estar disponible ahí también.
 	const paymentSettings = await prisma.appSetting.findMany({
-		where: { tenantId: event.tenantId, key: { in: ['payments.paypalClientId', 'payments.linkUrl', 'payments.exchangeRateRD'] } },
+		where: {
+			tenantId: event.tenantId,
+			key: {
+				in: [
+					'payments.paypalClientId',
+					'payments.linkUrl',
+					'payments.exchangeRateRD',
+					'payments.bankName',
+					'payments.bankAccountType',
+					'payments.bankAccountNumber',
+					'payments.bankAccountHolder',
+				],
+			},
+		},
 	});
 	const settingsMap = Object.fromEntries(paymentSettings.map((s) => [s.key, s.value]));
 	const exchangeRateRD = settingsMap['payments.exchangeRateRD'] ? Number(settingsMap['payments.exchangeRateRD']) : null;
 
-	let payment: { mode: string; paypalClientId: string | null; linkUrl: string | null } | null = null;
+	type BankInfo = { bankName: string; bankAccountType: string; bankAccountNumber: string; bankAccountHolder: string };
+	let payment: { mode: string; paypalClientId: string | null; linkUrl: string | null; bankInfo: BankInfo | null } | null = null;
 	if (event.paymentMode !== 'NONE') {
+		// Nombre + número de cuenta son el mínimo para que tenga sentido mostrar la tarjeta de datos
+		// bancarios en el checkout — tipo/titular quedan vacíos si el manager no los cargó, no bloquean
+		// nada (ver Settings → Pagos).
+		const hasBankInfo = !!(settingsMap['payments.bankName'] && settingsMap['payments.bankAccountNumber']);
 		payment = {
 			mode: event.paymentMode,
 			paypalClientId: settingsMap['payments.paypalClientId'] ?? null,
 			linkUrl: settingsMap['payments.linkUrl'] ?? null,
+			bankInfo: hasBankInfo
+				? {
+						bankName: settingsMap['payments.bankName'],
+						bankAccountType: settingsMap['payments.bankAccountType'] ?? '',
+						bankAccountNumber: settingsMap['payments.bankAccountNumber'],
+						bankAccountHolder: settingsMap['payments.bankAccountHolder'] ?? '',
+					}
+				: null,
 		};
 	}
 
@@ -1060,6 +1087,62 @@ publicRouter.post('/checkout/hold', checkoutRateLimiter, asyncHandler(async (req
 		}
 		throw err;
 	}
+}));
+
+// Sube la foto del comprobante de transferencia (Opción "Link" con datos bancarios cargados) —
+// mismo wrapping por Promise que signup-event.ts POST /upload-receipt (multer usa callback, no
+// promesa), público + rate-limited por el mismo motivo: quien paga acá todavía no tiene sesión.
+publicRouter.post(
+	'/checkout/upload-receipt',
+	checkoutRateLimiter,
+	asyncHandler((req, res) => {
+		return new Promise<void>((resolve) => {
+			imageUpload.single('file')(req, res, (err: unknown) => {
+				if (err) {
+					res.status(400).json({ error: formatUploadError(err) });
+					resolve();
+					return;
+				}
+				if (!req.file) {
+					res.status(400).json({ error: 'No se recibió ningún archivo' });
+					resolve();
+					return;
+				}
+				res.status(201).json({ url: `/uploads/${req.file.filename}` });
+				resolve();
+			});
+		});
+	}),
+);
+
+const submitCheckoutReceiptSchema = z.object({
+	holdIds: z.array(z.number().int()).min(1),
+	holdToken: z.string().min(1),
+	receiptUrl: z.string().min(1),
+});
+
+// Solo adjunta la URL del comprobante — a propósito NO toca paymentStatus (sigue en PENDING hasta
+// que el manager confirme a mano desde el panel de QRs, ver sale-tickets.ts PUT /:id/mark-paid):
+// esto es evidencia para que el manager revise antes de confirmar, no una confirmación automática
+// como el webhook de PayPal.
+publicRouter.post('/checkout/submit-receipt', checkoutRateLimiter, asyncHandler(async (req, res) => {
+	const parsed = submitCheckoutReceiptSchema.safeParse(req.body);
+	if (!parsed.success) {
+		res.status(400).json({ error: parsed.error.flatten() });
+		return;
+	}
+	const { holdIds, holdToken, receiptUrl } = parsed.data;
+
+	// Mismo guard que /checkout/paypal/order: holdToken ata este pedido al comprador que reservó, sin
+	// esto cualquiera que adivinara un holdId ajeno podría pisarle el comprobante a otra compra.
+	const holds = await prismaUnscoped.saleTicket.findMany({ where: { id: { in: holdIds } } });
+	if (!holds.length || holds.some((h) => h.paymentStatus !== 'PENDING' || h.paymentProvider !== 'LINK' || h.holdToken !== holdToken)) {
+		res.status(409).json({ error: 'Esta reserva ya no es válida — vuelve a elegir tu asiento.' });
+		return;
+	}
+
+	await prismaUnscoped.saleTicket.updateMany({ where: { id: { in: holdIds } }, data: { paymentReceiptUrl: receiptUrl } });
+	res.json({ ok: true });
 }));
 
 const paypalOrderSchema = z.object({ holdIds: z.array(z.number().int()).min(1), holdToken: z.string().min(1) });

@@ -63,11 +63,14 @@ export type TenantType = 'GENERAL' | 'CLUB' | 'CHURCH' | 'ONG' | 'PRIVADA' | 'PU
 
 // null = este evento no exige pago online (Event.paymentMode = NONE), el registro sigue siendo
 // gratis como siempre. paypalClientId/linkUrl pueden venir null igual si el manager activó el modo
-// pero todavía no cargó las credenciales en Settings → Pagos.
+// pero todavía no cargó las credenciales en Settings → Pagos. bankInfo null = el manager no cargó
+// datos bancarios propios — el checkout solo muestra linkUrl en ese caso, igual que antes.
+export type PublicEventBankInfo = { bankName: string; bankAccountType: string; bankAccountNumber: string; bankAccountHolder: string };
 export type PublicEventPayment = {
 	mode: 'PAYPAL' | 'LINK' | 'BOTH';
 	paypalClientId: string | null;
 	linkUrl: string | null;
+	bankInfo: PublicEventBankInfo | null;
 };
 
 export type PublicEvent = {
@@ -251,6 +254,19 @@ export class PublicEventService {
 	// mientras espera (ver public-event.component.ts).
 	joinWaitingRoom(code: string, sessionId: string): Observable<WaitingRoomResult> {
 		return this.httpClient.post<WaitingRoomResult>(`${this.baseUrl}/events/${code}/waiting-room/join`, { sessionId });
+	}
+
+	// Comprobante de transferencia durante la Opción "Link" con datos bancarios cargados — mismo
+	// patrón de dos pasos que signup.service.ts (subir el archivo, después adjuntar la URL contra el
+	// hold), ver POST /checkout/upload-receipt y /checkout/submit-receipt en public.ts.
+	uploadCheckoutReceipt(file: File): Observable<{ url: string }> {
+		const formData = new FormData();
+		formData.append('file', file);
+		return this.httpClient.post<{ url: string }>(`${this.baseUrl}/checkout/upload-receipt`, formData);
+	}
+
+	submitCheckoutReceipt(holdIds: number[], holdToken: string, receiptUrl: string): Observable<{ ok: boolean }> {
+		return this.httpClient.post<{ ok: boolean }>(`${this.baseUrl}/checkout/submit-receipt`, { holdIds, holdToken, receiptUrl });
 	}
 
 	getWaitingRoomStatus(code: string, sessionId: string): Observable<WaitingRoomResult> {

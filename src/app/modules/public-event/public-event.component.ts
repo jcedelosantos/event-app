@@ -11,6 +11,7 @@ import {
 	DuplicateEventStatus,
 	PublicArea,
 	PublicEvent,
+	PublicEventBankInfo,
 	PublicEventService,
 	PublicSeat,
 	PurchasedChild,
@@ -147,14 +148,51 @@ const MAX_INVITADO_SEATS = 2;
 								}
 								@if (linkPendingInfo()?.linkUrl; as linkUrl) {
 									<a [href]="linkUrl" target="_blank" rel="noopener" class="fw-bold d-block mt-2">{{ linkUrl }}</a>
-								} @else {
+								} @else if (!linkPendingInfo()?.bankInfo) {
 									<div class="fw-bold mt-2">Coordiná el pago con la organización.</div>
 								}
 							</div>
+							@if (linkPendingInfo()?.bankInfo; as bank) {
+								<div class="card bg-dark border-secondary mb-3">
+									<div class="card-body">
+										<h6 class="mb-2">O transferí a esta cuenta</h6>
+										<dl class="row mb-0 small">
+											<dt class="col-5 text-body-secondary">Banco</dt>
+											<dd class="col-7">{{ bank.bankName }}</dd>
+											@if (bank.bankAccountType) {
+												<dt class="col-5 text-body-secondary">Tipo de cuenta</dt>
+												<dd class="col-7">{{ bank.bankAccountType }}</dd>
+											}
+											<dt class="col-5 text-body-secondary">Número de cuenta</dt>
+											<dd class="col-7">{{ bank.bankAccountNumber }}</dd>
+											@if (bank.bankAccountHolder) {
+												<dt class="col-5 text-body-secondary">Titular</dt>
+												<dd class="col-7 mb-0">{{ bank.bankAccountHolder }}</dd>
+											}
+										</dl>
+									</div>
+								</div>
+							}
 							<p class="text-body-secondary">
 								Total: {{ linkPendingInfo()?.totalCents ? formatDualCurrency(linkPendingInfo()!.totalCents, event()?.exchangeRateRD ?? null) : null }}. En cuanto confirmemos tu pago te llega el código QR real a
 								{{ registerForm.controls.email.value }}.
 							</p>
+							@if (linkPendingInfo()?.bankInfo) {
+								@if (linkReceiptSubmitted()) {
+									<p class="text-success small mb-0"><i class="bi bi-check-circle" aria-hidden="true"></i> Comprobante recibido — lo vamos a revisar.</p>
+								} @else {
+									<div class="mb-2">
+										<label class="form-label small">Ya transferiste? Subí tu comprobante</label>
+										<input type="file" class="form-control form-control-sm" accept="image/*" (change)="onLinkReceiptFileSelected($event)" />
+									</div>
+									@if (linkReceiptError()) {
+										<div class="text-danger small mb-2">{{ linkReceiptError() }}</div>
+									}
+									<button type="button" class="btn btn-danger btn-sm" [disabled]="!selectedLinkReceiptFile() || uploadingLinkReceipt()" (click)="submitLinkReceipt()">
+										{{ uploadingLinkReceipt() ? 'Subiendo...' : 'Subir comprobante' }}
+									</button>
+								}
+							}
 						}
 					</div>
 				}
@@ -1023,7 +1061,14 @@ export class PublicEventComponent implements OnInit {
 
 	// --- Checkout con pago (Event.paymentMode) ---------------------------------------------------
 	checkingOut = signal(false);
-	linkPendingInfo = signal<{ linkUrl: string | null; totalCents: number } | null>(null);
+	linkPendingInfo = signal<{ linkUrl: string | null; bankInfo: PublicEventBankInfo | null; totalCents: number; holdIds: number[]; holdToken: string } | null>(null);
+	// Comprobante de transferencia (Opción "Link" con datos bancarios) — mismo patrón de estado que
+	// signup.component.ts: selecciona el archivo, sube, y una vez confirmado no se puede volver a
+	// tocar (receiptSubmitted).
+	selectedLinkReceiptFile = signal<File | null>(null);
+	uploadingLinkReceipt = signal(false);
+	linkReceiptSubmitted = signal(false);
+	linkReceiptError = signal('');
 	// Cuenta regresiva real del hold (antes se mostraba un texto fijo de "15 minutos" sin avisar
 	// cuando de verdad venció — alguien podía pagar tarde un asiento que ya se había liberado y
 	// revendido sin ningún aviso en pantalla). null = todavía no se calculó el primer tick.
@@ -1974,13 +2019,54 @@ export class PublicEventComponent implements OnInit {
 		this.publicEventService.holdCheckout(this.buildCheckoutHoldInput(event, 'LINK')).subscribe({
 			next: (hold) => {
 				this.checkingOut.set(false);
-				this.linkPendingInfo.set({ linkUrl: event.payment?.linkUrl ?? null, totalCents: hold.totalCents });
+				this.linkPendingInfo.set({
+					linkUrl: event.payment?.linkUrl ?? null,
+					bankInfo: event.payment?.bankInfo ?? null,
+					totalCents: hold.totalCents,
+					holdIds: hold.holdIds,
+					holdToken: hold.holdToken,
+				});
 				this.startLinkPendingCountdown(hold.expiresAt);
 				this.step.set('link-pending');
 			},
 			error: (err: HttpErrorResponse) => {
 				this.checkingOut.set(false);
 				this.errorMessage.set(extractErrorMessage(err));
+			},
+		});
+	}
+
+	onLinkReceiptFileSelected(event: Event) {
+		const input = event.target as HTMLInputElement;
+		this.selectedLinkReceiptFile.set(input.files?.[0] ?? null);
+	}
+
+	// Sube el comprobante y lo adjunta al hold — mismo patrón de dos pasos que
+	// signup.component.ts/onReceiptFileSelected+submitReceipt. No cambia paymentStatus (sigue
+	// PENDING): el manager confirma a mano desde el panel de QRs una vez que revisa el comprobante.
+	submitLinkReceipt() {
+		const file = this.selectedLinkReceiptFile();
+		const info = this.linkPendingInfo();
+		if (!file || !info) return;
+
+		this.linkReceiptError.set('');
+		this.uploadingLinkReceipt.set(true);
+		this.publicEventService.uploadCheckoutReceipt(file).subscribe({
+			next: ({ url }) => {
+				this.publicEventService.submitCheckoutReceipt(info.holdIds, info.holdToken, url).subscribe({
+					next: () => {
+						this.uploadingLinkReceipt.set(false);
+						this.linkReceiptSubmitted.set(true);
+					},
+					error: (err: HttpErrorResponse) => {
+						this.uploadingLinkReceipt.set(false);
+						this.linkReceiptError.set(extractErrorMessage(err));
+					},
+				});
+			},
+			error: (err: HttpErrorResponse) => {
+				this.uploadingLinkReceipt.set(false);
+				this.linkReceiptError.set(extractErrorMessage(err));
 			},
 		});
 	}
