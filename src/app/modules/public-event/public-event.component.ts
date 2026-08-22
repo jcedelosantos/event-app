@@ -179,7 +179,8 @@ const MAX_INVITADO_SEATS = 2;
 							</p>
 							@if (linkPendingInfo()?.bankInfo) {
 								@if (linkReceiptSubmitted()) {
-									<p class="text-success small mb-0"><i class="bi bi-check-circle" aria-hidden="true"></i> Comprobante recibido — lo vamos a revisar.</p>
+									<p class="text-success small mb-2"><i class="bi bi-check-circle" aria-hidden="true"></i> Comprobante recibido — lo vamos a revisar.</p>
+									<button type="button" class="btn btn-outline-light btn-sm" (click)="exitAfterReceipt()">Salir</button>
 								} @else {
 									<div class="mb-2">
 										<label class="form-label small">Ya transferiste? Subí tu comprobante</label>
@@ -2069,6 +2070,13 @@ export class PublicEventComponent implements OnInit {
 				this.linkReceiptError.set(extractErrorMessage(err));
 			},
 		});
+	}
+
+	// Ya subió el comprobante — no hay nada más que hacer en esta pantalla (el manager confirma desde
+	// el panel de QRs), así que la deja volver en vez de dejarla mirando la cuenta regresiva del hold
+	// sin ningún botón para salir.
+	exitAfterReceipt(): void {
+		this.location.back();
 	}
 
 	// Carga el SDK de PayPal (una sola vez) y renderiza los Smart Buttons en #paypal-button-container.
