@@ -13,6 +13,7 @@ import { CreateQrModalComponent } from './components/create-qr-modal/create-qr-m
 import { ProductSaleDetailModalComponent } from './components/product-sale-detail-modal/product-sale-detail-modal.component';
 import { CreateProductQrModalComponent } from './components/create-product-qr-modal/create-product-qr-modal.component';
 import { ImportSalesModalComponent } from './components/import-sales-modal/import-sales-modal.component';
+import { ReceiptReviewModalComponent } from './components/receipt-review-modal/receipt-review-modal.component';
 import { confirm, error, promptSelect } from '../../../utils/messages';
 import { extractErrorMessage } from '../../../utils/api-error';
 import { eventDateKey, todayKey } from '../../../utils/dates';
@@ -59,7 +60,7 @@ const LIVE_REFRESH_MS = 5_000;
 
 @Component({
   selector: 'app-qrs',
-  imports: [DatePipe, FormsModule, RouterLink, EventDetailModalComponent, CreateQrModalComponent, ProductSaleDetailModalComponent, CreateProductQrModalComponent, ImportSalesModalComponent],
+  imports: [DatePipe, FormsModule, RouterLink, EventDetailModalComponent, CreateQrModalComponent, ProductSaleDetailModalComponent, CreateProductQrModalComponent, ImportSalesModalComponent, ReceiptReviewModalComponent],
   templateUrl: './qrs.component.html',
   styleUrl: './qrs.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -135,9 +136,11 @@ export class QrsComponent implements OnInit, AfterViewInit, OnDestroy {
 
   eventDetailModal: any;
   productSaleDetailModal: any;
+  receiptReviewModal: any;
 
   selectedDetail = signal<SaleTicket | null>(null);
   selectedProductSaleDetail = signal<SaleProduct | null>(null);
+  selectedReceiptQr = signal<SaleTicket | null>(null);
 
   statusFilter = signal<QrStatusFilter>('all');
   // Fecha de venta, arriba de la tabla (no una columna más) — así se puede cambiar de un click
@@ -327,6 +330,7 @@ export class QrsComponent implements OnInit, AfterViewInit, OnDestroy {
   ngAfterViewInit(): void {
     this.eventDetailModal = new bootstrap.Modal("#eventDetailModal", { backdrop: true });
     this.productSaleDetailModal = new bootstrap.Modal("#productSaleDetailModal", { backdrop: true });
+    this.receiptReviewModal = new bootstrap.Modal("#receiptReviewModal", { backdrop: true });
   }
 
   onEventFilterChange() {
@@ -404,6 +408,19 @@ export class QrsComponent implements OnInit, AfterViewInit, OnDestroy {
   openDetailModal(qr: SaleTicket) {
     this.selectedDetail.set(qr);
     this.eventDetailModal?.show();
+  }
+
+  openReceiptReview(qr: SaleTicket) {
+    this.selectedReceiptQr.set(qr);
+    this.receiptReviewModal?.show();
+  }
+
+  onReceiptReviewed(result: { type: 'confirmed'; ticket: SaleTicket } | { type: 'rejected'; id: number }) {
+    if (result.type === 'confirmed') {
+      this.qrList.update((list) => list.map((q) => (q.id === result.ticket.id ? result.ticket : q)));
+    } else {
+      this.qrList.update((list) => list.filter((q) => q.id !== result.id));
+    }
   }
 
   openProductSaleDetailModal(sale: SaleProduct) {

@@ -193,13 +193,14 @@
                     @if (qr.paymentStatus === 'PENDING') {
                         <span class="badge text-bg-secondary" [title]="'Reservado por ' + (qr.paymentProvider === 'PAYPAL' ? 'PayPal' : 'link de pago') + ' — todavía sin confirmar'">Pendiente</span>
                         @if (qr.paymentReceiptUrl) {
-                            <a [href]="qr.paymentReceiptUrl" target="_blank" rel="noopener" class="btn btn-link btn-sm p-0 ms-1" title="Ver comprobante subido">
+                            <button type="button" class="btn btn-link btn-sm p-0 ms-1" title="Ver comprobante y confirmar" (click)="openReceiptReview(qr)">
                                 <i class="bi bi-image" aria-hidden="true"></i>
-                            </a>
+                            </button>
+                        } @else {
+                            <button type="button" class="btn btn-link btn-sm p-0 ms-1" title="Marcar como pagado" (click)="markPaid(qr)">
+                                <i class="bi bi-check-circle" aria-hidden="true"></i>
+                            </button>
                         }
-                        <button type="button" class="btn btn-link btn-sm p-0 ms-1" title="Marcar como pagado" (click)="markPaid(qr)">
-                            <i class="bi bi-check-circle" aria-hidden="true"></i>
-                        </button>
                     } @else {
                         <span class="badge text-bg-success">Pagado</span>
                         @if (qr.paymentProvider) {
@@ -378,3 +379,4 @@
 <app-product-sale-detail-modal [saleProduct]="selectedProductSaleDetail()" />
 <create-product-qr-modal (saleProductCreated)="onProductSaleCreated($event)" />
 <import-sales-modal (imported)="onSalesImported()" />
+<app-receipt-review-modal [(qr)]="selectedReceiptQr" (reviewed)="onReceiptReviewed($event)" />
