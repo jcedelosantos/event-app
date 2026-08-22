@@ -59,6 +59,21 @@ export type PublicTicket = {
 	attendeeType: 'SOCIO' | 'INVITADO' | null;
 };
 
+// Producto del evento vendible junto al ticket desde el carrito (ver GET /public/events/:code) —
+// isMealOfTheDay queda afuera (ese producto solo se ofrece vía el registro de hijos, ver
+// hasMealOfTheDay). `available` es el stock real restante, se manda igual en 0 para mostrarlo
+// agotado en vez de hacerlo desaparecer sin explicación (mismo criterio que PublicTicket.count).
+export type PublicEventProduct = {
+	id: number;
+	name: string;
+	description: string;
+	img: string;
+	type: string;
+	variant: string;
+	priceCents: number;
+	available: number;
+};
+
 export type TenantType = 'GENERAL' | 'CLUB' | 'CHURCH' | 'ONG' | 'PRIVADA' | 'PUBLICA' | 'INDEPENDIENTE';
 
 // null = este evento no exige pago online (Event.paymentMode = NONE), el registro sigue siendo
@@ -86,6 +101,7 @@ export type PublicEvent = {
 	// purchaseBlockedReason en public-event.component.ts) — null = sin restricción.
 	publishAt: string | null;
 	tickets: PublicTicket[];
+	products: PublicEventProduct[];
 	map: PublicMap;
 	// Si es CLUB, hay que pedir socio/invitado + carnet al reservar (ver AttendeeType más abajo).
 	tenantType: TenantType;
@@ -121,6 +137,10 @@ export type ChildDraftInput = { name: string; age?: number; wantsMeal?: boolean 
 // todos los asientos elegidos queden a nombre del socio (ver api/src/routes/public.ts /purchase).
 export type GuestDraftInput = { name: string; lastname: string; phone: string; email?: string };
 
+// Línea del carrito de productos (ver PublicEventProduct) — siempre acompaña una compra de al menos
+// un ticket, nunca va sola (ver public-event.component.ts, seatIds ya exige mínimo 1 asiento).
+export type ProductCartInput = { productId: number; quantity: number };
+
 export type PurchaseInput = {
 	eventCode: string;
 	ticketId: number;
@@ -130,6 +150,7 @@ export type PurchaseInput = {
 	sponsorCarnet?: string;
 	children?: ChildDraftInput[];
 	guests?: GuestDraftInput[];
+	products?: ProductCartInput[];
 	// Si venía de la sala de espera (ver waitingRoomSessionId en public-event.component.ts), libera su
 	// cupo apenas la compra se confirma — sin esto, el cupo se mantenía "ocupado" los 20 minutos
 	// completos de ADMISSION_WINDOW_MS aunque la persona ya haya terminado y cerrado la pestaña.
@@ -137,7 +158,8 @@ export type PurchaseInput = {
 };
 
 // Checkout con pago (ver Event.paymentMode) — sin `children`, a propósito: un evento con cobro
-// online vende solo tickets/asientos en esta primera vuelta (ver public.ts /checkout/hold).
+// online vende solo tickets/asientos + productos en esta primera vuelta (ver public.ts
+// /checkout/hold).
 export type CheckoutHoldInput = {
 	eventCode: string;
 	ticketId: number;
@@ -145,16 +167,17 @@ export type CheckoutHoldInput = {
 	seatIds: number[];
 	attendeeType?: AttendeeType;
 	sponsorCarnet?: string;
+	products?: ProductCartInput[];
 	provider: 'PAYPAL' | 'LINK';
 };
 
 // `holdToken` ata este hold al comprador que lo creó — hay que devolverlo junto con `holdIds` en
 // createPaypalOrder para probar que es el mismo comprador (ver schema.prisma SaleTicket.holdToken).
-export type CheckoutHoldResult = { holdIds: number[]; holdToken: string; totalCents: number; expiresAt: string };
+// `productHoldIds` viaja solo informativamente: /checkout/paypal/order, /capture y /submit-receipt
+// encuentran los holds de producto por holdToken, no hace falta reenviarlos.
+export type CheckoutHoldResult = { holdIds: number[]; productHoldIds: number[]; holdToken: string; totalCents: number; expiresAt: string };
 export type PaypalOrderResult = { orderId: string };
-// Sin `children` a propósito — el checkout con pago no soporta registro de hijos (ver
-// CheckoutHoldInput / public.ts).
-export type PaypalCaptureResult = { saleTickets: PurchasedSaleTicket[] };
+export type PaypalCaptureResult = { saleTickets: PurchasedSaleTicket[]; saleProducts: PurchasedSaleProduct[] };
 
 export type PurchasedSaleTicket = {
 	id: number;
@@ -163,9 +186,17 @@ export type PurchasedSaleTicket = {
 	ticket: { name: string; type: string; priceCents: number };
 };
 
+export type PurchasedSaleProduct = {
+	id: number;
+	codeQR: string;
+	quantity: number;
+	unitPriceCents: number | null;
+	product: { name: string; type: string; priceCents: number };
+};
+
 export type PurchasedChild = { id: number; name: string; codeQR: string };
 
-export type PurchaseResult = { saleTickets: PurchasedSaleTicket[]; children: PurchasedChild[] };
+export type PurchaseResult = { saleTickets: PurchasedSaleTicket[]; children: PurchasedChild[]; saleProducts: PurchasedSaleProduct[] };
 
 export type SponsorStatus = { registered: boolean; used: number; max: number; blocked: boolean };
 

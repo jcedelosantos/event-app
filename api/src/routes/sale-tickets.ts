@@ -14,7 +14,7 @@ import { isClubTenant, validateAttendeeRule } from '../lib/attendee';
 import { checkDuplicateEventRegistration } from '../lib/duplicate-event-guard';
 import { validateHostGuestRule } from '../lib/host-guest';
 import { uniqueUsername } from '../lib/unique-username';
-import { finalizePaidSaleTickets } from '../lib/checkout';
+import { finalizePaidCheckout } from '../lib/checkout';
 import { assertEventCapacity } from '../lib/capacity';
 import { serializableTransaction } from '../lib/serializable-tx';
 import { notifyIfOverageJustCrossed } from '../lib/overage';
@@ -459,7 +459,7 @@ saleTicketsRouter.put('/:id/mark-paid', asyncHandler(async (req: AuthenticatedRe
 	}
 
 	await prisma.saleTicket.update({ where: { id, tenantId }, data: { paidType: parsed.data.paidType } });
-	await finalizePaidSaleTickets(tenantId, [id]);
+	await finalizePaidCheckout(tenantId, { saleTicketIds: [id] });
 
 	const updated = await prisma.saleTicket.findUnique({ where: { id, tenantId }, include });
 	res.json(toPublicSaleTicket(updated));

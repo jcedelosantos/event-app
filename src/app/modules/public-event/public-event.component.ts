@@ -9,12 +9,15 @@ import {
 	AttendeeType,
 	CheckoutHoldInput,
 	DuplicateEventStatus,
+	ProductCartInput,
 	PublicArea,
 	PublicEvent,
 	PublicEventBankInfo,
+	PublicEventProduct,
 	PublicEventService,
 	PublicSeat,
 	PurchasedChild,
+	PurchasedSaleProduct,
 	PurchasedSaleTicket,
 	SponsorStatus,
 	MemberStatus,
@@ -117,6 +120,20 @@ const MAX_INVITADO_SEATS = 2;
 									<qrcode [qrdata]="sale.codeQR" [width]="110" [errorCorrectionLevel]="'M'"></qrcode>
 								</div>
 							</div>
+						}
+						@if (purchasedProducts().length) {
+							<h5 class="mt-4">Productos</h5>
+							@for (sale of purchasedProducts(); track sale.id) {
+								<div class="card mb-3">
+									<div class="card-body d-flex justify-content-between align-items-center">
+										<div>
+											<div class="fw-bold">{{ sale.product.name }} × {{ sale.quantity }}</div>
+											<div class="text-body-secondary small">Presentalo en el stand de entrega</div>
+										</div>
+										<qrcode [qrdata]="sale.codeQR" [width]="110" [errorCorrectionLevel]="'M'"></qrcode>
+									</div>
+								</div>
+							}
 						}
 						@if (purchasedChildren().length; as childrenCount) {
 							<h5 class="mt-4">Código de retiro de comida</h5>
@@ -502,9 +519,52 @@ const MAX_INVITADO_SEATS = 2;
 								</div>
 							}
 
+							@if (ev.products.length) {
+								<div class="mb-4">
+									<h5>3. Agrega productos (opcional)</h5>
+									<div class="d-flex flex-column gap-2">
+										@for (product of ev.products; track product.id) {
+											<div class="d-flex align-items-center justify-content-between product-cart-row">
+												<div>
+													<div class="fw-semibold">{{ product.name }}</div>
+													@if (product.description) {
+														<div class="small text-body-secondary">{{ product.description }}</div>
+													}
+													<div class="small">
+														{{ formatDualCurrency(product.priceCents, ev.exchangeRateRD) }}
+														@if (product.available === 0) {
+															<span class="text-danger">— Agotado</span>
+														}
+													</div>
+												</div>
+												<div class="d-flex align-items-center gap-2">
+													<button
+														type="button"
+														class="btn btn-sm btn-outline-secondary"
+														[disabled]="productQty(product.id) === 0"
+														(click)="decProduct(product.id)"
+													>
+														−
+													</button>
+													<span class="product-qty">{{ productQty(product.id) }}</span>
+													<button
+														type="button"
+														class="btn btn-sm btn-outline-secondary"
+														[disabled]="productQty(product.id) >= product.available"
+														(click)="incProduct(product)"
+													>
+														+
+													</button>
+												</div>
+											</div>
+										}
+									</div>
+								</div>
+							}
+
 							@if (ev.tenantType !== 'CLUB' || !usesAttendeeTypeTickets()) {
 								<div class="mb-4">
-									<h5>3. Tus datos</h5>
+									<h5>4. Tus datos</h5>
 									<form [formGroup]="registerForm" class="row g-2">
 										<div class="col-md-6">
 											<label for="general-name" class="visually-hidden">Nombre</label>
@@ -529,7 +589,7 @@ const MAX_INVITADO_SEATS = 2;
 							@if (ev.tenantType === 'CHURCH' && !ev.payment) {
 								<div class="mb-4">
 									<div class="d-flex justify-content-between align-items-center mb-2">
-										<h5 class="mb-0">4. ¿Vienes con hijos?</h5>
+										<h5 class="mb-0">5. ¿Vienes con hijos?</h5>
 										<button type="button" class="btn btn-sm btn-outline-danger" (click)="addChildDraft()">+ Agregar hijo/a</button>
 									</div>
 									@if (!childrenDraft().length) {
@@ -574,6 +634,13 @@ const MAX_INVITADO_SEATS = 2;
 											</div>
 										</div>
 									}
+								</div>
+							}
+
+							@if (activeTicketId() && selectedSeatIds().size) {
+								<div class="d-flex justify-content-between align-items-center mb-3 fw-semibold">
+									<span>Total</span>
+									<span>{{ formatDualCurrency(estimatedTotalCents(), ev.exchangeRateRD) }}</span>
 								</div>
 							}
 
@@ -986,6 +1053,15 @@ const MAX_INVITADO_SEATS = 2;
 				margin-right: 4px;
 				vertical-align: middle;
 			}
+			.product-cart-row {
+				padding: 0.5rem 0.75rem;
+				border: 1px solid rgba(255, 255, 255, 0.1);
+				border-radius: 8px;
+			}
+			.product-qty {
+				min-width: 1.5rem;
+				text-align: center;
+			}
 		`,
 	],
 	changeDetection: ChangeDetectionStrategy.OnPush,
@@ -1147,16 +1223,20 @@ export class PublicEventComponent implements OnInit {
 	// queda sin usar en ese camino.
 	selectedTicketId = signal<number | null>(null);
 	selectedSeatIds = signal<Set<number>>(new Set());
+	// Carrito de productos del evento (ver "3. Productos") — productId → cantidad elegida. Siempre
+	// acompaña la compra de al menos un ticket, nunca va solo (ver ProductCartInput).
+	selectedProducts = signal<Map<number, number>>(new Map());
 	submitting = signal(false);
 	errorMessage = signal('');
 	purchasedTickets = signal<PurchasedSaleTicket[]>([]);
+	purchasedProducts = signal<PurchasedSaleProduct[]>([]);
 	purchasedChildren = signal<PurchasedChild[]>([]);
 	// Todos los hijos de esta compra comparten el mismo codeQR familiar (ver public.ts) — se
 	// muestran juntos en un solo card en vez de uno por hijo.
 	childrenNamesLabel = computed(() => this.purchasedChildren().map((c) => c.name).join(', '));
 
 	// Borrador de hijos a registrar junto con la compra — solo se muestra/manda en tenants CHURCH (ver
-	// "4. ¿Vienes con hijos?"). Plano con signal en vez de un FormArray reactivo: no hay otro precedente
+	// "5. ¿Vienes con hijos?"). Plano con signal en vez de un FormArray reactivo: no hay otro precedente
 	// de FormArray en este codebase y una lista chica como esta no lo necesita.
 	childrenDraft = signal<{ name: string; age: string; wantsMeal: boolean }[]>([]);
 
@@ -1821,6 +1901,52 @@ export class PublicEventComponent implements OnInit {
 		});
 	}
 
+	productQty(productId: number): number {
+		return this.selectedProducts().get(productId) ?? 0;
+	}
+
+	incProduct(product: PublicEventProduct) {
+		this.selectedProducts.update((current) => {
+			const next = new Map(current);
+			const qty = next.get(product.id) ?? 0;
+			if (qty < product.available) next.set(product.id, qty + 1);
+			return next;
+		});
+	}
+
+	decProduct(productId: number) {
+		this.selectedProducts.update((current) => {
+			const next = new Map(current);
+			const qty = next.get(productId) ?? 0;
+			if (qty <= 1) next.delete(productId);
+			else next.set(productId, qty - 1);
+			return next;
+		});
+	}
+
+	private productCartInput(): ProductCartInput[] {
+		return Array.from(this.selectedProducts(), ([productId, quantity]) => ({ productId, quantity }));
+	}
+
+	// Total de productos elegidos, en centavos — se suma al total del ticket para mostrar el monto
+	// completo antes de confirmar (ver "3. Productos" y el resumen de PayPal/Link).
+	productsTotalCents = computed(() => {
+		const event = this.event();
+		if (!event) return 0;
+		return Array.from(this.selectedProducts(), ([productId, quantity]) => {
+			const product = event.products.find((p) => p.id === productId);
+			return product ? product.priceCents * quantity : 0;
+		}).reduce((sum, cents) => sum + cents, 0);
+	});
+
+	// Ticket(s) elegido(s) + productos del carrito — mostrado antes de confirmar para que el
+	// comprador vea el total real, no solo el precio del ticket (ver "3. Agrega productos").
+	estimatedTotalCents = computed(() => {
+		const ticket = this.activeTicket();
+		const ticketTotal = ticket ? ticket.priceCents * this.selectedSeatIds().size : 0;
+		return ticketTotal + this.productsTotalCents();
+	});
+
 	formatDate(iso: string): string {
 		// dateOn es un instante UTC medianoche que representa un día calendario — usar getters UTC
 		// para no perder un día en timezones detrás de UTC (ver utils/dates.ts).
@@ -1923,6 +2049,7 @@ export class PublicEventComponent implements OnInit {
 				ticketId: this.activeTicketId()!,
 				client: { name: name!, lastname: lastname!, email: email!, phone: phone!, carnet: carnet ?? '' },
 				seatIds: Array.from(this.selectedSeatIds()),
+				products: this.productCartInput(),
 				waitingRoomSessionId: this.waitingRoomSessionId(this.eventSlug),
 				...(usesAttendeeType ? { attendeeType: attendeeType as AttendeeType, sponsorCarnet: sponsorCarnet ?? undefined } : {}),
 				...(usesAttendeeType && attendeeType === 'SOCIO' && this.guestDrafts().length
@@ -1948,6 +2075,7 @@ export class PublicEventComponent implements OnInit {
 			.subscribe({
 				next: (result) => {
 					this.purchasedTickets.set(result.saleTickets);
+					this.purchasedProducts.set(result.saleProducts);
 					this.purchasedChildren.set(result.children);
 					this.submitting.set(false);
 					this.step.set('confirmed');
@@ -2001,6 +2129,7 @@ export class PublicEventComponent implements OnInit {
 			ticketId: this.activeTicketId()!,
 			client: { name: name!, lastname: lastname!, email: email!, phone: phone!, carnet: carnet ?? '' },
 			seatIds: Array.from(this.selectedSeatIds()),
+			products: this.productCartInput(),
 			...(usesAttendeeType ? { attendeeType: attendeeType as AttendeeType, sponsorCarnet: sponsorCarnet ?? undefined } : {}),
 			provider,
 		};
@@ -2108,6 +2237,7 @@ export class PublicEventComponent implements OnInit {
 						try {
 							const result = await firstValueFrom(this.publicEventService.capturePaypalOrder(data.orderID));
 							this.purchasedTickets.set(result.saleTickets);
+							this.purchasedProducts.set(result.saleProducts);
 							this.purchasedChildren.set([]);
 							this.checkingOut.set(false);
 							this.step.set('confirmed');

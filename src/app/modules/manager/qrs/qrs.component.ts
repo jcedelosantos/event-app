@@ -491,6 +491,30 @@ export class QrsComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
+  // Confirmación manual de pago de un producto (Opción "Link", checkout público) — mismo patrón que
+  // markPaid() para tickets.
+  markProductPaid(sale: SaleProduct) {
+    promptSelect(`¿Cómo pagó "${sale.client.name} ${sale.client.lastname}"?`, { Cash: 'Efectivo', Card: 'Tarjeta', Transfer: 'Transferencia', PayPal: 'PayPal' }).then((paidType) => {
+      if (!paidType) return;
+      this.productSalesService.markPaid(sale.id, paidType).subscribe({
+        next: (updated) => this.productSaleList.update((list) => list.map((s) => (s.id === updated.id ? updated : s))),
+        error: (err: HttpErrorResponse) => error(extractErrorMessage(err)),
+      });
+    });
+  }
+
+  // Deshace un "Marcar como pagado" apretado por error — mismo patrón que markPending() para tickets.
+  markProductPending(sale: SaleProduct) {
+    confirm(`¿Revertir el pago de "${sale.client.name} ${sale.client.lastname}"? Vuelve a quedar "Pendiente de pago".`, {
+      onConfirm: () => {
+        this.productSalesService.markPending(sale.id).subscribe({
+          next: (updated) => this.productSaleList.update((list) => list.map((s) => (s.id === updated.id ? updated : s))),
+          error: (err: HttpErrorResponse) => error(extractErrorMessage(err)),
+        });
+      },
+    });
+  }
+
   deleteProductSale(sale: SaleProduct) {
     confirm(`¿Eliminar esta venta de producto?`, {
       onConfirm: () => {

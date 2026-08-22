@@ -8,6 +8,7 @@ import { toPublicUser } from '../lib/serialize';
 import { sendProductEmail } from '../lib/mail';
 import { asyncHandler } from '../lib/async-handler';
 import { logAudit } from '../lib/audit';
+import { finalizePaidCheckout } from '../lib/checkout';
 
 export const saleProductsRouter = Router();
 saleProductsRouter.use(requireAuth, requireTenant, blockScannerRole, requireActiveSubscription);
@@ -145,6 +146,54 @@ saleProductsRouter.post('/:id/resend', asyncHandler(async (req: AuthenticatedReq
 		console.error('No se pudo reenviar el email del producto:', err);
 		res.status(500).json({ error: 'No se pudo enviar el correo. Revisá la configuración de email.' });
 	}
+}));
+
+const markPaidSchema = z.object({ paidType: z.string().min(1) });
+
+// Confirmación manual de pago (Opción "Link" — ver public.ts /checkout/hold), mismo patrón que
+// sale-tickets.ts PUT /:id/mark-paid: el hold solo guardaba "Link de pago" genérico como
+// placeholder, esto pide la forma de pago real (Efectivo, Transferencia, etc.).
+saleProductsRouter.put('/:id/mark-paid', asyncHandler(async (req: AuthenticatedRequest, res) => {
+	const id = Number(req.params.id);
+	const tenantId = req.user!.tenantId!;
+	const parsed = markPaidSchema.safeParse(req.body);
+	if (!parsed.success) {
+		res.status(400).json({ error: parsed.error.flatten() });
+		return;
+	}
+
+	const saleProduct = await prisma.saleProduct.findUnique({ where: { id, tenantId } });
+	if (!saleProduct) {
+		res.status(404).json({ error: 'Venta no encontrada' });
+		return;
+	}
+
+	await prisma.saleProduct.update({ where: { id, tenantId }, data: { paidType: parsed.data.paidType } });
+	await finalizePaidCheckout(tenantId, { saleProductIds: [id] });
+
+	const updated = await prisma.saleProduct.findUnique({ where: { id, tenantId }, include });
+	res.json(toPublicSaleProduct(updated));
+}));
+
+// Deshace un "Marcar como pagado" hecho por error — vuelve a PENDING sin tocar el stock (mismo
+// espíritu que sale-tickets.ts PUT /:id/mark-pending). Solo tiene sentido para ventas que vinieron
+// del checkout con pago (paymentProvider seteado); una venta manual del manager nunca pasó por
+// PENDING, no hay nada que revertir.
+saleProductsRouter.put('/:id/mark-pending', asyncHandler(async (req: AuthenticatedRequest, res) => {
+	const id = Number(req.params.id);
+	const tenantId = req.user!.tenantId!;
+	const saleProduct = await prisma.saleProduct.findUnique({ where: { id, tenantId } });
+	if (!saleProduct) {
+		res.status(404).json({ error: 'Venta no encontrada' });
+		return;
+	}
+	if (!saleProduct.paymentProvider) {
+		res.status(400).json({ error: 'Esta venta no vino del checkout con pago — no hay nada que revertir.' });
+		return;
+	}
+
+	const updated = await prisma.saleProduct.update({ where: { id, tenantId }, data: { paymentStatus: 'PENDING' }, include });
+	res.json(toPublicSaleProduct(updated));
 }));
 
 saleProductsRouter.delete('/:id', asyncHandler(async (req: AuthenticatedRequest, res) => {

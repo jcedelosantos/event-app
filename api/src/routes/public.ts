@@ -6,7 +6,7 @@ import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import { prisma, prismaUnscoped } from '../lib/prisma';
 import { toPublicUser } from '../lib/serialize';
-import { sendTicketEmail } from '../lib/mail';
+import { sendTicketEmail, sendProductEmail } from '../lib/mail';
 import { asyncHandler } from '../lib/async-handler';
 import { isClubTenant, validateAttendeeRule, principalCarnet, MAX_INVITADOS_PER_SOCIO } from '../lib/attendee';
 import { lookupClubMember, assertActiveMember } from '../lib/club-members';
@@ -16,7 +16,7 @@ import { uniqueUsername } from '../lib/unique-username';
 import { resolveFamilyCodeQR } from '../lib/family-code';
 import { checkDuplicateEventRegistration } from '../lib/duplicate-event-guard';
 import { createOrder as createPaypalOrder, captureOrder as capturePaypalOrder, verifyWebhookSignature, PayPalNotConfiguredError, PayPalRequestError } from '../lib/paypal';
-import { finalizePaidSaleTickets } from '../lib/checkout';
+import { finalizePaidCheckout } from '../lib/checkout';
 import { findDuplicateEventSlot } from '../lib/find-duplicate-event-slot';
 import { extractEventFromImage, extractEventFromText, ExtractedEvent, AnthropicNotConfiguredError, AnthropicRequestError } from '../lib/event-extraction';
 import { getTenantPlanFeatures } from '../middleware/plan';
@@ -63,6 +63,24 @@ async function releaseExpiredHolds(tenantId: number, eventId: number, seatIds: n
 			await tx.ticket.update({ where: { id: s.ticketId, tenantId }, data: { count: { increment: 1 } } });
 		}
 		await tx.saleTicket.deleteMany({ where: { id: { in: expired.map((s: { id: number }) => s.id) }, tenantId } });
+	});
+}
+
+// Mismo espíritu que releaseExpiredHolds de arriba, pero para holds de producto (SaleProduct
+// PENDING) — un producto no tiene un "seatId" que lo identifique, así que se libera por evento
+// entero en vez de filtrar por ids puntuales (a diferencia de los asientos, un producto agotado no
+// bloquea la compra de otro comprador salvo que también pida ESE producto, así que barrer todo el
+// evento en cada intento de compra es barato y suficiente).
+async function releaseExpiredProductHolds(tenantId: number, eventId: number) {
+	await serializableTransaction(async (tx) => {
+		const expired = await tx.saleProduct.findMany({
+			where: { eventId, tenantId, paymentStatus: 'PENDING', paymentExpiresAt: { lt: new Date() } },
+		});
+		if (!expired.length) return;
+		for (const s of expired) {
+			await tx.product.update({ where: { id: s.productId, tenantId }, data: { count: { increment: s.quantity } } });
+		}
+		await tx.saleProduct.deleteMany({ where: { id: { in: expired.map((s: { id: number }) => s.id) }, tenantId } });
 	});
 }
 
@@ -170,6 +188,9 @@ publicRouter.get('/events/:code', asyncHandler(async (req, res) => {
 		include: {
 			map: { include: { areas: { include: { seats: true, tables: true } } } },
 			tickets: { where: { active: true } },
+			// isMealOfTheDay queda excluido: ese producto solo se ofrece a través del registro de hijos
+			// (ver children más abajo), no como un ítem más del carrito general.
+			products: { where: { active: true, isMealOfTheDay: false } },
 			tenant: { select: { type: true, name: true, logoUrl: true } },
 		},
 	});
@@ -265,6 +286,20 @@ publicRouter.get('/events/:code', asyncHandler(async (req, res) => {
 		// (/purchase, /checkout/hold), esto es solo para el mensaje.
 		publishAt: event.publishAt,
 		tickets: event.tickets,
+		// Productos vendibles junto al ticket desde el checkout público (ver POST /purchase,
+		// /checkout/hold) — `available` es el stock real (Product.count, ya se descuenta atómicamente
+		// al reservar/comprar), se manda igual con 0 para que el frontend lo muestre agotado en vez de
+		// hacerlo desaparecer sin explicación (mismo criterio que los tickets de arriba).
+		products: event.products.map((p) => ({
+			id: p.id,
+			name: p.name,
+			description: p.description,
+			img: p.img,
+			type: p.type,
+			variant: p.variant,
+			priceCents: p.priceCents,
+			available: p.count,
+		})),
 		map,
 		// El picker público lo usa para saber si tiene que pedir socio/invitado + carnet — ver
 		// lib/attendee.ts. Solo importa el tipo, no se expone nada más del tenant acá.
@@ -508,6 +543,14 @@ const guestInputSchema = z.object({
 	email: z.string().email().optional(),
 });
 
+// Productos del evento que el comprador agrega junto a su ticket (ver Product en public-event) —
+// siempre acompañan una compra de al menos un ticket, nunca van solos (ver purchaseSchema/
+// checkoutHoldSchema: seatIds ya exige mínimo 1 asiento).
+const productInputSchema = z.object({
+	productId: z.number().int(),
+	quantity: z.number().int().min(1),
+});
+
 const purchaseSchema = z.object({
 	eventCode: z.string().min(1),
 	ticketId: z.number().int(),
@@ -517,6 +560,7 @@ const purchaseSchema = z.object({
 	sponsorCarnet: z.string().optional(),
 	children: z.array(childInputSchema).optional().default([]),
 	guests: z.array(guestInputSchema).max(MAX_SEATS_PER_ORDER - 1).optional(),
+	products: z.array(productInputSchema).optional().default([]),
 	waitingRoomSessionId: z.string().optional(),
 });
 
@@ -526,7 +570,7 @@ publicRouter.post('/purchase', checkoutRateLimiter, asyncHandler(async (req, res
 		res.status(400).json({ error: parsed.error.flatten() });
 		return;
 	}
-	const { eventCode, ticketId, client: clientData, seatIds, attendeeType, sponsorCarnet, children, guests, waitingRoomSessionId } = parsed.data;
+	const { eventCode, ticketId, client: clientData, seatIds, attendeeType, sponsorCarnet, children, guests, products: productInputs, waitingRoomSessionId } = parsed.data;
 
 	// Los invitados con datos propios (nombre/apellido/teléfono) solo tienen sentido dentro de la
 	// compra de un SOCIO — necesitan un sponsor, y acá el sponsor es la propia persona que compra.
@@ -645,7 +689,7 @@ publicRouter.post('/purchase', checkoutRateLimiter, asyncHandler(async (req, res
 	};
 
 	try {
-		const { saleTickets, createdChildren } = await serializableTransaction(async (tx) => {
+		const { saleTickets, createdChildren, saleProducts } = await serializableTransaction(async (tx) => {
 			// Un club normalmente vende por socio/invitado, pero un ticket cargado desde un flyer por
 			// WhatsApp puede venir sin esa clasificación — la regla solo aplica si ESTE ticket puntual
 			// participa de ese modelo (mismo criterio que public-event.component.ts).
@@ -845,7 +889,44 @@ publicRouter.post('/purchase', checkoutRateLimiter, asyncHandler(async (req, res
 				);
 			}
 
-			return { saleTickets, createdChildren };
+			// Productos agregados al carrito junto al ticket (ver Product en GET /events/:code) —
+			// mismo chequeo-y-descuento atómico que la comida del día de arriba, uno por línea del
+			// carrito. isMealOfTheDay queda afuera a propósito: ese producto solo se ofrece vía el
+			// registro de hijos, no como línea de carrito general (ver GET /events/:code).
+			const saleProducts = [];
+			for (const productInput of productInputs) {
+				const product = await tx.product.findFirst({ where: { id: productInput.productId, eventId: event.id, tenantId, active: true, isMealOfTheDay: false } });
+				if (!product) {
+					throw new TransactionValidationError('Uno o más productos elegidos ya no están disponibles.');
+				}
+				const productStockUpdate = await tx.product.updateMany({
+					where: { id: product.id, count: { gte: productInput.quantity }, tenantId },
+					data: { count: { decrement: productInput.quantity } },
+				});
+				if (productStockUpdate.count === 0) {
+					throw new InsufficientStockError();
+				}
+				saleProducts.push(
+					await tx.saleProduct.create({
+						data: {
+							eventId: event.id,
+							productId: product.id,
+							quantity: productInput.quantity,
+							paidType: 'Online',
+							description: 'Compra autoservicio',
+							codeQR: randomUUID(),
+							userId: rootUser.id,
+							clientId: client!.id,
+							tenantId,
+							channel: 'PUBLIC',
+							unitPriceCents: product.priceCents,
+						},
+						include: { product: true },
+					}),
+				);
+			}
+
+			return { saleTickets, createdChildren, saleProducts };
 		});
 
 		const publicSaleTickets = saleTickets.map(({ client: c, seller: s, ...rest }) => ({ ...rest, client: toPublicUser(c), seller: toPublicUser(s) }));
@@ -853,11 +934,17 @@ publicRouter.post('/purchase', checkoutRateLimiter, asyncHandler(async (req, res
 		sendTicketEmail({ to: clientData.email, clientName: clientData.name, event, saleTickets: publicSaleTickets }).catch((err) =>
 			console.error('No se pudo enviar el email del ticket:', err),
 		);
+		if (saleProducts.length) {
+			sendProductEmail({ to: clientData.email, clientName: clientData.name, event, saleProducts }).catch((err) =>
+				console.error('No se pudo enviar el email de productos:', err),
+			);
+		}
 		releaseWaitingRoomSlot(eventCode, waitingRoomSessionId).catch((err) => console.error('No se pudo liberar el cupo de la sala de espera:', err));
 
 		res.status(201).json({
 			saleTickets: publicSaleTickets,
 			children: createdChildren.map((c) => ({ id: c.id, name: c.name, codeQR: c.codeQR })),
+			saleProducts,
 		});
 		notifyIfOverageJustCrossed(tenantId, event.id, saleTickets.length).catch((err) => console.error('No se pudo verificar aforo:', err));
 	} catch (err: any) {
@@ -866,7 +953,7 @@ publicRouter.post('/purchase', checkoutRateLimiter, asyncHandler(async (req, res
 			return;
 		}
 		if (err instanceof InsufficientStockError) {
-			res.status(409).json({ error: 'No hay suficiente stock disponible para este tipo de ticket.' });
+			res.status(409).json({ error: 'No hay suficiente stock disponible para uno de los ítems elegidos.' });
 			return;
 		}
 		if (err instanceof NoMealConfiguredError) {
@@ -895,6 +982,7 @@ const checkoutHoldSchema = z.object({
 	seatIds: z.array(z.number().int()).min(1).max(MAX_SEATS_PER_ORDER),
 	attendeeType: z.enum(['SOCIO', 'INVITADO']).optional(),
 	sponsorCarnet: z.string().optional(),
+	products: z.array(productInputSchema).optional().default([]),
 	provider: z.enum(['PAYPAL', 'LINK']),
 });
 
@@ -904,7 +992,7 @@ publicRouter.post('/checkout/hold', checkoutRateLimiter, asyncHandler(async (req
 		res.status(400).json({ error: parsed.error.flatten() });
 		return;
 	}
-	const { eventCode, ticketId, client: clientData, seatIds, attendeeType, sponsorCarnet, provider } = parsed.data;
+	const { eventCode, ticketId, client: clientData, seatIds, attendeeType, sponsorCarnet, products: productInputs, provider } = parsed.data;
 
 	const event = await prismaUnscoped.event.findUnique({ where: { publicSlug: eventCode } });
 	if (!event || !event.active) {
@@ -936,6 +1024,9 @@ publicRouter.post('/checkout/hold', checkoutRateLimiter, asyncHandler(async (req
 	}
 
 	await releaseExpiredHolds(tenantId, event.id, seatIds);
+	if (productInputs.length) {
+		await releaseExpiredProductHolds(tenantId, event.id);
+	}
 
 	const alreadySold = await prisma.saleTicket.findMany({ where: { eventId: event.id, seatId: { in: seatIds }, tenantId } });
 	if (alreadySold.length) {
@@ -1002,7 +1093,7 @@ publicRouter.post('/checkout/hold', checkoutRateLimiter, asyncHandler(async (req
 		// los holdIds y lo devuelve en /checkout/paypal/order como prueba de que es el mismo comprador
 		// que reservó (ver comentario en schema.prisma sobre SaleTicket.holdToken).
 		const holdToken = randomUUID();
-		const saleTickets = await serializableTransaction(async (tx) => {
+		const { saleTickets, saleProducts } = await serializableTransaction(async (tx) => {
 			// Mismo motivo/orden que POST /purchase: estas dos reglas cuentan invitados/registros
 			// existentes, así que quedan DENTRO de la transacción serializable junto con el cupo y la
 			// creación del hold, no antes.
@@ -1039,7 +1130,7 @@ publicRouter.post('/checkout/hold', checkoutRateLimiter, asyncHandler(async (req
 			if (stockUpdate.count === 0) {
 				throw new InsufficientStockError();
 			}
-			return Promise.all(
+			const saleTickets = await Promise.all(
 				seatIds.map((seatId) =>
 					tx.saleTicket.create({
 						data: {
@@ -1063,12 +1154,56 @@ publicRouter.post('/checkout/hold', checkoutRateLimiter, asyncHandler(async (req
 					}),
 				),
 			);
+
+			// Holds de producto: mismo holdToken que los tickets de arriba — /checkout/paypal/order,
+			// /capture y /submit-receipt los encuentran por holdToken, sin necesitar que el frontend
+			// pase productHoldIds de vuelta en cada paso siguiente.
+			const saleProducts = [];
+			for (const productInput of productInputs) {
+				const product = await tx.product.findFirst({ where: { id: productInput.productId, eventId: event.id, tenantId, active: true, isMealOfTheDay: false } });
+				if (!product) {
+					throw new TransactionValidationError('Uno o más productos elegidos ya no están disponibles.');
+				}
+				const productStockUpdate = await tx.product.updateMany({
+					where: { id: product.id, count: { gte: productInput.quantity }, tenantId },
+					data: { count: { decrement: productInput.quantity } },
+				});
+				if (productStockUpdate.count === 0) {
+					throw new InsufficientStockError();
+				}
+				saleProducts.push(
+					await tx.saleProduct.create({
+						data: {
+							eventId: event.id,
+							productId: product.id,
+							quantity: productInput.quantity,
+							paidType: provider === 'PAYPAL' ? 'PayPal' : 'Link de pago',
+							description: provider === 'PAYPAL' ? 'Checkout PayPal (pendiente)' : 'Link de pago (pendiente)',
+							codeQR: randomUUID(),
+							userId: rootUser.id,
+							clientId: client!.id,
+							tenantId,
+							channel: 'PUBLIC',
+							paymentStatus: 'PENDING',
+							paymentProvider: provider,
+							paymentExpiresAt: expiresAt,
+							holdToken,
+							unitPriceCents: product.priceCents,
+						},
+					}),
+				);
+			}
+
+			return { saleTickets, saleProducts };
 		});
+
+		const productsTotalCents = saleProducts.reduce((sum, p) => sum + p.quantity * (p.unitPriceCents ?? 0), 0);
 
 		res.status(201).json({
 			holdIds: saleTickets.map((s) => s.id),
+			productHoldIds: saleProducts.map((p) => p.id),
 			holdToken,
-			totalCents: ticket.priceCents * seatIds.length,
+			totalCents: ticket.priceCents * seatIds.length + productsTotalCents,
 			expiresAt,
 		});
 		notifyIfOverageJustCrossed(tenantId, event.id, seatIds.length).catch((err) => console.error('No se pudo verificar aforo:', err));
@@ -1078,7 +1213,7 @@ publicRouter.post('/checkout/hold', checkoutRateLimiter, asyncHandler(async (req
 			return;
 		}
 		if (err instanceof InsufficientStockError) {
-			res.status(409).json({ error: 'No hay suficiente stock disponible para este tipo de ticket.' });
+			res.status(409).json({ error: 'No hay suficiente stock disponible para uno de los ítems elegidos.' });
 			return;
 		}
 		if (err.code === 'P2002') {
@@ -1142,6 +1277,10 @@ publicRouter.post('/checkout/submit-receipt', checkoutRateLimiter, asyncHandler(
 	}
 
 	await prismaUnscoped.saleTicket.updateMany({ where: { id: { in: holdIds } }, data: { paymentReceiptUrl: receiptUrl } });
+	// Los holds de producto de esta misma compra comparten holdToken con los de arriba (ver
+	// /checkout/hold) — se buscan por holdToken, no por id, así el frontend no necesita threadear
+	// productHoldIds de vuelta en cada paso siguiente.
+	await prismaUnscoped.saleProduct.updateMany({ where: { holdToken, paymentStatus: 'PENDING', paymentProvider: 'LINK' }, data: { paymentReceiptUrl: receiptUrl } });
 	res.json({ ok: true });
 }));
 
@@ -1171,11 +1310,18 @@ publicRouter.post('/checkout/paypal/order', checkoutRateLimiter, asyncHandler(as
 	}
 
 	const tenantId = holds[0].tenantId;
-	const totalCents = holds.reduce((sum, h) => sum + h.ticket.priceCents, 0);
+	// Productos de esta misma compra, encontrados por holdToken (mismo secreto que los tickets de
+	// arriba) — no necesitan su propio id explícito en el request.
+	const productHolds = await prismaUnscoped.saleProduct.findMany({ where: { holdToken: parsed.data.holdToken, paymentStatus: 'PENDING', paymentProvider: 'PAYPAL' } });
+	const totalCents =
+		holds.reduce((sum, h) => sum + h.ticket.priceCents, 0) + productHolds.reduce((sum, p) => sum + p.quantity * (p.unitPriceCents ?? 0), 0);
 
 	try {
 		const { orderId } = await createPaypalOrder(tenantId, totalCents, holds.map((h) => h.id).join(','));
 		await prisma.saleTicket.updateMany({ where: { id: { in: holds.map((h) => h.id) }, tenantId }, data: { paypalOrderId: orderId } });
+		if (productHolds.length) {
+			await prisma.saleProduct.updateMany({ where: { id: { in: productHolds.map((p) => p.id) }, tenantId }, data: { paypalOrderId: orderId } });
+		}
 		res.json({ orderId });
 	} catch (err) {
 		if (err instanceof PayPalNotConfiguredError || err instanceof PayPalRequestError) {
@@ -1196,15 +1342,16 @@ publicRouter.post('/checkout/paypal/capture', checkoutRateLimiter, asyncHandler(
 	}
 
 	const holds = await prismaUnscoped.saleTicket.findMany({ where: { paypalOrderId: parsed.data.orderId } });
-	if (!holds.length) {
+	const productHolds = await prismaUnscoped.saleProduct.findMany({ where: { paypalOrderId: parsed.data.orderId } });
+	if (!holds.length && !productHolds.length) {
 		res.status(404).json({ error: 'No encontramos esa reserva.' });
 		return;
 	}
-	const tenantId = holds[0].tenantId;
+	const tenantId = (holds[0] ?? productHolds[0]).tenantId;
 
 	try {
-		if (holds.every((h) => h.paymentStatus === 'PAID')) {
-			const result = await finalizePaidSaleTickets(tenantId, holds.map((h) => h.id));
+		if (holds.every((h) => h.paymentStatus === 'PAID') && productHolds.every((p) => p.paymentStatus === 'PAID')) {
+			const result = await finalizePaidCheckout(tenantId, { saleTicketIds: holds.map((h) => h.id), saleProductIds: productHolds.map((p) => p.id) });
 			res.json(result);
 			return;
 		}
@@ -1213,7 +1360,7 @@ publicRouter.post('/checkout/paypal/capture', checkoutRateLimiter, asyncHandler(
 			res.status(409).json({ error: 'PayPal todavía no confirmó el pago — espera un momento y vuelve a intentar.' });
 			return;
 		}
-		const result = await finalizePaidSaleTickets(tenantId, holds.map((h) => h.id));
+		const result = await finalizePaidCheckout(tenantId, { saleTicketIds: holds.map((h) => h.id), saleProductIds: productHolds.map((p) => p.id) });
 		res.json(result);
 	} catch (err) {
 		if (err instanceof PayPalNotConfiguredError || err instanceof PayPalRequestError) {
@@ -1236,11 +1383,12 @@ publicRouter.post('/webhooks/paypal', asyncHandler(async (req, res) => {
 	}
 
 	const holds = await prismaUnscoped.saleTicket.findMany({ where: { paypalOrderId: orderId } });
-	if (!holds.length) {
+	const productHolds = await prismaUnscoped.saleProduct.findMany({ where: { paypalOrderId: orderId } });
+	if (!holds.length && !productHolds.length) {
 		res.json({ received: true });
 		return;
 	}
-	const tenantId = holds[0].tenantId;
+	const tenantId = (holds[0] ?? productHolds[0]).tenantId;
 
 	const verified = await verifyWebhookSignature(tenantId, req.headers as Record<string, string | string[] | undefined>, req.body);
 	if (!verified) {
@@ -1248,7 +1396,7 @@ publicRouter.post('/webhooks/paypal', asyncHandler(async (req, res) => {
 		return;
 	}
 
-	if (holds.every((h) => h.paymentStatus === 'PAID')) {
+	if (holds.every((h) => h.paymentStatus === 'PAID') && productHolds.every((p) => p.paymentStatus === 'PAID')) {
 		res.json({ received: true });
 		return;
 	}
@@ -1256,7 +1404,7 @@ publicRouter.post('/webhooks/paypal', asyncHandler(async (req, res) => {
 	try {
 		const capture = await capturePaypalOrder(tenantId, orderId);
 		if (capture.status === 'COMPLETED') {
-			await finalizePaidSaleTickets(tenantId, holds.map((h) => h.id));
+			await finalizePaidCheckout(tenantId, { saleTicketIds: holds.map((h) => h.id), saleProductIds: productHolds.map((p) => p.id) });
 		}
 	} catch (err) {
 		console.error('Error procesando webhook de PayPal:', err);

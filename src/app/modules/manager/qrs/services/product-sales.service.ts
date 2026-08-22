@@ -26,6 +26,12 @@ export type SaleProduct = {
 	// haber cambiado desde entonces). null = venta de antes de este campo (ver
 	// SaleProduct.unitPriceCents en la API).
 	unitPriceCents: number | null;
+	// Mismo ciclo de pago que SaleTicket (ver qr.service.ts) — habilita pagar productos desde el
+	// checkout público del evento, no solo por venta manual del manager.
+	paymentStatus: 'PAID' | 'PENDING';
+	paymentProvider: 'PAYPAL' | 'LINK' | null;
+	paymentReceiptUrl: string | null;
+	channel: 'MANUAL' | 'PUBLIC';
 };
 
 export type SaleProductInput = {
@@ -72,6 +78,16 @@ export class ProductSalesService {
 
 	resendSaleProduct(id: number): Observable<{ ok: boolean }> {
 		return this.httpClient.post<{ ok: boolean }>(`${this.baseUrl}/${id}/resend`, {});
+	}
+
+	// Confirmación manual de pago (Opción "Link") — mismo patrón que qr.service.ts markPaid.
+	markPaid(id: number, paidType: string): Observable<SaleProduct> {
+		return this.httpClient.put<SaleProduct>(`${this.baseUrl}/${id}/mark-paid`, { paidType });
+	}
+
+	// Deshace un "Marcar como pagado" hecho por error — vuelve a Pendiente sin devolver el stock.
+	markPending(id: number): Observable<SaleProduct> {
+		return this.httpClient.put<SaleProduct>(`${this.baseUrl}/${id}/mark-pending`, {});
 	}
 }
 

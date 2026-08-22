@@ -118,6 +118,7 @@ export async function createTestEvent(
 			name: `Test Event ${suffix}`,
 			img: '',
 			code: `TST-${suffix}`,
+			publicSlug: `test-${suffix}`,
 			type: 'GENERAL',
 			description: '',
 			dateSale: now,

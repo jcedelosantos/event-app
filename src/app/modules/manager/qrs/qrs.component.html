@@ -256,6 +256,7 @@
             <th role="button" (click)="toggleProductSort('event')">Evento <i class="bi" [class]="productSortIcon('event')"></i></th>
             <th role="button" (click)="toggleProductSort('product')">Producto <i class="bi" [class]="productSortIcon('product')"></i></th>
             <th role="button" (click)="toggleProductSort('qty')">Cant. <i class="bi" [class]="productSortIcon('qty')"></i></th>
+            <th>Pago</th>
             <th>Estado</th>
             <th></th>
         </tr>
@@ -269,6 +270,21 @@
             <td scope="row">{{sale.event.name}}</td>
             <td scope="row">{{sale.product.name}}</td>
             <td scope="row">{{sale.quantity}}</td>
+            <td scope="row">
+                @if (sale.paymentStatus === 'PENDING') {
+                    <span class="badge text-bg-secondary" [title]="'Reservado por ' + (sale.paymentProvider === 'PAYPAL' ? 'PayPal' : 'link de pago') + ' — todavía sin confirmar'">Pendiente</span>
+                    <button type="button" class="btn btn-link btn-sm p-0 ms-1" title="Marcar como pagado" (click)="markProductPaid(sale)">
+                        <i class="bi bi-check-circle" aria-hidden="true"></i>
+                    </button>
+                } @else {
+                    <span class="badge text-bg-success">Pagado</span>
+                    @if (sale.paymentProvider) {
+                        <button type="button" class="btn btn-link btn-sm p-0 ms-1" title="Revertir a pendiente (por si se marcó por error)" (click)="markProductPending(sale)">
+                            <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
+                        </button>
+                    }
+                }
+            </td>
             <td scope="row">
                 @if (sale.deliveredAt) {
                     <span class="badge text-bg-success">Entregado</span>
@@ -287,7 +303,7 @@
         </tr>
         } @empty {
         <tr>
-            <td colspan="8" class="text-muted">Todavía no hay ventas de productos registradas.</td>
+            <td colspan="9" class="text-muted">Todavía no hay ventas de productos registradas.</td>
         </tr>
         }
     </tbody>

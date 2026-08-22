@@ -724,6 +724,19 @@ model SaleProduct {
   // esos casos, best-effort). Centavos enteros, no dólares (ver lib/money.ts).
   unitPriceCents Int?
 
+  // Mismo ciclo de pago que SaleTicket (ver ese modelo para la explicación completa) — habilita
+  // pagar productos desde el checkout público del evento (/purchase, /checkout/hold), no solo por
+  // venta manual del manager. PAID/MANUAL preservan el comportamiento de toda fila existente (venta
+  // manual, comida del día) sin migración de datos.
+  channel String @default("MANUAL")
+
+  paymentStatus     String    @default("PAID")
+  paymentProvider   String?
+  paypalOrderId     String?
+  paymentExpiresAt  DateTime?
+  holdToken         String?
+  paymentReceiptUrl String?
+
   @@index([tenantId])
 }
 
