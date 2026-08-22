@@ -135,6 +135,7 @@ const DEFAULT_VISIBLE_FILTERS: FilterCategory[] = ['proximos', 'programados'];
 													@if (event.map?.name) {
 														<p class="event-meta text-truncate mb-0">{{ event.map!.name }}</p>
 													}
+													<span class="event-cta">Reservar <i class="bi bi-arrow-right"></i></span>
 												</div>
 											</a>
 										}
@@ -361,6 +362,17 @@ const DEFAULT_VISIBLE_FILTERS: FilterCategory[] = ['proximos', 'programados'];
 			.event-meta {
 				font-size: 0.8rem;
 				color: #9aa0aa;
+			}
+			/* Sin esto la tarjeta no comunica que es clickeable — el :hover de .event-card no sirve de
+			   nada en mobile (no hay hover), que es la mayoría del tráfico público real. */
+			.event-cta {
+				display: inline-flex;
+				align-items: center;
+				gap: 0.3rem;
+				margin-top: 0.5rem;
+				font-size: 0.8rem;
+				font-weight: 700;
+				color: var(--app-accent-text-emphasis);
 			}
 		`,
 	],
